@@ -5,7 +5,8 @@ function glmFit(p::DensePred, r::GlmResp, maxIter::Uint, minStepFac::Float64, co
 
     devold = typemax(Float64)           # Float64 version of Inf
     for i=1:maxIter
-        dev = updateMu(r, linPred(updateBeta(p, wrkResp(r), sqrtWrkWt(r))))
+        updateBeta(p, wrkResp(r), sqrtWrkWt(r))
+        dev = updateMu(r, linPred(p))
         println("old: $devold, dev = $dev")
         if (dev >= devold)
             error("code needed to handle the step-factor case")

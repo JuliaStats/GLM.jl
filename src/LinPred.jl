@@ -1,55 +1,59 @@
 abstract LinPred                        # linear predictor for statistical models
-linPred(p::LinPred) = p.X * p.beta
+linPred(p::LinPred) = p.X * p.beta      # general calculation of the linear predictor
 
-type DensePred <: LinPred                   # predictor with dense X
-    X::Matrix{Float64}                  # model matrix
-    beta::Vector{Float64}               # coefficient vector
-    DensePred(Xi, bi) = size(Xi, 2)==size(bi, 1)? new(float64(Xi), float64(bi)) : error("dimension mismatch")
+type DensePred{T<:Number} <: LinPred    # predictor with dense X
+    X::Matrix{T}                        # model matrix
+    beta::Vector{T}                     # coefficient vector
+    qr::QR{T}
+    function DensePred(X::Matrix{T}, beta::Vector{T})
+        n, p = size(X)
+        if length(beta) != p error("dimension mismatch") end
+        new(X, beta, QR(X))
+    end
 end
 
 ## outer constructor
-DensePred(X::Matrix{Float64}) = DensePred(X, zeros(Float64,(size(X, 2),)))
+DensePred(X::Matrix{Float64}) = DensePred{Float64}(X, zeros(Float64,(size(X,2),)))
+DensePred{T<:Real}(X::Matrix{T}) = DensePred(float64(X))
 
 function updateBeta(p::DensePred, y::Vector{Float64}, sqrtwt::Vector{Float64})
-    p.beta, R, wrss = wtdLS(p.X, y, sqrtwt)
-    p
+    p.qr = QR(diagmm(sqrtwt, p.X))
+    p.beta = p.qr \ (sqrtwt .* y)
 end
 
-function wtdLS(X::StridedMatrix{Float64}, y::VecOrMat{Float64}, sqrtwt::Vector{Float64})
-    m, n  = size(X)
-    if (m != size(y, 1)) || (m != size(sqrtwt, 1)) error("Dimension mismatch") end
-    if m < n error("Underdetermined system (m < n)") end
-    
-    QR    = diagmm(sqrtwt, X)
-    qty   = diagmm(sqrtwt, isa(y, Vector) ? reshape(y, (size(y, 1), 1)) : y)
-    nrhs  = size(qty, 2)
-    work  = Array(Float64, 1)
-    lwork = int32(-1)
-    if 0 ==_jl_lapack_gels("N", m, n, nrhs, QR, stride(QR, 2), qty, m, work, lwork)
-        lwork = int32(work[1])
-        work  = Array(Float64, int(lwork))
-    else
-        error("error in LAPACK gels")
-    end
+At_mult_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 2, 1}) = Ac_mult_B(A, B)
 
-    if 0 != _jl_lapack_gels("N", m, n, nrhs, QR, m, qty, m, work, lwork)
-        error("error in LAPACK gels")
+function Ac_mult_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 2, 1})
+    if (all(procs(A) != procs(B)) || all(dist(A) != dist(B)))
+                                        # FIXME: B should be redistributed to match A
+        error("Arrays A and B must be distributed similarly")
     end
-    beta  = isa(y, Vector) ? reshape(qty[1:n,:], (n,)) : qty[1:n,:]
-    (beta, triu(QR[1:n,:]), [sum(qty[(n + 1):m, i].^2) for i=1:size(qty,2)])
+    if is(A, B)
+        return mapreduce(+, fetch, {@spawnat p _jl_syrk('T', localize(A)) for p in procs(A)})
+    end
+    mapreduce(+, fetch, {@spawnat p Ac_mult_B(localize(A), localize(B)) for p in procs(A)})
 end
 
-type DistPred <: LinPred                # predictor with distributed (on rows) X
-    X::DArray{Float64, 2, 1}            # model matrix
-    beta::Vector{Float64}               # coefficient vector
-    DistPred(Xi, bi) = size(Xi, 2)==size(bi, 1)? new(float64(Xi), float64(bi)) : error("dimension mismatch")
+function Ac_mult_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 1, 1})
+    if (all(procs(A) != procs(B)) || all(dist(A) != dist(B)))
+        # FIXME: B should be redistributed to match A
+        error("Arrays A and B must be distributed similarly")
+    end
+    mapreduce(+, fetch, {@spawnat p Ac_mult_B(localize(A), localize(B)) for p in procs(A)})
+end
+
+type DistPred{T} <: LinPred   # predictor with distributed (on rows) X
+    X::DArray{T, 2, 1}        # model matrix
+    beta::Vector{T}           # coefficient vector
+    r::Cholesky{T}
+    function DistPred(X, beta)
+        if size(X, 2) != length(beta) error("dimension mismatch") end
+        new(X, beta, Cholesky(X'*X))
+    end
 end
 
 function (\)(A::DArray{Float64,2,1}, B::DArray{Float64,1,1})
-    if (all(procs(A) != procs(B)) || all(dist(A) != dist(B)))
-        error("Arrays A and B must be distributed similarly")
-    end
-    R   = chol(mapreduce(+, fetch, {@spawnat p _jl_syrk('T', localize(A)) for p in procs(A)}))
+    R   = Cholesky(A' * A)              # done by _jl_dsyrk, see above
     AtB = A' * B
     n = size(A, 2)
     info = Array(Int32, 1)

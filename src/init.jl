@@ -1,9 +1,9 @@
 # Definitions of probability distributions and methods for them
-#load("base/distributions.jl")
 
-load("src/Link.jl")          # definition of link types and methods
-load("src/Distributions.jl") # need Link first for canonicalLink methods
-load("src/GlmResp.jl")
-load("src/LinPred.jl")
-load("src/glmFit.jl")
+require("Link.jl")          # definition of link types and methods
+require("Distributions.jl") # need Link first for canonicalLink methods
+require("GlmResp.jl")
+require("LinPred.jl")
+require("glmFit.jl")
+require("indicators.jl")
 
