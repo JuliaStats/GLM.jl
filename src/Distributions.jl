@@ -1,3 +1,5 @@
+require("distributions.jl")             # for definition of Distribution type
+
 ## Additional methods for Distribution types.
 ## These methods differ from methods in base/distribution.jl in that
 ## the mean, mu, is passed as a vector or Real to these methods.  The
