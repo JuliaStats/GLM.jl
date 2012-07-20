@@ -46,19 +46,34 @@ function xtabs{T}(x::AbstractArray{T})
     d
 end
 
-## Sparse indicator matrix of one or more vectors (indicators are concatenated)
-function spind{T}(x::AbstractVector{T})
+## dense or sparse matrix of indicators of the levels of a vector
+function indicators{T}(sparseX::Bool, x::AbstractVector{T})
     levs = unique(x, true)
-    d = Dict{T, Int32}()
-    for i in 1:length(levs) d[levs[i]] = i end
-    sparse(int32([1:length(x)]), ([d[el]::Int32 for el in x]), 1.), levs
+    nx   = length(x)
+    nlev = length(levs)
+    d    = Dict{T, Int}()
+    for i in 1:nlev d[levs[i]] = i end
+    ii   = 1:nx
+    jj   = [d[el] for el in x]
+    if sparseX return sparse(int32(ii), int32(jj), 1.), levs end
+    X    = zeros(nx, nlev)
+    for i in ii X[i, jj[i]] = 1. end
+    X, levs
 end
 
-function spind{T}(x::AbstractVector{T}...)
-    mm = map(spind, x)
+## default is dense indicators
+indicators{T}(x::AbstractVector{T}) = indicators(x, false)
+
+## indicators of multiple vectors
+function indicators{T}(x::AbstractVector{T}...)
+    mm = map(indicators, x)
     reduce(hcat, map(x->x[1], mm)), map(x->x[2], mm)
 end
 
+function indicators{T}(sparseX::Bool, x::AbstractVector{T}...)
+    mm = map(v -> indicators(v, sparseX), x)
+    reduce(hcat, map(x->x[1], mm)), map(x->x[2], mm)
+end
 
 function contr_treatment(n::Int, base::Int, contrasts::Bool, sparse::Bool)
     contr = sparse ? speye(n) : eye(n)
