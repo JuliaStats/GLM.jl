@@ -47,7 +47,7 @@ function xtabs{T}(x::AbstractArray{T})
 end
 
 ## dense or sparse matrix of indicators of the levels of a vector
-function indicators{T}(sparseX::Bool, x::AbstractVector{T})
+function indicators{T}(x::AbstractVector{T}, sparseX::Bool)
     levs = unique(x, true)
     nx   = length(x)
     nlev = length(levs)
@@ -63,17 +63,6 @@ end
 
 ## default is dense indicators
 indicators{T}(x::AbstractVector{T}) = indicators(x, false)
-
-## indicators of multiple vectors
-function indicators{T}(x::AbstractVector{T}...)
-    mm = map(indicators, x)
-    reduce(hcat, map(x->x[1], mm)), map(x->x[2], mm)
-end
-
-function indicators{T}(sparseX::Bool, x::AbstractVector{T}...)
-    mm = map(v -> indicators(v, sparseX), x)
-    reduce(hcat, map(x->x[1], mm)), map(x->x[2], mm)
-end
 
 function contr_treatment(n::Int, base::Int, contrasts::Bool, sparse::Bool)
     contr = sparse ? speye(n) : eye(n)
