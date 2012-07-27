@@ -1,19 +1,5 @@
 require("linalg_suitesparse.jl")
 
-## move this to linalg_suitesparse.jl, perhaps under another name
-function aat{Tv<:CHMVTypes,Ti<:CHMITypes}(A::SparseMatrixCSC{Tv,Ti})
-    cs = CholmodSparse(A, 0)
-    aa = CholmodPtr{Tv,Ti}(Array(Ptr{Void},1))
-    aa.val[1] = ccall(dlsym(_jl_libcholmod, :cholmod_aat), Ptr{Void},
-                  (Ptr{Void},Ptr{Int},Int32,Int32,Ptr{Void}),
-                  cs.pt.val[1], C_NULL, 0, 1, cs.cm.pt[1])
-    status = ccall(dlsym(_jl_libcholmod, :cholmod_sort), Int32,
-                   (Ptr{Void}, Ptr{Void}), aa.val[1], cs.cm.pt[1])
-    if status != 1 error("Error calling cholmod_l_sort") end
-    m  = size(A, 1)
-    CholmodSparseOut{Tv,Ti}(aa, m, m, cs.cm)
-end
-
 ## a mixed-effects representation for models with simple, scalar random effects only
 type diagMer{Tv<:CHMVTypes, Ti<:CHMITypes}
     Z::SparseMatrixCSC{Tv,Ti}
@@ -36,7 +22,7 @@ function diagMer{Tv<:CHMVTypes}(X::Matrix{Tv}, y::Vector{Tv}, factors::Vector...
     (I, J, V) = findn_nzs(X)
     Ti   = eltype(Z.colptr)
     ZXt  = hcat(Z, _jl_sparse_sorted!(convert(Vector{Ti},I), convert(Vector{Ti}, J), V, n, p, +))'
-    cs   = aat(ZXt)
+    cs   = chm_aat(ZXt)
     ind  = convert(Vector{Ti}, int(0:(q-1)))
     a    = Array(Ptr{Void}, 1)
     a[1] = ccall(dlsym(_jl_libcholmod, :cholmod_submatrix), Ptr{Void},
@@ -59,11 +45,13 @@ function diagMer{Tv<:CHMVTypes}(X::Matrix{Tv}, y::Vector{Tv}, factors::Vector...
                  (Ptr{Void}, Ptr{Void}), b, cs.cm.pt[1])
     if st != 1 error("CHOLMOD error in free_sparse") end
     pt   = CholmodPtr{Tv,Ti}(Array(Ptr{Void}, 1))
+    b[1] = ccall(dlsym(_jl_libcholmod, :cholmod_copy), Ptr{Void}, (Ptr{Void}, Int32, Int32, Ptr{Void}), cs.pt.val[1], 1, 1, cs.cm.pt[1])
+
     pt.val[1] = ccall(dlsym(_jl_libcholmod, :cholmod_analyze_p), Ptr{Void},
                       (Ptr{Void}, Ptr{Ti}, Ptr{Void}, Uint, Ptr{Void}),
-                      cs.pt.val[1], ord, C_NULL, 0, cs.cm.pt[1])
+                      b[1], ord, C_NULL, 0, cs.cm.pt[1])
     st   = ccall(dlsym(_jl_libcholmod, :cholmod_factorize), Int32,
-                 (Ptr{Void}, Ptr{Void}, Ptr{Void}), cs.pt.val[1], pt.val[1], cs.cm.pt[1])
+                 (Ptr{Void}, Ptr{Void}, Ptr{Void}), b[1], pt.val[1], cs.cm.pt[1])
     if st != 1 error("CHOLMOD failure in factorize") end
     return CholmodFactor{Tv,Ti}(pt, cs)
     diagMer{Tv,Ti}(Z, X, ones(Tv, length(levs)), Lind, CholmodFactor{Tv,Ti}(pt, cs), ZXt * y)
