@@ -21,39 +21,49 @@ function diagMer{Tv<:CHMVTypes}(X::Matrix{Tv}, y::Vector{Tv}, factors::Vector...
     p    = size(X, 2)
     (I, J, V) = findn_nzs(X)
     Ti   = eltype(Z.colptr)
+    println(Ti)
     ZXt  = hcat(Z, _jl_sparse_sorted!(convert(Vector{Ti},I), convert(Vector{Ti}, J), V, n, p, +))'
     cs   = chm_aat(ZXt)
+                                        # extract the q by q upper left submatrix
     ind  = convert(Vector{Ti}, int(0:(q-1)))
     a    = Array(Ptr{Void}, 1)
     a[1] = ccall(dlsym(_jl_libcholmod, :cholmod_submatrix), Ptr{Void},
                  (Ptr{Void}, Ptr{Int32}, Int, Ptr{Int32}, Int, Int32, Int32, Ptr{Void}),
                  cs.pt.val[1], ind, q, ind, q, 1, 1, cs.cm.pt[1])
+                                        # convert to (upper) symmetric storage
     b    = Array(Ptr{Void}, 1)
     b[1] = ccall(dlsym(_jl_libcholmod, :cholmod_copy), Ptr{Void},
                  (Ptr{Void}, Int32, Int32, Ptr{Void}), a[1], 1, 1, cs.cm.pt[1])
     st   = ccall(dlsym(_jl_libcholmod, :cholmod_free_sparse), Int32,
                  (Ptr{Void}, Ptr{Void}), a, cs.cm.pt[1])
     if st != 1 error("CHOLMOD error in free_sparse") end
+                                        # create the permutation vector with identity beyond q
     ord  = Array(Ti, q + p)
     ind  = q + (1:p)
     ord[ind] = ind - 1                  # 0-based indices
-    st   = ccall(dlsym(_jl_libcholmod, :cholmod_amd), Ti,
+                                        # use amd on q by q matrix
+    st   = ccall(dlsym(_jl_libcholmod, :cholmod_amd), Int32,
                  (Ptr{Void}, Ptr{Int32}, Uint, Ptr{Ti}, Ptr{Void}),
-                 b[1], int32(0:(q-1)), q, ord, cs.cm.pt[1])
+                 b[1], C_NULL, 0, ord, cs.cm.pt[1])
     if st != 1 error("CHOLMOD error in amd") end
+                                        # free the q by q matrix
     st   = ccall(dlsym(_jl_libcholmod, :cholmod_free_sparse), Int32,
                  (Ptr{Void}, Ptr{Void}), b, cs.cm.pt[1])
     if st != 1 error("CHOLMOD error in free_sparse") end
-    pt   = CholmodPtr{Tv,Ti}(Array(Ptr{Void}, 1))
-    b[1] = ccall(dlsym(_jl_libcholmod, :cholmod_copy), Ptr{Void}, (Ptr{Void}, Int32, Int32, Ptr{Void}), cs.pt.val[1], 1, 1, cs.cm.pt[1])
-
-    pt.val[1] = ccall(dlsym(_jl_libcholmod, :cholmod_analyze_p), Ptr{Void},
+    ptf   = CholmodPtr{Tv,Ti}(Array(Ptr{Void}, 1))
+    ptm   = CholmodPtr{Tv,Ti}(Array(Ptr{Void}, 1))    
+                                        # convert cs to (upper) symmetric storage
+    ptm.val[1] = ccall(dlsym(_jl_libcholmod, :cholmod_copy), Ptr{Void},
+                       (Ptr{Void}, Int32, Int32, Ptr{Void}), cs.pt.val[1], 1, 1, cs.cm.pt[1])
+                                        # Create CholmodFactor - FIXME: set nmethods = 1
+    ptf.val[1] = ccall(dlsym(_jl_libcholmod, :cholmod_analyze_p), Ptr{Void},
                       (Ptr{Void}, Ptr{Ti}, Ptr{Void}, Uint, Ptr{Void}),
-                      b[1], ord, C_NULL, 0, cs.cm.pt[1])
-    st   = ccall(dlsym(_jl_libcholmod, :cholmod_factorize), Int32,
-                 (Ptr{Void}, Ptr{Void}, Ptr{Void}), b[1], pt.val[1], cs.cm.pt[1])
-    if st != 1 error("CHOLMOD failure in factorize") end
-    return CholmodFactor{Tv,Ti}(pt, cs)
+                      ptm.val[1], ord, C_NULL, 0, cs.cm.pt[1])
+#    st   = ccall(dlsym(_jl_libcholmod, :cholmod_factorize), Int32,
+#                 (Ptr{Void}, Ptr{Void}, Ptr{Void}), b[1], pt.val[1], cs.cm.pt[1])
+#    if st != 1 error("CHOLMOD failure in factorize") end
+    bb  = CholmodSparse(SparseMatrixCSC(CholmodSparseOut(ptm, q+p, q+p, cs.cm)), 1, cs.cm)
+    return CholmodFactor{Tv,Ti}(ptf, bb)
     diagMer{Tv,Ti}(Z, X, ones(Tv, length(levs)), Lind, CholmodFactor{Tv,Ti}(pt, cs), ZXt * y)
 end
 
