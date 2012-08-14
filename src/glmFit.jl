@@ -24,3 +24,13 @@ end
 
 glmFit(p::DensePred, r::GlmResp) = glmFit(p, r, uint(30), 0.001, 1.e-6)
 
+function glm(f::Formula, df::DataFrame, d::Distribution, l::Link)
+    mm = model_matrix(f, df)
+    rr = GlmResp(d, l, vec(mm.response))
+    dp = DensePred(mm.model)
+    glmFit(dp, rr)
+end
+
+glm(f::Formula, df::DataFrame, d::Distribution) = glm(f, df, d, canonicalLink(d))
+
+glm(f::Expr, df::DataFrame, d::Distribution) = glm(Formula(f), df, d)
