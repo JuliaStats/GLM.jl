@@ -1,5 +1,7 @@
 require("linalg_suitesparse.jl")
 
+module MixedEffects
+import Base.*
 ## a mixed-effects representation for models with simple, scalar random effects only
 type diagMer{Tv<:CHMVTypes, Ti<:CHMITypes}
     Z::SparseMatrixCSC{Tv,Ti}
@@ -98,3 +100,5 @@ pattern(A::SparseMatrixCSC) = pattern(stdout_stream, A)
     
 pattern(io::IO, A::CholmodSparseOut) = pattern(io, SparseMatrixCSC(A))
 pattern(A::CholmodSparseOut) = pattern(stdout_stream, SparseMatrixCSC(A))
+
+end #module
