@@ -4,11 +4,11 @@ linPred(p::LinPred) = p.X * p.beta      # general calculation of the linear pred
 type DensePred{T<:Number} <: LinPred    # predictor with dense X
     X::Matrix{T}                        # model matrix
     beta::Vector{T}                     # coefficient vector
-    qr::QR{T}
+    qr::QRDense{T}
     function DensePred(X::Matrix{T}, beta::Vector{T})
         n, p = size(X)
         if length(beta) != p error("dimension mismatch") end
-        new(X, beta, QR(X))
+        new(X, beta, qr(X))
     end
 end
 
@@ -17,7 +17,7 @@ DensePred(X::Matrix{Float64}) = DensePred{Float64}(X, zeros(Float64,(size(X,2),)
 DensePred{T<:Real}(X::Matrix{T}) = DensePred(float64(X))
 
 function updateBeta(p::DensePred, y::Vector{Float64}, sqrtwt::Vector{Float64})
-    p.qr = QR(diagmm(sqrtwt, p.X))
+    p.qr = qr(diagmm(sqrtwt, p.X))
     p.beta = p.qr \ (sqrtwt .* y)
 end
 
@@ -45,15 +45,15 @@ end
 type DistPred{T} <: LinPred   # predictor with distributed (on rows) X
     X::DArray{T, 2, 1}        # model matrix
     beta::Vector{T}           # coefficient vector
-    r::Cholesky{T}
+    r::CholeskyDense{T}
     function DistPred(X, beta)
         if size(X, 2) != length(beta) error("dimension mismatch") end
-        new(X, beta, Cholesky(X'*X))
+        new(X, beta, CholeskyDense(X'*X))
     end
 end
 
 function (\)(A::DArray{Float64,2,1}, B::DArray{Float64,1,1})
-    R   = Cholesky(A' * A)              # done by _jl_dsyrk, see above
+    R   = CholeskyDense(A' * A)              # done by _jl_dsyrk, see above
     AtB = A' * B
     n = size(A, 2)
     info = Array(Int32, 1)
