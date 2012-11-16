@@ -9,9 +9,15 @@ using Glm
 
 This will soon change when ```Glm.jl``` becomes a Julia package.
 
-The `glmfit` function in this package fits generalized linear models with the Iteratively Reweighted Least Squares (IRLS) algorithm.  It is closer to the R function glm.fit than to R's glm in that the user is required to specify the model matrix as a matrixm, rather than in a formula/data specification.
+The `glmfit` function in this package fits generalized linear models
+with the Iteratively Reweighted Least Squares (IRLS) algorithm.  It is
+closer to the R function ```glm.fit``` than to R's ```glm``` in that
+the user is required to specify the model matrix explicitly, rather
+than implicitly in a formula/data specification.
 
-A `GlmResp` object is created from the response vector, distribution and, optionally, the link.  The available distributions and their canonical link functions are
+A `GlmResp` object is created from the response vector, distribution
+and, optionally, the link.  The available distributions and their
+canonical link functions are
 
     Bernoulli (LogitLink)
     Poisson (LogLink)
