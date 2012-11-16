@@ -5,10 +5,10 @@ if false                                # need DataFrame package and formulas
         x2 = [1, 1, 1, 2, 2, 2, 3, 3, 3]
     end)
 
-    glm(:(y ~ x1 + x2), df, Poisson())
+    glm(:(y ~ x1 + x2), df, Poisson())  # this needs to have x1 and x2 be factors
 end
 
-require("/home/bates/gitJ/Glm/src/Glm.jl")
+#require("/home/bates/gitJ/Glm/src/Glm.jl")
 using Distributions
 using Glm
 srand(1234321)
@@ -22,6 +22,16 @@ rr = GlmResp(Bernoulli(), y)
 glmfit(pp, rr)
 println("Estimates: $(pp.beta')")
 println("Deviance:  $(deviance(rr))")
+
+## A large simulated example
+mu = rand(1_000_000)
+rr = GlmResp(Bernoulli(), [rand() < m ? 1. : 0. for m in mu])
+pp = DensePredChol(hcat(ones(Float64, size(mu)), randn(size(mu,1), 39)))
+glmfit(pp, rr)
+## redo for timing
+pp.beta[:] = 0.
+rr = GlmResp(Bernoulli(), rr.y)
+println(@elapsed glmfit(pp,rr))
 
 ## Example from Dobson (1990), Page 93, Randomized Clinical Trial
 rr = GlmResp(Poisson(), [18.,17,15,20,10,20,25,13,12])

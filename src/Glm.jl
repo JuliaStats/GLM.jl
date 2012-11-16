@@ -307,14 +307,15 @@ function glmfit(p::DensePred, r::GlmResp, maxIter::Integer, minStepFac::Float64,
     devold = Inf
     for i=1:maxIter
         updatebeta(p, wrkresp(r), sqrtwrkwt(r))
-        dev = updatemu(r, linpred(p))
-        println("old: $devold, dev = $dev")
-        if (dev >= devold)
-            error("code needed to handle the step-factor case")
-        end
-        if abs((devold - dev)/dev) < convTol
+        dev  = updatemu(r, linpred(p))
+        crit = (devold - dev)/dev
+        println("$i: $dev, $crit")
+        if abs(crit) < convTol
             cvg = true
             break
+        end
+        if (dev >= devold)
+            error("code needed to handle the step-factor case")
         end
         devold = dev
     end

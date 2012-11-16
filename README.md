@@ -43,10 +43,10 @@ At present the model matrix must be generated in the following awkward way
 
 and the fit is
 
-    julia> glmfit(pp, rr)
-	old: Inf, dev = 46.81189638788046
-	old: 46.81189638788046, dev = 46.76132443472076
-	old: 46.76132443472076, dev = 46.761318401957794
+	julia> glmfit(pp, rr)  # output is iteration: deviance, convergence criterion
+	1: 46.81189638788046, Inf
+	2: 46.76132443472076, 0.0010814910349747592
+	3: 46.761318401957794, 1.2901182375636843e-7
 
 	julia> pp.beta
 	5-element Float64 Array:
