@@ -2,11 +2,14 @@
 
 To use the package, clone this repository and, in Julia, run
 ```julia
-push(LOAD_PATH, "/path/to/repository/src/")
-require("init.jl")
+require("/path/to/repository/src/Glm.jl")
+using Distributions
+using Glm
 ```
 
-The `glmFit` function in this package fits generalized linear models with the Iteratively Reweighted Least Squares (IRLS) algorithm.  It is closer to the R function glm.fit than to R's glm in that the user is required to specify the model matrix as a matrixm, rather than in a formula/data specification.
+This will soon change when ```Glm.jl``` becomes a Julia package.
+
+The `glmfit` function in this package fits generalized linear models with the Iteratively Reweighted Least Squares (IRLS) algorithm.  It is closer to the R function glm.fit than to R's glm in that the user is required to specify the model matrix as a matrixm, rather than in a formula/data specification.
 
 A `GlmResp` object is created from the response vector, distribution and, optionally, the link.  The available distributions and their canonical link functions are
 
@@ -29,13 +32,31 @@ The response in the example on p. 93 of Dobson (1990) would be written
 
 At present the model matrix must be generated in the following awkward way
 
-    X = float64([1 0 0 0 0; 1 1 0 0 0; 1 0 1 0 0; 1 0 0 1 0; 1 1 0 1 0; 1 0 1 1 0; 1 0 0 0 1; 1 1 0 0 1; 1 0 1 0 1])
+	ct3 = contr_treatment(3)
+	pp = DensePredQR(hcat(ones(Float64,9), indicators(gl(3,1,9))[1]*ct3, indicators(gl(3,3))[1]*ct3))
 
 and the fit is
 
-    d = DensePred(X)
-    glmFit(d, rr)
-    d.beta
-    deviance(rr)
+    julia> glmfit(pp, rr)
+	old: Inf, dev = 46.81189638788046
+	old: 46.81189638788046, dev = 46.76132443472076
+	old: 46.76132443472076, dev = 46.761318401957794
 
+	julia> pp.beta
+	5-element Float64 Array:
+	 3.04452   
+	-0.454255  
+    -0.292987  
+     1.92349e-8
+     8.38339e-9
 
+	julia> deviance(rr)
+	46.761318401957794
+
+There are two dense predictor representations, ```DensePredQR``` and
+```DensePredChol```, and the usual caveats apply.  The Cholesky
+version is faster but somewhat less accurate than that QR version.
+The skeleton of a distributed predictor representation is in the code
+but not yet fully fleshed out.
+
+Other examples are shown in ```test/glmFit.jl```.
