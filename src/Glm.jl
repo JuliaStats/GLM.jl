@@ -1,10 +1,12 @@
 require("Distributions.jl")
+require("sparse.jl")
 
 module Glm
 
 using Base
 using Distributions
 
+import Base.\
 import Distributions.deviance, Distributions.devresid
 import Distributions.var
 
@@ -26,18 +28,25 @@ export                                  # types
     ProbitLink,
                                         # functions
     canonicallink,
+    contr_treatment,# treatment contrasts
     drsum,          # sum of squared deviance residuals
     glmfit,
+    gl,             # generate levels
+    indicators,     # generate dense or sparse indicator matrices
     linkfun,        # link function mapping mu to eta, the linear predictor
     linkinv,        # inverse link mapping eta to mu
+    linpred,        # linear predictor
     mueta,          # derivative of inverse link function
     sqrtwrkwt,      # square root of the working weights
+    unique,         # a one-liner provided by Jeff Bezanson
     updatebeta,
     updatemu,
     valideta,       # validity check on linear predictor
     validmu,        # validity check on mean vector
     wrkresid,       # working residuals
-    wrkresp         # working response
+    wrkresp,        # working response
+    xtab,           # cross-tabulation
+    xtabs           # another cross-tabulation
 
 abstract Link                           # Link types define linkfun, linkinv, mueta,
                                         # valideta and validmu.
@@ -197,9 +206,9 @@ wrkresid( r::GlmResp) = (r.y - r.mu) ./ mueta(r)
 wrkresp(  r::GlmResp) = (r.eta - r.offset) + wrkresid(r)
 
 abstract LinPred                        # linear predictor for statistical models
-abstract DensePred <: LinPred        # linear predictor with dense X
+abstract DensePred <: LinPred           # linear predictor with dense X
 
-linPred(p::LinPred) = p.X * p.beta      # general calculation of the linear predictor
+linpred(p::LinPred) = p.X * p.beta      # general calculation of the linear predictor
 
 type DensePredQR <: DensePred
     X::Matrix{Float64}                  # model matrix
@@ -232,6 +241,16 @@ DensePredChol{T<:Real}(X::Matrix{T}) = DensePredChol(float64(X))
 function updatebeta(p::DensePredQR, y::Vector{Float64}, sqrtwt::Vector{Float64})
     p.qr = qrd(diagmm(sqrtwt, p.X))
     p.beta[:] = p.qr \ (sqrtwt .* y)
+end
+
+function updatebeta(p::DensePredChol, y::Vector{Float64}, sqrtwt::Vector{Float64})
+    WX = diagmm(sqrtwt, p.X)
+    fac = LAPACK.potrf!('U', BLAS.syrk('U', 'T', 1.0, WX))
+    if fac[2] != 0
+        error("Singularity detected at column $(fac[2]) of weighted model matrix")
+    end
+    p.chol.LR[:] = fac[1]
+    p.beta[:] = p.chol \ (WX'*(sqrtwt .* y))
 end
 
 At_mult_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 2, 1}) = Ac_mult_B(A, B)
@@ -288,7 +307,7 @@ function glmfit(p::DensePred, r::GlmResp, maxIter::Integer, minStepFac::Float64,
     devold = Inf
     for i=1:maxIter
         updatebeta(p, wrkresp(r), sqrtwrkwt(r))
-        dev = updatemu(r, linPred(p))
+        dev = updatemu(r, linpred(p))
         println("old: $devold, dev = $dev")
         if (dev >= devold)
             error("code needed to handle the step-factor case")
@@ -310,7 +329,7 @@ if false
     function glm(f::Formula, df::DataFrame, d::Distribution, l::Link)
         mm = model_matrix(f, df)
         rr = GlmResp(d, l, vec(mm.response))
-        dp = DensePred(mm.model)
+        dp = DensePredQR(mm.model)
         glmfit(dp, rr)
     end
 
@@ -318,5 +337,75 @@ if false
     
     glm(f::Expr, df::DataFrame, d::Distribution) = glm(Formula(f), df, d)
 end
+
+# Generate levels - see the R documentation for gl
+function gl(n::Integer, k::Integer, l::Integer)
+    nk = n * k
+    if l % nk != 0 error("length out must be a multiple of n * k") end
+    aa = Array(Int, l)
+    for j = 0:(l/nk - 1), i = 1:n
+        aa[j * nk + (i - 1) * k + (1:k)] = i
+    end
+    aa
+end
+
+gl(n::Integer, k::Integer) = gl(n, k, n*k)
+
+unique(x) = elements(Set(x...))
+
+# A cross-tabulation type.  Probably not a good design.
+# Actually, this is just a one-way table
+type xtab{T}
+    vals::Array{T}
+    counts::Array{Int, 1}
+end
+
+function xtab{T}(x::AbstractArray{T})
+    d = Dict{T, Int}()
+    for el in x d[el] = has(d, el) ? d[el] + 1 : 1 end
+    kk = sort(keys(d))
+    cc = Array(Int, numel(kk))
+    for i in 1:numel(kk) cc[i] = d[kk[i]] end
+    xtab(kk, cc)
+end
+
+# Another cross-tabulation function, this one leaves the result as a Dict
+# Again, this is currently just for one-way tables.
+function xtabs{T}(x::AbstractArray{T})
+    d = Dict{T, length(x) > typemax(Int32) ? Int : Int32}()
+    for el in x d[el] = has(d, el) ? d[el] + 1 : 1 end
+    d
+end
+
+## dense or sparse matrix of indicators of the levels of a vector
+function indicators{T}(x::AbstractVector{T}, sparseX::Bool)
+    levs = sort!(unique(x))
+    nx   = length(x)
+    nlev = length(levs)
+    d    = Dict{T, Int}()
+    for i in 1:nlev d[levs[i]] = i end
+    ii   = 1:nx
+    jj   = [d[el] for el in x]
+    if sparseX return sparse(int32(ii), int32(jj), 1.), levs end
+    X    = zeros(nx, nlev)
+    for i in ii X[i, jj[i]] = 1. end
+    X, levs
+end
+
+## default is dense indicators
+indicators{T}(x::AbstractVector{T}) = indicators(x, false)
+
+function contr_treatment(n::Int, base::Int, contrasts::Bool, sparse::Bool)
+    contr = sparse ? speye(n) : eye(n)
+    if !contrasts return contr end
+    if n < 2
+        error(sprintf("contrasts not defined for %d degrees of freedom", n - 1))
+    end
+    contr[:, [1:(base-1), (base+1):n]]
+end
+
+contr_treatment(n::Int, base::Int, contrasts::Bool) = contr_treatment(n, base, contrasts, false)
+contr_treatment(n::Int, base::Int) = contr_treatment(n, base, true, false)
+contr_treatment(n::Int) = contr_treatment(n, 1, true, false)
 
 end # module
