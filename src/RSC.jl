@@ -49,7 +49,6 @@ function tcrossprod!(A::SparseMatrixRSC, C::SparseMatrixCSC)
     k,j = size(C)
     if j != k error("C must be square but size(C) is $(size(C))") end
     if j != m error("Dimension mismatch") end
-    C.nzval[:] = zero(eltype(C))
     Cx = C.nzval
     Cr = C.rowval
     Cc = C.colptr
@@ -72,7 +71,7 @@ function tcrossprod!(A::SparseMatrixRSC, C::SparseMatrixCSC)
     C
 end
 
-function tcrossprodPat{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti})
+function tcrossprodPat{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti}, dd)
     m,n = size(A)
     Ar  = A.rowval
     kk  = size(Ar,1)
@@ -89,5 +88,20 @@ function tcrossprodPat{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti})
     end
     colptr = one(Ti) + vcat(zero(Ti), cumsum([convert(Ti,length(s)) for s in vv]))
     rowval = mapreduce(vcat, s->sort!(elements(s)), vv)
-    SparseMatrixCSC{Tv,Ti}(m, m, colptr, rowval, zeros(Tv, (length(rowval,))))
+    aat = SparseMatrixCSC{Tv,Ti}(m, m, colptr, rowval, zeros(Tv, (length(rowval,))))
+    for d in dd, i in colptr[d]:(colptr[d+1] - 1)
+        if rowval[i] == d
+            aat.nzval[i] = one(Tv)
+            break
+        end
+    end
+    aat
 end
+
+tcrossprodPat{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti}) = tcrossprodPat(A, Array(Ti, (0,)))
+
+## DyeStuff example from the lme4 package for R
+#ZXt = SparseMatrixRSC(int32(hcat(Glm.gl(6,5), 7.*ones(Int, 30)))',
+#                      ones(Float64,(2,30)))
+#ZXtZX = tcrossprodPat(ZXt,1:6)
+#tcrossprod!(ZXt, copy(ZXtZX))
