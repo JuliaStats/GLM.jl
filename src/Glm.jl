@@ -1,5 +1,5 @@
-require("Distributions.jl")
-require("sparse.jl")
+require("Distributions")
+require("sparse")
 
 module Glm
 
@@ -125,7 +125,9 @@ canonicallink(d::Normal)    = IdentityLink()
 canonicallink(d::Bernoulli) = LogitLink()
 canonicallink(d::Poisson)   = LogLink()
 
-type GlmResp                            # response in a glm model
+abstract ModResp                      # model response
+
+type GlmResp <: ModResp               # response in a glm model
     d::Distribution                  
     l::Link
     eta::Vector{Float64}              # linear predictor
