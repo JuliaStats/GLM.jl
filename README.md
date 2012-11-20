@@ -72,8 +72,7 @@ Other examples are shown in ```test/glmFit.jl```.
 The general approach in this code is to separate functionality related
 to the response from that related to the linear predictor.  This
 allows for greater generality by mixing and matching different
-subtypes of the abstract type ```LinPred``` and the abstract type
-```ModResp```.
+subtypes of the abstract type ```LinPred``` and the abstract type ```ModResp```.
 
 A ```LinPred``` type incorporates the parameter vector and the model
 matrix.  The parameter vector is a dense numeric vector but the model
