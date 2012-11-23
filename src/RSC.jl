@@ -7,7 +7,7 @@
 require("sparse.jl")
 import Base.*                           # to define a new method
 
-type SparseMatrixRSC{Tv,Ti<:Union(Int32,Int64)} <: AbstractMatrix{Tv}
+type SparseMatrixRSC{Tv,Ti<:Union(Int32,Int64)} <: AbstractSparseMatrix{Tv,Ti}
     m::Int                              # number of rows
     rowval::Matrix{Ti}                  # row indices of nonzeros
     nzval::Matrix{Tv}                   # nonzero values
@@ -25,7 +25,6 @@ function SparseMatrixRSC(rowval::Matrix,nzval::Matrix)
     SparseMatrixRSC{eltype(nzval),eltype(rowval)}(rowval,nzval)
 end
 
-issparse(A::SparseMatrixRSC) = true
 nnz(A::SparseMatrixRSC) = numel(A.nzval)
 
 size(A::SparseMatrixRSC) = (A.m, size(A.nzval,2))
@@ -107,13 +106,12 @@ end
 tcrossprodPat{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti}) = tcrossprodPat(A, Array(Ti, (0,)))
 
 ## DyeStuff example from the lme4 package for R
-#ZXt = SparseMatrixRSC(int32(hcat(Glm.gl(6,5), 7.*ones(Int, 30)))',
-#                      ones(Float64,(2,30)))
+#ZXt = SparseMatrixRSC(int32(hcat(Glm.gl(6,5), 7.*ones(Int, 30)))', ones(Float64,(2,30)))
 #ZXtZX = tcrossprodPat(ZXt,1:6)
 #tcrossprod!(ZXt, copy(ZXtZX))
 #Yield = float([1545, 1440, 1440, 1520, 1580, 1540, 1555, 1490, 1560, 1495, 1595, 1550, 1605, 1510, 1560, 1445, 1440, 1595, 1465, 1545, 1595, 1630, 1515, 1635, 1625, 1520, 1455, 1450, 1480, 1445])
 
-function scale!{Tv,Ti}(sc::Vector{Tv}, A::SparseMatrixRSC{Tv,Ti})
+function scale!{T}(sc::Vector{T}, A::SparseMatrixRSC{T})
     if length(sc) != size(A.nzval, 1) error("Dimension mismatch") end
     diagmm!(A.nzval, sc, A.nzval)
     A
