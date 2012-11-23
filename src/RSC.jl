@@ -5,6 +5,7 @@
 ## column be constant.  The row indices should be sorted within columns
 
 require("sparse.jl")
+import Base.*                           # to define a new method
 
 type SparseMatrixRSC{Tv,Ti<:Union(Int32,Int64)} <: AbstractMatrix{Tv}
     m::Int                              # number of rows
@@ -27,9 +28,10 @@ end
 issparse(A::SparseMatrixRSC) = true
 nnz(A::SparseMatrixRSC) = numel(A.nzval)
 
-size{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti}) = (A.m, size(A.nzval,2))
-size{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti},d) = d == 1 ? A.m : size(A.nzval,d)
-copy(A::SparseMatrixRSC) = SparseMatrixRSC(A.m, copy(A.rowval), copy(A.nzval))
+size(A::SparseMatrixRSC) = (A.m, size(A.nzval,2))
+size(A::SparseMatrixRSC,d) = d == 1 ? A.m : size(A.nzval,d)
+copy(A::SparseMatrixRSC) = SparseMatrixRSC(copy(A.rowval), copy(A.nzval))
+
 function convert{Tv,Ti}(::Type{SparseMatrixCSC}, x::SparseMatrixRSC{Tv,Ti})
     k,n = size(x.rowval)
     m   = int(max(x.rowval))
@@ -42,7 +44,11 @@ end
 
 convert{Tv}(::Type{Matrix}, x::SparseMatrixRSC{Tv}) = convert(Matrix{Tv}, convert(SparseMatrixCSC, x))
 
-show(io, A::SparseMatrixRSC) = show(io, convert(SparseMatrixCSC, A))
+function show(io, A::SparseMatrixRSC)
+    println(io, "$(A.m) by $(size(A.nzval, 2)) regular sparse column matrix")
+    println(io, "Row indices: ", A.rowval)
+    print(io, "Non-zero values: ", A.nzval)
+end
 
 function tcrossprod!(A::SparseMatrixRSC, C::SparseMatrixCSC)
     m,n = size(A)
@@ -105,3 +111,25 @@ tcrossprodPat{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti}) = tcrossprodPat(A, Array(Ti, (0,
 #                      ones(Float64,(2,30)))
 #ZXtZX = tcrossprodPat(ZXt,1:6)
 #tcrossprod!(ZXt, copy(ZXtZX))
+#Yield = float([1545, 1440, 1440, 1520, 1580, 1540, 1555, 1490, 1560, 1495, 1595, 1550, 1605, 1510, 1560, 1445, 1440, 1595, 1465, 1545, 1595, 1630, 1515, 1635, 1625, 1520, 1455, 1450, 1480, 1445])
+
+function scale!{Tv,Ti}(sc::Vector{Tv}, A::SparseMatrixRSC{Tv,Ti})
+    if length(sc) != size(A.nzval, 1) error("Dimension mismatch") end
+    diagmm!(A.nzval, sc, A.nzval)
+    A
+end
+
+function *{T}(A::SparseMatrixRSC{T}, v::Vector{T})
+    m,n = size(A)
+    if length(v) != n error("Dimension mismatch") end
+    rv  = A.rowval
+    nv  = A.nzval
+    k   = size(nv, 1)
+    res = zeros(T, m)
+    for j in 1:n, i in 1:k
+        res[rv[i,j]] += v[j] * nv[i,j]
+    end
+    res
+end
+
+
