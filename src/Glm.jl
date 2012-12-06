@@ -3,7 +3,6 @@ require("sparse")
 
 module Glm
 
-using Base
 using Distributions
 
 import Base.\
