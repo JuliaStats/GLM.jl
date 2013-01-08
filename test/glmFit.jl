@@ -1,16 +1,14 @@
-if false                                # need DataFrame package and formulas
-    df = DataFrame(quote
-        y  = [18.,17,15,20,10,20,25,13,12]
-        x1 = [1, 2, 3, 1, 2, 3, 1, 2, 3]
-        x2 = [1, 1, 1, 2, 2, 2, 3, 3, 3]
-    end)
+load("Glm")
+using DataFrames, Distributions, Glm
 
-    glm(:(y ~ x1 + x2), df, Poisson())  # this needs to have x1 and x2 be factors
-end
+df = DataFrame(quote
+    counts  = [18.,17,15,20,10,20,25,13,12]
+    outcome = PooledDataVector([1, 2, 3, 1, 2, 3, 1, 2, 3])
+    treatment = PooledDataVector([1, 1, 1, 2, 2, 2, 3, 3, 3])
+end)
 
-#require("/home/bates/gitJ/Glm/src/Glm.jl")
-using Distributions
-using Glm
+glm(:(counts ~ outcome + treatment), df, Poisson())
+
 srand(1234321)
 mu = rand(1000)
 y  = [rand() < m ? 1. : 0. for m in mu]

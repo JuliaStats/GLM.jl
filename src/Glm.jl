@@ -1,128 +1,37 @@
-require("Distributions")
-require("sparse")
-
 module Glm
 
+load("Distributions")
 using Distributions
 
-import Base.\
-import Distributions.deviance, Distributions.devresid
-import Distributions.var
+load("DataFrames")
+using DataFrames
+
+import Base.\, Base.size
+import Distributions.deviance, Distributions.mueta, Distributions.var
 
 export                                  # types
-    CauchitLink,
-    CloglogLink,
     DGlmResp,                           # distributed GlmResp
     DensePred,
     DensePredQR,
     DensePredChol,
     DistPred,
     GlmResp,
-    IdentityLink,
-    InverseLink,
-    Link,
     LinPred,
-    LogitLink,
-    LogLink,
-    ProbitLink,
                                         # functions
-    canonicallink,
     contr_treatment,# treatment contrasts
     drsum,          # sum of squared deviance residuals
-    glmfit,
     gl,             # generate levels
+    glm,            # general interface
+    glmfit,         # underlying workhorse
     indicators,     # generate dense or sparse indicator matrices
-    linkfun,        # link function mapping mu to eta, the linear predictor
-    linkinv,        # inverse link mapping eta to mu
     linpred,        # linear predictor
-    mueta,          # derivative of inverse link function
     sqrtwrkwt,      # square root of the working weights
-    unique,         # a one-liner provided by Jeff Bezanson
     updatebeta,
     updatemu,
-    valideta,       # validity check on linear predictor
-    validmu,        # validity check on mean vector
     wrkresid,       # working residuals
     wrkresp,        # working response
     xtab,           # cross-tabulation
     xtabs           # another cross-tabulation
-
-abstract Link                           # Link types define linkfun, linkinv, mueta,
-                                        # valideta and validmu.
-
-const llmaxabs = log(-log(realmin(Float64)))
-
-chkpositive(x::Real) = isfinite(x) && 0. < x ? x : error("argument must be positive")
-chkfinite(x::Real) = isfinite(x) ? x : error("argument must be finite")
-chk01(x::Real) = 0. < x < 1. ? x : error("argument must be in (0, 1)")
-
-type CauchitLink  <: Link end
-linkfun (l::CauchitLink,   mu::Real) = tan(pi * (mu - 0.5))
-linkinv (l::CauchitLink,  eta::Real) = 0.5 + atan(eta) / pi
-mueta   (l::CauchitLink,  eta::Real) = 1. /(pi * (1 + eta * eta))
-valideta(l::CauchitLink,  eta::Real) = chkfinite(eta)
-validmu (l::CauchitLink,   mu::Real) = chk01(mu)
-
-type CloglogLink  <: Link end
-linkfun (l::CloglogLink,   mu::Real) = log(-log(1. - mu))
-linkinv (l::CloglogLink,  eta::Real) = -expm1(-exp(eta))
-mueta   (l::CloglogLink,  eta::Real) = exp(eta) * exp(-exp(eta))
-valideta(l::CloglogLink,  eta::Real) = abs(eta) < llmaxabs? eta: error("require abs(eta) < $llmaxab")
-validmu (l::CauchitLink,   mu::Real) = chk01(mu)
-
-type IdentityLink <: Link end
-linkfun (l::IdentityLink,  mu::Real) = mu
-linkinv (l::IdentityLink, eta::Real) = eta
-mueta   (l::IdentityLink, eta::Real) = 1.
-valideta(l::IdentityLink, eta::Real) = chkfinite(eta)
-validmu (l::IdentityLink,  mu::Real) = chkfinite(mu)
-
-type InverseLink  <: Link end
-linkfun (l::InverseLink,   mu::Real) =  1. / mu
-linkinv (l::InverseLink,  eta::Real) =  1. / eta
-mueta   (l::InverseLink,  eta::Real) = -1. / (eta * eta)
-valideta(l::InverseLink,  eta::Real) = chkpositive(eta)
-validmu (l::InverseLink,  eta::Real) = chkpositive(mu)
-
-type LogitLink    <: Link end
-linkfun (l::LogitLink,     mu::Real) = log(mu / (1 - mu))
-linkinv (l::LogitLink,    eta::Real) = 1. / (1. + exp(-eta))
-mueta   (l::LogitLink,    eta::Real) = (e = exp(-abs(eta)); f = 1. + e; e / (f * f))
-valideta(l::LogitLink,    eta::Real) = chkfinite(eta)
-validmu (l::LogitLink,     mu::Real) = chk01(mu)
-
-type LogLink      <: Link end
-linkfun (l::LogLink,       mu::Real) = log(mu)
-linkinv (l::LogLink,      eta::Real) = exp(eta)
-mueta   (l::LogLink,      eta::Real) = exp(eta)
-valideta(l::LogLink,      eta::Real) = chkfinite(eta)
-validmu (l::LogLink,       mu::Real) = chkfinite(mu)
-
-type ProbitLink   <: Link end
-linkfun (l::ProbitLink,    mu::Real) =
-    ccall(dlsym(_jl_libRmath, :qnorm5), Float64,
-          (Float64,Float64,Float64,Int32,Int32), mu, 0., 1., 1, 0)
-linkinv (l::ProbitLink,   eta::Real) = (1. + erf(eta/sqrt(2.))) / 2.
-mueta   (l::ProbitLink,   eta::Real) = exp(-0.5eta^2) / sqrt(2.pi)
-valideta(l::ProbitLink,   eta::Real) = chkfinite(eta)
-validmu (l::ProbitLink,    mu::Real) = chk01(mu)
-                                        # Vectorized methods, including validity checks
-function linkfun{T<:Real}(l::Link, mu::AbstractArray{T})
-    [linkfun(l, validmu(l, m)) for m in mu]
-end
-
-function linkinv{T<:Real}(l::Link, eta::AbstractArray{T})
-    [linkinv(l, valideta(l, et)) for et in eta]
-end
-
-function mueta{T<:Real}(l::Link, eta::AbstractArray{T})
-    [mueta(l, valideta(l, et)) for et in eta]
-end
-
-canonicallink(d::Gamma)     = InverseLink()
-canonicallink(d::Normal)    = IdentityLink()
-canonicallink(d::Bernoulli) = LogitLink()
-canonicallink(d::Poisson)   = LogLink()
 
 abstract ModResp                      # model response
 
@@ -291,7 +200,7 @@ function (\)(A::DArray{Float64,2,1}, B::DArray{Float64,1,1})
     n = size(A, 2)
     info = Array(Int32, 1)
     one = 1
-    ccall(dlsym(_jl_liblapack, :dpotrs_), Void,
+    ccall((:dpotrs_,:liblapack), Void,
           (Ptr{Uint8}, Ptr{Int32}, Ptr{Int32}, Ptr{Float64}, Ptr{Int32},
           Ptr{Float64}, Ptr{Int32}, Ptr{Int32}),
           "U", &n, &one, R, &n, AtB, &n, info)
@@ -327,18 +236,16 @@ end
 
 glmfit(p::DensePred, r::GlmResp) = glmfit(p, r, uint(30), 0.001, 1.e-6)
 
-if false
-    function glm(f::Formula, df::DataFrame, d::Distribution, l::Link)
-        mm = model_matrix(f, df)
-        rr = GlmResp(d, l, vec(mm.response))
-        dp = DensePredQR(mm.model)
-        glmfit(dp, rr)
-    end
-
-    glm(f::Formula, df::DataFrame, d::Distribution) = glm(f, df, d, canonicalLink(d))
-    
-    glm(f::Expr, df::DataFrame, d::Distribution) = glm(Formula(f), df, d)
+function glm(f::Formula, df::DataFrame, d::Distribution, l::Link)
+    mm = model_matrix(f, df)
+    rr = GlmResp(d, l, vec(mm.response))
+    dp = DensePredQR(mm.model)
+    glmfit(dp, rr)
 end
+
+glm(f::Formula, df::DataFrame, d::Distribution) = glm(f, df, d, canonicallink(d))
+    
+glm(f::Expr, df::DataFrame, d::Distribution) = glm(Formula(f), df, d)
 
 # Generate levels - see the R documentation for gl
 function gl(n::Integer, k::Integer, l::Integer)
@@ -352,8 +259,6 @@ function gl(n::Integer, k::Integer, l::Integer)
 end
 
 gl(n::Integer, k::Integer) = gl(n, k, n*k)
-
-unique(x) = elements(Set(x...))
 
 # A cross-tabulation type.  Probably not a good design.
 # Actually, this is just a one-way table

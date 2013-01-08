@@ -1,13 +1,17 @@
 # Generalized linear models (glm's) in Julia
 
-To use the package, clone this repository and, in Julia, run
+To install the package run (in Julia)
 ```julia
-require("/path/to/repository/src/Glm.jl")
-using Distributions
-using Glm
+load("pkg")
+Pkg.add("Glm")
 ```
 
-This will soon change when ```Glm.jl``` becomes a Julia package.
+Once the package has been installed use
+```julia
+load("Glm")
+using Glm, Distributions
+```
+to access the functions in the package.
 
 The `glmfit` function in this package fits generalized linear models
 with the Iteratively Reweighted Least Squares (IRLS) algorithm.  It is
@@ -39,7 +43,7 @@ The response in the example on p. 93 of Dobson (1990) would be written
 At present the model matrix must be generated in the following awkward way
 
 	ct3 = contr_treatment(3)
-	pp = DensePredQR(hcat(ones(Float64,9), indicators(gl(3,1,9))[1]*ct3, indicators(gl(3,3))[1]*ct3))
+	pp = DensePredQR(hcat(ones(Float64,(9,1)), indicators(gl(3,1,9))[1]*ct3, indicators(gl(3,3))[1]*ct3))
 
 and the fit is
 
