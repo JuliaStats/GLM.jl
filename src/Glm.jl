@@ -1,10 +1,8 @@
 module Glm
 
 load("Distributions")
-using Distributions
-
 load("DataFrames")
-using DataFrames
+using DataFrames, Distributions
 
 import Base.\, Base.size
 import Distributions.deviance, Distributions.mueta, Distributions.var
@@ -106,39 +104,43 @@ end
 
 DGlmResp(d::Distribution, y::DArray{Float64,1,1}) = DGlmResp(d, canonicallink(d), y)
 
-deviance( r::GlmResp) = deviance(r.d, r.mu, r.y, r.wts)
-devResid( r::GlmResp) = devResid(r.d, r.y, r.mu, r.wts)
-drsum(    r::GlmResp) = sum(devResid(r))
-mueta(    r::GlmResp) = mueta(r.l, r.eta)
-sqrtwrkwt(r::GlmResp) = mueta(r) .* sqrt(r.wts ./ var(r))
-var(      r::GlmResp) = var(r.d, r.mu)
-wrkresid( r::GlmResp) = (r.y - r.mu) ./ mueta(r)
-wrkresp(  r::GlmResp) = (r.eta - r.offset) + wrkresid(r)
+## deviance( r::GlmResp) = deviance(r.d, r.mu, r.y, r.wts)
+## devResid( r::GlmResp) = devResid(r.d, r.y, r.mu, r.wts)
+## drsum(    r::GlmResp) = sum(devResid(r))
+## mueta(    r::GlmResp) = mueta(r.l, r.eta)
+## sqrtwrkwt(r::GlmResp) = mueta(r) .* sqrt(r.wts ./ var(r))
+## var(      r::GlmResp) = var(r.d, r.mu)
+## wrkresid( r::GlmResp) = (r.y - r.mu) ./ mueta(r)
+## wrkresp(  r::GlmResp) = (r.eta - r.offset) + wrkresid(r)
 
 abstract LinPred                        # linear predictor for statistical models
 abstract DensePred <: LinPred           # linear predictor with dense X
 
-linpred(p::LinPred) = p.X * p.beta      # general calculation of the linear predictor
+                                        # linear predictor vector
+linpred(p::LinPred, f::Real) = p.X * (p.beta0 + f * p.delbeta)
+linpred(p::LinPred) = linpred(p, 1.)
 
 type DensePredQR <: DensePred
     X::Matrix{Float64}                  # model matrix
-    beta::Vector{Float64}               # coefficient vector
+    beta0::Vector{Float64}              # base coefficient vector
+    delbeta::Vector{Float64}            # coefficient increment
     qr::QRDense{Float64}
-    function DensePredQR(X::Matrix{Float64}, beta::Vector{Float64})
+    function DensePredQR(X::Matrix{Float64}, beta0::Vector{Float64})
         n, p = size(X)
-        if length(beta) != p error("dimension mismatch") end
-        new(X, beta, qrd(X))
+        if length(beta0) != p error("dimension mismatch") end
+        new(X, beta0, zeros(Float64, size(beta0)), qrd(X))
     end
 end
 
 type DensePredChol <: DensePred
-    X::Matrix{Float64}                        # model matrix
-    beta::Vector{Float64}                     # coefficient vector
+    X::Matrix{Float64}                  # model matrix
+    beta0::Vector{Float64}              # base vector for coefficients
+    delbeta::Vector{Float64}            # coefficient increment
     chol::CholeskyDense{Float64}
-    function DensePredChol(X::Matrix{Float64}, beta::Vector{Float64})
+    function DensePredChol(X::Matrix{Float64}, beta0::Vector{Float64})
         n, p = size(X)
-        if length(beta) != p error("dimension mismatch") end
-        new(X, beta, chold(X'X))
+        if length(beta0) != p error("dimension mismatch") end
+        new(X, beta0, zeros(Float64, size(beta0)), chold(X'X))
     end
 end
 
@@ -148,26 +150,27 @@ DensePredQR{T<:Real}(X::Matrix{T}) = DensePredQR(float64(X))
 DensePredChol(X::Matrix{Float64}) = DensePredChol(X, zeros(Float64,(size(X,2),)))
 DensePredChol{T<:Real}(X::Matrix{T}) = DensePredChol(float64(X))
 
-function updatebeta(p::DensePredQR, y::Vector{Float64}, sqrtwt::Vector{Float64})
-    p.qr = qrd(diagmm(sqrtwt, p.X))
-    p.beta[:] = p.qr \ (sqrtwt .* y)
+function delbeta(p::DensePredQR, y::Vector{Float64}, sqrtwt::Vector{Float64})
+    p.qr.hh[:] = diagmm(sqrtwt, p.X)
+    p.qr.tau[:] = LAPACK.geqrf!(p.qr.hh)[2]
+    p.delbeta[:] = p.qr \ (sqrtwt .* y)
 end
 
-function updatebeta(p::DensePredChol, y::Vector{Float64}, sqrtwt::Vector{Float64})
+function delbeta(p::DensePredChol, y::Vector{Float64}, sqrtwt::Vector{Float64})
     WX = diagmm(sqrtwt, p.X)
     fac = LAPACK.potrf!('U', BLAS.syrk('U', 'T', 1.0, WX))
     if fac[2] != 0
         error("Singularity detected at column $(fac[2]) of weighted model matrix")
     end
     p.chol.LR[:] = fac[1]
-    p.beta[:] = p.chol \ (WX'*(sqrtwt .* y))
+    p.delbeta[:] = p.chol \ (WX'*(sqrtwt .* y))
 end
 
 At_mult_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 2, 1}) = Ac_mult_B(A, B)
 
 function Ac_mult_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 2, 1})
     if (all(procs(A) != procs(B)) || all(dist(A) != dist(B)))
-                                        # FIXME: B should be redistributed to match A
+        # FIXME: B should be redistributed to match A
         error("Arrays A and B must be distributed similarly")
     end
     if is(A, B)
@@ -195,18 +198,8 @@ type DistPred{T} <: LinPred   # predictor with distributed (on rows) X
 end
 
 function (\)(A::DArray{Float64,2,1}, B::DArray{Float64,1,1})
-    R   = Cholesky(A' * A)              # done by _jl_dsyrk, see above
-    AtB = A' * B
-    n = size(A, 2)
-    info = Array(Int32, 1)
-    one = 1
-    ccall((:dpotrs_,:liblapack), Void,
-          (Ptr{Uint8}, Ptr{Int32}, Ptr{Int32}, Ptr{Float64}, Ptr{Int32},
-          Ptr{Float64}, Ptr{Int32}, Ptr{Int32}),
-          "U", &n, &one, R, &n, AtB, &n, info)
-    if info == 0; return AtB; end
-    if info > 0; error("matrix not positive definite"); end
-    error("error in CHOL")
+    R   = Cholesky(A'A)
+    LAPACK.potrs!('U', R, A'B)
 end
 
 function glmfit(p::DensePred, r::GlmResp, maxIter::Integer, minStepFac::Float64, convTol::Float64)
@@ -216,7 +209,7 @@ function glmfit(p::DensePred, r::GlmResp, maxIter::Integer, minStepFac::Float64,
     cvg = false
     devold = Inf
     for i=1:maxIter
-        updatebeta(p, wrkresp(r), sqrtwrkwt(r))
+        delbeta(p, wrkresp(r), sqrtwrkwt(r))
         dev  = updatemu(r, linpred(p))
         crit = (devold - dev)/dev
         println("$i: $dev, $crit")
@@ -236,13 +229,30 @@ end
 
 glmfit(p::DensePred, r::GlmResp) = glmfit(p, r, uint(30), 0.001, 1.e-6)
 
-function glm(f::Formula, df::DataFrame, d::Distribution, l::Link)
-    mm = model_matrix(f, df)
-    rr = GlmResp(d, l, vec(mm.response))
-    dp = DensePredQR(mm.model)
-    glmfit(dp, rr)
-end
+abstract LinPredModel  # statistical model based on a linear predictor
 
+type GlmMod <: LinPredModel
+    fr::ModelFrame
+    mm::ModelMatrix
+    rr::GlmResp
+    pp::LinPred
+    function GlmMod(fr, mm, rr, pp)
+        glmfit(pp, rr)
+        new(fr, mm, rr, pp)
+    end
+end
+          
+function glm(f::Formula, df::DataFrame, d::Distribution, l::Link, m::CompositeKind)
+    if !(m <: LinPred) error("Composite type $m does not extend LinPred") end
+    mf = model_frame(f, df)
+    mm = model_matrix(mf)
+    rr = GlmResp(d, l, vec(mm.response))
+    dp = m(mm.model)
+    GlmMod(mf, mm, rr, dp)
+end
+ 
+glm(f::Formula, df::DataFrame, d::Distribution, l::Link) = glm(f, df, d, l, DensePredQR)
+    
 glm(f::Formula, df::DataFrame, d::Distribution) = glm(f, df, d, canonicallink(d))
     
 glm(f::Expr, df::DataFrame, d::Distribution) = glm(Formula(f), df, d)
@@ -255,7 +265,7 @@ function gl(n::Integer, k::Integer, l::Integer)
     for j = 0:(l/nk - 1), i = 1:n
         aa[j * nk + (i - 1) * k + (1:k)] = i
     end
-    aa
+    PooledDataVector(aa)
 end
 
 gl(n::Integer, k::Integer) = gl(n, k, n*k)
