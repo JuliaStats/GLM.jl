@@ -1,31 +1,42 @@
 module Glm
 
-load("Distributions")
-load("DataFrames")
 using DataFrames, Distributions
 
 import Base.\, Base.size
 import Distributions.deviance, Distributions.mueta, Distributions.var
 
 export                                  # types
-    DGlmResp,                           # distributed GlmResp
+#    DGlmResp,
     DensePred,
     DensePredQR,
     DensePredChol,
-    DistPred,
+#    DistPred,
+    GlmMod,
     GlmResp,
     LinPred,
+    LinPredModel,
+    LmMod,
+    LmResp,
                                         # functions
+    coef,           # estimated coefficients
+    coeftable,      # coefficients, standard errors, etc.
     contr_treatment,# treatment contrasts
+#    delbeta,
+    df_residual,    # degrees of freedom for residuals
     drsum,          # sum of squared deviance residuals
     gl,             # generate levels
     glm,            # general interface
     glmfit,         # underlying workhorse
     indicators,     # generate dense or sparse indicator matrices
+#   installbeta,    
     linpred,        # linear predictor
+    lm,             # linear model
+    lmfit,          # linear model    
+    scale,          # estimate of scale parameter (sigma^2 for linear models)
     sqrtwrkwt,      # square root of the working weights
-    updatebeta,
+    stderr,         # standard errors of the coefficients
     updatemu,
+    vcov,           # estimated variance-covariance matrix of coef
     wrkresid,       # working residuals
     wrkresp,        # working response
     xtab,           # cross-tabulation
@@ -44,7 +55,7 @@ type GlmResp <: ModResp               # response in a glm model
     function GlmResp(d::Distribution, l::Link, eta::Vector{Float64},
                      mu::Vector{Float64}, offset::Vector{Float64},
                      wts::Vector{Float64},y::Vector{Float64})
-        if !(numel(eta) == numel(mu) == numel(offset) == numel(wts) == numel(y))
+        if !(length(eta) == length(mu) == length(offset) == length(wts) == length(y))
             error("mismatched sizes")
         end
         insupport(d, y)? new(d,l,eta,mu,offset,wts,y): error("elements of y not in distribution support")
@@ -53,10 +64,10 @@ end
 
 ## outer constructor - the most common way of creating the object
 function GlmResp(d::Distribution, l::Link, y::Vector{Float64})
-    sz = size(y)
-    wt = ones(Float64, sz)
+    n  = length(y)
+    wt = ones(n)
     mu = mustart(d, y, wt)
-    GlmResp(d, l, linkfun(l, mu), mu, zeros(Float64, sz), wt, y)
+    GlmResp(d, l, linkfun(l, mu), mu, zeros(n), wt, y)
 end
 
 GlmResp(d::Distribution, y::Vector{Float64}) = GlmResp(d, canonicallink(d), y)
@@ -70,55 +81,86 @@ var(      r::GlmResp) = var(r.d, r.mu)
 wrkresid( r::GlmResp) = (r.y - r.mu) ./ mueta(r)
 wrkresp(  r::GlmResp) = (r.eta - r.offset) + wrkresid(r)
 
-function updatemu{T<:Real}(r::GlmResp, linPr::AbstractArray{T})
-    promote_shape(size(linPr), size(r.eta)) # size check
-    for i=1:numel(linPr)
-        r.eta[i] = linPr[i] + r.offset[i]
-        r.mu[i]  = linkinv(r.l, r.eta[i])
-    end
+function updatemu(r::GlmResp, linPr::Vector{Float64})
+    n = length(linPr)
+    if length(r.mu) != n throw(LAPACK.LapackDimMisMatch("linPr")) end
+    r.eta[:] = linPr
+    if length(r.offset) == n r.eta += r.offset end
+    r.mu = linkinv(r.l, r.eta)
     deviance(r)
 end
-    
-type DGlmResp                    # distributed response in a glm model
-    d::Distribution
-    l::Link
-    eta::DArray{Float64,1,1}     # linear predictor
-    mu::DArray{Float64,1,1}      # mean response
-    offset::DArray{Float64,1,1}  # offset added to linear predictor (usually 0)
-    wts::DArray{Float64,1,1}     # prior weights
-    y::DArray{Float64,1,1}       # response
-    ## FIXME: Add compatibility checks here
-end
 
-function DGlmResp(d::Distribution, l::Link, y::DArray{Float64,1,1})
-    wt     = darray((T,d,da)->ones(T,d), Float64, size(y), distdim(y), y.pmap)
-    offset = darray((T,d,da)->zeros(T,d), Float64, size(y), distdim(y), y.pmap)
-    mu     = similar(y)
-    @sync begin
-        for p = y.pmap
-            @spawnat p copy_to(localize(mu), d.mustart(localize(y), localize(wt)))
+updatemu(r::GlmResp, linPr) = updatemu(r, float64(vec(linPr)))
+
+type LmResp <: ModResp               # response in a linear model
+    mu::Vector{Float64}               # mean response
+    offset::Vector{Float64}           # offset added to linear predictor (usually 0)
+    wts::Vector{Float64}              # prior weights
+    y::Vector{Float64}                # response
+    function LmResp(mu::Vector{Float64}, offset::Vector{Float64},
+                    wts::Vector{Float64},y::Vector{Float64})
+        if !(length(mu) == length(offset) == length(wts) == length(y))
+            error("mismatched sizes")
         end
+        new(mu,offset,wts,y)
     end
-    dGlmResp(d, l, map_vectorized(link.linkFun, mu), mu, offset, wt, y)
 end
 
-DGlmResp(d::Distribution, y::DArray{Float64,1,1}) = DGlmResp(d, canonicallink(d), y)
+function LmResp(y::Vector{Float64})
+    n = length(y)
+    LmResp(zeros(n), zeros(n), ones(n), y)
+end
 
-## deviance( r::GlmResp) = deviance(r.d, r.mu, r.y, r.wts)
-## devResid( r::GlmResp) = devResid(r.d, r.y, r.mu, r.wts)
-## drsum(    r::GlmResp) = sum(devResid(r))
-## mueta(    r::GlmResp) = mueta(r.l, r.eta)
-## sqrtwrkwt(r::GlmResp) = mueta(r) .* sqrt(r.wts ./ var(r))
-## var(      r::GlmResp) = var(r.d, r.mu)
-## wrkresid( r::GlmResp) = (r.y - r.mu) ./ mueta(r)
-## wrkresp(  r::GlmResp) = (r.eta - r.offset) + wrkresid(r)
+function updatemu(r::LmResp, linPr::Vector{Float64})
+    n = length(linPr)
+    if length(r.mu) != n throw(LAPACK.LapackDimMisMatch("linpr")) end
+    r.mu[:] = linPr
+    if (length(r.offset) == n) r.mu += r.offset end
+    deviance(r)
+end
+
+updatemu(r::LmResp, linPr) = updatemu(r, float64(vec(linPr)))
+
+wrkresid(r::LmResp) = (r.y - r.mu) ./ sqrt(r.wts)
+drsum(r::LmResp)    = sum(wrkresid(r) .^ 2)
+deviance(r::LmResp) = drsum(r)
+                          
+## type DGlmResp                    # distributed response in a glm model
+##     d::Distribution
+##     l::Link
+##     eta::DArray{Float64,1,1}     # linear predictor
+##     mu::DArray{Float64,1,1}      # mean response
+##     offset::DArray{Float64,1,1}  # offset added to linear predictor (usually 0)
+##     wts::DArray{Float64,1,1}     # prior weights
+##     y::DArray{Float64,1,1}       # response
+##     ## FIXME: Add compatibility checks here
+## end
+
+## function DGlmResp(d::Distribution, l::Link, y::DArray{Float64,1,1})
+##     wt     = darray((T,d,da)->ones(T,d), Float64, size(y), distdim(y), y.pmap)
+##     offset = darray((T,d,da)->zeros(T,d), Float64, size(y), distdim(y), y.pmap)
+##     mu     = similar(y)
+##     @sync begin
+##         for p = y.pmap
+##             @spawnat p copy_to(localize(mu), d.mustart(localize(y), localize(wt)))
+##         end
+##     end
+##     dGlmResp(d, l, map_vectorized(link.linkFun, mu), mu, offset, wt, y)
+## end
+
+## DGlmResp(d::Distribution, y::DArray{Float64,1,1}) = DGlmResp(d, canonicallink(d), y)
 
 abstract LinPred                        # linear predictor for statistical models
 abstract DensePred <: LinPred           # linear predictor with dense X
 
                                         # linear predictor vector
 linpred(p::LinPred, f::Real) = p.X * (p.beta0 + f * p.delbeta)
-linpred(p::LinPred) = linpred(p, 1.)
+linpred(p::LinPred) = linpred(p, 1.0)
+function installbeta(p::LinPred, f::Real)
+    p.beta0 += f * p.delbeta
+    p.delbeta[:] = zeros(length(p.delbeta))
+end
+installbeta(p::LinPred) = installbeta(p, 1.0)
 
 type DensePredQR <: DensePred
     X::Matrix{Float64}                  # model matrix
@@ -150,57 +192,57 @@ DensePredQR{T<:Real}(X::Matrix{T}) = DensePredQR(float64(X))
 DensePredChol(X::Matrix{Float64}) = DensePredChol(X, zeros(Float64,(size(X,2),)))
 DensePredChol{T<:Real}(X::Matrix{T}) = DensePredChol(float64(X))
 
-function delbeta(p::DensePredQR, y::Vector{Float64}, sqrtwt::Vector{Float64})
+function delbeta(p::DensePredQR, r::Vector{Float64}, sqrtwt::Vector{Float64})
     p.qr.hh[:] = diagmm(sqrtwt, p.X)
     p.qr.tau[:] = LAPACK.geqrf!(p.qr.hh)[2]
-    p.delbeta[:] = p.qr \ (sqrtwt .* y)
+    p.delbeta[:] = p.qr \ (sqrtwt .* r)
 end
 
-function delbeta(p::DensePredChol, y::Vector{Float64}, sqrtwt::Vector{Float64})
+function delbeta(p::DensePredChol, r::Vector{Float64}, sqrtwt::Vector{Float64})
     WX = diagmm(sqrtwt, p.X)
-    fac = LAPACK.potrf!('U', BLAS.syrk('U', 'T', 1.0, WX))
-    if fac[2] != 0
+    if LAPACK.potrf!('U', BLAS.syrk!('U', 'T', 1.0, WX, 0.0, p.chol.LR))[2] != 0
         error("Singularity detected at column $(fac[2]) of weighted model matrix")
     end
-    p.chol.LR[:] = fac[1]
     p.delbeta[:] = p.chol \ (WX'*(sqrtwt .* y))
 end
 
-At_mult_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 2, 1}) = Ac_mult_B(A, B)
+delbeta(p::DensePred, r::Vector{Float64}) = delbeta(p, r, ones(length(r)))
 
-function Ac_mult_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 2, 1})
-    if (all(procs(A) != procs(B)) || all(dist(A) != dist(B)))
-        # FIXME: B should be redistributed to match A
-        error("Arrays A and B must be distributed similarly")
-    end
-    if is(A, B)
-        return mapreduce(+, fetch, {@spawnat p BLAS.syrk('T', localize(A)) for p in procs(A)})
-    end
-    mapreduce(+, fetch, {@spawnat p Ac_mult_B(localize(A), localize(B)) for p in procs(A)})
-end
+## At_mul_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 2, 1}) = Ac_mul_B(A, B)
 
-function Ac_mult_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 1, 1})
-    if (all(procs(A) != procs(B)) || all(dist(A) != dist(B)))
-        # FIXME: B should be redistributed to match A
-        error("Arrays A and B must be distributed similarly")
-    end
-    mapreduce(+, fetch, {@spawnat p Ac_mult_B(localize(A), localize(B)) for p in procs(A)})
-end
+## function Ac_mul_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 2, 1})
+##     if (all(procs(A) != procs(B)) || all(dist(A) != dist(B)))
+##         # FIXME: B should be redistributed to match A
+##         error("Arrays A and B must be distributed similarly")
+##     end
+##     if is(A, B)
+##         return mapreduce(+, fetch, {@spawnat p BLAS.syrk('T', localize(A)) for p in procs(A)})
+##     end
+##     mapreduce(+, fetch, {@spawnat p Ac_mul_B(localize(A), localize(B)) for p in procs(A)})
+## end
 
-type DistPred{T} <: LinPred   # predictor with distributed (on rows) X
-    X::DArray{T, 2, 1}        # model matrix
-    beta::Vector{T}           # coefficient vector
-    r::CholeskyDense{T}
-    function DistPred(X, beta)
-        if size(X, 2) != length(beta) error("dimension mismatch") end
-        new(X, beta, chold(X'X))
-    end
-end
+## function Ac_mul_B{T <: Real}(A::DArray{T, 2, 1}, B::DArray{T, 1, 1})
+##     if (all(procs(A) != procs(B)) || all(dist(A) != dist(B)))
+##         # FIXME: B should be redistributed to match A
+##         error("Arrays A and B must be distributed similarly")
+##     end
+##     mapreduce(+, fetch, {@spawnat p Ac_mul_B(localize(A), localize(B)) for p in procs(A)})
+## end
 
-function (\)(A::DArray{Float64,2,1}, B::DArray{Float64,1,1})
-    R   = Cholesky(A'A)
-    LAPACK.potrs!('U', R, A'B)
-end
+## type DistPred{T} <: LinPred   # predictor with distributed (on rows) X
+##     X::DArray{T, 2, 1}        # model matrix
+##     beta::Vector{T}           # coefficient vector
+##     r::CholeskyDense{T}
+##     function DistPred(X, beta)
+##         if size(X, 2) != length(beta) error("dimension mismatch") end
+##         new(X, beta, chold(X'X))
+##     end
+## end
+
+## function (\)(A::DArray{Float64,2,1}, B::DArray{Float64,1,1})
+##     R   = Cholesky(A'A)
+##     LAPACK.potrs!('U', R, A'B)
+## end
 
 function glmfit(p::DensePred, r::GlmResp, maxIter::Integer, minStepFac::Float64, convTol::Float64)
     if maxIter < 1 error("maxIter must be positive") end
@@ -222,12 +264,16 @@ function glmfit(p::DensePred, r::GlmResp, maxIter::Integer, minStepFac::Float64,
         end
         devold = dev
     end
-    if !cvg
-        error("failure to converge in $maxIter iterations")
-    end
+    if !cvg error("failure to converge in $maxIter iterations") end
 end
 
 glmfit(p::DensePred, r::GlmResp) = glmfit(p, r, uint(30), 0.001, 1.e-6)
+
+function lmfit(p::DensePred, r::LmResp)
+    delbeta(p, wrkresid(r), sqrt(r.wts))
+    updatemu(r, linpred(p))
+    installbeta(p)
+end
 
 abstract LinPredModel  # statistical model based on a linear predictor
 
@@ -257,6 +303,30 @@ glm(f::Formula, df::DataFrame, d::Distribution) = glm(f, df, d, canonicallink(d)
     
 glm(f::Expr, df::DataFrame, d::Distribution) = glm(Formula(f), df, d)
 
+type LmMod <: LinPredModel
+    fr::ModelFrame
+    mm::ModelMatrix
+    rr::LmResp
+    pp::LinPred
+    function LmMod(fr, mm, rr, pp)
+        lmfit(pp, rr)
+        new(fr, mm, rr, pp)
+    end
+end
+          
+function lm(f::Formula, df::DataFrame, m::CompositeKind)
+    if !(m <: LinPred) error("Composite type $m does not extend LinPred") end
+    mf = model_frame(f, df)
+    mm = model_matrix(mf)
+    rr = LmResp(vec(mm.response))
+    dp = m(mm.model)
+    LmMod(mf, mm, rr, dp)
+end
+ 
+lm(f::Formula, df::DataFrame) = lm(f, df, DensePredQR)
+    
+lm(f::Expr, df::DataFrame) = lm(Formula(f), df)
+
 # Generate levels - see the R documentation for gl
 function gl(n::Integer, k::Integer, l::Integer)
     nk = n * k
@@ -281,8 +351,8 @@ function xtab{T}(x::AbstractArray{T})
     d = Dict{T, Int}()
     for el in x d[el] = has(d, el) ? d[el] + 1 : 1 end
     kk = sort(keys(d))
-    cc = Array(Int, numel(kk))
-    for i in 1:numel(kk) cc[i] = d[kk[i]] end
+    cc = Array(Int, length(kk))
+    for i in 1:length(kk) cc[i] = d[kk[i]] end
     xtab(kk, cc)
 end
 
@@ -324,5 +394,27 @@ end
 contr_treatment(n::Int, base::Int, contrasts::Bool) = contr_treatment(n, base, contrasts, false)
 contr_treatment(n::Int, base::Int) = contr_treatment(n, base, true, false)
 contr_treatment(n::Int) = contr_treatment(n, 1, true, false)
+
+coef(x::LinPred) = x.beta0
+coef(x::LinPredModel) = coef(x.pp)
+
+deviance(x::LinPredModel) = deviance(x.rr)
+df_residual(x::LmMod) = df_residual(x.pp)
+df_residual(x::DensePred) = size(x.X, 1) - length(x.beta0)
+    
+vcov(x::LinPredModel) = scale(x) * vcov(x.pp)
+vcov(x::DensePredChol) = inv(x.chol)
+vcov(x::DensePredQR) = BLAS.symmetrize!(LAPACK.potri!('U', x.qr.hh[1:length(x.beta0),:])[1])
+
+scale(x::LmMod) = deviance(x)/df_residual(x)
+
+stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
+
+function coeftable(mm::LmMod)
+    cc = coef(mm)
+    se = stderr(mm)
+    tt = cc ./ se
+    DataFrame({cc, se, tt, ccdf(FDist(1, df_residual(mm)), tt .* tt)}, ["Estimate","Std.Error","t value", "Pr(>|t|)"]))
+end
 
 end # module
