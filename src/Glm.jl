@@ -1,7 +1,7 @@
 module Glm
 
-load("Distributions")
-load("DataFrames")
+require("Distributions")
+require("DataFrames")
 using DataFrames, Distributions
 
 import Base.\, Base.size
@@ -44,7 +44,7 @@ type GlmResp <: ModResp               # response in a glm model
     function GlmResp(d::Distribution, l::Link, eta::Vector{Float64},
                      mu::Vector{Float64}, offset::Vector{Float64},
                      wts::Vector{Float64},y::Vector{Float64})
-        if !(numel(eta) == numel(mu) == numel(offset) == numel(wts) == numel(y))
+        if !(length(eta) == length(mu) == length(offset) == length(wts) == length(y))
             error("mismatched sizes")
         end
         insupport(d, y)? new(d,l,eta,mu,offset,wts,y): error("elements of y not in distribution support")
@@ -72,7 +72,7 @@ wrkresp(  r::GlmResp) = (r.eta - r.offset) + wrkresid(r)
 
 function updatemu{T<:Real}(r::GlmResp, linPr::AbstractArray{T})
     promote_shape(size(linPr), size(r.eta)) # size check
-    for i=1:numel(linPr)
+    for i=1:length(linPr)
         r.eta[i] = linPr[i] + r.offset[i]
         r.mu[i]  = linkinv(r.l, r.eta[i])
     end
@@ -265,7 +265,7 @@ function gl(n::Integer, k::Integer, l::Integer)
     for j = 0:(l/nk - 1), i = 1:n
         aa[j * nk + (i - 1) * k + (1:k)] = i
     end
-    PooledDataVector(aa)
+    PooledDataArray(aa)
 end
 
 gl(n::Integer, k::Integer) = gl(n, k, n*k)
@@ -281,8 +281,8 @@ function xtab{T}(x::AbstractArray{T})
     d = Dict{T, Int}()
     for el in x d[el] = has(d, el) ? d[el] + 1 : 1 end
     kk = sort(keys(d))
-    cc = Array(Int, numel(kk))
-    for i in 1:numel(kk) cc[i] = d[kk[i]] end
+    cc = Array(Int, length(kk))
+    for i in 1:length(kk) cc[i] = d[kk[i]] end
     xtab(kk, cc)
 end
 

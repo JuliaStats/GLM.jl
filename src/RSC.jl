@@ -25,7 +25,7 @@ function SparseMatrixRSC(rowval::Matrix,nzval::Matrix)
     SparseMatrixRSC{eltype(nzval),eltype(rowval)}(rowval,nzval)
 end
 
-nnz(A::SparseMatrixRSC) = numel(A.nzval)
+nnz(A::SparseMatrixRSC) = length(A.nzval)
 
 size(A::SparseMatrixRSC) = (A.m, size(A.nzval,2))
 size(A::SparseMatrixRSC,d) = d == 1 ? A.m : size(A.nzval,d)
