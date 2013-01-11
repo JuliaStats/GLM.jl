@@ -40,7 +40,7 @@ println("Deviance:  $(deviance(rr))")
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
 ## First download http://www.ats.ucla.edu/stat/data/binary.csv and delete the first line
-dd = csvread("./binary.csv")
+dd = readcsv("./binary.csv")
 pp = DensePredQR(hcat(ones(Float64,size(dd,1)), dd[:,2:3], indicators(dd[:,4])[1]*contr_treatment(4)))
 rr = GlmResp(Bernoulli(), dd[:,1])
 glmfit(pp,rr)
