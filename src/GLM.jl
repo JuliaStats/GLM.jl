@@ -22,9 +22,9 @@ export                                  # types
     coeftable,      # coefficients, standard errors, etc.
     contr_treatment,# treatment contrasts
 #    delbeta,        # an internal function for calculating the beta increment
+    deviance,       # deviance of GLM
     df_residual,    # degrees of freedom for residuals
     drsum,          # sum of squared deviance residuals
-    gl,             # generate levels
     glm,            # general interface
     glmfit,         # underlying workhorse
     indicators,     # generate dense or sparse indicator matrices
@@ -38,9 +38,7 @@ export                                  # types
     updatemu,
     vcov,           # estimated variance-covariance matrix of coef
     wrkresid,       # working residuals
-    wrkresp,        # working response
-    xtab,           # cross-tabulation
-    xtabs           # another cross-tabulation
+    wrkresp         # working response
 
 abstract ModResp                      # model response
 
@@ -304,6 +302,8 @@ glm(f::Formula, df::DataFrame, d::Distribution) = glm(f, df, d, canonicallink(d)
     
 glm(f::Expr, df::DataFrame, d::Distribution) = glm(Formula(f), df, d)
 
+glm(f::String, df::DataFrame, d::Distribution) = glm(Formula(parse(f)[1]), df, d)
+
 type LmMod <: LinPredModel
     fr::ModelFrame
     mm::ModelMatrix
@@ -328,42 +328,7 @@ lm(f::Formula, df::DataFrame) = lm(f, df, DensePredQR)
     
 lm(f::Expr, df::DataFrame) = lm(Formula(f), df)
 
-# Generate levels - see the R documentation for gl
-function gl(n::Integer, k::Integer, l::Integer)
-    nk = n * k
-    if l % nk != 0 error("length out must be a multiple of n * k") end
-    aa = Array(Int, l)
-    for j = 0:(l/nk - 1), i = 1:n
-        aa[j * nk + (i - 1) * k + (1:k)] = i
-    end
-    PooledDataVector(aa)
-end
-
-gl(n::Integer, k::Integer) = gl(n, k, n*k)
-
-# A cross-tabulation type.  Probably not a good design.
-# Actually, this is just a one-way table
-type xtab{T}
-    vals::Array{T}
-    counts::Array{Int, 1}
-end
-
-function xtab{T}(x::AbstractArray{T})
-    d = Dict{T, Int}()
-    for el in x d[el] = has(d, el) ? d[el] + 1 : 1 end
-    kk = sort(keys(d))
-    cc = Array(Int, length(kk))
-    for i in 1:length(kk) cc[i] = d[kk[i]] end
-    xtab(kk, cc)
-end
-
-# Another cross-tabulation function, this one leaves the result as a Dict
-# Again, this is currently just for one-way tables.
-function xtabs{T}(x::AbstractArray{T})
-    d = Dict{T, length(x) > typemax(Int32) ? Int : Int32}()
-    for el in x d[el] = has(d, el) ? d[el] + 1 : 1 end
-    d
-end
+lm(f::String, df::DataFrame) = lm(Formula(parse(f)[1]), df)
 
 ## dense or sparse matrix of indicators of the levels of a vector
 function indicators{T}(x::AbstractVector{T}, sparseX::Bool)
