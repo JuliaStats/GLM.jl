@@ -2,8 +2,8 @@ using DataFrames, Distributions, GLM
 
 df = DataFrame(quote
     counts  = [18.,17,15,20,10,20,25,13,12]
-    outcome = PooledDataVector([1, 2, 3, 1, 2, 3, 1, 2, 3])
-    treatment = PooledDataVector([1, 1, 1, 2, 2, 2, 3, 3, 3])
+    outcome = PooledDataArray([1, 2, 3, 1, 2, 3, 1, 2, 3])
+    treatment = PooledDataArray([1, 1, 1, 2, 2, 2, 3, 3, 3])
 end)
 
 glm(:(counts ~ outcome + treatment), df, Poisson())

@@ -4,6 +4,7 @@ using DataFrames, Distributions
 
 import Base.\, Base.size, Base.show, Base.repl_show
 import Distributions.deviance, Distributions.mueta, Distributions.var
+import DataFrames.model_frame, DataFrames.model_matrix
 
 export                                  # types
 #    DGlmResp,
@@ -25,13 +26,17 @@ export                                  # types
     deviance,       # deviance of GLM
     df_residual,    # degrees of freedom for residuals
     drsum,          # sum of squared deviance residuals
+    family,
+    formula,
     glm,            # general interface
     glmfit,         # underlying workhorse
     indicators,     # generate dense or sparse indicator matrices
 #   installbeta,     # an internal function for installing a new beta0
     linpred,        # linear predictor
     lm,             # linear model
-    lmfit,          # linear model    
+    lmfit,          # linear model
+    nobs,           # total number of observations
+    predict,        # make predictions
     scale,          # estimate of scale parameter (sigma^2 for linear models)
     sqrtwrkwt,      # square root of the working weights
     stderr,         # standard errors of the coefficients
@@ -394,5 +399,18 @@ function coeftable(mm::GlmMod)
 end
 
 include("show.jl")
+
+predict(mm::LmMod) = mm.rr.mu
+
+function predict(mm::LmMod, newx::Matrix)
+    # TODO: Need to add intercept
+    newx * coef(mm)
+end
+
+family(obj::LmMod) = {:family => "gaussian", :link => "identity"}
+formula(obj::LmMod) = obj.fr.formula
+model_frame(obj::LmMod) = obj.fr
+model_matrix(obj::LmMod) = obj.mm
+nobs(obj::LmMod) = size(obj.mm.model, 1)
 
 end # module
