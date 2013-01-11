@@ -21,14 +21,14 @@ export                                  # types
     coef,           # estimated coefficients
     coeftable,      # coefficients, standard errors, etc.
     contr_treatment,# treatment contrasts
-#    delbeta,
+#    delbeta,        # an internal function for calculating the beta increment
     df_residual,    # degrees of freedom for residuals
     drsum,          # sum of squared deviance residuals
     gl,             # generate levels
     glm,            # general interface
     glmfit,         # underlying workhorse
     indicators,     # generate dense or sparse indicator matrices
-#   installbeta,    
+#   installbeta,     # an internal function for installing a new beta0
     linpred,        # linear predictor
     lm,             # linear model
     lmfit,          # linear model    
@@ -265,6 +265,7 @@ function glmfit(p::DensePred, r::GlmResp, maxIter::Integer, minStepFac::Float64,
         devold = dev
     end
     if !cvg error("failure to converge in $maxIter iterations") end
+    installbeta(p)
 end
 
 glmfit(p::DensePred, r::GlmResp) = glmfit(p, r, uint(30), 0.001, 1.e-6)
@@ -407,6 +408,7 @@ vcov(x::DensePredChol) = inv(x.chol)
 vcov(x::DensePredQR) = BLAS.symmetrize!(LAPACK.potri!('U', x.qr.hh[1:length(x.beta0),:])[1])
 
 scale(x::LmMod) = deviance(x)/df_residual(x)
+scale(x::GlmMod) = 1.
 
 stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
 
@@ -414,7 +416,16 @@ function coeftable(mm::LmMod)
     cc = coef(mm)
     se = stderr(mm)
     tt = cc ./ se
-    DataFrame({cc, se, tt, ccdf(FDist(1, df_residual(mm)), tt .* tt)}, ["Estimate","Std.Error","t value", "Pr(>|t|)"]))
+    DataFrame({cc, se, tt, ccdf(FDist(1, df_residual(mm)), tt .* tt)},
+              ["Estimate","Std.Error","t value", "Pr(>|t|)"])
 end
 
+function coeftable(mm::GlmMod)
+    cc = coef(mm)
+    se = stderr(mm)
+    zz = cc ./ se
+    DataFrame({cc, se, zz, 2.0 * ccdf(Normal(), abs(zz))},
+              ["Estimate","Std.Error","z value", "Pr(>|z|)"])
+end
+    
 end # module
