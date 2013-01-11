@@ -3,12 +3,12 @@
 To install the package run (in Julia)
 ```julia
 load("pkg")
-Pkg.add("Glm")
+Pkg.add("GLM")
 ```
 
-The `Glm` package depends on `DataFrames` and `Distributions`. Typically one loads it with
+The `GLM` package depends on `DataFrames` and `Distributions`. Typically one loads it with
 ```julia
-using DataFrames, Distributions, Glm
+using DataFrames, Distributions, GLM
 ```
 to access the functions from all three packages.  The `RDatasets`
 package is useful for fitting models to compare with the results from
@@ -35,10 +35,10 @@ An example of a simple linear model in R is
 (Intercept) 0.005085714 0.007833679  0.6492115 5.515953e-01
 carb        0.876285714 0.013534536 64.7444207 3.409192e-07
 ```
-The corresponding model with the `Glm` package is
+The corresponding model with the `GLM` package is
 
 ```julia
-julia> using RDatasets, Glm
+julia> using RDatasets, GLM
 
 julia> Formaldehyde = data("datasets", "Formaldehyde")
 6x3 DataFrame:
@@ -73,7 +73,7 @@ with the corresponding Julia code
 ```julia
 julia> LifeCycleSavings = data("datasets", "LifeCycleSavings")
 ...
-julia> fm2 = lm(sr ~ pop15+pop75+dpi+ddpi, LifeCycleSavings)
+julia> fm2 = lm(:(sr ~ pop15 + pop75 + dpi + ddpi), LifeCycleSavings)
 ...
 julia> coeftable(fm2)
 5x4 DataFrame:

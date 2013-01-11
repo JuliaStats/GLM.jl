@@ -1,5 +1,4 @@
-load("Glm")
-using DataFrames, Distributions, Glm
+using DataFrames, Distributions, GLM
 
 df = DataFrame(quote
     counts  = [18.,17,15,20,10,20,25,13,12]

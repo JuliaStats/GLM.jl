@@ -1,8 +1,8 @@
-module Glm
+module GLM
 
 using DataFrames, Distributions
 
-import Base.\, Base.size
+import Base.\, Base.size, Base.show, Base.repl_show
 import Distributions.deviance, Distributions.mueta, Distributions.var
 
 export                                  # types
@@ -427,5 +427,7 @@ function coeftable(mm::GlmMod)
     DataFrame({cc, se, zz, 2.0 * ccdf(Normal(), abs(zz))},
               ["Estimate","Std.Error","z value", "Pr(>|z|)"])
 end
-    
+
+include("show.jl")
+
 end # module

@@ -106,7 +106,7 @@ end
 tcrossprodPat{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti}) = tcrossprodPat(A, Array(Ti, (0,)))
 
 ## DyeStuff example from the lme4 package for R
-#ZXt = SparseMatrixRSC(int32(hcat(Glm.gl(6,5), 7.*ones(Int, 30)))', ones(Float64,(2,30)))
+#ZXt = SparseMatrixRSC(int32(hcat(GLM.gl(6,5), 7.*ones(Int, 30)))', ones(Float64,(2,30)))
 #ZXtZX = tcrossprodPat(ZXt,1:6)
 #tcrossprod!(ZXt, copy(ZXtZX))
 #Yield = float([1545, 1440, 1440, 1520, 1580, 1540, 1555, 1490, 1560, 1495, 1595, 1550, 1605, 1510, 1560, 1445, 1440, 1595, 1465, 1545, 1595, 1630, 1515, 1635, 1625, 1520, 1455, 1450, 1480, 1445])
