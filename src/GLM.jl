@@ -206,7 +206,7 @@ function delbeta(p::DensePredChol, r::Vector{Float64}, sqrtwt::Vector{Float64})
     if LAPACK.potrf!('U', BLAS.syrk!('U', 'T', 1.0, WX, 0.0, p.chol.LR))[2] != 0
         error("Singularity detected at column $(fac[2]) of weighted model matrix")
     end
-    p.delbeta[:] = p.chol \ (WX'*(sqrtwt .* y))
+    p.delbeta[:] = p.chol \ (WX'*(sqrtwt .* r))
 end
 
 delbeta(p::DensePred, r::Vector{Float64}) = delbeta(p, r, ones(length(r)))
