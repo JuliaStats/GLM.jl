@@ -2,7 +2,7 @@ module GLM
 
 using DataFrames, Distributions
 
-import Base.\, Base.size, Base.show, Base.repl_show
+import Base.\, Base.size, Base.show
 import Distributions.deviance, Distributions.mueta, Distributions.var
 import DataFrames.model_frame, DataFrames.model_matrix
 

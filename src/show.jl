@@ -1,4 +1,4 @@
-function show(io::Any, obj::LmMod)
+function show(io::IO, obj::LmMod)
     cc = coef(obj)
     se = stderr(obj)
     tt = cc ./ se
@@ -18,9 +18,8 @@ function show(io::Any, obj::LmMod)
     println("---\nSignif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1\n")
     @printf("R-squared: %0.4f\n", 0.0) # TODO: obj.r_squared)
 end
-repl_show(io::Any, obj::LmMod) = show(io, obj)
 
-function show(io::Any, obj::GlmMod)
+function show(io::IO, obj::GlmMod)
     cc = coef(obj)
     se = stderr(obj)
     zz = cc ./ se
@@ -40,7 +39,6 @@ function show(io::Any, obj::GlmMod)
     println("---\nSignif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1\n")
     @printf("R-squared: %0.4f\n", 0.0) # TODO: obj.r_squared)
 end
-repl_show(io::Any, obj::GlmMod) = show(io, obj)
 
 function p_value_stars(p_value::Float64)
     if p_value < 0.001
