@@ -292,7 +292,7 @@ type GlmMod <: LinPredModel
     end
 end
           
-function glm(f::Formula, df::DataFrame, d::Distribution, l::Link, m::CompositeKind)
+function glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link, m::CompositeKind)
     if !(m <: LinPred) error("Composite type $m does not extend LinPred") end
     mf = model_frame(f, df)
     mm = model_matrix(mf)
@@ -301,13 +301,13 @@ function glm(f::Formula, df::DataFrame, d::Distribution, l::Link, m::CompositeKi
     GlmMod(mf, mm, rr, dp)
 end
  
-glm(f::Formula, df::DataFrame, d::Distribution, l::Link) = glm(f, df, d, l, DensePredQR)
+glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link) = glm(f, df, d, l, DensePredQR)
     
-glm(f::Formula, df::DataFrame, d::Distribution) = glm(f, df, d, canonicallink(d))
+glm(f::Formula, df::AbstractDataFrame, d::Distribution) = glm(f, df, d, canonicallink(d))
     
-glm(f::Expr, df::DataFrame, d::Distribution) = glm(Formula(f), df, d)
+glm(f::Expr, df::AbstractDataFrame, d::Distribution) = glm(Formula(f), df, d)
 
-glm(f::String, df::DataFrame, d::Distribution) = glm(Formula(parse(f)[1]), df, d)
+glm(f::String, df::AbstractDataFrame, d::Distribution) = glm(Formula(parse(f)[1]), df, d)
 
 type LmMod <: LinPredModel
     fr::ModelFrame
@@ -320,7 +320,7 @@ type LmMod <: LinPredModel
     end
 end
           
-function lm(f::Formula, df::DataFrame, m::CompositeKind)
+function lm(f::Formula, df::AbstractDataFrame, m::CompositeKind)
     if !(m <: LinPred) error("Composite type $m does not extend LinPred") end
     mf = model_frame(f, df)
     mm = model_matrix(mf)
@@ -329,11 +329,11 @@ function lm(f::Formula, df::DataFrame, m::CompositeKind)
     LmMod(mf, mm, rr, dp)
 end
  
-lm(f::Formula, df::DataFrame) = lm(f, df, DensePredQR)
+lm(f::Formula, df::AbstractDataFrame) = lm(f, df, DensePredQR)
     
-lm(f::Expr, df::DataFrame) = lm(Formula(f), df)
+lm(f::Expr, df::AbstractDataFrame) = lm(Formula(f), df)
 
-lm(f::String, df::DataFrame) = lm(Formula(parse(f)[1]), df)
+lm(f::String, df::AbstractDataFrame) = lm(Formula(parse(f)[1]), df)
 
 ## dense or sparse matrix of indicators of the levels of a vector
 function indicators{T}(x::AbstractVector{T}, sparseX::Bool)
