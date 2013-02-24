@@ -1,12 +1,9 @@
 using DataFrames, Distributions, GLM
 
-df = DataFrame(quote
-    counts  = [18.,17,15,20,10,20,25,13,12]
-    outcome = PooledDataArray([1, 2, 3, 1, 2, 3, 1, 2, 3])
-    treatment = PooledDataArray([1, 1, 1, 2, 2, 2, 3, 3, 3])
-end)
-
-glm(:(counts ~ outcome + treatment), df, Poisson())
+dobson = DataFrame({[18.,17,15,20,10,20,25,13,12], gl(3,1,9), gl(3,3)},
+                   ["counts","outcome","treatment"])
+gm1 = glm(:(counts ~ outcome + treatment), df, Poisson())
+deviance(gm1)                           # something wrong here
 
 srand(1234321)
 mu = rand(1000)

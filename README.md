@@ -50,13 +50,24 @@ julia> Formaldehyde = data("datasets", "Formaldehyde")
 [5,]    5  0.7  0.626
 [6,]    6  0.9  0.782
 
-julia> fm1 = lm(:(optden ~ carb), Formaldehyde)  # lots of noisy output
-...
-julia> coeftable(fm1)
-2x4 DataFrame:
-          Estimate  Std.Error  t value   Pr(>|t|)
-[1,]    0.00508571 0.00783368 0.649211   0.551595
-[2,]      0.876286  0.0135345  64.7444 3.40919e-7
+julia> fm1 = lm(:(optden ~ carb), form)
+
+Formula: optden ~ carb
+
+Coefficients:
+         Term    Estimate  Std. Error     t value    Pr(>|t|)
+  (Intercept)     0.00509     0.00783       0.649       0.552    
+         carb     0.87629     0.01353      64.744       0.000 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-squared: 0.0000
+
+
+julia> confint(fm1)
+2x2 Float64 Array:
+ -0.0166641  0.0268355
+  0.838708   0.913864 
 ```
 
 A more complex example in R is
@@ -71,18 +82,23 @@ ddpi         0.4096949279 0.1961971276  2.0881801 0.0424711387
 ```
 with the corresponding Julia code
 ```julia
-julia> LifeCycleSavings = data("datasets", "LifeCycleSavings")
-...
+julia> LifeCycleSavings = data("datasets", "LifeCycleSavings");
+
 julia> fm2 = lm(:(sr ~ pop15 + pop75 + dpi + ddpi), LifeCycleSavings)
-...
-julia> coeftable(fm2)
-5x4 DataFrame:
-            Estimate   Std.Error   t value    Pr(>|t|)
-[1,]         28.5661     7.35452   3.88416 0.000333825
-[2,]       -0.461193    0.144642  -3.18851  0.00260302
-[3,]         -1.6915      1.0836    -1.561     0.12553
-[4,]    -0.000336902 0.000931107 -0.361829    0.719173
-[5,]        0.409695    0.196197   2.08818   0.0424711
+
+Formula: sr ~ :(+(pop15,pop75,dpi,ddpi))
+
+Coefficients:
+         Term    Estimate  Std. Error     t value    Pr(>|t|)
+  (Intercept)    28.56609     7.35452       3.884       0.000 ***
+        pop15    -0.46119     0.14464      -3.189       0.003 ** 
+        pop75    -1.69150     1.08360      -1.561       0.126    
+          dpi    -0.00034     0.00093      -0.362       0.719    
+         ddpi     0.40969     0.19620       2.088       0.042 *  
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-squared: 0.0000
 ```
 
 The `glm` function works similarly to the corresponding R function
@@ -158,7 +174,7 @@ Number of Fisher Scoring iterations: 4
 In Julia this becomes
 ```julia
 julia> dobson = DataFrame({[18.,17,15,20,10,20,25,13,12], gl(3,1,9), gl(3,3)},
-                          ["counts","outcome","treatment"])
+                                 ["counts","outcome","treatment"])
 9x3 DataFrame:
         counts outcome treatment
 [1,]      18.0       1         1
@@ -170,27 +186,35 @@ julia> dobson = DataFrame({[18.,17,15,20,10,20,25,13,12], gl(3,1,9), gl(3,3)},
 [7,]      25.0       1         3
 [8,]      13.0       2         3
 [9,]      12.0       3         3
+
+
 julia> fm3 = glm(:(counts ~ outcome + treatment), dobson, Poisson())
-...
-julia> coeftable(fm3)
-5x4 DataFrame:
-          Estimate Std.Error    z value    Pr(>|z|)
-[1,]       3.04452  0.170893    17.8153 5.37376e-71
-[2,]     -0.454255  0.202152    -2.2471   0.0246337
-[3,]     -0.292987  0.192728   -1.52021    0.128457
-[4,]    1.92349e-8  0.199983 9.61826e-8         1.0
-[5,]    8.38339e-9  0.199986 4.19198e-8         1.0
-julia> deviance(fm3)  # something wrong here - need to check the R definition
-46.761318401957794
+1: 46.81189638788046, Inf
+2: 46.76132443472076, 0.0010814910349747592
+3: 46.761318401957794, 1.2901182375636843e-7
+
+Formula: counts ~ :(+(outcome,treatment))
+
+Coefficients:
+         Term    Estimate  Std. Error     t value    Pr(>|t|)
+  (Intercept)     3.04452     0.17089      17.815       0.000 ***
+    outcome:2    -0.45426     0.20215      -2.247       0.025 *  
+    outcome:3    -0.29299     0.19273      -1.520       0.128    
+  treatment:2     0.00000     0.19998       0.000       1.000    
+  treatment:3     0.00000     0.19999       0.000       1.000    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+R-squared: 0.0000
 ```
 
 Typical distributions for use with glm and their canonical link
 functions are
     Bernoulli (LogitLink)
-	Gamma (InverseLink)
-	Normal (IdentityLink)
-    Poisson (LogLink)
-	
+        Gamma (InverseLink)
+       Normal (IdentityLink)
+      Poisson (LogLink)
+
 Currently the available Link types are
 
     CauchitLink
@@ -239,5 +263,3 @@ of a ```LinPred``` type use a default step factor of 1.  The value of
 ```linpred``` is the argument to the ```updatemu``` method for
 ```ModResp``` types.  The ```updatemu``` method returns the updated
 deviance.
-
-

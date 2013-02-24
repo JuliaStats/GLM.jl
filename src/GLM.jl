@@ -21,6 +21,7 @@ export                                  # types
                                         # functions
     coef,           # estimated coefficients
     coeftable,      # coefficients, standard errors, etc.
+    confint,        # confidence intervals on coefficients
     contr_treatment,# treatment contrasts
 #    delbeta,        # an internal function for calculating the beta increment
     deviance,       # deviance of GLM
@@ -37,6 +38,7 @@ export                                  # types
     lmfit,          # linear model
     nobs,           # total number of observations
     predict,        # make predictions
+    residuals,      # extractor for residuals
     scale,          # estimate of scale parameter (sigma^2 for linear models)
     sqrtwrkwt,      # square root of the working weights
     stderr,         # standard errors of the coefficients
@@ -95,7 +97,7 @@ end
 
 updatemu(r::GlmResp, linPr) = updatemu(r, float64(vec(linPr)))
 
-type LmResp <: ModResp               # response in a linear model
+type LmResp <: ModResp                # response in a linear model
     mu::Vector{Float64}               # mean response
     offset::Vector{Float64}           # offset added to linear predictor (usually 0)
     wts::Vector{Float64}              # prior weights
@@ -124,9 +126,10 @@ end
 
 updatemu(r::LmResp, linPr) = updatemu(r, float64(vec(linPr)))
 
-wrkresid(r::LmResp) = (r.y - r.mu) ./ sqrt(r.wts)
+wrkresid(r::LmResp) = (r.y - r.mu) .* sqrt(r.wts)
 drsum(r::LmResp)    = sum(wrkresid(r) .^ 2)
 deviance(r::LmResp) = drsum(r)
+residuals(r::LmResp)= wrkresid(r)
                           
 ## type DGlmResp                    # distributed response in a glm model
 ##     d::Distribution
@@ -173,7 +176,7 @@ type DensePredQR <: DensePred
     function DensePredQR(X::Matrix{Float64}, beta0::Vector{Float64})
         n, p = size(X)
         if length(beta0) != p error("dimension mismatch") end
-        new(X, beta0, zeros(Float64, size(beta0)), qrd(X))
+        new(X, beta0, zeros(Float64, size(beta0)), qrfact(X))
     end
 end
 
@@ -185,7 +188,7 @@ type DensePredChol <: DensePred
     function DensePredChol(X::Matrix{Float64}, beta0::Vector{Float64})
         n, p = size(X)
         if length(beta0) != p error("dimension mismatch") end
-        new(X, beta0, zeros(Float64, size(beta0)), chold(X'X))
+        new(X, beta0, zeros(Float64, size(beta0)), cholfact(X'X))
     end
 end
 
@@ -412,5 +415,12 @@ formula(obj::LmMod) = obj.fr.formula
 model_frame(obj::LmMod) = obj.fr
 model_matrix(obj::LmMod) = obj.mm
 nobs(obj::LmMod) = size(obj.mm.model, 1)
+residuals(obj::LmMod) = residuals(obj.rr)
+function confint(obj::LmMod, level::Real)
+    cft = coeftable(obj)
+    hcat(coef(obj),coef(obj)) + cft["Std.Error"] *
+    quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
+end
+confint(obj::LmMod) = confint(obj, 0.95)
 
 end # module
