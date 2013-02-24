@@ -4,6 +4,7 @@ using DataFrames, Distributions
 
 import Base.\, Base.size, Base.show
 import Distributions.deviance, Distributions.mueta, Distributions.var
+import Distributions.devresid
 import DataFrames.model_frame, DataFrames.model_matrix
 
 export                                  # types
@@ -24,7 +25,7 @@ export                                  # types
     confint,        # confidence intervals on coefficients
     contr_treatment,# treatment contrasts
 #    delbeta,        # an internal function for calculating the beta increment
-    deviance,       # deviance of GLM
+#    deviance,       # deviance of GLM
     df_residual,    # degrees of freedom for residuals
     drsum,          # sum of squared deviance residuals
     family,
@@ -32,7 +33,7 @@ export                                  # types
     glm,            # general interface
     glmfit,         # underlying workhorse
     indicators,     # generate dense or sparse indicator matrices
-#   installbeta,     # an internal function for installing a new beta0
+#    installbeta,    # an internal function for installing a new beta0
     linpred,        # linear predictor
     lm,             # linear model
     lmfit,          # linear model
@@ -42,7 +43,7 @@ export                                  # types
     scale,          # estimate of scale parameter (sigma^2 for linear models)
     sqrtwrkwt,      # square root of the working weights
     stderr,         # standard errors of the coefficients
-    updatemu,
+#    updatemu,       # an internal function for updating the mean in a response object
     vcov,           # estimated variance-covariance matrix of coef
     wrkresid,       # working residuals
     wrkresp         # working response
@@ -165,6 +166,7 @@ linpred(p::LinPred) = linpred(p, 1.0)
 function installbeta(p::LinPred, f::Real)
     p.beta0 += f * p.delbeta
     p.delbeta[:] = zeros(length(p.delbeta))
+    p.beta0
 end
 installbeta(p::LinPred) = installbeta(p, 1.0)
 
