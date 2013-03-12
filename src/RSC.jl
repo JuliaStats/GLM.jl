@@ -8,9 +8,7 @@
 ## model the non-zero values can have more rows than the row indices, the
 ## convention being that the p extra rows are dense rows appended to the matrix.
 
-require("suitesparse")
-
-using DataFrames, Distributions, GLM, SuiteSparse
+using DataFrames, Distributions, GLM, Base.LinAlg.SuiteSparse
 
 import Base.(*)
 import Base.convert
@@ -19,7 +17,7 @@ import Base.nnz
 import Base.show
 import Base.size
 import Base.SparseMatrixCSC
-import SuiteSparse.chm_aat
+import Base.LinAlg.SuiteSparse.chm_aat
 
 type SparseMatrixRSC{Tv,Ti<:Union(Int32,Int64)} <: AbstractSparseMatrix{Tv,Ti}
     q::Int                              # number of rows in the Zt part
@@ -51,6 +49,7 @@ copy(A::SparseMatrixRSC) = SparseMatrixRSC(copy(A.rowval), copy(A.nzval))
 mktheta(nc) = mapreduce(j->mapreduce(k->float([1.,zeros(j-k)]), vcat, 1:j), vcat, nc)
 
 function expandi{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti})
+    A.p == 0 ? vec(A.rowval) :
     vec(vcat(A.rowval, mapreduce(i->fill(convert(Ti,i+A.q), (1,size(A,2))), vcat, 1:A.p)))
 end
 
@@ -116,7 +115,15 @@ type RSCpred{Tv<:SuiteSparse.CHMVTypes,Ti<:SuiteSparse.CHMITypes} <: LinPred  # 
 end
 
 function RSCpred{Tv,Ti}(ZXt::SparseMatrixRSC{Tv,Ti}, theta::Vector)
-    aat = chm_sort(chm_aat(ZXt))
+    aat = chm_aat(ZXt)
+    cp = aat.colptr0
+    rv = aat.rowval0
+    xv = aat.nzval
+    for j in 1:ZXt.q                    # inflate the diagonal
+        k = cp[j+1]                     # 0-based indices in cp
+        assert(rv[k] == j-1)
+        xv[k] += 1.
+    end
     th  = convert(Vector{Tv},theta)
     ff  = sum(th .== one(Tv)) 
     if ff != size(ZXt.rowval, 1)
@@ -187,7 +194,7 @@ function update!{Tv,Ti}(x::RSCpred{Tv,Ti}, theta::Vector{Tv}, resid::Vector{Tv},
             end
         end
     end
-    chm_factorize!(rr.L.c, rr.A.c)
+    chm_factorize!(x.L.c, x.A.c)
 end
 
 function update!{T}(x::RSCpred{T}, theta::Vector{T}, resid::Vector{T})

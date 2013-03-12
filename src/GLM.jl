@@ -297,7 +297,7 @@ type GlmMod <: LinPredModel
     end
 end
           
-function glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link, m::CompositeKind)
+function glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link, m::DataType)
     if !(m <: LinPred) error("Composite type $m does not extend LinPred") end
     mf = model_frame(f, df)
     mm = model_matrix(mf)
@@ -325,7 +325,7 @@ type LmMod <: LinPredModel
     end
 end
           
-function lm(f::Formula, df::AbstractDataFrame, m::CompositeKind)
+function lm(f::Formula, df::AbstractDataFrame, m::DataType)
     if !(m <: LinPred) error("Composite type $m does not extend LinPred") end
     mf = model_frame(f, df)
     mm = model_matrix(mf)
