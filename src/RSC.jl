@@ -7,19 +7,33 @@
 ## To allow for both random effects and fixed-effects terms in a mixed-effects
 ## model the non-zero values can have more rows than the row indices, the
 ## convention being that the p extra rows are dense rows appended to the matrix.
+module RSC
 
-using DataFrames, Distributions, GLM, Base.LinAlg.SuiteSparse
+using GLM, DataFrames
+using Base.LinAlg.CHOLMOD.CholmodFactor
+using Base.LinAlg.CHOLMOD.CholmodSparse
+using Base.LinAlg.CHOLMOD.CholmodSparse!
+
+export
+   SparseMatrixRSC,
+   RSCpred,
+   update!
 
 import Base.(*)
-import Base.convert
+import Base.A_mul_Bc
+import Base.A_mul_Bt
 import Base.copy
+import Base.dense
+import Base.full
 import Base.nnz
 import Base.show
 import Base.size
-import Base.SparseMatrixCSC
-import Base.LinAlg.SuiteSparse.chm_aat
+import Base.sparse
 
-type SparseMatrixRSC{Tv,Ti<:Union(Int32,Int64)} <: AbstractSparseMatrix{Tv,Ti}
+typealias VTypes Union(Float64,Complex128)
+typealias ITypes Union(Int32,Int64)
+
+type SparseMatrixRSC{Tv<:VTypes,Ti<:ITypes} <: AbstractSparseMatrix{Tv,Ti}
     q::Int                              # number of rows in the Zt part
     p::Int                              # number of rows in the Xt part
     rowval::Matrix{Ti}                  # row indices of nonzeros
@@ -37,36 +51,66 @@ function SparseMatrixRSC(rowval::Matrix,nzval::Matrix)
     SparseMatrixRSC{eltype(nzval),eltype(rowval)}(rowval,nzval)
 end
 
-SparseMatrixRSC{T<:Integer}(rowval::Vector{T},nzval::Matrix)=SparseMatrixRSC(int32(rowval)',nzval)
-SparseMatrixRSC(rowval::PooledDataArray,nzval::Matrix)=SparseMatrixRSC(int32(rowval.refs)',nzval)
+function SparseMatrixRSC{Tv<:VTypes,Ti<:Integer}(rowval::Vector{Ti},
+                                                 nzval::Matrix{Tv})
+    SparseMatrixRSC(int32(rowval)',nzval)
+end
 
-nnz(A::SparseMatrixRSC) = length(A.nzval)
+function SparseMatrixRSC(rowval::PooledDataArray,nzval::Matrix)
+    SparseMatrixRSC(int32(rowval.refs)',nzval)
+end
 
-size(A::SparseMatrixRSC) = (A.p + A.q, size(A.nzval,2))
-size(A::SparseMatrixRSC,d) = d == 1 ? A.p + A.q : size(A.nzval,d)
+function *{T}(A::SparseMatrixRSC{T}, v::Vector{T})
+    m,n = size(A)
+    if length(v) != n error("Dimension mismatch") end
+    res = zeros(T, m)
+    rv  = A.rowval
+    nv  = A.nzval
+    k   = size(rv,1)
+    ## Sparse part
+    for j in 1:n, i in 1:k
+        res[rv[i,j]] += v[j] * nv[i,j]
+    end
+    ## Dense part
+    for j in 1:n, i in 1:A.p
+        res[A.q + i] += v[j] * nv[k + i, j]
+    end
+    res
+end
+
+function A_mul_Bc{Tv,Ti<:ITypes}(A::SparseMatrixRSC{Tv,Ti},
+                                 B::SparseMatrixRSC{Tv,Ti})
+    if is(A,B)
+        chsp = CholmodSparse!(sparse(A),0)
+        return chsp*chsp'
+    end
+    return CholmodSparse!(sparse(A),0) * CholmodSparse!(sparse(B),0)'
+end
+
 copy(A::SparseMatrixRSC) = SparseMatrixRSC(copy(A.rowval), copy(A.nzval))
-
-mktheta(nc) = mapreduce(j->mapreduce(k->float([1.,zeros(j-k)]), vcat, 1:j), vcat, nc)
 
 function expandi{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti})
     A.p == 0 ? vec(A.rowval) :
-    vec(vcat(A.rowval, mapreduce(i->fill(convert(Ti,i+A.q), (1,size(A,2))), vcat, 1:A.p)))
+    vec(vcat(A.rowval, mapreduce(i->fill(convert(Ti,i+A.q), (1,size(A,2))),
+                                 vcat, 1:A.p)))
 end
 
 function expandj{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti})
     vec(diagmm(ones(Ti,size(A.nzval)), convert(Vector{Ti},[1:size(A,2)])))
 end
 
-function SparseMatrixCSC(x::SparseMatrixRSC)
-    Ti = Base.indtype(x)
-    SparseMatrixCSC(size(x,1), size(x,2),
-                    one(Ti) + convert(Vector{Ti}, [0:size(x.nzval,1):nnz(x)]),
-                    expandi(x), vec(x.nzval))
+function expandp{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti})
+    one(Ti) + convert(Vector{Ti}, [0:size(A.nzval,1):nnz(A)])
 end
 
-convert{Tv}(::Type{Matrix}, x::SparseMatrixRSC{Tv}) = convert(Matrix{Tv}, convert(SparseMatrixCSC, x))
+dense(x::SparseMatrixRSC) = dense(sparse(x))
 
-chm_aat(x::SparseMatrixRSC) = chm_aat(SparseMatrixCSC(x))
+full(x::SparseMatrixRSC) = dense(sparse(x))
+
+nnz(A::SparseMatrixRSC) = length(A.nzval)
+
+size(A::SparseMatrixRSC) = (A.p + A.q, size(A.nzval,2))
+size(A::SparseMatrixRSC,d) = d == 1 ? A.p + A.q : size(A.nzval,d)
 
 function show(io::IO, A::SparseMatrixRSC)
     println(io, "$(size(A,1)) by $(size(A, 2)) regular sparse column matrix")
@@ -74,37 +118,22 @@ function show(io::IO, A::SparseMatrixRSC)
     print(io, "Non-zero values: ", A.nzval)
 end
 
+function sparse(x::SparseMatrixRSC)
+    SparseMatrixCSC(size(x,1), size(x,2), expandp(x), expandi(x), vec(x.nzval))
+end
+
 ## DyeStuff example from the lme4 package for R
 # using DataFrames
-#ZXt = SparseMatrixRSC(gl(6,5), ones((2,30)))
+# SparseMatrixRSC(gl(6,5), ones((2,30)))
 #ZXtZX = chm_sort(chm_aat(ZXt))
 #fac = chm_factorize(aat)
 #Yield = float([1545, 1440, 1440, 1520, 1580, 1540, 1555, 1490, 1560, 1495, 1595, 1550, 1605, 1510, 1560, 1445, 1440, 1595, 1465, 1545, 1595, 1630, 1515, 1635, 1625, 1520, 1455, 1450, 1480, 1445])
 
-function scale!{T}(sc::Vector{T}, A::SparseMatrixRSC{T})
-    if length(sc) != size(A.nzval, 1) error("Dimension mismatch") end
-    diagmm!(A.nzval, sc, A.nzval)
-    A
+function mktheta(nc)
+    mapreduce(j->mapreduce(k->float([1.,zeros(j-k)]), vcat, 1:j), vcat, nc)
 end
 
-function *{T}(A::SparseMatrixRSC{T}, v::Vector{T})
-    ## Sparse part
-    m,n = size(A)
-    if length(v) != n error("Dimension mismatch") end
-    res = zeros(T, m)
-    rv  = A.rowval
-    nv  = A.nzval
-    k   = size(rv,1)
-    for j in 1:n, i in 1:k
-        res[rv[i,j]] += v[j] * nv[i,j]
-    end
-    for j in 1:n, i in 1:A.p
-        res[A.q + i] += v[j] * nv[k + i, j]
-    end
-    res
-end
-
-type RSCpred{Tv<:SuiteSparse.CHMVTypes,Ti<:SuiteSparse.CHMITypes} <: LinPred  # perhaps create SparsePred for symmetry
+type RSCpred{Tv<:VTypes,Ti<:ITypes} <: LinPred
     ZXt::SparseMatrixRSC{Tv,Ti}
     theta::Vector{Tv}
     lower::Vector{Tv}
@@ -115,7 +144,7 @@ type RSCpred{Tv<:SuiteSparse.CHMVTypes,Ti<:SuiteSparse.CHMITypes} <: LinPred  # 
 end
 
 function RSCpred{Tv,Ti}(ZXt::SparseMatrixRSC{Tv,Ti}, theta::Vector)
-    aat = chm_aat(ZXt)
+    aat = ZXt*ZXt'
     cp = aat.colptr0
     rv = aat.rowval0
     xv = aat.nzval
@@ -131,7 +160,7 @@ function RSCpred{Tv,Ti}(ZXt::SparseMatrixRSC{Tv,Ti}, theta::Vector)
     end
     ub = zeros(Tv,(size(ZXt,1),))
     RSCpred{Tv,Ti}(ZXt, th, [convert(Tv,t == 0.?-Inf:0.) for t in th],
-                   aat, chm_factorize(aat), ub, ub)
+                   aat, cholfact(aat,true), ub, ub)
 end
 
 function apply_lambda!{T}(vv::Vector{T}, x::RSCpred{T}, wt::T)
@@ -153,7 +182,8 @@ function apply_lambda!{T}(vv::Vector{T}, x::RSCpred{T}, wt::T)
     vv
 end
     
-function update!{Tv,Ti}(x::RSCpred{Tv,Ti}, theta::Vector{Tv}, resid::Vector{Tv}, wts::Vector{Tv})
+function update!{Tv,Ti}(x::RSCpred{Tv,Ti}, theta::Vector{Tv},
+                        resid::Vector{Tv}, wts::Vector{Tv})
     if length(theta) != length(x.theta)
         error("length(theta) = $(length(theta)), should be $(length(x.theta))")
     end
@@ -167,8 +197,8 @@ function update!{Tv,Ti}(x::RSCpred{Tv,Ti}, theta::Vector{Tv}, resid::Vector{Tv},
     rv  = increment(x.A.rowval0)
     nzv = x.A.nzval
     q   = x.ZXt.q         # number of rows and columns in Zt part of A
-    ## Initialize A to the q by q identity in the upper left hand corner, zeros elsewhere
-    ## When the tcrossprod is assembled below this is the equivalent of adding the identity
+    ## Initialize A to the q by q identity in the upper left hand corner,
+    ## zeros elsewhere.
     for j in 1:(x.A.c.n), kk in cp[j]:(cp[j+1] - 1)
         nzv[kk] = (rv[kk] == j && j <= q) ? 1. : 0.
     end
@@ -201,4 +231,4 @@ function update!{T}(x::RSCpred{T}, theta::Vector{T}, resid::Vector{T})
     update!(x, theta, resid, ones(T,length(resid)))
 end
 
-
+end
