@@ -9,19 +9,25 @@
 ## convention being that the p extra rows are dense rows appended to the matrix.
 module RSC
 
-using GLM, DataFrames
+using GLM, DataFrames, Distributions
 using Base.LinAlg.CHOLMOD.CholmodFactor
 using Base.LinAlg.CHOLMOD.CholmodSparse
 using Base.LinAlg.CHOLMOD.CholmodSparse!
+using Base.LinAlg.UMFPACK.decrement
+using Base.LinAlg.UMFPACK.decrement!
+using Base.LinAlg.UMFPACK.increment
+using Base.LinAlg.UMFPACK.increment!
 
 export
    SparseMatrixRSC,
    RSCpred,
-   update!
+   delubeta,
+   updateAL!
 
 import Base.(*)
 import Base.A_mul_Bc
 import Base.A_mul_Bt
+import Base.Ac_mul_B
 import Base.copy
 import Base.dense
 import Base.full
@@ -29,6 +35,9 @@ import Base.nnz
 import Base.show
 import Base.size
 import Base.sparse
+
+import Distributions.deviance
+import GLM.linpred
 
 typealias VTypes Union(Float64,Complex128)
 typealias ITypes Union(Int32,Int64)
@@ -87,6 +96,24 @@ function A_mul_Bc{Tv,Ti<:ITypes}(A::SparseMatrixRSC{Tv,Ti},
     return CholmodSparse!(sparse(A),0) * CholmodSparse!(sparse(B),0)'
 end
 
+function Ac_mul_B{T}(A::SparseMatrixRSC{T},b::Vector{T})
+    m,n = size(A)
+    if length(b) != m error("Dimension mismatch") end
+    res = zeros(T, n)
+    rv  = A.rowval
+    nv  = A.nzval
+    k   = size(rv,1)
+    ## Sparse part
+    for j in 1:n, i in 1:k
+        res[j] += b[rv[i,j]] * nv[i,j]
+    end
+    ## Dense part
+    for j in 1:n, i in 1:A.p
+        res[j] += b[A.q + i] * nv[k + i, j]
+    end
+    res
+end
+
 copy(A::SparseMatrixRSC) = SparseMatrixRSC(copy(A.rowval), copy(A.nzval))
 
 function expandi{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti})
@@ -124,10 +151,8 @@ end
 
 ## DyeStuff example from the lme4 package for R
 # using DataFrames
-# SparseMatrixRSC(gl(6,5), ones((2,30)))
-#ZXtZX = chm_sort(chm_aat(ZXt))
-#fac = chm_factorize(aat)
-#Yield = float([1545, 1440, 1440, 1520, 1580, 1540, 1555, 1490, 1560, 1495, 1595, 1550, 1605, 1510, 1560, 1445, 1440, 1595, 1465, 1545, 1595, 1630, 1515, 1635, 1625, 1520, 1455, 1450, 1480, 1445])
+# rr = RSCpred(SparseMatrixRSC(gl(6,5), ones((2,30))))
+#Yield = [1545., 1440, 1440, 1520, 1580, 1540, 1555, 1490, 1560, 1495, 1595, 1550, 1605, 1510, 1560, 1445, 1440, 1595, 1465, 1545, 1595, 1630, 1515, 1635, 1625, 1520, 1455, 1450, 1480, 1445]
 
 function mktheta(nc)
     mapreduce(j->mapreduce(k->float([1.,zeros(j-k)]), vcat, 1:j), vcat, nc)
@@ -141,6 +166,7 @@ type RSCpred{Tv<:VTypes,Ti<:ITypes} <: LinPred
     L::CholmodFactor{Tv,Ti}
     ubeta0::Vector{Tv}
     delubeta::Vector{Tv}
+    xwts::Vector{Tv}
 end
 
 function RSCpred{Tv,Ti}(ZXt::SparseMatrixRSC{Tv,Ti}, theta::Vector)
@@ -160,7 +186,7 @@ function RSCpred{Tv,Ti}(ZXt::SparseMatrixRSC{Tv,Ti}, theta::Vector)
     end
     ub = zeros(Tv,(size(ZXt,1),))
     RSCpred{Tv,Ti}(ZXt, th, [convert(Tv,t == 0.?-Inf:0.) for t in th],
-                   aat, cholfact(aat,true), ub, ub)
+                   aat, cholfact(aat,true), ub, ub, ones(size(ZXt,2)))
 end
 
 function apply_lambda!{T}(vv::Vector{T}, x::RSCpred{T}, wt::T)
@@ -182,17 +208,11 @@ function apply_lambda!{T}(vv::Vector{T}, x::RSCpred{T}, wt::T)
     vv
 end
     
-function update!{Tv,Ti}(x::RSCpred{Tv,Ti}, theta::Vector{Tv},
-                        resid::Vector{Tv}, wts::Vector{Tv})
-    if length(theta) != length(x.theta)
-        error("length(theta) = $(length(theta)), should be $(length(x.theta))")
-    end
-    if any(theta .< x.lower) error("theta violates lower bound") end
+function updateAL!{Tv,Ti}(x::RSCpred{Tv,Ti})
+    if any(x.theta .< x.lower) error("theta violates lower bound") end
     n = size(x.ZXt,2)
-    if (length(resid) != n || length(wts) != n)
-        error("length(resid) = $(length(resid)), length(wts) = $(length(wts)) should be $n")
-    end
-    x.theta[:] = theta                  # in-place install of new value of theta
+    if (length(x.xwts) != n) error("length(xwts) = $(length(x.xwts)) should be $n") end
+    ## change this to work with the 0-based indices
     cp  = increment(x.A.colptr0)        # 1-based column pointers and rowvals for A 
     rv  = increment(x.A.rowval0)
     nzv = x.A.nzval
@@ -208,7 +228,7 @@ function update!{Tv,Ti}(x::RSCpred{Tv,Ti}, theta::Vector{Tv},
     w = Array(Tv, size(ZXv, 1))     # avoid reallocation of work array
     for j in 1:n
         w[:] = ZXv[:,j]
-        apply_lambda!(w, x, wts[j])
+        apply_lambda!(w, x, x.xwts[j])
         ## scan up the j'th column of ZXt
         for i in length(w):-1:1
             ii = i <= k ? ZXr[i,j] : q + i - k
@@ -224,11 +244,34 @@ function update!{Tv,Ti}(x::RSCpred{Tv,Ti}, theta::Vector{Tv},
             end
         end
     end
-    chm_factorize!(x.L.c, x.A.c)
+    Base.LinAlg.CHOLMOD.chm_factorize!(x.L, x.A)
 end
 
-function update!{T}(x::RSCpred{T}, theta::Vector{T}, resid::Vector{T})
-    update!(x, theta, resid, ones(T,length(resid)))
+function installubeta(p::RSCpred, f::Real)
+    p.ubeta0 += f * p.delubeta
+    p.delubeta[:] = zeros(length(p.delubeta))
+    p.ubeta0
+end
+installubeta(p::RSCpred) = installubeta(p, 1.0)
+linpred(p::RSCpred, f::Real) = p.ZXt' * (p.ubeta0 + f * p.delubeta)
+linpred(p::RSCpred) = linpred(p, 1.0)
+function delubeta{T<:VTypes}(p::RSCpred{T}, r::Vector{T})
+    p.delubeta[:] = (p.L \ (p.ZXt * (p.xwts .* r))).mat
+end
+
+function deviance{T}(pp::RSCpred{T}, resp::Vector{T})
+    delubeta(pp, resp)
+    Ldiag = diag(pp.L)
+    p = pp.ZXt.p
+    q = pp.ZXt.q
+    pwrss = (s=0.; for r in (resp - linpred(pp)) s += r*r end; s)
+    ldL2 = (s=0.; for j in 1:q s += 2.*log(Ldiag[j]) end; s)
+    ldRX2 = (s=0.; for i in 1:p s += 2.*log(Ldiag[q + i]) end; s)
+    sqrL = (s=0.; for j in 1:q s += square(pp.delubeta[j]) end; s)
+    lnum = log(2pi * (pwrss + sqrL))
+    n = float(size(pp.ZXt,2))
+    nmp = n - p
+    ldL2 + n * (1 + lnum - log(n)), ldL2 + ldRX2 + nmp * (1 + lnum - log(nmp))
 end
 
 end
