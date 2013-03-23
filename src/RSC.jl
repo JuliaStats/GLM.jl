@@ -253,25 +253,62 @@ function installubeta(p::RSCpred, f::Real)
     p.ubeta0
 end
 installubeta(p::RSCpred) = installubeta(p, 1.0)
-linpred(p::RSCpred, f::Real) = p.ZXt' * (p.ubeta0 + f * p.delubeta)
+linpred(p::RSCpred, f::Real) = Ac_mul_B(p.ZXt, p.ubeta0 + f * p.delubeta)
 linpred(p::RSCpred) = linpred(p, 1.0)
-function delubeta{T<:VTypes}(p::RSCpred{T}, r::Vector{T})
-    p.delubeta[:] = (p.L \ (p.ZXt * (p.xwts .* r))).mat
+function delubeta{T<:VTypes}(pp::RSCpred{T}, r::Vector{T}) # come up with a better name
+    ## blockdiag(Lambdat,I) * ZXt * (p.wts .* r)
+    pr = zeros(T, size(pp.ZXt,1))
+    rv = pp.ZXt.rowval
+    k,n = size(rv)
+    p = pp.ZXt.p
+    q = pp.ZXt.q
+    w = Array(T, k + p)
+    for j in 1:n
+        rj = r[j]
+        w[:] = pp.ZXt.nzval[:,j]
+        apply_lambda!(w, pp, pp.xwts[j])
+        for i in 1:k pr[rv[i,j]] += w[i] * rj end
+        for i in 1:p pr[q+i] += w[k + 1] * rj end
+    end
+    pp.delubeta[:] = (pp.L \ pr).mat
 end
 
 function deviance{T}(pp::RSCpred{T}, resp::Vector{T})
     delubeta(pp, resp)
-    Ldiag = diag(pp.L)
     p = pp.ZXt.p
     q = pp.ZXt.q
-    pwrss = (s=0.; for r in (resp - linpred(pp)) s += r*r end; s)
-    ldL2 = (s=0.; for j in 1:q s += 2.*log(Ldiag[j]) end; s)
-    ldRX2 = (s=0.; for i in 1:p s += 2.*log(Ldiag[q + i]) end; s)
-    sqrL = (s=0.; for j in 1:q s += square(pp.delubeta[j]) end; s)
-    lnum = log(2pi * (pwrss + sqrL))
+    rss = (s = 0.; for r in (resp - linpred(pp)) s += r*r end; s)
+    ldL2 = logdet(pp.L,1:q)
+    ldRX2 = logdet(pp.L,(1:p)+q)
+    sqrL = (s = 0.; for j in 1:q s += square(pp.delubeta[j]) end; s)
+    lnum = log(2pi * (rss + sqrL))
     n = float(size(pp.ZXt,2))
     nmp = n - p
     ldL2 + n * (1 + lnum - log(n)), ldL2 + ldRX2 + nmp * (1 + lnum - log(nmp))
 end
+
+function quickupdate{T}(pp::RSCpred{T}, theta::Vector{T})
+    ZXt = pp.ZXt
+    sc = ones(size(ZXt,1))
+    for j in 1:ZXt.q sc[j] = theta[1] end
+    A = copy(pp.A)
+    xv = A.nzval
+    xv[:] = pp.avals[:]
+    cp = A.colptr0
+    rv = A.rowval0
+    Base.LinAlg.CHOLMOD.chm_scale!(A, CholmodDense(sc), 3)
+    for j in 1:ZXt.q                    # inflate the diagonal
+        k = cp[j+1]                     # 0-based indices in cp
+        assert(rv[k] == j-1)
+        xv[k] += 1.
+    end
+    Base.LinAlg.CHOLMOD.chm_factorize!(pp.L, A)
+end
+
+## Pastes example
+## strength = vec([62.8 62.6 60.1 62.3 62.7 63.1 60.0 61.4 57.5 56.9 61.1 58.9 58.7 57.5 63.9
+##                 63.1 65.4 63.7 57.1 56.4 56.9 58.6 64.7 64.5 55.1 55.1 54.7 54.2 58.8 57.5
+##                 63.4 64.9 59.3 58.1 60.5 60.0 62.5 62.6 61.0 58.7 56.9 57.7 59.2 59.4 65.2
+##                 66.0 64.8 64.1 54.8 54.8 64.0 64.0 57.7 56.8 58.3 59.3 59.2 59.2 58.9 56.6])
 
 end
