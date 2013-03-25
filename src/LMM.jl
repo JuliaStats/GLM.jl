@@ -4,9 +4,12 @@ using RSC
 using Base.LinAlg.CHOLMOD.CholmodDense
 using Base.LinAlg.CHOLMOD.CholmodFactor
 using Base.LinAlg.CHOLMOD.CholmodSparse
+using Base.LinAlg.CHOLMOD.chm_scale!
+using Base.LinAlg.CHOLMOD.chm_factorize!
 
 export LMMsimple
 import Distributions.deviance
+import Base.fill!
 
 typealias ITypes Union(Int32,Int64)
 
@@ -20,7 +23,8 @@ type LMMsimple{Tv<:Float64,Ti<:ITypes}
     sqrtwts::Vector{Tv}        # square root of weights - can be length 0
     y::Vector{Tv}              # response vector
     ZXty::Vector{Tv}           # cached copy of ZXt*y
-    mu::Vector{Tv}
+    lambda::Vector{Tv}         # diagonal of Lambda
+    mu::Vector{Tv}             # fitted response vector
 end
 
 ## Add a q by q identity block to the upper left of a symmetric A stored in the upper triangle 
@@ -49,7 +53,11 @@ function LMMsimple{Tv<:Float64,Ti<:ITypes}(ZXt::SparseMatrixRSC{Tv,Ti},
     ZXty = ZXt*y
     ubeta = vec((L\ZXty).mat)
     LMMsimple{Tv,Ti}(ZXt, ones(size(ZXt.rowval,1)), A, anzv, L,
-                     ubeta, sqrt(wts), y, ZXty, Ac_mul_B(ZXt,ubeta))
+                     ubeta, sqrt(wts), y, ZXty, ones(size(L,1)), Ac_mul_B(ZXt,ubeta))
+end
+
+function fill!{T,Ti<:Union(Vector{Int}, Range{Int}, Range1{Int})}(a::Vector{T}, x::T, inds::Ti)
+    for i in inds a[i] = x end
 end
 
 function deviance(m::LMMsimple,theta::Vector{Float64})
@@ -58,15 +66,15 @@ function deviance(m::LMMsimple,theta::Vector{Float64})
     m.theta[:] = theta[:]               # copy in place
     m.A.nzval[:] = m.anzv[:]            # restore A in place to ZXt*ZXt'
     ZXt = m.ZXt
-    nlev = diff([0,m.ZXt.maxrow])
-    lambda = [mapreduce(i->fill(theta[i],nlev[i]), vcat, 1:length(theta)), ones(ZXt.p)]
-    Base.LinAlg.CHOLMOD.chm_scale!(m.A, CholmodDense(lambda), 3)
     q = ZXt.q
     p = ZXt.p
+    for i in 1:length(theta) fill!(m.lambda, theta[i], int(ZXt.rowrange[i])) end
+    ## FIXME Add a chm_scale! method to the Base.LinAlg.CHOLMOD module
+    chm_scale!(m.A, CholmodDense(m.lambda), 3) # symmetric scaling
     pluseye(m.A, q)
-    Base.LinAlg.CHOLMOD.chm_factorize!(m.L,m.A)
-    m.ubeta[:] = vec((m.L \ (lambda .* m.ZXty)).mat)[:]
-    m.mu[:] = Ac_mul_B(ZXt, lambda .* m.ubeta)
+    chm_factorize!(m.L,m.A)
+    m.ubeta[:] = vec((m.L \ (m.lambda .* m.ZXty)).mat)[:]
+    m.mu[:] = Ac_mul_B(ZXt, m.lambda .* m.ubeta)
     rss = (s = 0.; for r in (m.y - m.mu) s += r*r end; s)
     ldL2 = logdet(m.L, 1:q)
     ldA = logdet(m.L)
@@ -74,7 +82,6 @@ function deviance(m::LMMsimple,theta::Vector{Float64})
     lnum = log(2pi * (rss + ussq))
     n = float(size(ZXt,2))
     nmp = n - p
-    println("ldL2 = $ldL2, ldA = $ldA, rss = $rss, ussq = $ussq, lnum = $lnum, n = $n, nmp = $nmp")
     [ldL2 + n * (1 + lnum - log(n)), ldA + nmp * (1 + lnum - log(nmp))]
 end
 

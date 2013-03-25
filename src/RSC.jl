@@ -34,15 +34,26 @@ type SparseMatrixRSC{Tv<:VTypes,Ti<:ITypes} <: AbstractSparseMatrix{Tv,Ti}
     q::Int                              # number of rows in the Zt part
     p::Int                              # number of rows in the Xt part
     rowval::Matrix{Ti}                  # row indices of nonzeros
-    maxrow::Vector{Ti}                  # maxima across rows of rowval
+    rowrange::Array{Range1{Int},1}       # ranges of rows of rowval
     nzval::Matrix{Tv}                   # nonzero values
     function SparseMatrixRSC(rowval::Matrix{Ti},nzval::Matrix{Tv})
         if size(nzval,2) != size(rowval,2)
             error("number of columns in nzval, $(size(nzval,2)), should be $(size(rowval,2))")
         end
         if !all(rowval .> 0) error("row values must be positive") end
-        new(int(max(rowval)), size(nzval,1) - size(rowval,1),
-            rowval, [max(rowval[i,:]) for i in 1:size(rowval,1)], nzval)
+        k = size(rowval, 1)
+        rowrange = Array(Range1{Int}, k)
+        for i in 1:k
+            mn = rowval[i,1]
+            mx = rowval[i,1]
+            for j in 2:size(rowval,2)
+                vv = rowval[i,j]
+                if vv < mn mn = vv end
+                if vv > mx mx = vv end
+            end
+            rowrange[i] = Range1(int(mn), 1 + mx - mn)
+        end
+        new(int(max(rowval)), size(nzval,1) - k, rowval, rowrange, nzval)
     end
 end
 
