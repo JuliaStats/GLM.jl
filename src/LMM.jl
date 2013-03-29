@@ -6,7 +6,12 @@ using Base.LinAlg.CHOLMOD.CholmodSparse
 using Base.LinAlg.CHOLMOD.chm_scale!
 using Base.LinAlg.CHOLMOD.chm_factorize!
 
-export LMMsimple
+export
+    LMMsimple,
+    VarCorr,
+    fixef,
+    ranef
+    
 import Distributions.deviance
 import Distributions.fit
 import Base.fill!
@@ -27,6 +32,8 @@ type LMMsimple{Tv<:Float64,Ti<:ITypes}
     ZXty::Vector{Tv}           # cached copy of ZXt*y
     lambda::Vector{Tv}         # diagonal of Lambda
     mu::Vector{Tv}             # fitted response vector
+    REML::Bool                 # should a reml fit be used?
+    fit::Bool                  # has the model been fit?
 end
 
 ## Add an identity block on Inds to a symmetric A stored in the upper triangle 
@@ -58,7 +65,8 @@ function LMMsimple{Tv<:Float64,Ti<:ITypes}(ZXt::SparseMatrixRSC{Tv,Ti},
     ubeta = vec((L\ZXty).mat)
     k = size(ZXt.rowval, 1)
     LMMsimple{Tv,Ti}(ZXt, ones(k), zeros(k), A, anzv, L,
-                     ubeta, sqrt(wts), y, ZXty, ones(size(L,1)), Ac_mul_B(ZXt,ubeta))
+                     ubeta, sqrt(wts), y, ZXty, ones(size(L,1)), Ac_mul_B(ZXt,ubeta),
+                     false, false)
 end
 
 LMMsimple(ZXt,y) = LMMsimple(ZXt, y, Array(eltype(y), 0))
@@ -82,7 +90,7 @@ function fill!{T,Ti<:Inds}(a::Vector{T}, x::T, inds::Ti)
     for i in inds a[i] = x end
 end
 
-function deviance(m::LMMsimple,theta::Vector{Float64}, REML::Bool)
+function deviance(m::LMMsimple,theta::Vector{Float64})
     if length(theta) != length(m.theta) error("Dimension mismatch") end
     if any(theta .< 0.) error("all elements of theta must be non-negative") end
     m.theta[:] = theta[:]               # copy in place
@@ -99,7 +107,7 @@ function deviance(m::LMMsimple,theta::Vector{Float64}, REML::Bool)
     rss = (s = 0.; for r in (m.y - m.mu) s += r*r end; s)
     ussq = (s = 0.; for j in 1:q s += square(m.ubeta[j]) end; s)
     lnum = log(2pi * (rss + ussq))
-    if REML
+    if m.REML
         nmp = float(size(ZXt,2) - p)
         return logdet(m.L) + nmp * (1 + lnum - log(nmp))
     end
@@ -107,42 +115,56 @@ function deviance(m::LMMsimple,theta::Vector{Float64}, REML::Bool)
     return logdet(m.L, 1:q) + n * (1 + lnum - log(n))
 end
 
-deviance(m::LMMsimple,theta::Vector{Float64}) = deviance(m, theta, false)
-# Dyestuff example
-# ZXt = SparseMatrixRSC(1+div([0:29],5)), ones((2,30))
-# Yield = [1545., 1440, 1440, 1520, 1580, 1540, 1555, 1490, 1560,
-#                 1495, 1595, 1550, 1605, 1510, 1560, 1445, 1440, 1595,
-#                 1465, 1545, 1595, 1630, 1515, 1635, 1625, 1520, 1455,
-#                 1450, 1480, 1445]
-# mm = LMMsimple(ZXt)
-
-function fit(mm::LMMsimple, REML::Bool, verbose::Bool) # keyword arguments will help
-    k = length(mm.theta)
-    opt = Opt(:LN_BOBYQA, k)
-    ftol_abs!(opt, 1e-6)    # criterion on deviance changes
-    xtol_abs!(opt, 1e-6)    # criterion on all parameter value changes
-    lower_bounds!(opt, mm.lower)
-    function obj(x::Vector{Float64}, g::Vector{Float64})
-        if length(g) > 0 error("gradient evaluations are not provided") end
-        deviance(mm, x, REML)
-    end
-    if verbose
-        count = 0
-        function vobj(x::Vector{Float64}, g::Vector{Float64})
-            count += 1
-            val = obj(x, g)
-            println("f_$count: $val, $x")
-            val
+function fit(m::LMMsimple, verbose::Bool) # keyword arguments will help
+    if !m.fit
+        k = length(m.theta)
+        opt = Opt(:LN_BOBYQA, k)
+        ftol_abs!(opt, 1e-6)    # criterion on deviance changes
+        xtol_abs!(opt, 1e-6)    # criterion on all parameter value changes
+        lower_bounds!(opt, m.lower)
+        function obj(x::Vector{Float64}, g::Vector{Float64})
+            if length(g) > 0 error("gradient evaluations are not provided") end
+            deviance(m, x)
         end
-        min_objective!(opt, vobj)
-    else
-        min_objective!(opt, obj)
+        if verbose
+            count = 0
+            function vobj(x::Vector{Float64}, g::Vector{Float64})
+                if length(g) > 0 error("gradient evaluations are not provided") end
+                count += 1
+                val = obj(x, g)
+                println("f_$count: $val, $x")
+                val
+            end
+            min_objective!(opt, vobj)
+        else
+            min_objective!(opt, obj)
+        end
+        fmin, xmin, ret = optimize(opt, m.theta)
+        if verbose println(ret) end
+        m.fit = true
     end
-    optimize(opt, mm.theta)
 end
 
-fit(mm::LMMsimple, REML::Bool) = fit(mm, REML, false)
-fit(mm::LMMsimple) = fit(mm, false, false)
+fit(m::LMMsimple) = fit(m, false)      # non-verbose
 
+deviance(m::LMMsimple) = (fit(m); deviance(m,m.theta))
+
+function fixef(m::LMMsimple)
+    fit(m)
+    m.ubeta[m.ZXt.q + (1:m.ZXt.p)]
+end
+
+function ranef(m::LMMsimple)
+    fit(m)
+    (m.lambda .* m.ubeta)[1:m.ZXt.q]
+end
+
+function VarCorr(m::LMMsimple)
+    fit(m)
+    pwrss = (s = 0.; for r in (m.y - m.mu) s += r*r end; s)
+    pwrss += (s = 0.; for i in 1:m.ZXt.q s += square(m.ubeta[i]) end; s)
+    [m.theta.^2 1.] * pwrss/(length(m.y) - (m.REML ? m.ZXt.p : 0))
+end
+        
 end
 

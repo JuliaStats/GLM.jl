@@ -1,18 +1,19 @@
 # Linear models (lm's) and generalized linear models (glm's) in Julia
 
-To install the package run (in Julia)
+To install the package use
 ```julia
-load("pkg")
 Pkg.add("GLM")
 ```
 
-The `GLM` package depends on `DataFrames` and `Distributions`. Typically one loads it with
+The `GLM` package depends on `DataFrames` and `Distributions`. Because
+it helps to be able to access functions from all three of these
+packages, load them with
 ```julia
 using DataFrames, Distributions, GLM
 ```
-to access the functions from all three packages.  The `RDatasets`
-package is useful for fitting models to compare with the results from
-R.
+
+The `RDatasets` package is useful for fitting models to compare with
+the results from R.
 
 Many of the methods provided by this package have names similar to those in R.
 - `coef`: extract the estimates of the coefficients in the model
@@ -23,10 +24,6 @@ Many of the methods provided by this package have names similar to those in R.
 - `stderr`: standard errors of the coefficients
 - `vcov`: estimated variance-covariance matrix of the coefficient estimates
 
-Right now there are no `show` methods for the fitted model types but
-those will be added soon.  A call to `coeftable(fm)` where `fm` is a
-fitted model produces results similar to those of `coef(summary(fm))`
-in R.
 
 An example of a simple linear model in R is
 ```R
