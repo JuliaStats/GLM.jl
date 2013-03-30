@@ -56,13 +56,28 @@ function LMMsimple{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti},
                                            wts::Vector{Tv})
     n = length(y)
     if !(size(inds,1) == size(X,1) == n) error("Dimension mismatch") end
-    ii = copy(inds)
+    ii = droplevels(inds)
     for j in 2:size(ii,2) ii[:,j] += max(ii[:,j-1]) end
     LMMsimple(SparseMatrixRSC(ii', [ones(size(ii)) X]'), y, wts)
 end
 
 function LMMsimple{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti}, X::Matrix{Tv}, y::Vector{Tv})
     LMMsimple(inds, X, y, Array(Tv, 0))
+end
+
+
+function droplevels{T<:ITypes}(inds::Matrix{T})
+    ic = copy(inds)
+    m,n = size(ic)
+    for j in 1:n
+        uj = unique(ic[:,j])
+        nuj = length(uj)
+        if min(uj) == 1 && max(uj) == nuj break end
+        suj = sort!(uj)
+        dict = Dict(suj, one(T):convert(T,nuj))
+        ic[:,j] = [ dict[ic[i,j]] for i in 1:m ]
+    end
+    ic
 end
 
 function fill!{T}(a::Vector{T}, x::T, inds)
