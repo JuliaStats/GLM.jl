@@ -13,6 +13,7 @@ export                                  # types
                                         # functions
     fixef,
     ranef,
+    reml,
     VarCorr
 
 import Base.(*), Base.A_mul_Bc, Base.Ac_mul_B, Base.copy, Base.dense, Base.fill!

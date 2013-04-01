@@ -137,6 +137,7 @@ function fit(m::LMMsimple, verbose::Bool) # keyword arguments will help
         if verbose println(ret) end
         m.fit = true
     end
+    m
 end
 
 fit(m::LMMsimple) = fit(m, false)      # non-verbose
@@ -157,6 +158,28 @@ function VarCorr(m::LMMsimple)
     fit(m)
     pwrss = (s = 0.; for r in (m.y - m.mu) s += r*r end; s)
     pwrss += (s = 0.; for i in 1:m.ZXt.q s += square(m.ubeta[i]) end; s)
-    [m.theta.^2 1.] * pwrss/(length(m.y) - (m.REML ? m.ZXt.p : 0))
+    vec([m.theta.^2, 1.] * pwrss/(length(m.y) - (m.REML ? m.ZXt.p : 0)))
 end
 
+reml(m::LMMsimple) = (m.REML = true; m.fit = false; m)
+    
+function show(io::IO, m::LMMsimple)
+    fit(m)
+    REML = m.REML
+    criterionstr = REML ? "REML" : "maximum likelihood"
+    println(io, "Linear mixed model fit by $criterionstr")
+    dd = deviance(m)
+    if REML
+        println(io, " REML criterion: $dd")
+    else
+        println(io, " logLik: $(-dd/2), deviance: $dd")
+    end
+    vc = VarCorr(m)
+    println("\n  Variance components: $vc")
+    ZXt = m.ZXt
+    rv = ZXt.rowval
+    grplevs = [length(unique(rv[i,:]))::Int for i in 1:size(rv,1)]
+    println("  Number of obs: $(length(m.y)); levels of grouping factors: $grplevs")
+    println("  Fixed-effects parameters: $(fixef(m))")
+end
+    
