@@ -1,4 +1,4 @@
-type LMMsimple{Tv<:Float64,Ti<:ITypes}
+type LMMsimple{Tv<:Float64,Ti<:ITypes} <: LinearMixedModel
     ZXt::SparseMatrixRSC{Tv,Ti}# model matrices Z and X in an RSC structure
     theta::Vector{Tv}          # variance component parameter vector
     lower::Vector{Tv}          # lower bounds (always zeros(length(theta)) for these models)
@@ -15,7 +15,7 @@ type LMMsimple{Tv<:Float64,Ti<:ITypes}
     fit::Bool                  # has the model been fit?
 end
 
-## Add an identity block on Inds to a symmetric A stored in the upper triangle 
+## Add an identity block for inds to a symmetric A stored in the upper triangle
 function pluseye{T}(A::CholmodSparse{T}, inds) 
     if A.c.stype <= 0 error("Matrix A must be symmetric and stored in upper triangle") end
     cp = A.colptr0
@@ -27,7 +27,6 @@ function pluseye{T}(A::CholmodSparse{T}, inds)
         xv[k] += one(T)
     end
 end
-
 pluseye(A::CholmodSparse) = pluseye(A,1:size(A,1))
 
 function LMMsimple{Tv<:Float64,Ti<:ITypes}(ZXt::SparseMatrixRSC{Tv,Ti},

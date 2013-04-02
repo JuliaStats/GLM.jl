@@ -8,6 +8,7 @@ using Base.LinAlg.CHOLMOD.chm_scale!
 using Base.LinAlg.CHOLMOD.chm_factorize!
 
 export                                  # types
+    MixedModel
     SparseMatrixRSC,
     LMMsimple,
                                         # functions
@@ -25,6 +26,10 @@ typealias VTypes Union(Float64,Complex128)
 typealias ITypes Union(Int32,Int64)
 
 include("RSC.jl")                       # regular sparse column-oriented matrices
+
+abstract MixedModel
+abstract LinearMixedModel <: MixedModel
+
 include("LMM.jl")
 
 end
