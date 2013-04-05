@@ -89,7 +89,7 @@ wrkresp(  r::GlmResp) = (r.eta - r.offset) + wrkresid(r)
 
 function updatemu(r::GlmResp, linPr::Vector{Float64})
     n = length(linPr)
-    if length(r.mu) != n throw(LAPACK.LapackDimMisMatch("linPr")) end
+    if length(r.mu) != n throw(LinAlg.LAPACK.DimensionMismatch("linPr")) end
     r.eta[:] = linPr
     if length(r.offset) == n r.eta += r.offset end
     r.mu = linkinv(r.l, r.eta)
@@ -119,7 +119,7 @@ end
 
 function updatemu(r::LmResp, linPr::Vector{Float64})
     n = length(linPr)
-    if length(r.mu) != n throw(LAPACK.LapackDimMisMatch("linpr")) end
+    if length(r.mu) != n throw(LinAlg.LAPACK.DimensionMismatch("linpr")) end
     r.mu[:] = linPr
     if (length(r.offset) == n) r.mu += r.offset end
     deviance(r)
@@ -174,7 +174,7 @@ type DensePredQR <: DensePred
     X::Matrix{Float64}                  # model matrix
     beta0::Vector{Float64}              # base coefficient vector
     delbeta::Vector{Float64}            # coefficient increment
-    qr::QRDense{Float64}
+    qr::QR{Float64}
     function DensePredQR(X::Matrix{Float64}, beta0::Vector{Float64})
         n, p = size(X)
         if length(beta0) != p error("dimension mismatch") end
@@ -186,7 +186,7 @@ type DensePredChol <: DensePred
     X::Matrix{Float64}                  # model matrix
     beta0::Vector{Float64}              # base vector for coefficients
     delbeta::Vector{Float64}            # coefficient increment
-    chol::CholeskyDense{Float64}
+    chol::Cholesky{Float64}
     function DensePredChol(X::Matrix{Float64}, beta0::Vector{Float64})
         n, p = size(X)
         if length(beta0) != p error("dimension mismatch") end
@@ -201,14 +201,14 @@ DensePredChol(X::Matrix{Float64}) = DensePredChol(X, zeros(Float64,(size(X,2),))
 DensePredChol{T<:Real}(X::Matrix{T}) = DensePredChol(float64(X))
 
 function delbeta(p::DensePredQR, r::Vector{Float64}, sqrtwt::Vector{Float64})
-    p.qr.hh[:] = diagmm(sqrtwt, p.X)
-    p.qr.tau[:] = LAPACK.geqrf!(p.qr.hh)[2]
+    p.qr.vs[:] = diagmm(sqrtwt, p.X)
+    p.qr.T[:] = LinAlg.LAPACK.geqrt3!(p.qr.vs)[2]
     p.delbeta[:] = p.qr \ (sqrtwt .* r)
 end
 
 function delbeta(p::DensePredChol, r::Vector{Float64}, sqrtwt::Vector{Float64})
     WX = diagmm(sqrtwt, p.X)
-    if LAPACK.potrf!('U', BLAS.syrk!('U', 'T', 1.0, WX, 0.0, p.chol.LR))[2] != 0
+    if LinAlg.LAPACK.potrf!('U', LinAlg.BLAS.syrk!('U', 'T', 1.0, WX, 0.0, p.chol.LR))[2] != 0
         error("Singularity detected at column $(fac[2]) of weighted model matrix")
     end
     p.delbeta[:] = p.chol \ (WX'*(sqrtwt .* r))
@@ -380,7 +380,7 @@ df_residual(x::DensePred) = size(x.X, 1) - length(x.beta0)
     
 vcov(x::LinPredModel) = scale(x) * vcov(x.pp)
 vcov(x::DensePredChol) = inv(x.chol)
-vcov(x::DensePredQR) = BLAS.symmetrize!(LAPACK.potri!('U', x.qr.hh[1:length(x.beta0),:])[1])
+vcov(x::DensePredQR) = LinAlg.BLAS.symmetrize!(LinAlg.LAPACK.potri!('U', x.qr[:R])[1])
 
 scale(x::LmMod) = deviance(x)/df_residual(x)
 scale(x::GlmMod) = 1.
