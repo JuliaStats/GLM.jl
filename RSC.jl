@@ -44,10 +44,6 @@ function SparseMatrixRSC{Tv<:VTypes,Ti<:Integer}(rowval::Vector{Ti},
     SparseMatrixRSC(transpose(int32(rowval)),nzval)
 end
 
-## function SparseMatrixRSC(rowval::PooledDataArray,nzval::Matrix)
-##    SparseMatrixRSC(int32(rowval.refs)',nzval)
-## end
-
 function *{T}(A::SparseMatrixRSC{T}, v::Vector{T})
     m,n = size(A)
     if length(v) != n error("Dimension mismatch") end
@@ -123,9 +119,3 @@ function show(io::IO, A::SparseMatrixRSC)
     println(io, "Row indices: ", A.rowval)
     print(io, "Non-zero values: ", A.nzval)
 end
-
-## Pastes example
-## strength = vec([62.8 62.6 60.1 62.3 62.7 63.1 60.0 61.4 57.5 56.9 61.1 58.9 58.7 57.5 63.9
-##                 63.1 65.4 63.7 57.1 56.4 56.9 58.6 64.7 64.5 55.1 55.1 54.7 54.2 58.8 57.5
-##                 63.4 64.9 59.3 58.1 60.5 60.0 62.5 62.6 61.0 58.7 56.9 57.7 59.2 59.4 65.2
-##                 66.0 64.8 64.1 54.8 54.8 64.0 64.0 57.7 56.8 58.3 59.3 59.2 59.2 58.9 56.6])

@@ -181,4 +181,3 @@ function show(io::IO, m::LMMsimple)
     println("  Number of obs: $(length(m.y)); levels of grouping factors: $grplevs")
     println("  Fixed-effects parameters: $(fixef(m))")
 end
-    
