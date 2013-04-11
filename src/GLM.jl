@@ -5,7 +5,7 @@ using DataFrames, Distributions
 import Base.\, Base.size, Base.show
 import Distributions.deviance, Distributions.mueta, Distributions.var
 import Distributions.devresid
-import DataFrames.model_frame, DataFrames.model_matrix
+import DataFrames.model_frame, DataFrames.model_matrix, DataFrames.model_response
 
 export                                  # types
 #    DGlmResp,
@@ -24,8 +24,6 @@ export                                  # types
     coeftable,      # coefficients, standard errors, etc.
     confint,        # confidence intervals on coefficients
     contr_treatment,# treatment contrasts
-#    delbeta,        # an internal function for calculating the beta increment
-#    deviance,       # deviance of GLM
     df_residual,    # degrees of freedom for residuals
     drsum,          # sum of squared deviance residuals
     family,
@@ -33,7 +31,6 @@ export                                  # types
     glm,            # general interface
     glmfit,         # underlying workhorse
     indicators,     # generate dense or sparse indicator matrices
-#    installbeta,    # an internal function for installing a new beta0
     linpred,        # linear predictor
     lm,             # linear model
     lmfit,          # linear model
@@ -43,7 +40,6 @@ export                                  # types
     scale,          # estimate of scale parameter (sigma^2 for linear models)
     sqrtwrkwt,      # square root of the working weights
     stderr,         # standard errors of the coefficients
-#    updatemu,       # an internal function for updating the mean in a response object
     vcov,           # estimated variance-covariance matrix of coef
     wrkresid,       # working residuals
     wrkresp         # working response
@@ -68,7 +64,6 @@ type GlmResp <: ModResp               # response in a glm model
     end
 end
 
-## outer constructor - the most common way of creating the object
 function GlmResp(d::Distribution, l::Link, y::Vector{Float64})
     n  = length(y)
     wt = ones(n)
@@ -291,19 +286,23 @@ type GlmMod <: LinPredModel
     mm::ModelMatrix
     rr::GlmResp
     pp::LinPred
-    function GlmMod(fr, mm, rr, pp)
+    ff::Formula
+    function GlmMod(fr, mm, rr, pp, ff)
         glmfit(pp, rr)
-        new(fr, mm, rr, pp)
+        new(fr, mm, rr, pp, ff)
     end
 end
-          
+
+dv(da::DataArray) = da.data # return the data values - move this to DataFrames?
+dv{T<:Number}(vv::Vector{T}) = vv
+
 function glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link, m::DataType)
     if !(m <: LinPred) error("Composite type $m does not extend LinPred") end
-    mf = model_frame(f, df)
-    mm = model_matrix(mf)
-    rr = GlmResp(d, l, vec(mm.response))
-    dp = m(mm.model)
-    GlmMod(mf, mm, rr, dp)
+    mf = ModelFrame(f, df)
+    mm = ModelMatrix(mf)
+    rr = GlmResp(d, l, dv(model_response(mf)))
+    dp = m(mm.m)
+    GlmMod(mf, mm, rr, dp, f)
 end
  
 glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link) = glm(f, df, d, l, DensePredQR)
@@ -319,19 +318,20 @@ type LmMod <: LinPredModel
     mm::ModelMatrix
     rr::LmResp
     pp::LinPred
-    function LmMod(fr, mm, rr, pp)
+    ff::Formula
+    function LmMod(fr, mm, rr, pp, ff)
         lmfit(pp, rr)
-        new(fr, mm, rr, pp)
+        new(fr, mm, rr, pp, ff)
     end
 end
-          
+
 function lm(f::Formula, df::AbstractDataFrame, m::DataType)
     if !(m <: LinPred) error("Composite type $m does not extend LinPred") end
-    mf = model_frame(f, df)
-    mm = model_matrix(mf)
-    rr = LmResp(vec(mm.response))
-    dp = m(mm.model)
-    LmMod(mf, mm, rr, dp)
+    mf = ModelFrame(f, df)
+    mm = ModelMatrix(mf)
+    rr = LmResp(dv(model_response(mf)))
+    dp = m(mm.m)
+    LmMod(mf, mm, rr, dp, f)
 end
  
 lm(f::Formula, df::AbstractDataFrame) = lm(f, df, DensePredQR)
@@ -403,7 +403,46 @@ function coeftable(mm::GlmMod)
               ["Estimate","Std.Error","z value", "Pr(>|z|)"])
 end
 
-include("show.jl")
+function show(io::IO, obj::LinPredModel)
+    @printf("\n%s\n\nCoefficients:\n", obj.ff)
+    println(io, coeftable(obj))
+#    @printf("R-squared: %0.4f\n", 0.0) # TODO: obj.r_squared)
+end
+
+## function show(io::IO, obj::GlmMod)
+##     cc = coef(obj)
+##     se = stderr(obj)
+##     zz = cc ./ se
+##     pp = 2.0 * ccdf(Normal(), abs(zz))
+##     @printf("\n%s\n\nCoefficients:\n", obj.fr.formula)
+##     @printf("         Term    Estimate  Std. Error     t value    Pr(>|t|)\n")
+##     N = length(cc)
+##     for i = 1:N
+##         @printf(" %12s%12.5f%12.5f%12.3f%12.3f %-3s\n",
+##                 obj.mm.model_colnames[i],
+##                 cc[i],
+##                 se[i],
+##                 zz[i],
+##                 pp[i],
+##                 p_value_stars(pp[i]))
+##     end
+##     println("---\nSignif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1\n")
+##     @printf("R-squared: %0.4f\n", 0.0) # TODO: obj.r_squared)
+## end
+
+## function p_value_stars(p_value::Float64)
+##     if p_value < 0.001
+##         return "***"
+##     elseif p_value < 0.01
+##         return "**"
+##     elseif p_value < 0.05
+##         return "*"
+##     elseif p_value < 0.1
+##         return "."
+##     else
+##         return " "
+##     end
+## end
 
 predict(mm::LmMod) = mm.rr.mu
 
@@ -416,6 +455,7 @@ family(obj::LmMod) = {:family => "gaussian", :link => "identity"}
 formula(obj::LmMod) = obj.fr.formula
 model_frame(obj::LmMod) = obj.fr
 model_matrix(obj::LmMod) = obj.mm
+model_response(obj::LmMod) = obj.y
 nobs(obj::LmMod) = size(obj.mm.model, 1)
 residuals(obj::LmMod) = residuals(obj.rr)
 function confint(obj::LmMod, level::Real)
