@@ -17,12 +17,12 @@ export                                  # types
     MixedModel,
     SparseMatrixRSC,
     LMMsimple,
+    LMMsplit,
                                         # functions
     fixef,
     ranef,
     reml,
     VarCorr
-
 
 typealias VTypes Union(Float64,Complex128)
 typealias ITypes Union(Int32,Int64)

@@ -16,7 +16,7 @@ type LMMsimple{Tv<:Float64,Ti<:ITypes} <: LinearMixedModel
 end
 
 ## Add an identity block for inds to a symmetric A stored in the upper triangle
-function pluseye{T}(A::CholmodSparse{T}, inds) 
+function pluseye!{T}(A::CholmodSparse{T}, inds)
     if A.c.stype <= 0 error("Matrix A must be symmetric and stored in upper triangle") end
     cp = A.colptr0
     rv = A.rowval0
@@ -26,8 +26,9 @@ function pluseye{T}(A::CholmodSparse{T}, inds)
         assert(rv[k] == j-1)
         xv[k] += one(T)
     end
+    A
 end
-pluseye(A::CholmodSparse) = pluseye(A,1:size(A,1))
+pluseye!(A::CholmodSparse) = pluseye!(A,1:size(A,1))
 
 function LMMsimple{Tv<:Float64,Ti<:ITypes}(ZXt::SparseMatrixRSC{Tv,Ti},
                                            y::Vector{Tv},wts::Vector{Tv})
@@ -37,7 +38,7 @@ function LMMsimple{Tv<:Float64,Ti<:ITypes}(ZXt::SparseMatrixRSC{Tv,Ti},
     if lwts != 0 && lwts != n error("length(wts) = $lwts should be 0 or length(y) = $n") end
     A = A_mul_Bc(ZXt,ZXt) # i.e. ZXt*ZXt' (single quotes confuse syntax highlighting)
     anzv = copy(A.nzval)
-    pluseye(A, 1:ZXt.q)
+    pluseye!(A, 1:ZXt.q)
     L = cholfact(A)
     ZXty = ZXt*y
     ubeta = vec((L\ZXty).mat)
@@ -64,6 +65,20 @@ function LMMsimple{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti}, X::Matrix{Tv}, y::V
     LMMsimple(inds, X, y, Array(Tv, 0))
 end
 
+dv(da::DataArray) = da.data
+dv{T<:Number}(vv::Vector{T}) = vv
+
+function LMMsimple(f::Formula, df::AbstractDataFrame)
+    mf = ModelFrame(f, df)
+    mm = ModelMatrix(mf)
+    re = filter(x->Meta.isexpr(x,:call) && x.args[1] == :|, mf.terms.terms)
+    if length(re) == 0 error("No random-effects terms were specified") end
+    simple = map(x->x.args[2] == 1, re)
+    if !all(simple) error("only simple random-effects terms allowed") end
+    inds = int32(hcat(map(x->mf.df[x.args[3]].refs,re)...)) # use a droplevels here
+    LMMsimple(inds, mm.m, dv(model_response(mf)))
+end
+LMMsimple(ex::Expr, df::AbstractDataFrame) = LMMsimple(Formula(ex), df)
 
 function droplevels{T<:ITypes}(inds::Matrix{T})
     ic = copy(inds)
@@ -93,7 +108,7 @@ function deviance(m::LMMsimple,theta::Vector{Float64})
     p = ZXt.p
     for i in 1:length(theta) fill!(m.lambda, theta[i], int(ZXt.rowrange[i])) end
     chm_scale!(m.A, m.lambda, 3) # symmetric scaling
-    pluseye(m.A, 1:q)
+    pluseye!(m.A, 1:q)
     chm_factorize!(m.L,m.A)
     m.ubeta[:] = vec((m.L \ (m.lambda .* m.ZXty)).mat)[:]
     m.mu[:] = Ac_mul_B(ZXt, m.lambda .* m.ubeta)
@@ -180,4 +195,64 @@ function show(io::IO, m::LMMsimple)
     grplevs = [length(unique(rv[i,:]))::Int for i in 1:size(rv,1)]
     println("  Number of obs: $(length(m.y)); levels of grouping factors: $grplevs")
     println("  Fixed-effects parameters: $(fixef(m))")
+end
+
+type LMMsplit{Tv<:Float64,Ti<:ITypes} <: LinearMixedModel
+    Zt::SparseMatrixRSC{Tv,Ti} # random-effects model matrix Z
+    X::Matrix{Tv}              # fixed-effects model matrix
+    theta::Vector{Tv}          # variance component parameter vector
+    lower::Vector{Tv}          # lower bounds (always zeros(length(theta)) for these models)
+    A::CholmodSparse{Tv,Ti}    # sparse symmetric random-effects system matrix
+    anzv::Vector{Tv}           # cached copy of nonzeros from Zt*Zt'
+    L::CholmodFactor{Tv,Ti}    # factor of current system matrix
+    ZtX::Matrix{Tv}            # cached copy of Zt*X
+    Zty::Vector{Tv}            # cached copy of Zt*y
+    XtX::Matrix{Tv}            # cached copy of X'X
+    Xty::Vector{Tv}            # cached copy of X'y
+    RX::Cholesky{Tv}           # fixed-effects part of the Cholesky factor
+    ubeta::Vector{Tv}          # coefficient vector
+    sqrtwts::Vector{Tv}        # square root of weights - can be length 0
+    y::Vector{Tv}              # response vector
+    lambda::Vector{Tv}         # diagonal of Lambda
+    mu::Vector{Tv}             # fitted response vector
+    REML::Bool                 # should a reml fit be used?
+    fit::Bool                  # has the model been fit?
+end
+
+function LMMsplit{Tv<:Float64,Ti<:ITypes}(Zt::SparseMatrixRSC{Tv,Ti},
+                                          X::Matrix{Tv},
+                                          y::Vector{Tv},
+                                          wts::Vector{Tv})
+    n = size(X,1)
+    if length(y) != n || size(Zt,2) != n
+        error("size(Zt,2) = $(size(Zt,2)) and length(y) = $length(y) and size(X) = $(size(X))") end
+    lwts = length(wts)
+    if lwts != 0 && lwts != n error("length(wts) = $lwts should be 0 or length(y) = $n") end
+    A = A_mul_Bc(Zt,Zt) # i.e. Zt*Zt' (single quotes confuse syntax highlighting)
+    anzv = copy(A.nzval)
+    L = cholfact(pluseye!(A))
+    XtX = X'X
+    RX = cholfact(XtX)
+    Xty = X'y
+    Zty = Zt*y
+    ubeta = vcat(vec((L\Zty).mat), RX\Xty)
+    k = size(Zt.rowval, 1)
+    LMMsimple{Tv,Ti}(ZXt, X, ones(k), zeros(k), A, anzv, L, Zt*X, Zty, XtX, Xty, RX,
+                     ubeta, sqrt(wts), y, ZXty, ones(size(L,1)), Zt*ubeta[1:Zt.q],
+                     false, false)
+end
+
+function LMMsplit{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti}, X::Matrix{Tv}, y::Vector{Tv})
+    LMMsplit(inds, X, y, Array(Tv, 0))
+end
+
+function LMMsplit{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti},
+                                          X::Matrix{Tv},
+                                          y::Vector{Tv},
+                                          wts::Vector{Tv})
+    n = length(y)
+    if !(size(inds,1) == size(X,1) == n) error("Dimension mismatch") end
+    ii = copy(inds)
+    for j in 2:size(ii,2) ii[:,j] += max(ii[:,j-1]) end
+    LMMsplit(SparseMatrixRSC(ii', ones(size(ii))'), X, y, wts)
 end
