@@ -180,10 +180,6 @@ julia> dobson = DataFrame({[18.,17,15,20,10,20,25,13,12], gl(3,1,9), gl(3,3)},
 
 
 julia> fm3 = glm(:(counts ~ outcome + treatment), dobson, Poisson())
-1: 46.81189638788046, Inf
-2: 46.76132443472075, 0.0010814910349750634
-3: 46.76131840195778, 1.2901182375636848e-7
-
 Formula: counts ~ :(+(outcome,treatment))
 
 Coefficients:
@@ -194,6 +190,9 @@ Coefficients:
 [3,]     -0.292987  0.192728   -1.52021    0.128457
 [4,]    1.92349e-8  0.199983 9.61826e-8         1.0
 [5,]    8.38339e-9  0.199986 4.19198e-8         1.0
+
+julia> deviance(fm3)    # does not agree with the value from R
+46.76131840195778
 ```
 
 Typical distributions for use with glm and their canonical link
