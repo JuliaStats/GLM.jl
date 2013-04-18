@@ -7,11 +7,10 @@ using Base.LinAlg.CHOLMOD.CholmodSparse
 using Base.LinAlg.CHOLMOD.chm_scale!
 using Base.LinAlg.CHOLMOD.chm_factorize!
 
-import Base.(*), Base.A_mul_Bc, Base.Ac_mul_B, Base.AbstractSparseMatrix
-import Base.copy, Base.dense, Base.fill!
-import Base.full, Base.nnz, Base.show, Base.size, Base.sparse
+import Base: (*), A_mul_Bc, Ac_mul_B, AbstractSparseMatrix, copy, dense, fill!,
+             full, nnz, show, size, sparse
 import Base.LinAlg.CHOLMOD.CholmodSparse
-import Distributions.deviance, Distributions.fit
+import Distributions: deviance, fit
 
 export                                  # types
     MixedModel,
