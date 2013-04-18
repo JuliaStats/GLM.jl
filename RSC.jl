@@ -44,19 +44,22 @@ function SparseMatrixRSC{Tv<:VTypes,Ti<:Integer}(rowval::Vector{Ti},
     SparseMatrixRSC(transpose(int32(rowval)),nzval)
 end
 
-function *{T}(A::SparseMatrixRSC{T}, v::Vector{T})
+function *{T}(A::SparseMatrixRSC{T}, B::Matrix{T})
     m,n = size(A)
-    if length(v) != n error("Dimension mismatch") end
-    res = zeros(T, m)
+    if size(B,1) != n error("Dimension mismatch") end
+    p = size(B,2)
+    res = zeros(T, (m, p))
     rv  = A.rowval
     nv  = A.nzval
     k   = size(rv,1)
-    for j in 1:n
-        for i in 1:k res[rv[i,j]] += v[j] * nv[i,j] end
-        for i in 1:A.p res[A.q + i] += v[j] * nv[k + i, j] end
+    for l in 1:p, j in 1:n
+        for i in 1:k res[rv[i,j],l] += B[j,l] * nv[i,j] end
+        for i in 1:A.p res[A.q + i,l] += B[j,l] * nv[k + i, j] end
     end
     res
 end
+
+*{T}(A::SparseMatrixRSC{T}, v::Vector{T}) = vec(A*reshape(v,(length(v),1)))
 
 function Ac_mul_B{T}(A::SparseMatrixRSC{T}, b::Vector{T})
     m,n = size(A)
@@ -75,7 +78,7 @@ end
 copy(A::SparseMatrixRSC) = SparseMatrixRSC(copy(A.rowval), copy(A.nzval))
 
 function expandi{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti})
-    A.p == 0 ? vec(A.rowval) :
+    A.p == 0 ? vec(copy(A.rowval)) :
     vec(vcat(A.rowval, mapreduce(i->fill(convert(Ti,i+A.q), (1,size(A,2))),
                                  vcat, 1:A.p)))
 end
