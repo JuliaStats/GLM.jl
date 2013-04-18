@@ -101,26 +101,24 @@ end
 function deviance(m::LMMsimple,theta::Vector{Float64})
     if length(theta) != length(m.theta) error("Dimension mismatch") end
     if any(theta .< 0.) error("all elements of theta must be non-negative") end
-    m.theta[:] = theta[:]               # copy in place
-    m.A.nzval[:] = m.anzv[:]            # restore A in place to ZXt*ZXt'
-    ZXt = m.ZXt
-    q = ZXt.q
-    p = ZXt.p
-    for i in 1:length(theta) fill!(m.lambda, theta[i], int(ZXt.rowrange[i])) end
-    chm_scale!(m.A, m.lambda, 3) # symmetric scaling
-    pluseye!(m.A, 1:q)
-    chm_factorize!(m.L,m.A)
+    m.theta[:] = theta[:]               # copy in place, update lambda vector
+    for i in 1:length(theta)
+        fill!(m.lambda, theta[i], int(m.ZXt.rowrange[i]))
+    end
+    m.A.nzval[:] = m.anzv[:]            # restore A to ZXt*ZXt', update A and L
+    chm_factorize!(m.L, pluseye!(chm_scale!(m.A, m.lambda, 3), 1:m.ZXt.q))
+                                        # solve for ubeta and evaluate mu
     m.ubeta[:] = vec((m.L \ (m.lambda .* m.ZXty)).mat)[:]
-    m.mu[:] = Ac_mul_B(ZXt, m.lambda .* m.ubeta)
+    m.mu[:] = Ac_mul_B(m.ZXt, m.lambda .* m.ubeta)
     rss = (s = 0.; for r in (m.y - m.mu) s += r*r end; s)
-    ussq = (s = 0.; for j in 1:q s += square(m.ubeta[j]) end; s)
-    lnum = log(2pi * (rss + ussq))
+    ussq = (s = 0.; for j in 1:m.ZXt.q s += square(m.ubeta[j]) end; s)
+    lnum = log(2pi * (rss+ussq))
     if m.REML
-        nmp = float(size(ZXt,2) - p)
+        nmp = float(size(m.ZXt,2) - m.ZXt.p)
         return logdet(m.L) + nmp * (1 + lnum - log(nmp))
     end
-    n = float(size(ZXt,2))
-    return logdet(m.L, 1:q) + n * (1 + lnum - log(n))
+    n = float(size(m.ZXt,2))
+    return logdet(m.L, 1:m.ZXt.q) + n * (1 + lnum - log(n))
 end
 
 function fit(m::LMMsimple, verbose::Bool) # keyword arguments will help
@@ -225,27 +223,27 @@ function LMMsplit{Tv<:Float64,Ti<:ITypes}(Zt::SparseMatrixRSC{Tv,Ti},
                                           wts::Vector{Tv})
     n = size(X,1)
     if length(y) != n || size(Zt,2) != n
-        error("size(Zt,2) = $(size(Zt,2)) and length(y) = $length(y) and size(X) = $(size(X))") end
+        error("size(Zt,2) = $(size(Zt,2)) and length(y) = $length(y) and size(X) = $(size(X))")
+    end
     lwts = length(wts)
     if lwts != 0 && lwts != n error("length(wts) = $lwts should be 0 or length(y) = $n") end
     A = A_mul_Bc(Zt,Zt) # i.e. Zt*Zt' (single quotes confuse syntax highlighting)
     anzv = copy(A.nzval)
-    L = cholfact(pluseye!(A))
+    L = cholfact(pluseye!(A), true)     # force an LL' factorization
     XtX = X'X
     RX = cholfact(XtX)
     Xty = X'y
     Zty = Zt*y
     ubeta = vcat(vec((L\Zty).mat), RX\Xty)
     k = size(Zt.rowval, 1)
-    LMMsimple{Tv,Ti}(ZXt, X, ones(k), zeros(k), A, anzv, L, Zt*X, Zty, XtX, Xty, RX,
-                     ubeta, sqrt(wts), y, ZXty, ones(size(L,1)), Zt*ubeta[1:Zt.q],
+    LMMsplit{Tv,Ti}(Zt, X, ones(k), zeros(k), A, anzv, L, Zt*X, Zty, XtX, Xty, RX,
+                     ubeta, sqrt(wts), y, ones(size(L,1)), Zt'*ubeta[1:Zt.q], #'
                      false, false)
 end
 
 function LMMsplit{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti}, X::Matrix{Tv}, y::Vector{Tv})
     LMMsplit(inds, X, y, Array(Tv, 0))
 end
-
 function LMMsplit{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti},
                                           X::Matrix{Tv},
                                           y::Vector{Tv},
@@ -255,4 +253,54 @@ function LMMsplit{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti},
     ii = copy(inds)
     for j in 2:size(ii,2) ii[:,j] += max(ii[:,j-1]) end
     LMMsplit(SparseMatrixRSC(ii', ones(size(ii))'), X, y, wts)
+end
+function LMMsplit(f::Formula, df::AbstractDataFrame)
+    mf = ModelFrame(f, df)
+    mm = ModelMatrix(mf)
+    re = filter(x->Meta.isexpr(x,:call) && x.args[1] == :|, mf.terms.terms)
+    if length(re) == 0 error("No random-effects terms were specified") end
+    simple = map(x->x.args[2] == 1, re)
+    if !all(simple) error("only simple random-effects terms allowed") end
+    inds = int32(hcat(map(x->mf.df[x.args[3]].refs,re)...)) # use a droplevels here
+    LMMsplit(inds, mm.m, dv(model_response(mf)))
+end
+LMMsplit(ex::Expr, df::AbstractDataFrame) = LMMsplit(Formula(ex), df)
+
+using Base.LinAlg.BLAS.syrk!
+using Base.LinAlg.LAPACK.potrf!
+using Base.LinAlg.CHOLMOD.CHOLMOD_P, Base.LinAlg.CHOLMOD.CHOLMOD_L
+using Base.LinAlg.CHOLMOD.CHOLMOD_Pt, Base.LinAlg.CHOLMOD.CHOLMOD_Lt
+function deviance(m::LMMsplit,theta::Vector{Float64})
+    if length(theta) != length(m.theta) error("Dimension mismatch") end
+    if any(theta .< m.lower)
+        error("theta = $theta violates lower bounds $(m.lower)")
+    end
+    m.theta[:] = theta[:]               # copy in place
+    m.A.nzval[:] = m.anzv[:]            # restore A in place to Zt*Zt'
+    for i in 1:length(theta)            # update Lambda (stored as a vector)
+        fill!(m.lambda, theta[i], int(ZXt.rowrange[i]))
+    end
+    ## scale Z'Z to Lambda'Z'Z*Lambda, add I and update m.L
+    chm_factorize(m.L, pluseye!(chm_scale!(m.A, m.lambda, 3)))
+    ## solve for RZX and cu
+    RZX = solve(m.L, solve(m.L, diagmm(m.lambda, m.ZtX), CHOLMOD_P), CHOLMOD_L)
+    cu = solve(m.L, solve(m.L, m.lambda .* m.Zty, CHOLMOD_P), CHOLMOD_L)
+    ## update m.RX
+    m.RX.UL[:] = m.XtX[:]
+    RX, info = potrf!(m.RX.uplo, syrk!(m.RX.uplo, 'T', -1., RZX.mat, 1, m.RX.UL))
+    if info != 0
+        error("Rank of downdated X'X is $info at theta = $theta")
+    end
+    m.ubeta[m.Zt.q + (1:size(m.X,2))] = m.RX\(m.Xty - RZX.mat'cu) #'
+    m.ubeta[:] = vec((m.L \ (m.lambda .* m.ZXty)).mat)[:]
+    m.mu[:] = Ac_mul_B(ZXt, m.lambda .* m.ubeta)
+    rss = (s = 0.; for r in (m.y - m.mu) s += r*r end; s)
+    ussq = (s = 0.; for j in 1:q s += square(m.ubeta[j]) end; s)
+    lnum = log(2pi * (rss + ussq))
+    if m.REML
+        nmp = float(size(ZXt,2) - p)
+        return logdet(m.L) + nmp * (1 + lnum - log(nmp))
+    end
+    n = float(size(ZXt,2))
+    return logdet(m.L, 1:q) + n * (1 + lnum - log(n))
 end
