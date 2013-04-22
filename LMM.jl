@@ -15,7 +15,7 @@ type LMMsimple{Tv<:Float64,Ti<:ITypes} <: LinearMixedModel
     fit::Bool                  # has the model been fit?
 end
 
-## Add an identity block for inds to a symmetric A stored in the upper triangle
+## Add an identity block along inds to a symmetric A stored in the upper triangle
 function pluseye!{T}(A::CholmodSparse{T}, inds)
     if A.c.stype <= 0 error("Matrix A must be symmetric and stored in upper triangle") end
     cp = A.colptr0
@@ -36,18 +36,17 @@ function LMMsimple{Tv<:Float64,Ti<:ITypes}(ZXt::SparseMatrixRSC{Tv,Ti},
     if length(y) != n error("size(ZXt,2) = $(size(ZXt,2)) and length(y) = $length(y)") end
     lwts = length(wts)
     if lwts != 0 && lwts != n error("length(wts) = $lwts should be 0 or length(y) = $n") end
-    A = A_mul_Bc(ZXt,ZXt) # i.e. ZXt*ZXt' (single quotes confuse syntax highlighting)
+    A = ZXt*ZXt'
     anzv = copy(A.nzval)
     pluseye!(A, 1:ZXt.q)
     L = cholfact(A)
     ZXty = ZXt*y
-    ubeta = vec((L\ZXty).mat)
+    ubeta = vec((L\ZXty))
     k = size(ZXt.rowval, 1)
     LMMsimple{Tv,Ti}(ZXt, ones(k), zeros(k), A, anzv, L,
                      ubeta, sqrt(wts), y, ZXty, ones(size(L,1)), Ac_mul_B(ZXt,ubeta),
                      false, false)
 end
-
 LMMsimple(ZXt,y) = LMMsimple(ZXt, y, Array(eltype(y), 0))
 
 function LMMsimple{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti},
@@ -60,7 +59,6 @@ function LMMsimple{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti},
     for j in 2:size(ii,2) ii[:,j] += max(ii[:,j-1]) end
     LMMsimple(SparseMatrixRSC(ii', [ones(size(ii)) X]'), y, wts)
 end
-
 function LMMsimple{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti}, X::Matrix{Tv}, y::Vector{Tv})
     LMMsimple(inds, X, y, Array(Tv, 0))
 end
@@ -108,8 +106,8 @@ function deviance(m::LMMsimple,theta::Vector{Float64})
     m.A.nzval[:] = m.anzv[:]            # restore A to ZXt*ZXt', update A and L
     chm_factorize!(m.L, pluseye!(chm_scale!(m.A, m.lambda, 3), 1:m.ZXt.q))
                                         # solve for ubeta and evaluate mu
-    m.ubeta[:] = vec((m.L \ (m.lambda .* m.ZXty)).mat)[:]
-    m.mu[:] = Ac_mul_B(m.ZXt, m.lambda .* m.ubeta)
+    m.ubeta[:] = (m.L \ (m.lambda .* m.ZXty))[:]
+    m.mu[:] = m.ZXt'*(m.lambda .* m.ubeta)
     rss = (s = 0.; for r in (m.y - m.mu) s += r*r end; s)
     ussq = (s = 0.; for j in 1:m.ZXt.q s += square(m.ubeta[j]) end; s)
     lnum = log(2pi * (rss+ussq))
@@ -121,7 +119,7 @@ function deviance(m::LMMsimple,theta::Vector{Float64})
     return logdet(m.L, 1:m.ZXt.q) + n * (1 + lnum - log(n))
 end
 
-function fit(m::LMMsimple, verbose::Bool) # keyword arguments will help
+function fit(m::LinearMixedModel, verbose::Bool)
     if !m.fit
         k = length(m.theta)
         opt = Opt(:LN_BOBYQA, k)
@@ -151,8 +149,7 @@ function fit(m::LMMsimple, verbose::Bool) # keyword arguments will help
     end
     m
 end
-
-fit(m::LMMsimple) = fit(m, false)      # non-verbose
+fit(m::LinearMixedModel) = fit(m, false)      # non-verbose
 
 deviance(m::LMMsimple) = (fit(m); deviance(m,m.theta))
 
@@ -203,6 +200,7 @@ type LMMsplit{Tv<:Float64,Ti<:ITypes} <: LinearMixedModel
     A::CholmodSparse{Tv,Ti}    # sparse symmetric random-effects system matrix
     anzv::Vector{Tv}           # cached copy of nonzeros from Zt*Zt'
     L::CholmodFactor{Tv,Ti}    # factor of current system matrix
+    P::Vector{Int}             # permutation vector for L
     ZtX::Matrix{Tv}            # cached copy of Zt*X
     Zty::Vector{Tv}            # cached copy of Zt*y
     XtX::Matrix{Tv}            # cached copy of X'X
@@ -230,13 +228,15 @@ function LMMsplit{Tv<:Float64,Ti<:ITypes}(Zt::SparseMatrixRSC{Tv,Ti},
     A = A_mul_Bc(Zt,Zt) # i.e. Zt*Zt' (single quotes confuse syntax highlighting)
     anzv = copy(A.nzval)
     L = cholfact(pluseye!(A), true)     # force an LL' factorization
+    P = (Ti == Int) ? increment(L.Perm) : increment!(int(L.Perm))
     XtX = X'X
     RX = cholfact(XtX)
     Xty = X'y
     Zty = Zt*y
-    ubeta = vcat(vec((L\Zty).mat), RX\Xty)
+    ubeta = vcat(vec(L\Zty), RX\Xty)
     k = size(Zt.rowval, 1)
-    LMMsplit{Tv,Ti}(Zt, X, ones(k), zeros(k), A, anzv, L, Zt*X, Zty, XtX, Xty, RX,
+    LMMsplit{Tv,Ti}(Zt, X, ones(k), zeros(k), A, anzv, L, P,
+                    Zt*X, Zty, XtX, Xty, RX,
                      ubeta, sqrt(wts), y, ones(size(L,1)), Zt'*ubeta[1:Zt.q], #'
                      false, false)
 end
@@ -278,29 +278,30 @@ function deviance(m::LMMsplit,theta::Vector{Float64})
     m.theta[:] = theta[:]               # copy in place
     m.A.nzval[:] = m.anzv[:]            # restore A in place to Zt*Zt'
     for i in 1:length(theta)            # update Lambda (stored as a vector)
-        fill!(m.lambda, theta[i], int(ZXt.rowrange[i]))
+        fill!(m.lambda, theta[i], int(m.Zt.rowrange[i]))
     end
     ## scale Z'Z to Lambda'Z'Z*Lambda, add I and update m.L
-    chm_factorize(m.L, pluseye!(chm_scale!(m.A, m.lambda, 3)))
+    chm_factorize!(m.L, pluseye!(chm_scale!(m.A, m.lambda, 3)))
     ## solve for RZX and cu
-    RZX = solve(m.L, solve(m.L, diagmm(m.lambda, m.ZtX), CHOLMOD_P), CHOLMOD_L)
-    cu = solve(m.L, solve(m.L, m.lambda .* m.Zty, CHOLMOD_P), CHOLMOD_L)
+    RZX = solve(m.L, diagmm(m.lambda, m.ZtX)[m.P,:], CHOLMOD_L)
+    cu = solve(m.L, (m.lambda .* m.Zty)[m.P], CHOLMOD_L)
     ## update m.RX
     m.RX.UL[:] = m.XtX[:]
-    RX, info = potrf!(m.RX.uplo, syrk!(m.RX.uplo, 'T', -1., RZX.mat, 1, m.RX.UL))
+    _, info = potrf!(m.RX.uplo, syrk!(m.RX.uplo, 'T', -1., RZX, 1., m.RX.UL))
     if info != 0
         error("Rank of downdated X'X is $info at theta = $theta")
     end
-    m.ubeta[m.Zt.q + (1:size(m.X,2))] = m.RX\(m.Xty - RZX.mat'cu) #'
-    m.ubeta[:] = vec((m.L \ (m.lambda .* m.ZXty)).mat)[:]
-    m.mu[:] = Ac_mul_B(ZXt, m.lambda .* m.ubeta)
+    beta = m.RX\(m.Xty - RZX'cu)
+    m.ubeta[m.P] = solve(m.L, cu - RZX*beta, CHOLMOD_Lt)[:]
+    m.ubeta[length(m.P) + (1:length(beta))] = beta
+    m.mu[:] = m.X*beta + m.Zt'*(m.lambda .* (m.ubeta[1:length(m.P)]))
     rss = (s = 0.; for r in (m.y - m.mu) s += r*r end; s)
-    ussq = (s = 0.; for j in 1:q s += square(m.ubeta[j]) end; s)
+    ussq = (s = 0.; for j in 1:m.Zt.q s += square(m.ubeta[j]) end; s)
     lnum = log(2pi * (rss + ussq))
+    n,p = size(m.X)
     if m.REML
-        nmp = float(size(ZXt,2) - p)
+        nmp = float(n - p)
         return logdet(m.L) + nmp * (1 + lnum - log(nmp))
     end
-    n = float(size(ZXt,2))
-    return logdet(m.L, 1:q) + n * (1 + lnum - log(n))
+    return logdet(m.L) + n * (1 + lnum - log(n))
 end

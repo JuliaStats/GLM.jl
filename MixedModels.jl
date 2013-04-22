@@ -1,3 +1,4 @@
+using DataFrames, Distributions         # should be externally available
 module MixedModels
 
 using DataFrames, Distributions, NLopt
@@ -6,6 +7,8 @@ using Base.LinAlg.CHOLMOD.CholmodFactor
 using Base.LinAlg.CHOLMOD.CholmodSparse
 using Base.LinAlg.CHOLMOD.chm_scale!
 using Base.LinAlg.CHOLMOD.chm_factorize!
+using Base.LinAlg.UMFPACK.increment!
+using Base.LinAlg.UMFPACK.increment
 
 import Base: (*), A_mul_Bc, Ac_mul_B, AbstractSparseMatrix, copy, dense, fill!,
              full, nnz, show, size, sparse
