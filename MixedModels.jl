@@ -34,6 +34,7 @@ include("RSC.jl")                       # regular sparse column-oriented matrice
 abstract MixedModel
 abstract LinearMixedModel <: MixedModel
 
+include("formula.jl")                   # utilities to deal with the model formula
 include("LMM.jl")
 
 end #module

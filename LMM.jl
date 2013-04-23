@@ -1,3 +1,8 @@
+## Types representing linear mixed models with simple, scalar random effects
+## In the LMMsimple type the fixed-effects are incorporated in the
+## symmetric, sparse system matrix A.  In the LMMsplit type they are
+## separate.
+
 type LMMsimple{Tv<:Float64,Ti<:ITypes} <: LinearMixedModel
     ZXt::SparseMatrixRSC{Tv,Ti}# model matrices Z and X in an RSC structure
     theta::Vector{Tv}          # variance component parameter vector
@@ -55,7 +60,7 @@ function LMMsimple{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti},
                                            wts::Vector{Tv})
     n = length(y)
     if !(size(inds,1) == size(X,1) == n) error("Dimension mismatch") end
-    ii = droplevels(inds)
+    ii = copy(inds)
     for j in 2:size(ii,2) ii[:,j] += max(ii[:,j-1]) end
     LMMsimple(SparseMatrixRSC(ii', [ones(size(ii)) X]'), y, wts)
 end
@@ -63,34 +68,30 @@ function LMMsimple{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti}, X::Matrix{Tv}, y::V
     LMMsimple(inds, X, y, Array(Tv, 0))
 end
 
-dv(da::DataArray) = da.data
-dv{T<:Number}(vv::Vector{T}) = vv
-
 function LMMsimple(f::Formula, df::AbstractDataFrame)
     mf = ModelFrame(f, df)
     mm = ModelMatrix(mf)
-    re = filter(x->Meta.isexpr(x,:call) && x.args[1] == :|, mf.terms.terms)
+    re = retrms(mf)
     if length(re) == 0 error("No random-effects terms were specified") end
-    simple = map(x->x.args[2] == 1, re)
-    if !all(simple) error("only simple random-effects terms allowed") end
-    inds = int32(hcat(map(x->mf.df[x.args[3]].refs,re)...)) # use a droplevels here
-    LMMsimple(inds, mm.m, dv(model_response(mf)))
+    if !issimple(re) error("only simple random-effects terms allowed") end 
+    LMMsimple(grpfac(re,mf), mm.m, dv(model_response(mf)))
 end
 LMMsimple(ex::Expr, df::AbstractDataFrame) = LMMsimple(Formula(ex), df)
 
-function droplevels{T<:ITypes}(inds::Matrix{T})
-    ic = copy(inds)
-    m,n = size(ic)
-    for j in 1:n
-        uj = unique(ic[:,j])
-        nuj = length(uj)
-        if min(uj) == 1 && max(uj) == nuj break end
-        suj = sort!(uj)
-        dict = Dict(suj, one(T):convert(T,nuj))
-        ic[:,j] = [ dict[ic[i,j]] for i in 1:m ]
-    end
-    ic
-end
+### The droplevels step is now incorporated in the ModelFrame code in DataFrames
+## function droplevels{T<:ITypes}(inds::Matrix{T})
+##     ic = copy(inds)
+##     m,n = size(ic)
+##     for j in 1:n
+##         uj = unique(ic[:,j])
+##         nuj = length(uj)
+##         if min(uj) == 1 && max(uj) == nuj break end
+##         suj = sort!(uj)
+##         dict = Dict(suj, one(T):convert(T,nuj))
+##         ic[:,j] = [ dict[ic[i,j]] for i in 1:m ]
+##     end
+##     ic
+## end
 
 function fill!{T}(a::Vector{T}, x::T, inds)
     for i in inds a[i] = x end
@@ -283,7 +284,7 @@ function deviance(m::LMMsplit,theta::Vector{Float64})
     ## scale Z'Z to Lambda'Z'Z*Lambda, add I and update m.L
     chm_factorize!(m.L, pluseye!(chm_scale!(m.A, m.lambda, 3)))
     ## solve for RZX and cu
-    RZX = solve(m.L, diagmm(m.lambda, m.ZtX)[m.P,:], CHOLMOD_L)
+    RZX = solve(m.L, scale(m.lambda, m.ZtX)[m.P,:], CHOLMOD_L)
     cu = solve(m.L, (m.lambda .* m.Zty)[m.P], CHOLMOD_L)
     ## update m.RX
     m.RX.UL[:] = m.XtX[:]

@@ -84,7 +84,7 @@ function expandi{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti})
 end
 
 function expandj{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti})
-    vec(diagmm(ones(Ti,size(A.nzval)), convert(Vector{Ti},[1:size(A,2)])))
+    vec(scale(ones(Ti,size(A.nzval)), convert(Vector{Ti},[1:size(A,2)])))
 end
 
 function expandp{Tv,Ti}(A::SparseMatrixRSC{Tv,Ti})
