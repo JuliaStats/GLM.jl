@@ -29,12 +29,14 @@ export                                  # types
 typealias VTypes Union(Float64,Complex128)
 typealias ITypes Union(Int32,Int64)
 
+abstract MixedModel
+
 include("RSC.jl")                       # regular sparse column-oriented matrices
 
-abstract MixedModel
-abstract LinearMixedModel <: MixedModel
-
 include("formula.jl")                   # utilities to deal with the model formula
+
+include("linearmixedmodel.jl")
+
 include("LMM.jl")
 
 end #module

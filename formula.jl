@@ -26,3 +26,21 @@ dv(v::DataVector) = v.data
 dv(v::Vector) = v
 dv(v::PooledDataVector) = v.refs
 
+## Add an identity block along inds to a symmetric A stored in the upper triangle
+function pluseye!{T}(A::CholmodSparse{T}, inds)
+    if A.c.stype <= 0 error("Matrix A must be symmetric and stored in upper triangle") end
+    cp = A.colptr0
+    rv = A.rowval0
+    xv = A.nzval
+    for j in inds
+        k = cp[j+1]
+        assert(rv[k] == j-1)
+        xv[k] += one(T)
+    end
+    A
+end
+pluseye!(A::CholmodSparse) = pluseye!(A,1:size(A,1))
+
+function fill!{T}(a::Vector{T}, x::T, inds)
+    for i in inds a[i] = x end
+end

@@ -3,56 +3,41 @@
 ## symmetric, sparse system matrix A.  In the LMMsplit type they are
 ## separate.
 
-type LMMsimple{Tv<:Float64,Ti<:ITypes} <: LinearMixedModel
-    ZXt::SparseMatrixRSC{Tv,Ti}# model matrices Z and X in an RSC structure
+type LMMsimple{Tv<:Float64,Ti<:ITypes} <: SimpleLinearMixedModel
+    Zt::SparseMatrixRSC{Tv,Ti}# model matrices Z and X in an RSC structure
     theta::Vector{Tv}          # variance component parameter vector
     lower::Vector{Tv}          # lower bounds (always zeros(length(theta)) for these models)
     A::CholmodSparse{Tv,Ti}    # sparse symmetric system matrix
-    anzv::Vector{Tv}           # cached copy of nonzeros from ZXt*ZXt'
+    anzv::Vector{Tv}           # cached copy of nonzeros from Zt*Zt'
     L::CholmodFactor{Tv,Ti}    # factor of current system matrix
     ubeta::Vector{Tv}          # coefficient vector
     sqrtwts::Vector{Tv}        # square root of weights - can be length 0
     y::Vector{Tv}              # response vector
-    ZXty::Vector{Tv}           # cached copy of ZXt*y
+    Zty::Vector{Tv}           # cached copy of Zt*y
     lambda::Vector{Tv}         # diagonal of Lambda
     mu::Vector{Tv}             # fitted response vector
     REML::Bool                 # should a reml fit be used?
     fit::Bool                  # has the model been fit?
 end
 
-## Add an identity block along inds to a symmetric A stored in the upper triangle
-function pluseye!{T}(A::CholmodSparse{T}, inds)
-    if A.c.stype <= 0 error("Matrix A must be symmetric and stored in upper triangle") end
-    cp = A.colptr0
-    rv = A.rowval0
-    xv = A.nzval
-    for j in inds
-        k = cp[j+1]
-        assert(rv[k] == j-1)
-        xv[k] += one(T)
-    end
-    A
-end
-pluseye!(A::CholmodSparse) = pluseye!(A,1:size(A,1))
-
-function LMMsimple{Tv<:Float64,Ti<:ITypes}(ZXt::SparseMatrixRSC{Tv,Ti},
+function LMMsimple{Tv<:Float64,Ti<:ITypes}(Zt::SparseMatrixRSC{Tv,Ti},
                                            y::Vector{Tv},wts::Vector{Tv})
-    n = size(ZXt,2)
-    if length(y) != n error("size(ZXt,2) = $(size(ZXt,2)) and length(y) = $length(y)") end
+    n = size(Zt,2)
+    if length(y) != n error("size(Zt,2) = $(size(Zt,2)) and length(y) = $length(y)") end
     lwts = length(wts)
     if lwts != 0 && lwts != n error("length(wts) = $lwts should be 0 or length(y) = $n") end
-    A = ZXt*ZXt'
+    A = Zt*Zt'
     anzv = copy(A.nzval)
-    pluseye!(A, 1:ZXt.q)
+    pluseye!(A, 1:Zt.q)
     L = cholfact(A)
-    ZXty = ZXt*y
-    ubeta = vec((L\ZXty))
-    k = size(ZXt.rowval, 1)
-    LMMsimple{Tv,Ti}(ZXt, ones(k), zeros(k), A, anzv, L,
-                     ubeta, sqrt(wts), y, ZXty, ones(size(L,1)), Ac_mul_B(ZXt,ubeta),
+    Zty = Zt*y
+    ubeta = vec((L\Zty))
+    k = size(Zt.rowval, 1)
+    LMMsimple{Tv,Ti}(Zt, ones(k), zeros(k), A, anzv, L,
+                     ubeta, sqrt(wts), y, Zty, ones(size(L,1)), Ac_mul_B(Zt,ubeta),
                      false, false)
 end
-LMMsimple(ZXt,y) = LMMsimple(ZXt, y, Array(eltype(y), 0))
+LMMsimple(Zt,y) = LMMsimple(Zt, y, Array(eltype(y), 0))
 
 function LMMsimple{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti},
                                            X::Matrix{Tv},
@@ -78,122 +63,32 @@ function LMMsimple(f::Formula, df::AbstractDataFrame)
 end
 LMMsimple(ex::Expr, df::AbstractDataFrame) = LMMsimple(Formula(ex), df)
 
-### The droplevels step is now incorporated in the ModelFrame code in DataFrames
-## function droplevels{T<:ITypes}(inds::Matrix{T})
-##     ic = copy(inds)
-##     m,n = size(ic)
-##     for j in 1:n
-##         uj = unique(ic[:,j])
-##         nuj = length(uj)
-##         if min(uj) == 1 && max(uj) == nuj break end
-##         suj = sort!(uj)
-##         dict = Dict(suj, one(T):convert(T,nuj))
-##         ic[:,j] = [ dict[ic[i,j]] for i in 1:m ]
-##     end
-##     ic
-## end
+ussq(m::LMMsimple) = (s = 0.; for i in 1:m.Zt.q s += square(m.ubeta[i]) end; s)
 
-function fill!{T}(a::Vector{T}, x::T, inds)
-    for i in inds a[i] = x end
+size(m::LMMsimple) = (t = m.Zt; (size(t, 2), t.p, t.q))
+
+## solve for ubeta and evaluate mu
+function updatemu(m::LMMsimple)
+    m.ubeta[:] = (m.L \ (m.lambda .* m.Zty))[:]
+    m.mu[:] = m.Zt'*(m.lambda .* m.ubeta)
 end
 
-function deviance(m::LMMsimple,theta::Vector{Float64})
-    if length(theta) != length(m.theta) error("Dimension mismatch") end
-    if any(theta .< 0.) error("all elements of theta must be non-negative") end
-    m.theta[:] = theta[:]               # copy in place, update lambda vector
-    for i in 1:length(theta)
-        fill!(m.lambda, theta[i], int(m.ZXt.rowrange[i]))
-    end
-    m.A.nzval[:] = m.anzv[:]            # restore A to ZXt*ZXt', update A and L
-    chm_factorize!(m.L, pluseye!(chm_scale!(m.A, m.lambda, 3), 1:m.ZXt.q))
-                                        # solve for ubeta and evaluate mu
-    m.ubeta[:] = (m.L \ (m.lambda .* m.ZXty))[:]
-    m.mu[:] = m.ZXt'*(m.lambda .* m.ubeta)
-    rss = (s = 0.; for r in (m.y - m.mu) s += r*r end; s)
-    ussq = (s = 0.; for j in 1:m.ZXt.q s += square(m.ubeta[j]) end; s)
-    lnum = log(2pi * (rss+ussq))
-    if m.REML
-        nmp = float(size(m.ZXt,2) - m.ZXt.p)
-        return logdet(m.L) + nmp * (1 + lnum - log(nmp))
-    end
-    n = float(size(m.ZXt,2))
-    return logdet(m.L, 1:m.ZXt.q) + n * (1 + lnum - log(n))
-end
-
-function fit(m::LinearMixedModel, verbose::Bool)
-    if !m.fit
-        k = length(m.theta)
-        opt = Opt(:LN_BOBYQA, k)
-        ftol_abs!(opt, 1e-6)    # criterion on deviance changes
-        xtol_abs!(opt, 1e-6)    # criterion on all parameter value changes
-        lower_bounds!(opt, m.lower)
-        function obj(x::Vector{Float64}, g::Vector{Float64})
-            if length(g) > 0 error("gradient evaluations are not provided") end
-            deviance(m, x)
-        end
-        if verbose
-            count = 0
-            function vobj(x::Vector{Float64}, g::Vector{Float64})
-                if length(g) > 0 error("gradient evaluations are not provided") end
-                count += 1
-                val = obj(x, g)
-                println("f_$count: $val, $x")
-                val
-            end
-            min_objective!(opt, vobj)
-        else
-            min_objective!(opt, obj)
-        end
-        fmin, xmin, ret = optimize(opt, m.theta)
-        if verbose println(ret) end
-        m.fit = true
-    end
-    m
-end
-fit(m::LinearMixedModel) = fit(m, false)      # non-verbose
-
-deviance(m::LMMsimple) = (fit(m); deviance(m,m.theta))
+logdetLRX(m::LMMsimple) = logdet(m.L)
+logdetL(m::LMMsimple) = logdet(m.L, 1:size(m)[3])
 
 function fixef(m::LMMsimple)
     fit(m)
-    m.ubeta[m.ZXt.q + (1:m.ZXt.p)]
+    m.ubeta[m.Zt.q + (1:m.Zt.p)]
 end
 
 function ranef(m::LMMsimple)
     fit(m)
-    (m.lambda .* m.ubeta)[1:m.ZXt.q]
+    (m.lambda .* m.ubeta)[1:m.Zt.q]
 end
 
-function VarCorr(m::LMMsimple)
-    fit(m)
-    pwrss = (s = 0.; for r in (m.y - m.mu) s += r*r end; s)
-    pwrss += (s = 0.; for i in 1:m.ZXt.q s += square(m.ubeta[i]) end; s)
-    vec([m.theta.^2, 1.] * pwrss/(length(m.y) - (m.REML ? m.ZXt.p : 0)))
-end
+rowvalZt(m::LMMsimple) = m.Zt.rowval
 
-reml(m::LMMsimple) = (m.REML = true; m.fit = false; m)
-    
-function show(io::IO, m::LMMsimple)
-    fit(m)
-    REML = m.REML
-    criterionstr = REML ? "REML" : "maximum likelihood"
-    println(io, "Linear mixed model fit by $criterionstr")
-    dd = deviance(m)
-    if REML
-        println(io, " REML criterion: $dd")
-    else
-        println(io, " logLik: $(-dd/2), deviance: $dd")
-    end
-    vc = VarCorr(m)
-    println("\n  Variance components: $vc")
-    ZXt = m.ZXt
-    rv = ZXt.rowval
-    grplevs = [length(unique(rv[i,:]))::Int for i in 1:size(rv,1)]
-    println("  Number of obs: $(length(m.y)); levels of grouping factors: $grplevs")
-    println("  Fixed-effects parameters: $(fixef(m))")
-end
-
-type LMMsplit{Tv<:Float64,Ti<:ITypes} <: LinearMixedModel
+type LMMsplit{Tv<:Float64,Ti<:ITypes} <: SimpleLinearMixedModel
     Zt::SparseMatrixRSC{Tv,Ti} # random-effects model matrix Z
     X::Matrix{Tv}              # fixed-effects model matrix
     theta::Vector{Tv}          # variance component parameter vector
@@ -207,7 +102,8 @@ type LMMsplit{Tv<:Float64,Ti<:ITypes} <: LinearMixedModel
     XtX::Matrix{Tv}            # cached copy of X'X
     Xty::Vector{Tv}            # cached copy of X'y
     RX::Cholesky{Tv}           # fixed-effects part of the Cholesky factor
-    ubeta::Vector{Tv}          # coefficient vector
+    u::Vector{Tv}              # spherical random effects
+    beta::Vector{Tv}           # fixed-effects coefficient vector
     sqrtwts::Vector{Tv}        # square root of weights - can be length 0
     y::Vector{Tv}              # response vector
     lambda::Vector{Tv}         # diagonal of Lambda
@@ -234,12 +130,12 @@ function LMMsplit{Tv<:Float64,Ti<:ITypes}(Zt::SparseMatrixRSC{Tv,Ti},
     RX = cholfact(XtX)
     Xty = X'y
     Zty = Zt*y
-    ubeta = vcat(vec(L\Zty), RX\Xty)
+    beta = RX\Xty
     k = size(Zt.rowval, 1)
     LMMsplit{Tv,Ti}(Zt, X, ones(k), zeros(k), A, anzv, L, P,
-                    Zt*X, Zty, XtX, Xty, RX,
-                     ubeta, sqrt(wts), y, ones(size(L,1)), Zt'*ubeta[1:Zt.q], #'
-                     false, false)
+                    Zt*X, Zty, XtX, Xty, RX, (L\Zty)[:], beta,
+                    sqrt(wts), y, ones(size(L,1)), X*beta,
+                    false, false)
 end
 
 function LMMsplit{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti}, X::Matrix{Tv}, y::Vector{Tv})
@@ -269,40 +165,34 @@ LMMsplit(ex::Expr, df::AbstractDataFrame) = LMMsplit(Formula(ex), df)
 
 using Base.LinAlg.BLAS.syrk!
 using Base.LinAlg.LAPACK.potrf!
-using Base.LinAlg.CHOLMOD.CHOLMOD_P, Base.LinAlg.CHOLMOD.CHOLMOD_L
-using Base.LinAlg.CHOLMOD.CHOLMOD_Pt, Base.LinAlg.CHOLMOD.CHOLMOD_Lt
-function deviance(m::LMMsplit,theta::Vector{Float64})
-    if length(theta) != length(m.theta) error("Dimension mismatch") end
-    if any(theta .< m.lower)
-        error("theta = $theta violates lower bounds $(m.lower)")
-    end
-    m.theta[:] = theta[:]               # copy in place
-    m.A.nzval[:] = m.anzv[:]            # restore A in place to Zt*Zt'
-    for i in 1:length(theta)            # update Lambda (stored as a vector)
-        fill!(m.lambda, theta[i], int(m.Zt.rowrange[i]))
-    end
-    ## scale Z'Z to Lambda'Z'Z*Lambda, add I and update m.L
-    chm_factorize!(m.L, pluseye!(chm_scale!(m.A, m.lambda, 3)))
+using Base.LinAlg.CHOLMOD.CHOLMOD_L, Base.LinAlg.CHOLMOD.CHOLMOD_Lt
+
+function updatemu(m::LMMsplit)
     ## solve for RZX and cu
     RZX = solve(m.L, scale(m.lambda, m.ZtX)[m.P,:], CHOLMOD_L)
-    cu = solve(m.L, (m.lambda .* m.Zty)[m.P], CHOLMOD_L)
+    cu = solve(m.L, (m.lambda .* m.Zty)[m.P], CHOLMOD_L)[:]
     ## update m.RX
     m.RX.UL[:] = m.XtX[:]
     _, info = potrf!(m.RX.uplo, syrk!(m.RX.uplo, 'T', -1., RZX, 1., m.RX.UL))
     if info != 0
         error("Rank of downdated X'X is $info at theta = $theta")
     end
-    beta = m.RX\(m.Xty - RZX'cu)
-    m.ubeta[m.P] = solve(m.L, cu - RZX*beta, CHOLMOD_Lt)[:]
-    m.ubeta[length(m.P) + (1:length(beta))] = beta
-    m.mu[:] = m.X*beta + m.Zt'*(m.lambda .* (m.ubeta[1:length(m.P)]))
-    rss = (s = 0.; for r in (m.y - m.mu) s += r*r end; s)
-    ussq = (s = 0.; for j in 1:m.Zt.q s += square(m.ubeta[j]) end; s)
-    lnum = log(2pi * (rss + ussq))
-    n,p = size(m.X)
-    if m.REML
-        nmp = float(n - p)
-        return logdet(m.L) + nmp * (1 + lnum - log(nmp))
-    end
-    return logdet(m.L) + n * (1 + lnum - log(n))
+    m.beta[:] = m.RX\(m.Xty - RZX'cu)
+    m.u[m.P] = solve(m.L, cu - RZX*m.beta, CHOLMOD_Lt)[:]
+    m.mu[:] = m.X*m.beta + m.Zt'*(m.lambda .* m.u)
 end
+
+logdetLRX(m::LMMsplit) = logdet(m.L) + logdet(m.RX)
+
+logdetL(m::LMMsplit) = logdet(m.L)
+
+ussq(m::LMMsplit) = (s = 0.; for u in m.u s += u*u end; s)
+
+## Should think of a clever way of creating a 3-tuple from size(m.X) and length(m.u)
+size(m::LMMsplit) = (size(m.X, 1), length(m.beta), length(m.u))
+
+fixef(m::LMMsplit) = m.beta
+
+ranef(m::LMMsplit) = m.lambda .* m.u
+
+rowvalZt(m::LMMsplit) = m.Zt.rowval
