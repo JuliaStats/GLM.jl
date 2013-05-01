@@ -12,7 +12,7 @@ type SparseMatrixRSC{Tv<:VTypes,Ti<:ITypes} <: AbstractSparseMatrix{Tv,Ti}
     q::Int                              # number of rows in the Zt part
     p::Int                              # number of rows in the Xt part
     rowval::Matrix{Ti}                  # row indices of nonzeros
-    rowrange::Array{Range1{Int},1}       # ranges of rows of rowval
+    rowrange::Array{Range1{Int},1}      # ranges of rows of rowval
     nzval::Matrix{Tv}                   # nonzero values
     function SparseMatrixRSC(rowval::Matrix{Ti},nzval::Matrix{Tv})
         if size(nzval,2) != size(rowval,2)

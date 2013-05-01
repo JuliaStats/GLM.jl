@@ -2,11 +2,17 @@ using DataFrames, Distributions         # should be externally available
 module MixedModels
 
 using DataFrames, Distributions, NLopt
+using Base.LinAlg.BLAS.syrk!
 using Base.LinAlg.CHOLMOD.CholmodDense
+using Base.LinAlg.CHOLMOD.CholmodDense!
 using Base.LinAlg.CHOLMOD.CholmodFactor
 using Base.LinAlg.CHOLMOD.CholmodSparse
 using Base.LinAlg.CHOLMOD.chm_scale!
 using Base.LinAlg.CHOLMOD.chm_factorize!
+using Base.LinAlg.CHOLMOD.chm_factorize_p!
+using Base.LinAlg.CHOLMOD.CHOLMOD_L
+using Base.LinAlg.CHOLMOD.CHOLMOD_Lt
+using Base.LinAlg.LAPACK.potrf!
 using Base.LinAlg.UMFPACK.increment!
 using Base.LinAlg.UMFPACK.increment
 
@@ -31,12 +37,9 @@ typealias ITypes Union(Int32,Int64)
 
 abstract MixedModel
 
-include("RSC.jl")                       # regular sparse column-oriented matrices
-
-include("formula.jl")                   # utilities to deal with the model formula
-
+include("RSC.jl")            # regular sparse column-oriented matrices
+include("utils.jl")         # utilities to deal with the model formula
 include("linearmixedmodel.jl")
-
 include("LMM.jl")
 
 end #module

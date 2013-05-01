@@ -67,8 +67,10 @@ ussq(m::LMMsimple) = (s = 0.; for i in 1:m.Zt.q s += square(m.ubeta[i]) end; s)
 
 size(m::LMMsimple) = (t = m.Zt; (size(t, 2), t.p, t.q))
 
-## solve for ubeta and evaluate mu
+## Update L, solve for ubeta and evaluate mu
 function updatemu(m::LMMsimple)
+    m.A.nzval[:] = m.anzv[:]            # restore A to ZXt*ZXt', update A and L
+    chm_factorize!(m.L, pluseye!(chm_scale!(m.A, m.lambda, 3), 1:m.Zt.q))
     m.ubeta[:] = (m.L \ (m.lambda .* m.Zty))[:]
     m.mu[:] = m.Zt'*(m.lambda .* m.ubeta)
 end
@@ -76,17 +78,9 @@ end
 logdetLRX(m::LMMsimple) = logdet(m.L)
 logdetL(m::LMMsimple) = logdet(m.L, 1:size(m)[3])
 
-function fixef(m::LMMsimple)
-    fit(m)
-    m.ubeta[m.Zt.q + (1:m.Zt.p)]
-end
+fixef(m::LMMsimple) =  m.ubeta[m.Zt.q + (1:m.Zt.p)]
 
-function ranef(m::LMMsimple)
-    fit(m)
-    (m.lambda .* m.ubeta)[1:m.Zt.q]
-end
-
-rowvalZt(m::LMMsimple) = m.Zt.rowval
+ranef(m::LMMsimple) = (m.lambda .* m.ubeta)[1:m.Zt.q]
 
 type LMMsplit{Tv<:Float64,Ti<:ITypes} <: SimpleLinearMixedModel
     Zt::SparseMatrixRSC{Tv,Ti} # random-effects model matrix Z
@@ -122,20 +116,16 @@ function LMMsplit{Tv<:Float64,Ti<:ITypes}(Zt::SparseMatrixRSC{Tv,Ti},
     end
     lwts = length(wts)
     if lwts != 0 && lwts != n error("length(wts) = $lwts should be 0 or length(y) = $n") end
-    A = A_mul_Bc(Zt,Zt) # i.e. Zt*Zt' (single quotes confuse syntax highlighting)
+    A = Zt*Zt'
     anzv = copy(A.nzval)
     L = cholfact(pluseye!(A), true)     # force an LL' factorization
     P = (Ti == Int) ? increment(L.Perm) : increment!(int(L.Perm))
     XtX = X'X
     RX = cholfact(XtX)
-    Xty = X'y
-    Zty = Zt*y
-    beta = RX\Xty
     k = size(Zt.rowval, 1)
-    LMMsplit{Tv,Ti}(Zt, X, ones(k), zeros(k), A, anzv, L, P,
-                    Zt*X, Zty, XtX, Xty, RX, (L\Zty)[:], beta,
-                    sqrt(wts), y, ones(size(L,1)), X*beta,
-                    false, false)
+    LMMsplit{Tv,Ti}(Zt, X, ones(k), zeros(k), A, anzv, L, P, Zt*X, Zt*y, XtX, X'y,
+                    RX, zeros(L.c.n), zeros(size(X,2)), sqrt(wts), y, zeros(L.c.n),
+                    zeros(size(X,1)), false, false)
 end
 
 function LMMsplit{Tv<:Float64,Ti<:ITypes}(inds::Matrix{Ti}, X::Matrix{Tv}, y::Vector{Tv})
@@ -154,31 +144,28 @@ end
 function LMMsplit(f::Formula, df::AbstractDataFrame)
     mf = ModelFrame(f, df)
     mm = ModelMatrix(mf)
-    re = filter(x->Meta.isexpr(x,:call) && x.args[1] == :|, mf.terms.terms)
+    re = retrms(mf)
     if length(re) == 0 error("No random-effects terms were specified") end
-    simple = map(x->x.args[2] == 1, re)
-    if !all(simple) error("only simple random-effects terms allowed") end
-    inds = int32(hcat(map(x->mf.df[x.args[3]].refs,re)...)) # use a droplevels here
-    LMMsplit(inds, mm.m, dv(model_response(mf)))
+    if !issimple(re) error("only simple random-effects terms allowed") end
+    LMMsplit(grpfac(re,mf), mm.m, dv(model_response(mf)))
 end
 LMMsplit(ex::Expr, df::AbstractDataFrame) = LMMsplit(Formula(ex), df)
 
-using Base.LinAlg.BLAS.syrk!
-using Base.LinAlg.LAPACK.potrf!
-using Base.LinAlg.CHOLMOD.CHOLMOD_L, Base.LinAlg.CHOLMOD.CHOLMOD_Lt
-
+## Update L, solve for ubeta and evaluate mu
 function updatemu(m::LMMsplit)
+    m.A.nzval[:] = m.anzv[:]            # restore A to ZXt*ZXt', update A and L
+    chm_factorize_p!(m.L, chm_scale!(m.A, m.lambda, 3), 1.)
     ## solve for RZX and cu
     RZX = solve(m.L, scale(m.lambda, m.ZtX)[m.P,:], CHOLMOD_L)
-    cu = solve(m.L, (m.lambda .* m.Zty)[m.P], CHOLMOD_L)[:]
+    cu = solve(m.L, (m.lambda .* m.Zty)[m.P], CHOLMOD_L)
     ## update m.RX
     m.RX.UL[:] = m.XtX[:]
     _, info = potrf!(m.RX.uplo, syrk!(m.RX.uplo, 'T', -1., RZX, 1., m.RX.UL))
     if info != 0
-        error("Rank of downdated X'X is $info at theta = $theta")
+        error("Rank of downdated X'X is $info at theta = $(m.theta)")
     end
     m.beta[:] = m.RX\(m.Xty - RZX'cu)
-    m.u[m.P] = solve(m.L, cu - RZX*m.beta, CHOLMOD_Lt)[:]
+    m.u[m.P] = solve(m.L, cu - RZX*m.beta, CHOLMOD_Lt)
     m.mu[:] = m.X*m.beta + m.Zt'*(m.lambda .* m.u)
 end
 

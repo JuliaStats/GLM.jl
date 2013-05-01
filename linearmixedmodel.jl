@@ -95,12 +95,12 @@ function VarCorr(m::SimpleLinearMixedModel)
 end
 
 function grplevs(m::SimpleLinearMixedModel)
-    rv = rowvalZt(m)
+    rv = m.Zt.rowval
     [length(unique(rv[i,:]))::Int for i in 1:size(rv,1)]
 end
 
 ## Check validity and install a new value of theta;
-##  update lambda, A and L
+##  update lambda, A
 function installtheta(m::SimpleLinearMixedModel, theta::Vector{Float64})
     n, p, q = size(m)
     if length(theta) != length(m.theta) error("Dimension mismatch") end
@@ -111,6 +111,4 @@ function installtheta(m::SimpleLinearMixedModel, theta::Vector{Float64})
     for i in 1:length(theta)            # update Lambda (stored as a vector)
         fill!(m.lambda, theta[i], int(m.Zt.rowrange[i]))
     end
-    m.A.nzval[:] = m.anzv[:]            # restore A to ZXt*ZXt', update A and L
-    chm_factorize!(m.L, pluseye!(chm_scale!(m.A, m.lambda, 3), 1:q))
 end
