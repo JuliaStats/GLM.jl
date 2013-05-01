@@ -6,8 +6,8 @@ function retrms(mf::ModelFrame)
 end
 
 ## Check if all random-effects terms are simple
-issimple(terms::Vector{Expr}) = all(map(x->x.args[2] == 1, terms))
-
+issimple(terms::Vector{Expr}) = all(map(issimple, terms))
+issimple(expr::Expr) = Meta.isexpr(expr,:call) && expr.args[1] == :| && expr.args[2] == 1
 ## Return the grouping factors as a matrix - convert to int32 if feasible
 function grpfac(terms::Vector{Expr}, mf::ModelFrame)
     m = hcat(map(x->mf.df[x.args[3]].refs,terms)...)
@@ -18,8 +18,16 @@ end
 const template = Formula(:(~ foo))
 
 function lhs(trms::Vector{Expr}, mf::ModelFrame)
-    map(x->(template.rhs = x.args[2]; ModelMatrix(ModelFrame(template, mf.df))), trms)
+    map(x->lhs(x, mf), trms)
 end
+function lhs(expr::Expr, mf::ModelFrame)
+    if !(Meta.isexpr(expr,:call) && expr.args[1] == :|)
+        error("expr = $expr and should be a call to the ':|' function")
+    end
+    if expr.args[2] == 1 return ModelMatrix(ones(size(mf.df,1), 1), [0]) end
+    template.rhs = expr.args[2]
+    ModelMatrix(ModelFrame(template, mf.df))
+end    
 
 ## extract the data values as vectors from various compound types
 dv(v::DataVector) = v.data
