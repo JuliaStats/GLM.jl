@@ -4,7 +4,7 @@ module GLM
 
 using DataFrames, Distributions         # This seems to be necessary within the module
 
-import Base: (\), size, show
+import Base: (\), scale, size, show
 import Distributions: deviance, devresid, fit, mueta, var
 import DataFrames: model_frame, model_matrix, model_response
 
@@ -34,7 +34,7 @@ export                                  # types
     nobs,           # total number of observations
     predict,        # make predictions
     residuals,      # extractor for residuals
-    scale,          # estimate of scale parameter (sigma^2 for linear models)
+    scalepar,       # estimate of scale parameter (sigma^2 for linear models)
     sqrtwrkwt,      # square root of the working weights
     stderr,         # standard errors of the coefficients
     vcov,           # estimated variance-covariance matrix of coef
@@ -89,13 +89,13 @@ DensePredChol(X::Matrix{Float64}) = DensePredChol(X, zeros(Float64,(size(X,2),))
 DensePredChol{T<:Real}(X::Matrix{T}) = DensePredChol(float64(X))
 
 function delbeta(p::DensePredQR, r::Vector{Float64}, sqrtwt::Vector{Float64})
-    p.qr.vs[:] = diagmm(sqrtwt, p.X)
+    p.qr.vs[:] = scale(sqrtwt, p.X)
     p.qr.T[:] = LinAlg.LAPACK.geqrt3!(p.qr.vs)[2]
     p.delbeta[:] = p.qr \ (sqrtwt .* r)
 end
 
 function delbeta(p::DensePredChol, r::Vector{Float64}, sqrtwt::Vector{Float64})
-    WX = diagmm(sqrtwt, p.X)
+    WX = scale(sqrtwt, p.X)
     if LinAlg.LAPACK.potrf!('U', LinAlg.BLAS.syrk!('U', 'T', 1.0, WX, 0.0, p.chol.LR))[2] != 0
         error("Singularity detected at column $(fac[2]) of weighted model matrix")
     end
@@ -138,7 +138,7 @@ deviance(x::LinPredModel) = deviance(fit(x).rr)
 df_residual(x::LinPredModel) = df_residual(x.pp)
 df_residual(x::DensePred) = size(x.X, 1) - length(x.beta0)
     
-vcov(x::LinPredModel) = scale(fit(x)) * vcov(x.pp)
+vcov(x::LinPredModel) = scalepar(fit(x)) * vcov(x.pp)
 vcov(x::DensePredChol) = inv(x.chol)
 vcov(x::DensePredQR) = LinAlg.BLAS.symmetrize!(LinAlg.LAPACK.potri!('U', x.qr[:R])[1])
 
@@ -196,6 +196,6 @@ nobs(obj::LinPredModel) = length(model_response(obj))
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 include("lm.jl")
-include("glm.jl")
+include("glmfit.jl")
 
 end # module

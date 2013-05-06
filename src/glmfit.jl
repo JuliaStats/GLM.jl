@@ -53,7 +53,7 @@ type GlmMod <: LinPredModel
     ff::Formula
     fit::Bool
 end
-scale(x::GlmMod) = 1. # generalize this - only appropriate for Bernoulli and Poisson
+scalepar(x::GlmMod) = 1. # generalize this - only appropriate for Bernoulli and Poisson
 
 ## Change this to use optional arguments for the form of the predictor?
 function glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link, m::DataType)

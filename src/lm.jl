@@ -32,7 +32,6 @@ drsum(r::LmResp)    = sum(wrkresid(r) .^ 2)
 deviance(r::LmResp) = drsum(r)
 residuals(r::LmResp)= wrkresid(r)
 
-
 type LmMod <: LinPredModel
     fr::ModelFrame
     mm::ModelMatrix
@@ -66,7 +65,7 @@ function fit(m::LmMod)
     m
 end
 
-scale(x::LmMod) = deviance(x)/df_residual(x)
+scalepar(x::LmMod) = deviance(x)/df_residual(x)
 
 function coeftable(mm::LmMod)
     cc = coef(mm)
