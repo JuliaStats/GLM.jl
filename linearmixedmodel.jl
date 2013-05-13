@@ -1,36 +1,31 @@
 abstract LinearMixedModel <: MixedModel
-## Interface definition requires numeric vectors y and mu of the same length, n
-## Numeric vector sqrtwts must have length 0 or n
-## Float64 vectors theta and lower must have the same length
 
-## Weighted residual sum of squares
-function wrss(m::LinearMixedModel)
-    s = zero(eltype(m.y))
-    w = bool(length(m.sqrtwts))
-    for i in 1:length(m.y)
-        r = m.y[i] - m.mu[i]
-        if w r /= sqrtwts[i] end
-        s += r * r
-    end
-    s
+function lmer(f::Formula, df::AbstractDataFrame)
+    mf = ModelFrame(f, df)
+    mm = ModelMatrix(mf)
+    re = retrms(mf)
+    if length(re) == 0 error("No random-effects terms were specified") end
+    resp = dv(model_response(mf))
+    if !issimple(re) error("only simple random-effects terms allowed") end 
+    if length(re) == 1 return ScalarLMM1(mm.m, grpfac(re[1], mf), resp) end
+    LMMsplit(grpfac(re,mf), mm.m, resp)
 end
-
-## Penalized, weighted residual sum of squares
-pwrss(m::LinearMixedModel) = wrss(m) + ussq(m)
+lmer(ex::Expr, df::AbstractDataFrame) = lmer(Formula(ex), df)
 
 ## Optimization of objective using BOBYQA
+## According to convention the name should be fit! as this is a
+## mutating function but I figure fit is obviously mutating and I
+## wanted to piggy-back on the fit generic created in Distributions
 function fit(m::LinearMixedModel, verbose::Bool)
-    if !m.fit
-        k = length(m.theta)
+    if !isfit(m)
+        k = length(thvec!(m))
         opt = Opt(:LN_BOBYQA, k)
         ftol_abs!(opt, 1e-6)    # criterion on deviance changes
         xtol_abs!(opt, 1e-6)    # criterion on all parameter value changes
-        lower_bounds!(opt, m.lower)
+        lower_bounds!(opt, lower!(m))
         function obj(x::Vector{Float64}, g::Vector{Float64})
             if length(g) > 0 error("gradient evaluations are not provided") end
-            installtheta(m, x)
-            updatemu(m)
-            objective(m)
+            objective!(m, x)
         end
         if verbose
             count = 0
@@ -45,28 +40,74 @@ function fit(m::LinearMixedModel, verbose::Bool)
         else
             min_objective!(opt, obj)
         end
-        fmin, xmin, ret = optimize(opt, m.theta)
+        fmin, xmin, ret = optimize(opt, thvec!(m))
         if verbose println(ret) end
-        m.fit = true
+        setfit!(m)
     end
     m
 end
 fit(m::LinearMixedModel) = fit(m, false)      # non-verbose
 
-function objective(m::LinearMixedModel)
-    n, p, q = size(m)
-    lnum = log(2pi * pwrss(m))
-    if m.REML
-        nmp = float(n - p)
-        return logdetLRX(m) + nmp * (1 + lnum - log(nmp))
+## A type for a linear mixed model should provide, directly or
+## indirectly, methods for:
+##  obs!(m) -> *reference to* the observed response vector
+##  exptd!(m) -> *reference to* mean response vector at current parameter values
+##  sqrtwts!(m) -> *reference to* square roots of the case weights if used, can be of
+##      length 0, *not copied*
+##  L(m) -> a vector of matrix representations that together provide
+##      the Cholesky factor of the random-effects part of the system matrix
+##  wrss(m) -> weighted residual sum of squares
+##  pwrss(m) -> penalized weighted residual sum of squares
+##  Zt!(m) -> an RSC matrix representation of the transpose of Z - can be a reference
+##  size(m) -> n, p, q, t (lengths of y, beta, u and # of re terms)
+##  X!(x) -> a reference to the fixed-effects model matrix
+##  RX!(x) -> a reference to a Cholesky factor of the downdated X'X
+##  isfit(m) -> Bool - Has the model been fit?
+##  lower!(m) -> *reference to* the vector of lower bounds on the theta parameters
+##  thvec!(m) -> current theta as a vector - can be a reference
+##  fixef!(m) -> value of betahat - the model is fit before extraction
+##  ranef!(m) -> conditional modes of the random effects
+##  setfit!(m) -> set the boolean indicator of the model having been
+##     fit; returns m
+##  uvec(m) -> a reference to the current conditional means of the
+##     spherical random effects. Unlike a call to ranef or fixef, a
+##     call to uvec does not cause the model to be fit.
+##  reml!(m) -> set the REML flag and clear the fit flag; returns m
+##  objective!(m, thv) -> set a new value of the theta vector; update
+##     beta, u and mu; return the objective (deviance or REML criterion)
+##  grplevels(m) -> a vector giving the number of levels in the
+##     grouping factor for each re term.
+##  VarCorr!(m) -> a vector of estimated variance-covariance matrices
+##     for each re term and for the residuals - can trigger a fit
+
+## Default implementations
+function wrss(m::LinearMixedModel)
+    y = obs!(m); mu = exptd!(m); wt = sqrtwts!(m)
+    w = bool(length(sqrtwts!(m)))
+    s = zero(eltype(y))
+    for i in 1:length(y)
+        r = y[i] - mu[i]
+        if w r /= sqrtwts[i] end
+        s += r * r
     end
-    fn = float(n)
-    logdetL(m) + fn * (1 + lnum - log(fn))
+    s
 end
+pwrss(m::LinearMixedModel) = (s = wrss(m);for u in uvec!(m) s += u*u end; s)
+setfit!(m::LinearMixedModel) = (m.fit = true; m)
+unsetfit!(m::LinearMixedModel) = (m.fit = false; m)
+setreml!(m::LinearMixedModel) = (m.REML = true; m.fit = false; m)
+unsetreml!(m::LinearMixedModel) = (m.REML = false; m.fit = false; m)
+obs!(m::LinearMixedModel) = m.y
+fixef!(m::LinearMixedModel) = fit(m).beta
+isfit(m::LinearMixedModel) = m.fit
+isreml(m::LinearMixedModel) = m.fit
+lower!(m::LinearMixedModel) = m.lower
+thvec!(m::LinearMixedModel) = m.theta
+exptd!(m::LinearMixedModel) = m.mu
+uvec!(m::LinearMixedModel) = m.u
 
-deviance(m::LinearMixedModel) = (m.REML=false; fit(m); objective(m, m.theta))
-
-reml(m::LinearMixedModel) = (m.REML = true; m.fit = false; m)
+deviance(m::LinearMixedModel) = (unsetreml!(m); fit(m); objective(m, thvec!(m)))
+reml(m::LinearMixedModel) = (setreml!(m); fit(unsetfit!(m)); objective(m, thvec!(m)))
 
 function show(io::IO, m::LinearMixedModel)
     fit(m)
