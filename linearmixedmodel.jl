@@ -127,29 +127,29 @@ function show(io::IO, m::LinearMixedModel)
     println("  Fixed-effects parameters: $(fixef(m))")
 end
 
-abstract SimpleLinearMixedModel <: LinearMixedModel
+abstract ScalarLinearMixedModel <: LinearMixedModel
 
-function VarCorr(m::SimpleLinearMixedModel)
+function VarCorr(m::ScalarLinearMixedModel)
     fit(m)
     n, p, q = size(m)
     [m.theta .^ 2, 1.] * (pwrss(m)/float(n - (m.REML ? p : 0)))
 end
 
-function grplevs(m::SimpleLinearMixedModel)
+function grplevs(m::ScalarLinearMixedModel)
     rv = m.Zt.rowval
     [length(unique(rv[i,:]))::Int for i in 1:size(rv,1)]
 end
 
 ## Check validity and install a new value of theta;
 ##  update lambda, A
-function installtheta(m::SimpleLinearMixedModel, theta::Vector{Float64})
-    n, p, q = size(m)
-    if length(theta) != length(m.theta) error("Dimension mismatch") end
-    if any(theta .< m.lower)
-        error("theta = $theta violates lower bounds $(m.lower)")
-    end
-    m.theta[:] = theta[:]               # copy in place
-    for i in 1:length(theta)            # update Lambda (stored as a vector)
-        fill!(m.lambda, theta[i], int(m.Zt.rowrange[i]))
-    end
-end
+## function installtheta(m::SimpleLinearMixedModel, theta::Vector{Float64})
+##     n, p, q = size(m)
+##     if length(theta) != length(m.theta) error("Dimension mismatch") end
+##     if any(theta .< m.lower)
+##         error("theta = $theta violates lower bounds $(m.lower)")
+##     end
+##     m.theta[:] = theta[:]               # copy in place
+##     for i in 1:length(theta)            # update Lambda (stored as a vector)
+##         fill!(m.lambda, theta[i], int(m.Zt.rowrange[i]))
+##     end
+## end

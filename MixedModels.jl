@@ -1,46 +1,45 @@
 using DataFrames, Distributions         # should be externally available
 module MixedModels
 
-using DataFrames, Distributions, NLopt
-using Base.LinAlg.BLAS.syrk!
-using Base.LinAlg.CHOLMOD.CholmodDense
-using Base.LinAlg.CHOLMOD.CholmodDense!
-using Base.LinAlg.CHOLMOD.CholmodFactor
-using Base.LinAlg.CHOLMOD.CholmodSparse
-using Base.LinAlg.CHOLMOD.chm_scale!
-using Base.LinAlg.CHOLMOD.chm_factorize!
-using Base.LinAlg.CHOLMOD.chm_factorize_p!
-using Base.LinAlg.CHOLMOD.CHOLMOD_L
-using Base.LinAlg.CHOLMOD.CHOLMOD_Lt
-using Base.LinAlg.LAPACK.potrf!
-using Base.LinAlg.UMFPACK.increment!
-using Base.LinAlg.UMFPACK.increment
+    using DataFrames, Distributions, NLopt
+    using Base.LinAlg.BLAS:    gemv!, syrk!, syrk
+    using Base.LinAlg.CHOLMOD: CholmodDense, CholmodDense!,
+      CholmodFactor, CholmodSparse, chm_scale!, chm_factorize!,
+      chm_factorize_p!, CHOLMOD_L, CHOLMOD_Lt
+    using Base.LinAlg.LAPACK:  potrf!, potrs!
+    using Base.LinAlg.UMFPACK: increment!, increment
 
-import Base: (*), A_mul_Bc, Ac_mul_B, AbstractSparseMatrix, copy, dense, fill!,
-             full, nnz, show, size, sparse
-import Base.LinAlg.CHOLMOD.CholmodSparse
-import Distributions: deviance, fit
+    import Base: (*), A_mul_Bc, Ac_mul_B, AbstractSparseMatrix, copy, dense, fill!,
+                 full, nnz, show, size, sparse
+    import Base.LinAlg.CHOLMOD.CholmodSparse
+    import Distributions: deviance, fit
 
-export                                  # types
-    MixedModel,
-    SparseMatrixRSC,
-    LMMsimple,
-    LMMsplit,
+    export                              # types
+        MixedModel,
+        SparseMatrixRSC,
+        LMMsimple,
+        LMMsplit,
+        ScalarLMM1,
+        VectorLMM1,
                                         # functions
-    fixef,
-    ranef,
-    reml,
-    VarCorr
+        fixef!,
+        lmer,
+        objective!,
+        ranef!,
+        reml!,
+        VarCorr!
 
-typealias VTypes Union(Float64,Complex128)
-typealias ITypes Union(Int32,Int64)
+    typealias VTypes Union(Float64,Complex128)
+    typealias ITypes Union(Int32,Int64)
 
-abstract MixedModel
+    abstract MixedModel
 
-include("RSC.jl")            # regular sparse column-oriented matrices
-include("utils.jl")         # utilities to deal with the model formula
-include("linearmixedmodel.jl")
-include("LMM.jl")
+    include("rsc.jl")            # regular sparse column-oriented matrices
+    include("utils.jl")         # utilities to deal with the model formula
+    include("linearmixedmodel.jl")
+    include("scalarlmm.jl")
+    include("vectorlmm.jl")
+
 
 end #module
 

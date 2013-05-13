@@ -8,11 +8,15 @@ end
 ## Check if all random-effects terms are simple
 issimple(terms::Vector{Expr}) = all(map(issimple, terms))
 issimple(expr::Expr) = Meta.isexpr(expr,:call) && expr.args[1] == :| && expr.args[2] == 1
-## Return the grouping factors as a matrix - convert to int32 if feasible
+## Return the grouping factors as a matrix
+function grpfac(e::Expr, mf::ModelFrame)
+    if !Meta.isexpr(e,:call) || e.args[1] != :|
+        error("Expression $e is not a random-effects term")
+    end
+    mf.df[e.args[3]].refs
+end
 function grpfac(terms::Vector{Expr}, mf::ModelFrame)
-    m = hcat(map(x->mf.df[x.args[3]].refs,terms)...)
-    q = sum([max(m[:,j]) for j in 1:size(m,2)])
-    q < typemax(Int32) ? int32(m) : int(m)
+    hcat(map(x->grpfac(x,mf),terms)...)
 end
 
 const template = Formula(:(~ foo))
