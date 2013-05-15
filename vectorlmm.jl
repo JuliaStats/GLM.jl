@@ -1,11 +1,6 @@
 ## Types representing linear mixed models with vector-valued random effects
 
-#using RDatasets, NLopt
-#using Base.LinAlg.BLAS: gemv!, syrk!, syrk, trmv!, trmm!, trmm, trsm!
-#using Base.LinAlg.LAPACK: potrf!, potrs!
-#import Base.size
-
-type VectorLMM1{Ti<:Integer} #<: LinearMixedModel
+type VectorLMM1{Ti<:Integer} <: LinearMixedModel
     L::Matrix{Float64}
     LX::Matrix{Float64}
     Xt::Matrix{Float64}
@@ -43,55 +38,86 @@ function VectorLMM1{Ti<:Integer}(Xt::Matrix{Float64}, Ztrv::Vector{Ti},
     ZtZ = zeros(k,q); XtZ = zeros(p,q); Zty  = zeros(q)
     for j in 1:n
         i = Ztrv[j]; z = Ztnz[:,j]; ii = [1:k] + (i - 1)*k
-        ZtZ[:,ii] += z*z'; Zty[ii] += y[j] * z; XtZ[:,ii] += z*Xt[:,j]'
+        ZtZ[:,ii] += z*z'; Zty[ii] += y[j] * z; XtZ[:,ii] += Xt[:,j]*z'
     end
     lower = vcat([(v=fill(-Inf,j);v[1]=0.;v) for j in k:-1:1]...)
-    VectorLMM1{Ti}(zeros(k,q), zeros(k,k), Xt, syrk('L','N',1.,Xt),
+    VectorLMM1{Ti}(zeros(k,q), zeros(p,p), Xt, syrk('L','N',1.,Xt),
                    XtZ, Xt*y, Ztrv, Ztnz, ZtZ, Zty, zeros(p), lower,
                    zeros(n), float64(lower .== 0.), # initial value of theta
                    zeros(q), y, false, false)
 end        
 size(m::VectorLMM1) = (length(m.y), length(m.beta), length(m.u), 1)
-grplevels(m::VectorLMM1) = [size(m.L,3)]
+grplevels(m::VectorLMM1) = [((k,q)=size(m.L);div(q,k))]
 Lmat(m::VectorLMM1) = [copy(m.L)]
-LXmat(m::VectorLMM1) = copy(m.LX)
+LXmat(m::VectorLMM1) = tril(m.LX)
+function mkLambda(k::Integer,th::Vector{Float64})
+    if length(th) != (k*(k+1))>>1
+        error("length(th) = $(length(th)) should be $((k*(k+1))>>1) for k = $k")
+    end
+    tt = zeros(k*k); tt[bool(vec(tril(ones(k,k))))] = th
+    reshape(tt, (k, k))
+end
+    
 function objective!(m::VectorLMM1, th::Vector{Float64})
     if any(th .< m.lower) error("theta = $th violates lower bounds") end
-    m.theta[:] = th; n,p,q,t = size(m); L = m.L; k,q = size(L); nl = div(q,k)
-    tmp = zeros(k*k); tmp[bool(vec(tril(ones(k,k))))] = th
-    Lambda = reshape(tmp, (k,k)); ee = eye(k)
-    L[:] = m.ZtZ
-    m.u[:] = m.Zty
-    trmm!('L','L','T','N',1.,Lambda,L)
-    LXZ = copy(m.XtZ)
+    m.theta[:] = th; n,p,q,t = size(m); k,q = size(m.ZtZ); nl = div(q,k)
+    Lambda = mkLambda(k,th); ee = eye(k)
+    m.L[:] = m.ZtZ
+    trmm!('L','L','T','N',1.,Lambda,m.L)
     m.LX[:] = m.XtX
-    ldL2 = 0.
-    cols = 1:k
+    LXZ = Array(Float64, (p,q))
     m.beta[:] = m.Xty
+    ldL2 = 0.; cols = 1:k; ee = eye(k)
+    wu = Array(Float64,k); wL = Array(Float64,(k,k)) # work arrays
+    wLXZ = Array(Float64,(p,k))
     for l in 1:nl
-        Ll = L[:,cols]
-        trmm!('R','L','N','N',1.,Lambda,Ll)
-        Ll += ee
-        _, info = potrf!('L',Ll)
+        wL[:] = m.L[:,cols]
+        trmm!('R','L','N','N',1.,Lambda,wL)
+        wL += ee
+        _, info = potrf!('L',wL)
         if bool(info)
             error("Cholesky decomposition failed at l = $l")
         end
-        for j in 1:k ldL2 += 2.log(Ll[j,j]) end
-        LXZl = LXZ[:,cols]
-        trmm!('R','L','N','N',1.,Lambda,LXZl)
-        trsm!('R','L','T','N',1.,Ll,LXZl)
-        syrk!('L','N',-1.,LXZl,1.,m.LX)
-        ul = m.u[cols]
+        m.L[:,cols] = tril(wL)
+        for j in 1:k ldL2 += 2.log(wL[j,j]) end
+        wLXZ[:] = m.XtZ[:,cols]
+        trmm!('R','L','N','N',1.,Lambda,wLXZ)
+        trsm!('R','L','T','N',1.,wL,wLXZ)
+        syrk!('L','N',-1.,wLXZ,1.,m.LX)
+        LXZ[:,cols] = wLXZ
+        wu[:] = m.Zty[cols]
+        trmv!('L','T','N',Lambda,wu)
+        ccall(("dtrsv_",libblas), Void,
+              (Ptr{Uint8}, Ptr{Uint8}, Ptr{Uint8}, Ptr{BlasInt},
+               Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
+              &'L', &'N', &'N', &k, wL, &k, wu, &1)
+        m.u[cols] = wu
+        m.beta -= wLXZ*wu
         cols += k
-        trmv!('L','T','N',Lambda,ul)
-        ccall(("dtrsv_",Base.LinAlg.BLAS.libblas), Void,
-              (Ptr{Uint8}, Ptr{Uint8}, Ptr{Uint8}, Ptr{Base.LinAlg.BlasInt},
-               Ptr{Float64}, Ptr{Base.LinAlg.BlasInt},
-               Ptr{Float64}, Ptr{Base.LinAlg.BlasInt}),
-              &'L', &'N', &'N', &k, Ll, &k, ul, &1)
-        m.beta -= LXZl*ul
     end
     _, info = potrf!('L',m.LX)
     if bool(info) error("Downdated X'X is not positive definite") end
     potrs!('L',m.LX,m.beta)
+    gemv!('T',-1.,LXZ,m.beta,1.,m.u)
+    gemv!('T',1.,m.Xt,m.beta,0.,m.mu)
+    cols = 1:k
+    for l in 1:nl
+        wu[:] = m.u[cols]
+        wL[:] = m.L[:,cols]
+        ccall(("dtrsv_",libblas), Void,
+              (Ptr{Uint8}, Ptr{Uint8}, Ptr{Uint8}, Ptr{BlasInt},
+               Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
+              &'L', &'T', &'N', &k, wL, &k, wu, &1)
+        m.u[cols] = wu
+        cols += k
+    end
+    cols = [1:k]
+    for i in 1:n m.mu[i] += dot(Lambda*m.u[cols + (m.Ztrv[i]-1)*k], m.Ztnz[:,i]) end
+    fn = float64(n - (m.REML ? p : 0))
+    obj = ldL2 + fn * (1. + log(2.pi * pwrss(m)/fn))
+    if m.REML
+        for i in 1:p obj += log(m.LX[i,i]) end
+    end
+    obj
 end
+sqrtwts!(m::VectorLMM1) = Float64[]

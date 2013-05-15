@@ -6,8 +6,12 @@ function lmer(f::Formula, df::AbstractDataFrame)
     re = retrms(mf)
     if length(re) == 0 error("No random-effects terms were specified") end
     resp = dv(model_response(mf))
+    if length(re) == 1
+        return issimple(re[1]) ?
+        ScalarLMM1(mm.m, grpfac(re[1], mf), resp) :
+        VectorLMM1(mm.m', grpfac(re[1], mf), lhs(re[1],mf).m', resp)
+    end
     if !issimple(re) error("only simple random-effects terms allowed") end 
-    if length(re) == 1 return ScalarLMM1(mm.m, grpfac(re[1], mf), resp) end
     LMMsplit(grpfac(re,mf), mm.m, resp)
 end
 lmer(ex::Expr, df::AbstractDataFrame) = lmer(Formula(ex), df)
