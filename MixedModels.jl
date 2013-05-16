@@ -1,9 +1,8 @@
 using DataFrames, Distributions         # should be externally available
 module MixedModels
 
-    typealias BlasInt Base.LinAlg.BlasInt
     using DataFrames, Distributions, NLopt
-    using Base.LinAlg.BLAS: gemv!, libblas, syrk!, syrk, trmv!, trmm!, trmm, trsm!
+    using Base.LinAlg.BLAS: gemv!, syrk!, syrk, trmm!, trmm, trmv!, trsm!, trsv!
     using Base.LinAlg.CHOLMOD: CholmodDense, CholmodDense!,
       CholmodFactor, CholmodSparse, chm_scale!, chm_factorize!,
       chm_factorize_p!, CHOLMOD_L, CHOLMOD_Lt

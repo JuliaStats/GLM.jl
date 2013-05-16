@@ -56,3 +56,12 @@ pluseye!(A::CholmodSparse) = pluseye!(A,1:size(A,1))
 function fill!{T}(a::Vector{T}, x::T, inds)
     for i in inds a[i] = x end
 end
+
+# fill in the lower triangle of a k by k matrix with the vector th
+function mkLambda(k::Integer,th::Vector{Float64})
+    if length(th) != (k*(k+1))>>1
+        error("length(th) = $(length(th)) should be $((k*(k+1))>>1) for k = $k")
+    end
+    tt = zeros(k*k); tt[bool(vec(tril(ones(k,k))))] = th
+    reshape(tt, (k, k))
+end

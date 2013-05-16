@@ -1,21 +1,21 @@
 ## Types representing linear mixed models with vector-valued random effects
 
 type VectorLMM1{Ti<:Integer} <: LinearMixedModel
-    L::Matrix{Float64}
+    L::Array{Float64,3}
     LX::Matrix{Float64}
     Xt::Matrix{Float64}
     XtX::Matrix{Float64}
-    XtZ::Matrix{Float64}
+    XtZ::Array{Float64,3}
     Xty::Vector{Float64}
     Ztrv::Vector{Ti}
     Ztnz::Matrix{Float64}
-    ZtZ::Matrix{Float64}
-    Zty::Vector{Float64}
+    ZtZ::Array{Float64,3}
+    Zty::Matrix{Float64}
     beta::Vector{Float64}
     lower::Vector{Float64}
     mu::Vector{Float64}
     theta::Vector{Float64}
-    u::Vector{Float64}
+    u::Matrix{Float64}
     y::Vector{Float64}
     REML::Bool
     fit::Bool
@@ -34,85 +34,63 @@ function VectorLMM1{Ti<:Integer}(Xt::Matrix{Float64}, Ztrv::Vector{Ti},
     urv = unique(Ztrv)
     if !isperm(urv) error("unique(Ztrv) must be a permutation") end
     nl = length(urv)
-    q = k * nl
-    ZtZ = zeros(k,q); XtZ = zeros(p,q); Zty  = zeros(q)
+    ZtZ = zeros(k,k,nl); XtZ = zeros(p,k,nl); Zty  = zeros(k,nl)
     for j in 1:n
-        i = Ztrv[j]; z = Ztnz[:,j]; ii = [1:k] + (i - 1)*k
-        ZtZ[:,ii] += z*z'; Zty[ii] += y[j] * z; XtZ[:,ii] += Xt[:,j]*z'
+        i = Ztrv[j]; z = Ztnz[:,j]; 
+        ZtZ[:,:,i] += z*z'; Zty[:,i] += y[j] * z; XtZ[:,:,i] += Xt[:,j]*z'
     end
     lower = vcat([(v=fill(-Inf,j);v[1]=0.;v) for j in k:-1:1]...)
-    VectorLMM1{Ti}(zeros(k,q), zeros(p,p), Xt, syrk('L','N',1.,Xt),
+    VectorLMM1{Ti}(zeros(k,k,nl), zeros(p,p), Xt, syrk('L','N',1.,Xt),
                    XtZ, Xt*y, Ztrv, Ztnz, ZtZ, Zty, zeros(p), lower,
                    zeros(n), float64(lower .== 0.), # initial value of theta
-                   zeros(q), y, false, false)
+                   zeros(k,nl), y, false, false)
 end        
+
 size(m::VectorLMM1) = (length(m.y), length(m.beta), length(m.u), 1)
 grplevels(m::VectorLMM1) = [((k,q)=size(m.L);div(q,k))]
 Lmat(m::VectorLMM1) = [copy(m.L)]
 LXmat(m::VectorLMM1) = tril(m.LX)
-function mkLambda(k::Integer,th::Vector{Float64})
-    if length(th) != (k*(k+1))>>1
-        error("length(th) = $(length(th)) should be $((k*(k+1))>>1) for k = $k")
-    end
-    tt = zeros(k*k); tt[bool(vec(tril(ones(k,k))))] = th
-    reshape(tt, (k, k))
-end
+ranef(m::VectorLMM1,Lambda::Matrix{Float64}) = Lambda*m.u
+ranef(m::VectorLMM1) = ranef(m, mkLambda(m))
     
 function objective!(m::VectorLMM1, th::Vector{Float64})
     if any(th .< m.lower) error("theta = $th violates lower bounds") end
-    m.theta[:] = th; n,p,q,t = size(m); k,q = size(m.ZtZ); nl = div(q,k)
-    Lambda = mkLambda(k,th); ee = eye(k)
-    m.L[:] = m.ZtZ
-    trmm!('L','L','T','N',1.,Lambda,m.L)
-    m.LX[:] = m.XtX
-    LXZ = Array(Float64, (p,q))
-    m.beta[:] = m.Xty
-    ldL2 = 0.; cols = 1:k; ee = eye(k)
-    wu = Array(Float64,k); wL = Array(Float64,(k,k)) # work arrays
-    wLXZ = Array(Float64,(p,k))
+    n,p,q,t = size(m); k,nl = size(m.u)
+    Lambda = mkLambda(k,th); ee = eye(k); ldL2 = 0.
+    copy!(m.theta,th); copy!(m.L,m.ZtZ); copy!(m.LX,m.XtX)
+    copy!(m.beta,m.Xty); copy!(m.u,m.Zty); 
+    trmm!('L','L','T','N',1.,Lambda,reshape(m.L,(k,q)))
+    trmm!('L','L','T','N',1.,Lambda,m.u) # Lambda'Z'y
+    LXZ = Array(Float64,size(m.XtZ)); wL = Array(Float64,(k,k))
+    wLXZ = Array(Float64,(p,k)); wu = zeros(k)
     for l in 1:nl
-        wL[:] = m.L[:,cols]
-        trmm!('R','L','N','N',1.,Lambda,wL)
+        wL[:] = m.L[:,:,l]                  # Lambda'(Z'Z)_l
+        trmm!('R','L','N','N',1.,Lambda,wL) # Lambda'(Z'Z)_l*Lambda
         wL += ee
-        _, info = potrf!('L',wL)
-        if bool(info)
+        _, info = potrf!('L',wL)       # l'th diagonal block of L_Z
+        if bool(info)      # should not happen b/c +eye(k)
             error("Cholesky decomposition failed at l = $l")
         end
-        m.L[:,cols] = tril(wL)
+        m.L[:,:,l] = tril(wL)
         for j in 1:k ldL2 += 2.log(wL[j,j]) end
-        wLXZ[:] = m.XtZ[:,cols]
-        trmm!('R','L','N','N',1.,Lambda,wLXZ)
-        trsm!('R','L','T','N',1.,wL,wLXZ)
-        syrk!('L','N',-1.,wLXZ,1.,m.LX)
-        LXZ[:,cols] = wLXZ
-        wu[:] = m.Zty[cols]
-        trmv!('L','T','N',Lambda,wu)
-        ccall(("dtrsv_",libblas), Void,
-              (Ptr{Uint8}, Ptr{Uint8}, Ptr{Uint8}, Ptr{BlasInt},
-               Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
-              &'L', &'N', &'N', &k, wL, &k, wu, &1)
-        m.u[cols] = wu
-        m.beta -= wLXZ*wu
-        cols += k
+        wLXZ[:] = m.XtZ[:,:,l]
+        trmm!('R','L','N','N',1.,Lambda,wLXZ) #(X'Z)_l*Lambda
+        trsm!('R','L','T','N',1.,wL,wLXZ)# solve for LXZ_l
+        LXZ[:,:,l] = wLXZ
+        syrk!('L','N',-1.,wLXZ,1.,m.LX) # downdate X'X
+        wu[:] = m.u[:,l]                # Lambda'(Z'y)_l
+        trsv!('L','N','N',wL,wu)        # c_l = L_l\Lambda'(Z'y)_l
+        m.u[:,l] = wu
+        m.beta -= wLXZ*wu               # downdate X'y by LZX_l*c_l
     end
-    _, info = potrf!('L',m.LX)
+    _, info = potrf!('L',m.LX)          # form LX
     if bool(info) error("Downdated X'X is not positive definite") end
-    potrs!('L',m.LX,m.beta)
-    gemv!('T',-1.,LXZ,m.beta,1.,m.u)
-    gemv!('T',1.,m.Xt,m.beta,0.,m.mu)
-    cols = 1:k
-    for l in 1:nl
-        wu[:] = m.u[cols]
-        wL[:] = m.L[:,cols]
-        ccall(("dtrsv_",libblas), Void,
-              (Ptr{Uint8}, Ptr{Uint8}, Ptr{Uint8}, Ptr{BlasInt},
-               Ptr{Float64}, Ptr{BlasInt}, Ptr{Float64}, Ptr{BlasInt}),
-              &'L', &'T', &'N', &k, wL, &k, wu, &1)
-        m.u[cols] = wu
-        cols += k
-    end
-    cols = [1:k]
-    for i in 1:n m.mu[i] += dot(Lambda*m.u[cols + (m.Ztrv[i]-1)*k], m.Ztnz[:,i]) end
+    potrs!('L',m.LX,m.beta)             # beta = (LX*LX')\(downdated X'y)
+    gemv!('T',1.,m.Xt,m.beta,0.,m.mu)   # initialize mu to Xt'beta
+    gemv!('T',-1.,reshape(LXZ,(p,q)),m.beta,1.,reshape(m.u,(q,))) # c - LXZ'beta
+    for l in 1:nl trsv!('L','T','N', sub(m.L,1:k,1:k,l), sub(m.u,1:k,l)) end 
+    bb = trmm('L','L','N','N',1.,Lambda,m.u) # b = Lambda * u
+    for i in 1:n m.mu[i] += dot(bb[:,m.Ztrv[i]], m.Ztnz[:,i]) end
     fn = float64(n - (m.REML ? p : 0))
     obj = ldL2 + fn * (1. + log(2.pi * pwrss(m)/fn))
     if m.REML
