@@ -101,16 +101,16 @@ setfit!(m::LinearMixedModel) = (m.fit = true; m)
 unsetfit!(m::LinearMixedModel) = (m.fit = false; m)
 setreml!(m::LinearMixedModel) = (m.REML = true; m.fit = false; m)
 unsetreml!(m::LinearMixedModel) = (m.REML = false; m.fit = false; m)
-obs!(m::LinearMixedModel) = m.y
+obs(m::LinearMixedModel) = m.y
 fixef!(m::LinearMixedModel) = fit(m).beta
 isfit(m::LinearMixedModel) = m.fit
 isreml(m::LinearMixedModel) = m.fit
-lower!(m::LinearMixedModel) = m.lower
-thvec!(m::LinearMixedModel) = m.theta
-exptd!(m::LinearMixedModel) = m.mu
-uvec!(m::LinearMixedModel) = m.u
+lower(m::LinearMixedModel) = m.lower
+thvec!(m::LinearMixedModel) = fit(m).theta
+exptd!(m::LinearMixedModel) = fit(m).mu
+uvec!(m::LinearMixedModel) = fit(m).u
 
-deviance(m::LinearMixedModel) = (unsetreml!(m); fit(m); objective(m, thvec!(m)))
+deviance(m::LinearMixedModel) = (unsetreml!(m); fit(m); objective(m, thvec(m)))
 reml(m::LinearMixedModel) = (setreml!(m); fit(unsetfit!(m)); objective(m, thvec!(m)))
 
 function show(io::IO, m::LinearMixedModel)

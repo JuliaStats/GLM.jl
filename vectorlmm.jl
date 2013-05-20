@@ -50,9 +50,8 @@ size(m::VectorLMM1) = (length(m.y), length(m.beta), length(m.u), 1)
 grplevels(m::VectorLMM1) = [((k,q)=size(m.L);div(q,k))]
 Lmat(m::VectorLMM1) = [copy(m.L)]
 LXmat(m::VectorLMM1) = tril(m.LX)
-ranef(m::VectorLMM1,Lambda::Matrix{Float64}) = Lambda*m.u
-ranef(m::VectorLMM1) = ranef(m, mkLambda(m))
-    
+ranef!(m::VectorLMM1) = ranef(m, mkLambda(m))
+
 function objective!(m::VectorLMM1, th::Vector{Float64})
     if any(th .< m.lower) error("theta = $th violates lower bounds") end
     n,p,q,t = size(m); k,nl = size(m.u)
