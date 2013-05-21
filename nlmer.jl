@@ -7,6 +7,9 @@ using DataFrames
 
 const conc = [2.84, 6.57, 10.5, 9.66, 8.58, 8.36, 7.47, 6.89, 5.94, 3.28]
 
+## Create an abstract class NonlinearRegModel, perhaps with abstract subclasses and with
+## concrete classes representing specific models.
+
 ## Overwrite eta with expected response at x
 ## Optionally, overwrite jac with the Jacobian matrix
 ## The jac code is from symbolic differentiation with common subexpression elimination
