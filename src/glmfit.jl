@@ -1,30 +1,31 @@
 type GlmResp <: ModResp               # response in a glm model
+    y::Vector{Float64}                # response
     d::Distribution
     l::Link
     eta::Vector{Float64}              # linear predictor
     mu::Vector{Float64}               # mean response
     offset::Vector{Float64}           # offset added to linear predictor (usually 0)
     wts::Vector{Float64}              # prior weights
-    y::Vector{Float64}                # response
-    function GlmResp(d::Distribution, l::Link, eta::Vector{Float64},
-                     mu::Vector{Float64}, offset::Vector{Float64},
-                     wts::Vector{Float64},y::Vector{Float64})
+    function GlmResp(y::Vector{Float64}, d::Distribution, l::Link, 
+                     eta::Vector{Float64}, mu::Vector{Float64}, offset::Vector{Float64},
+                     wts::Vector{Float64})
         if !(length(eta) == length(mu) == length(offset) == length(wts) == length(y))
             error("mismatched sizes")
         end
-        insupport(d, y)? new(d,l,eta,mu,offset,wts,y):
+        insupport(d, y)? new(y,d,l,eta,mu,offset,wts):
         error("elements of y not in distribution support")
     end
 end
 
-function GlmResp(d::Distribution, l::Link, y::Vector{Float64})
+function GlmResp(y::Vector{Float64}, d::Distribution, l::Link)
     n  = length(y)
     wt = ones(n)
     mu = mustart(d, y, wt)
-    GlmResp(d, l, linkfun(l, mu), mu, zeros(n), wt, y)
+    GlmResp(y, d, l, linkfun(l, mu), mu, zeros(n), wt)
 end
 
-GlmResp(d::Distribution, y::Vector{Float64}) = GlmResp(d, canonicallink(d), y)
+GlmResp(y::Vector{Float64}, d::Distribution) = GlmResp(y, d, canonicallink(d))
+GlmResp{T<:Real}(y::Vector{T}, d::Distribution, args...) = GlmResp(float64(y), d, args...)
 
 deviance( r::GlmResp) = deviance(r.d, r.mu, r.y, r.wts)
 devresid( r::GlmResp) = devresid(r.d, r.y, r.mu, r.wts)
@@ -60,7 +61,7 @@ function glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link, m::Dat
     if !(m <: LinPred) error("Composite type $m does not extend LinPred") end
     mf = ModelFrame(f, df)
     mm = ModelMatrix(mf)
-    rr = GlmResp(d, l, dv(model_response(mf)))
+    rr = GlmResp(dv(model_response(mf)), d, l)
     dp = m(mm.m)
     GlmMod(mf, mm, rr, dp, f, false)
 end
