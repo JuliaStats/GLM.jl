@@ -87,7 +87,7 @@ fit(m::LinearMixedModel) = fit(m, false)      # non-verbose
 ## Default implementations
 function wrss(m::LinearMixedModel)
     y = obs!(m); mu = exptd!(m); wt = sqrtwts!(m)
-    w = bool(length(sqrtwts!(m)))
+    w = bool(length(wt))
     s = zero(eltype(y))
     for i in 1:length(y)
         r = y[i] - mu[i]
@@ -101,16 +101,19 @@ setfit!(m::LinearMixedModel) = (m.fit = true; m)
 unsetfit!(m::LinearMixedModel) = (m.fit = false; m)
 setreml!(m::LinearMixedModel) = (m.REML = true; m.fit = false; m)
 unsetreml!(m::LinearMixedModel) = (m.REML = false; m.fit = false; m)
-obs(m::LinearMixedModel) = m.y
+obs!(m::LinearMixedModel) = m.y
 fixef!(m::LinearMixedModel) = fit(m).beta
 isfit(m::LinearMixedModel) = m.fit
-isreml(m::LinearMixedModel) = m.fit
+isreml(m::LinearMixedModel) = m.REML
 lower(m::LinearMixedModel) = m.lower
 thvec!(m::LinearMixedModel) = fit(m).theta
-exptd!(m::LinearMixedModel) = fit(m).mu
-uvec!(m::LinearMixedModel) = fit(m).u
+exptd!(m::LinearMixedModel) = m.mu
+uvec!(m::LinearMixedModel) = m.u
 
-deviance(m::LinearMixedModel) = (unsetreml!(m); fit(m); objective(m, thvec(m)))
+function deviance(m::LinearMixedModel)
+    if isreml(m) unsetreml!(m) end
+    objective!(m, thvec!(m))
+end
 reml(m::LinearMixedModel) = (setreml!(m); fit(unsetfit!(m)); objective(m, thvec!(m)))
 
 function show(io::IO, m::LinearMixedModel)
@@ -118,7 +121,7 @@ function show(io::IO, m::LinearMixedModel)
     REML = m.REML
     criterionstr = REML ? "REML" : "maximum likelihood"
     println(io, "Linear mixed model fit by $criterionstr")
-    oo = objective(m)
+    oo = objective!(m,m.theta)
     if REML
         println(io, " REML criterion: $oo")
     else

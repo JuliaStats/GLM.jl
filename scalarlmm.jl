@@ -2,11 +2,6 @@
 ## The ScalarLMM1 type represents a model with a single scalar
 ## random-effects term
 
-#using RDatasets, NLopt
-#using Base.LinAlg.BLAS: gemv!, syrk!, syrk
-#using Base.LinAlg.LAPACK: potrf!, potrs!
-#import Base.size
-
 ## Fields are arranged by decreasing size, doubles then pointers then bools
 type ScalarLMM1{Ti<:Integer} <: ScalarLinearMixedModel
     theta::Float64
@@ -56,14 +51,12 @@ end
 
 lower!(m::ScalarLMM1) = zeros(1)
 size(m::ScalarLMM1) = (length(m.y), length(m.beta), length(m.u), 1)
-isfit(m::ScalarLMM1) = m.fit
-isreml(m::ScalarLMM1) = m.REML
 thvec!(m::ScalarLMM1) = [m.theta]
 ranef!(m::ScalarLMM1) = m.theta * m.u
 grplevels(m::ScalarLMM1) = [length(u)]
 Zt!(m::ScalarLMM1) = SparseMatrixRSC(Ztrv, Ztnz')
 sqrtwts!(m::ScalarLMM1) = Float64[]
-function L(m::ScalarLMM1)
+function L(m::ScalarLMM1) # Can probably skip all the Diagonal stuff
     thsq = square(m.theta)
     convert(Vector{Diagonal{Float64}},
             {Diagonal([sqrt(thsq*z + 1.) for z in m.ZtZ.diag])})
@@ -84,7 +77,8 @@ function objective!(m::ScalarLMM1, th::Float64)
     m.mu[:] = th*(m.u[m.Ztrv].*m.Ztnz) # mu = Z*Lambda*u
     gemv!('T',1.,m.Xt,m.beta,1.,m.mu) # mu += X'beta
     fn = float64(n - (m.REML ? p : 0))
-    obj = 2.*sum(log(L)) + fn * (1. + log(2.pi * pwrss(m)/fn))
+    ldL2 = (s=0.; for l in L s+=log(l) end;2.s)
+    obj = ldL2 + fn * (1. + log(2.pi * pwrss(m)/fn))
     if m.REML obj += logdet(RX) end
     obj
 end
