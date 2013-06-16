@@ -2,10 +2,10 @@ using DataFrames, Distributions         # should be externally available
 module MixedModels
 
     using DataFrames, Distributions, NLopt
-    using Base.LinAlg.BLAS: gemv!, syrk!, syrk, trmm!, trmm, trmv!, trsm!, trsv!
+    using Base.LinAlg.BLAS: gemm!, gemv!, syrk!, syrk, trmm!, trmm, trmv!, trsm!, trsv!
     using Base.LinAlg.CHOLMOD: CholmodDense, CholmodDense!,
-      CholmodFactor, CholmodSparse, chm_scale!, chm_factorize!,
-      chm_factorize_p!, CHOLMOD_L, CHOLMOD_Lt
+      CholmodFactor, CholmodSparse, CholmodSparse!, chm_analyze,
+      chm_scale!, chm_factorize!, chm_factorize_p!, CHOLMOD_L, CHOLMOD_Lt
     using Base.LinAlg.LAPACK:  potrf!, potrs!
     using Base.LinAlg.UMFPACK: increment!, increment
 

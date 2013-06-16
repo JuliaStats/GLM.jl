@@ -1,20 +1,78 @@
 abstract LinearMixedModel <: MixedModel
 
-function lmer(f::Formula, df::AbstractDataFrame)
-    mf = ModelFrame(f, df)
-    mm = ModelMatrix(mf)
-    re = retrms(mf)
-    if length(re) == 0 error("No random-effects terms were specified") end
-    resp = dv(model_response(mf))
-    if length(re) == 1
-        return issimple(re[1]) ?
-        ScalarLMM1(mm.m, grpfac(re[1], mf), resp) :
-        VectorLMM1(mm.m', grpfac(re[1], mf), lhs(re[1],mf).m', resp)
-    end
-    if !issimple(re) error("only simple random-effects terms allowed") end 
-    LMMsplit(grpfac(re,mf), mm.m, resp)
+type LMMGeneral{Ti<:Union(Int32,Int64)} <: LinearMixedModel
+    L::CholmodFactor{Float64,Ti}
+    LambdatZt::CholmodSparse{Float64,Ti}
+    X::ModelMatrix                      # fixed-effects model matrix
+    Xs::Vector{Matrix{Float64}}         # X_1,X_2,...,X_k
+    beta::Vector{Float64}
+    inds::Vector{Any}
+    lambda::Vector{Matrix{Float64}}     # k lower triangular mats
+    u::Vector{Matrix{Float64}}
+    y::Vector{Float64}
 end
-lmer(ex::Expr, df::AbstractDataFrame) = lmer(Formula(ex), df)
+
+const template = Formula(:(~ foo))      # for evaluating the lhs of r.e. terms
+
+function lmer(f::Formula, fr::AbstractDataFrame)
+    mf = ModelFrame(f, fr); df = mf.df
+
+    ## extract random-effects terms and reorder by non-increasing number of levels
+    re = filter(x->Meta.isexpr(x,:call) && x.args[1] == :|, mf.terms.terms)
+    0 < length(re) || error("Formula $f has no random-effects terms")
+    re = re[sortperm(map(x->length(df[x.args[3]].pool),re),Sort.Reverse)]
+
+    ## create and fill vectors Xs, etc. from the random-effects terms
+    Xs = Matrix{Float64}[]; lambda = Matrix{Float64}[]; u = Matrix{Float64}[]
+    inds = {}; rowval = Matrix{Int}[]; offset = 0
+    for t in re                    # iterate over random-effects terms
+        mm = t.args[2] == 1 ? ones(size(df,1),1) : # Matrix{Float64} from lhs of t
+             (template.rhs=t.args[2]; ModelMatrix(ModelFrame(template, df))).m
+        push!(Xs, mm)
+        p = size(mm,2)
+        push!(lambda, eye(p))
+        gf = df[t.args[3]]     # grouping factor as a PooledDataVector
+        l = length(gf.pool)
+        push!(u, zeros(p,l))
+        nu = p*l
+        ii = gf.refs
+        push!(inds, ii)
+        push!(rowval, (reshape(1:nu,(p,l)) + offset)[:,ii])
+        offset += nu
+    end
+    Ti = Int; if offset < typemax(Int32) Ti = Int32 end ## use 32-bit ints if possible
+    X = ModelMatrix(mf)
+    nz = hcat(Xs...)'
+    ## Allow a CholmodSparse! method for SparseMatrixCSC to prevent a copy here
+    LambdatZt = CholmodSparse(SparseMatrixCSC(offset, size(df,1),
+                                               convert(Vector{Ti}, [1:size(nz,1):length(nz)+1]),
+                                               convert(Vector{Ti}, vec(vcat(rowval...))),
+                                               vec(nz)))
+    L = chm_analyze(LambdatZt)
+    LMMGeneral(chm_analyze(LambdatZt),LambdatZt,X,Xs,zeros(size(X.m,2)),inds,lambda,
+               u,vector(model_response(mf)))
+end
+lmer(ex::Expr, fr::AbstractDataFrame) = lmer(Formula(ex), fr)
+
+function updateL(m::LMMGeneral, theta::Vector{Float64})
+    n = length(m.y); k = length(m.inds)
+    nzmat = reshape(m.LambdatZt.nzval, (div(length(m.LambdatZt.nzval),n),n))
+    lambda = m.lambda; Xs = m.Xs
+    tpos = 1; roff = 0                  # position in theta, row offset
+    for i in 1:k
+        T = lambda[i]
+        p = size(T,1)                   # size of i'th template matrix
+        for j in 1:p, i in j:p          # fill lower triangle from theta
+            T[i,j] = theta[tpos]; tpos += 1
+            (i == j && T[i,j] < 0.) || error("Negative diagonal element in T")
+        end
+        gemm!('T','T',1.0,T,Xs[i],0.0,sub(nzmat,roff+(1:p),1:n))
+        roff += p
+    end
+    chm_factorize_p!(m.L,m.LambdatZt,1.)
+    m
+end
+
 
 ## Optimization of objective using BOBYQA
 ## According to convention the name should be fit! as this is a

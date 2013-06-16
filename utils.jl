@@ -1,9 +1,5 @@
 ## Utilities to work with the random-effects part of the formula
 
-## Extract the random effects terms as a vector of expressions
-function retrms(mf::ModelFrame)
-    convert(Vector{Expr}, filter(x->Meta.isexpr(x,:call) && x.args[1] == :|, mf.terms.terms))
-end
 
 ## Check if all random-effects terms are simple
 issimple(terms::Vector{Expr}) = all(map(issimple, terms))
@@ -13,7 +9,7 @@ function grpfac(e::Expr, mf::ModelFrame)
     if !Meta.isexpr(e,:call) || e.args[1] != :|
         error("Expression $e is not a random-effects term")
     end
-    mf.df[e.args[3]].refs
+    mf.df[e.args[3]]
 end
 function grpfac(terms::Vector{Expr}, mf::ModelFrame)
     hcat(map(x->grpfac(x,mf),terms)...)
