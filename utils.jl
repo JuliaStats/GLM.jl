@@ -4,35 +4,6 @@
 ## Check if all random-effects terms are simple
 issimple(terms::Vector{Expr}) = all(map(issimple, terms))
 issimple(expr::Expr) = Meta.isexpr(expr,:call) && expr.args[1] == :| && expr.args[2] == 1
-## Return the grouping factors as a matrix
-function grpfac(e::Expr, mf::ModelFrame)
-    if !Meta.isexpr(e,:call) || e.args[1] != :|
-        error("Expression $e is not a random-effects term")
-    end
-    mf.df[e.args[3]]
-end
-function grpfac(terms::Vector{Expr}, mf::ModelFrame)
-    hcat(map(x->grpfac(x,mf),terms)...)
-end
-
-const template = Formula(:(~ foo))
-
-function lhs(trms::Vector{Expr}, mf::ModelFrame)
-    map(x->lhs(x, mf), trms)
-end
-function lhs(expr::Expr, mf::ModelFrame)
-    if !(Meta.isexpr(expr,:call) && expr.args[1] == :|)
-        error("expr = $expr and should be a call to the ':|' function")
-    end
-    if expr.args[2] == 1 return ModelMatrix(ones(size(mf.df,1), 1), [0]) end
-    template.rhs = expr.args[2]
-    ModelMatrix(ModelFrame(template, mf.df))
-end    
-
-## extract the data values as vectors from various compound types
-dv(v::DataVector) = v.data
-dv(v::Vector) = v
-dv(v::PooledDataVector) = v.refs
 
 ## Add an identity block along inds to a symmetric A stored in the upper triangle
 function pluseye!{T}(A::CholmodSparse{T}, inds)

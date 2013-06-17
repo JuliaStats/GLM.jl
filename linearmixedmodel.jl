@@ -41,38 +41,81 @@ function lmer(f::Formula, fr::AbstractDataFrame)
         offset += nu
     end
     Ti = Int; if offset < typemax(Int32) Ti = Int32 end ## use 32-bit ints if possible
+
+    ## create the LMMGeneral object
     X = ModelMatrix(mf)
     nz = hcat(Xs...)'
-    ## Allow a CholmodSparse! method for SparseMatrixCSC to prevent a copy here
-    LambdatZt = CholmodSparse(SparseMatrixCSC(offset, size(df,1),
-                                               convert(Vector{Ti}, [1:size(nz,1):length(nz)+1]),
-                                               convert(Vector{Ti}, vec(vcat(rowval...))),
-                                               vec(nz)))
-    L = chm_analyze(LambdatZt)
-    LMMGeneral(chm_analyze(LambdatZt),LambdatZt,X,Xs,zeros(size(X.m,2)),inds,lambda,
-               u,vector(model_response(mf)))
+    LambdatZt = CholmodSparse!(convert(Vector{Ti}, [1:size(nz,1):length(nz)+1]),
+                               convert(Vector{Ti}, vec(vcat(rowval...))),
+                               vec(nz), offset, size(df,1), 0)
+    y = float(vector(model_response(mf)))
+    LMMGeneral(cholfact(LambdatZt,1.,true),LambdatZt,X,Xs,X.m\y,inds,lambda,u,y)
 end
 lmer(ex::Expr, fr::AbstractDataFrame) = lmer(Formula(ex), fr)
 
-function updateL(m::LMMGeneral, theta::Vector{Float64})
+function updateL!(m::LMMGeneral, theta::Vector{Float64})
     n = length(m.y); k = length(m.inds)
     nzmat = reshape(m.LambdatZt.nzval, (div(length(m.LambdatZt.nzval),n),n))
     lambda = m.lambda; Xs = m.Xs
     tpos = 1; roff = 0                  # position in theta, row offset
-    for i in 1:k
-        T = lambda[i]
+    for kk in 1:k
+        T = lambda[kk]
         p = size(T,1)                   # size of i'th template matrix
         for j in 1:p, i in j:p          # fill lower triangle from theta
             T[i,j] = theta[tpos]; tpos += 1
-            (i == j && T[i,j] < 0.) || error("Negative diagonal element in T")
+            i == j && T[i,j] < 0. && error("Negative diagonal element in T")
         end
-        gemm!('T','T',1.0,T,Xs[i],0.0,sub(nzmat,roff+(1:p),1:n))
+        gemm!('T','T',1.0,T,Xs[kk],0.0,sub(nzmat,roff+(1:p),1:n))
         roff += p
     end
-    chm_factorize_p!(m.L,m.LambdatZt,1.)
+    cholfact!(m.L,m.LambdatZt,1.)
     m
 end
 
+function spreadu!(m::LMMGeneral, u::Vector{Float64})
+    pos = 0
+    for i in 1:length(m.u)
+        ll = length(m.u[i])
+        m.u[i] = reshape(sub(u,pos+(1:ll)), size(m.u[i]))
+        pos += ll
+    end
+    m
+end
+
+function solve!(m::LMMGeneral,ubeta::Bool)
+    if ubeta
+        ltzty = m.LambdatZt * m.y
+        cu = solve(m.L,solve(m.L,ltzty,CHOLMOD_P), CHOLMOD_L)
+        RZX = solve(m.L,solve(m.L,m.LambdatZt * m.X.m,CHOLMOD_P),CHOLMOD_L).mat
+        m.beta = vec(cholfact(m.X.m'm.X.m-RZX'RZX)\(m.X.m'm.y-RZX'cu.mat))
+        gemv!('N',-1.,RZX,m.beta,1.,vec(cu.mat))
+        spreadu!(m,vec(solve(m.L,solve(m.L,cu,CHOLMOD_Lt),CHOLMOD_Pt).mat))
+    else
+        spreadu!(m,vec(solve(m.L,m.LambdatZt * gemv!('N',-1.0,m.X.m,m.beta,1.0,copy(m.y))).mat))
+    end
+end
+solve!(m::LMMGeneral) = solve!(m,false)
+
+logdet(m::LMMGeneral) = logdet(m.L)
+
+### form b = Lambda*u
+function bvec(m::LMMGeneral)
+    u = m.u; b = similar(u); lm = m.lambda
+    for i in 1:length(u) b[i] = trmm('L','L','N','N',1.,lm[i],u[i]) end
+    b
+end
+
+## calculate the linear predictor, lp, or the negative residuals, lp - y
+function linpred(m::LMMGeneral,minusy::Bool)
+    lp = gemv!('N',1.,m.X.m,m.beta,-1.,minusy?copy(m.y):zeros(length(m.y)))
+    b = bvec(m); Xs = m.Xs;
+    for i in 1:length(Xs)               # iterate over r.e. terms
+        X = Xs[i]
+        gemv!('N',1.,X .* b[i][:,m.inds[i]]',ones(size(X,2)),1.,lp)
+    end
+    lp
+end
+linpred(m::LMMGeneral) = linpred(m,false)
 
 ## Optimization of objective using BOBYQA
 ## According to convention the name should be fit! as this is a
