@@ -24,10 +24,11 @@ module MixedModels
                                         # functions
         fixef!,
         lmer,
-        updateL!,
         objective!,
         ranef!,
         reml!,
+        settheta!,
+        solve!,
         VarCorr!
 
     typealias VTypes Union(Float64,Complex128)

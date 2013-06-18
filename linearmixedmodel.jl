@@ -3,6 +3,7 @@ abstract LinearMixedModel <: MixedModel
 type LMMGeneral{Ti<:Union(Int32,Int64)} <: LinearMixedModel
     L::CholmodFactor{Float64,Ti}
     LambdatZt::CholmodSparse{Float64,Ti}
+    RX::Cholesky{Float64}
     X::ModelMatrix                      # fixed-effects model matrix
     Xs::Vector{Matrix{Float64}}         # X_1,X_2,...,X_k
     beta::Vector{Float64}
@@ -10,6 +11,8 @@ type LMMGeneral{Ti<:Union(Int32,Int64)} <: LinearMixedModel
     lambda::Vector{Matrix{Float64}}     # k lower triangular mats
     u::Vector{Matrix{Float64}}
     y::Vector{Float64}
+    REML::Bool
+    fit::Bool
 end
 
 const template = Formula(:(~ foo))      # for evaluating the lhs of r.e. terms
@@ -19,25 +22,21 @@ function lmer(f::Formula, fr::AbstractDataFrame)
 
     ## extract random-effects terms and reorder by non-increasing number of levels
     re = filter(x->Meta.isexpr(x,:call) && x.args[1] == :|, mf.terms.terms)
-    0 < length(re) || error("Formula $f has no random-effects terms")
+    k = length(re); 0 < k || error("Formula $f has no random-effects terms")
     re = re[sortperm(map(x->length(df[x.args[3]].pool),re),Sort.Reverse)]
 
-    ## create and fill vectors Xs, etc. from the random-effects terms
-    Xs = Matrix{Float64}[]; lambda = Matrix{Float64}[]; u = Matrix{Float64}[]
-    inds = {}; rowval = Matrix{Int}[]; offset = 0
-    for t in re                    # iterate over random-effects terms
-        mm = t.args[2] == 1 ? ones(size(df,1),1) : # Matrix{Float64} from lhs of t
-             (template.rhs=t.args[2]; ModelMatrix(ModelFrame(template, df))).m
-        push!(Xs, mm)
-        p = size(mm,2)
-        push!(lambda, eye(p))
+    ## create and fill vectors of matrices from the random-effects terms
+    u = Matrix{Float64}[zeros(0,0) for i in 1:k]; Xs = similar(u); lambda = similar(u)
+    rowval = Matrix{Int}[zeros(Int,0,0) for i in 1:k]; inds = Array(Any,k)
+    offset = 0
+    for i in 1:k                    # iterate over random-effects terms
+        t = re[i]
+        Xs[i] = t.args[2] == 1 ? ones(size(df,1),1) : # Matrix{Float64} from lhs of t
+                (template.rhs=t.args[2]; ModelMatrix(ModelFrame(template, df))).m
+        p = size(Xs[i],2); lambda[i] = eye(p)
         gf = df[t.args[3]]     # grouping factor as a PooledDataVector
-        l = length(gf.pool)
-        push!(u, zeros(p,l))
-        nu = p*l
-        ii = gf.refs
-        push!(inds, ii)
-        push!(rowval, (reshape(1:nu,(p,l)) + offset)[:,ii])
+        l = length(gf.pool); u[i] = zeros(p,l); nu = p*l; ii = gf.refs
+        inds[i] = ii; rowval[i] = (reshape(1:nu,(p,l)) + offset)[:,ii]
         offset += nu
     end
     Ti = Int; if offset < typemax(Int32) Ti = Int32 end ## use 32-bit ints if possible
@@ -49,11 +48,12 @@ function lmer(f::Formula, fr::AbstractDataFrame)
                                convert(Vector{Ti}, vec(vcat(rowval...))),
                                vec(nz), offset, size(df,1), 0)
     y = float(vector(model_response(mf)))
-    LMMGeneral(cholfact(LambdatZt,1.,true),LambdatZt,X,Xs,X.m\y,inds,lambda,u,y)
+    LMMGeneral(cholfact(LambdatZt,1.,true),LambdatZt,cholfact(eye(size(X.m,2))),
+               X,Xs,X.m\y,inds,lambda,u,y,false,false)
 end
 lmer(ex::Expr, fr::AbstractDataFrame) = lmer(Formula(ex), fr)
 
-function updateL!(m::LMMGeneral, theta::Vector{Float64})
+function settheta!(m::LMMGeneral, theta::Vector{Float64})
     n = length(m.y); k = length(m.inds)
     nzmat = reshape(m.LambdatZt.nzval, (div(length(m.LambdatZt.nzval),n),n))
     lambda = m.lambda; Xs = m.Xs
@@ -72,7 +72,19 @@ function updateL!(m::LMMGeneral, theta::Vector{Float64})
     m
 end
 
-function spreadu!(m::LMMGeneral, u::Vector{Float64})
+function solve!(m::LMMGeneral,ubeta::Bool)
+    u = Float64[]
+    if ubeta
+        ltzty = m.LambdatZt * m.y
+        cu = solve(m.L,solve(m.L,ltzty,CHOLMOD_P), CHOLMOD_L)
+        RZX = solve(m.L,solve(m.L,m.LambdatZt * m.X.m,CHOLMOD_P),CHOLMOD_L).mat
+        potrf!('U',syrk!('U','T',-1.,RZX,1.,syrk!('U','T',1.,m.X.m,0.,m.RX.UL)))
+        potrs!('U',m.RX.UL,gemv!('T',-1.,RZX,vec(cu.mat),1.,gemv!('T',1.,m.X.m,m.y,0.,m.beta)))
+        gemv!('N',-1.,RZX,m.beta,1.,vec(cu.mat))
+        u = vec(solve(m.L,solve(m.L,cu,CHOLMOD_Lt),CHOLMOD_Pt).mat)
+    else
+        u = vec(solve(m.L,m.LambdatZt * gemv!('N',-1.0,m.X.m,m.beta,1.0,copy(m.y))).mat)
+    end
     pos = 0
     for i in 1:length(m.u)
         ll = length(m.u[i])
@@ -81,41 +93,54 @@ function spreadu!(m::LMMGeneral, u::Vector{Float64})
     end
     m
 end
-
-function solve!(m::LMMGeneral,ubeta::Bool)
-    if ubeta
-        ltzty = m.LambdatZt * m.y
-        cu = solve(m.L,solve(m.L,ltzty,CHOLMOD_P), CHOLMOD_L)
-        RZX = solve(m.L,solve(m.L,m.LambdatZt * m.X.m,CHOLMOD_P),CHOLMOD_L).mat
-        m.beta = vec(cholfact(m.X.m'm.X.m-RZX'RZX)\(m.X.m'm.y-RZX'cu.mat))
-        gemv!('N',-1.,RZX,m.beta,1.,vec(cu.mat))
-        spreadu!(m,vec(solve(m.L,solve(m.L,cu,CHOLMOD_Lt),CHOLMOD_Pt).mat))
-    else
-        spreadu!(m,vec(solve(m.L,m.LambdatZt * gemv!('N',-1.0,m.X.m,m.beta,1.0,copy(m.y))).mat))
-    end
-end
 solve!(m::LMMGeneral) = solve!(m,false)
-
-logdet(m::LMMGeneral) = logdet(m.L)
-
-### form b = Lambda*u
-function bvec(m::LMMGeneral)
-    u = m.u; b = similar(u); lm = m.lambda
-    for i in 1:length(u) b[i] = trmm('L','L','N','N',1.,lm[i],u[i]) end
-    b
-end
 
 ## calculate the linear predictor, lp, or the negative residuals, lp - y
 function linpred(m::LMMGeneral,minusy::Bool)
     lp = gemv!('N',1.,m.X.m,m.beta,-1.,minusy?copy(m.y):zeros(length(m.y)))
-    b = bvec(m); Xs = m.Xs;
+    Xs = m.Xs; u = m.u; lm = m.lambda; inds = m.inds
     for i in 1:length(Xs)               # iterate over r.e. terms
-        X = Xs[i]
-        gemv!('N',1.,X .* b[i][:,m.inds[i]]',ones(size(X,2)),1.,lp)
+        bb = trmm('L','L','N','N',1.,lm[i],u[i]);
+        X = Xs[i]; ind = inds[i]
+        for j in 1:length(lp), k in 1:size(X,2)
+            lp[j] += bb[k,ind[j]] * X[j,k]
+        end
     end
     lp
 end
 linpred(m::LMMGeneral) = linpred(m,false)
+
+sqrlenu(m::LMMGeneral) = (s = 0.; for uu in m.u, u in uu s += u*u end; s)
+    
+pwrss(m::LMMGeneral) = (s = sqrlenu(m); for r in linpred(m,true) s += r*r end; s)
+
+function objective!(m::LMMGeneral,x::Vector{Float64})
+    settheta!(m,x)
+    solve!(m,true)
+    fn = float(length(m.y))
+    logdet(m.L) + fn * (1. + log(2.pi * pwrss(m)/fn))
+end
+
+function thvec(m::LMMGeneral)
+    th = Float64[]
+    for l in m.lambda
+        p = size(l,1)
+        for j in 1:p, i in j:p push!(th,l[i,j]) end
+    end
+    th
+end
+
+function lower(m::LMMGeneral)
+    ll = Float64[]
+    for l in m.lambda
+        p = size(l,1)
+        for j in 1:p
+            push!(ll,0.)
+            for i in j+1:p push!(ll,-Inf) end
+        end
+    end
+    ll
+end
 
 ## Optimization of objective using BOBYQA
 ## According to convention the name should be fit! as this is a
@@ -123,11 +148,11 @@ linpred(m::LMMGeneral) = linpred(m,false)
 ## wanted to piggy-back on the fit generic created in Distributions
 function fit(m::LinearMixedModel, verbose::Bool)
     if !isfit(m)
-        k = length(thvec!(m))
+        k = length(thvec(m))
         opt = Opt(:LN_BOBYQA, k)
         ftol_abs!(opt, 1e-6)    # criterion on deviance changes
         xtol_abs!(opt, 1e-6)    # criterion on all parameter value changes
-        lower_bounds!(opt, lower!(m))
+        lower_bounds!(opt, lower(m))
         function obj(x::Vector{Float64}, g::Vector{Float64})
             if length(g) > 0 error("gradient evaluations are not provided") end
             objective!(m, x)
@@ -145,7 +170,7 @@ function fit(m::LinearMixedModel, verbose::Bool)
         else
             min_objective!(opt, obj)
         end
-        fmin, xmin, ret = optimize(opt, thvec!(m))
+        fmin, xmin, ret = optimize(opt, thvec(m))
         if verbose println(ret) end
         setfit!(m)
     end
