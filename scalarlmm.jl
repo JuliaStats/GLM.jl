@@ -2,6 +2,19 @@
 ## The ScalarLMM1 type represents a model with a single scalar
 ## random-effects term
 
+abstract ScalarLinearMixedModel <: LinearMixedModel
+
+function VarCorr(m::ScalarLinearMixedModel)
+    fit(m)
+    n, p, q = size(m)
+    [m.theta .^ 2, 1.] * (pwrss(m)/float(n - (m.REML ? p : 0)))
+end
+
+function grplevs(m::ScalarLinearMixedModel)
+    rv = m.Zt.rowval
+    [length(unique(rv[i,:]))::Int for i in 1:size(rv,1)]
+end
+
 ## Fields are arranged by decreasing size, doubles then pointers then bools
 type ScalarLMM1{Ti<:Integer} <: ScalarLinearMixedModel
     theta::Float64
