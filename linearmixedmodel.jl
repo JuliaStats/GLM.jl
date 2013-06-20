@@ -252,4 +252,8 @@ function show(io::IO, m::LinearMixedModel)
     println("  Fixed-effects parameters: $(fixef(m))")
 end
 
-deviance(m::LMMGeneral) = objective(fit(reml(m) ? unsetfit!(reml!(m,false)) : m))
+## deviance!(m) -> Float64 : fit the model by maximum likelihood and return the deviance
+deviance!(m::LMMGeneral) = objective(fit(reml(m) ? unsetfit!(reml!(m,false)) : m))
+
+## deviance(m) -> Float64
+deviance(m::LMMGeneral) = isfit(m) && !reml(m) ? objective(m) : NaN
