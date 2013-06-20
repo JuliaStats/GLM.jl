@@ -22,7 +22,7 @@ function lmer(f::Formula, fr::AbstractDataFrame)
 
     ## extract random-effects terms and check there is at least one
     re = filter(x->Meta.isexpr(x,:call) && x.args[1] == :|, mf.terms.terms)
-    k = length(re); 0 < k || error("Formula $f has no random-effects terms")
+    k = length(re); k > 0 || error("Formula $f has no random-effects terms")
 
     ## reorder terms by non-increasing number of levels
     gf = PooledDataVector[df[t.args[3]] for t in re]  # grouping factors
@@ -216,15 +216,25 @@ function scale(m::LMMGeneral,sqr::Bool)
 end
 scale(m::LMMGeneral) = scale(m,false)
 
-## VarCorr(m) -> [estimated variance-covariance matrices of random-effects, ssqr]
-function VarCorr(m::LMMGeneral)
-    ssqr = scale(m,true); k = length(m.u); r = Array(Matrix{Float64},k + 1)
-    r[end] = fill(ssqr,1,1); lm = m.lambda
-    for i in 1:k r[i] = ssqr * lm[i] * lm[i]' end; r
+## std(m) -> Vector{Vector{Float64}} estimated standard deviations of variance components
+std(m::LMMGeneral) = scale(m) .* [Float64[norm(l[i,:]) for i in 1:size(l,1)] for l in m.lambda]
+
+## convert a lower Cholesky factor to a correlation matrix
+function cc(c::Matrix{Float64})
+    m,n = size(c); m == n || error("argument of size $(size(c)) should be square")
+    m == 1 && return ones(1,1)
+    std = broadcast(/, c, Float64[norm(c[i,:]) for i in 1:size(c,1)])
+    std * std'
 end
+
+## cor(m) -> correlation matrices of variance components
+cor(m::LMMGeneral) = [cc(l) for l in m.lambda]
 
 ## vcov(m) -> estimated variance-covariance matrix of the fixed-effects parameters
 vcov(m::LMMGeneral) = scale(m,true) * inv(RX(m))
+
+## isscalar(m) -> Bool : Are all the random-effects terms scalar?
+isscalar(m::LMMGeneral) = all([size(l,1) == 1 for l in m.lambda])
 
 ## stderr(m) -> standard errors of fixed-effects parameters
 stderr(m::LMMGeneral) = sqrt(diag(vcov(m)))
