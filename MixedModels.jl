@@ -7,9 +7,9 @@ module MixedModels
           CholmodSparse, CholmodSparse!, chm_scale!, CHOLMOD_L, CHOLMOD_Lt, CHOLMOD_P, CHOLMOD_Pt
     using Base.LinAlg.LAPACK:  potrf!, potrs!
 
-    import Base: cor, scale, show, size, solve, std
+    import Base: cor, cholfact, scale, show, size, solve, std
     import Distributions: deviance, fit
-    import GLM: df_residual, stderr, vcov
+    import GLM: coef, coeftable, confint, df_residual, linpred, stderr, vcov
 
     export                              # types
         MixedModel,
