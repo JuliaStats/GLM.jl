@@ -9,6 +9,7 @@ type LMMGeneral{Ti<:Union(Int32,Int64)} <: LinearMixedModel
     beta::Vector{Float64}
     inds::Vector{Any}
     lambda::Vector{Matrix{Float64}}     # k lower triangular mats
+    mu::Vector{Float64}
     u::Vector{Matrix{Float64}}
     y::Vector{Float64}
     REML::Bool
@@ -51,7 +52,7 @@ function lmer(f::Formula, fr::AbstractDataFrame)
                                vec(nz), offset, n, 0)
     y = float(vector(model_response(mf)))
     LMMGeneral(cholfact(LambdatZt,1.,true),LambdatZt,cholfact(eye(p)),
-               X,Xs,X.m\y,inds,lambda,u,y,false,false)
+               X,Xs,X.m\y,inds,lambda,zeros(n),u,y,false,false)
 end
 lmer(ex::Expr, fr::AbstractDataFrame) = lmer(Formula(ex), fr)
 
@@ -132,20 +133,18 @@ isscalar(m::LMMGeneral) = all([size(l,1) == 1 for l in m.lambda])
 ##  isreml(m) -> Bool : Is the REML criterion to be used?
 isreml(m::LMMGeneral) = m.REML
 
-## linpred(m) -> linear predictor
-## linpred(m,true) -> negative residuals (mu - y)
-function linpred(m::LMMGeneral, minusy=false)
-    ## FIXME: incorporate an offset
-    lp = gemv!('N',1.,m.X.m,m.beta,-1.,minusy?copy(m.y):zeros(length(m.y)))
-    Xs = m.Xs; u = m.u; lm = m.lambda; inds = m.inds
+## linpred!(m) -> update mu
+function linpred!(m::LMMGeneral)
+    gemv!('N',1.,m.X.m,m.beta,0.,m.mu)  # initialize mu to X*beta
+    Xs = m.Xs; u = m.u; lm = m.lambda; inds = m.inds; mu = m.mu
     for i in 1:length(Xs)               # iterate over r.e. terms
-        bb = trmm('L','L','N','N',1.,lm[i],u[i]);
         X = Xs[i]; ind = inds[i]
-        for j in 1:length(lp), k in 1:size(X,2)
-            lp[j] += bb[k,ind[j]] * X[j,k]
+        if size(X,2) == 1 fma!(mu, (lm[i][1,1]*u[i])[:,ind], X[:,1])
+        else
+            add!(mu,sum(trmm('L','L','N','N',1.0,lm[i],u[i])[:,ind]' .* X, 2))
         end
     end
-    lp
+    m
 end
 
 ## lower(m) -> lower bounds on elements of theta
@@ -158,7 +157,7 @@ function objective(m::LMMGeneral)
 end
 
 ## pwrss(m) -> penalized, weighted residual sum of squares
-pwrss(m::LMMGeneral) = (s = sqrlenu(m); for r in linpred(m,true) s += r*r end; s)
+pwrss(m::LMMGeneral) = sqrlenu(m) + sqdiffsum(m.mu, m.y)
 
 ##  ranef(m) -> vector of matrices of random effects on the original scale
 ##  ranef(m,true) -> vector of matrices of random effects on the U scale
@@ -185,11 +184,11 @@ function show(io::IO, m::LinearMixedModel)
     fit(m); n, p, q, k = size(m); REML = m.REML
     println(io, string("Linear mixed model fit by ", REML ? "REML" : "maximum likelihood"))
     oo = objective(m)
-    println(io, REML?" REML criterion: $oo":" logLik: $(-oo/2.), deviance: $oo")
+    println(io, REML?" REML criterion: $oo":" logLik: $(round(-oo/2.,3)), deviance: $(round(oo,3))")
     println("\n  Variance components:")
     stddevs = vcat(std(m)...)
-    println(io,"    Std. deviation scale:", stddevs)
-    println(io,"    Variance scale:", abs2(stddevs))
+    println(io,"    Std. deviation scale:", [signif(x,5) for x in stddevs])
+    println(io,"    Variance scale:", [signif(abs2(x),5) for x in stddevs])
     isscalar(m) || println(io,"    Correlations:\n", cor(m))
     println(io,"  Number of obs: $n; levels of grouping factors:", grplevels(m))
     println(io,"\n  Fixed-effects parameters:")
@@ -203,7 +202,7 @@ size(m::LMMGeneral) = (length(m.y), length(m.beta), sum([length(u) for u in m.u]
 ## solve!(m) -> m : solve PLS problem for u given current beta
 ## solve!(m,true) -> m : solve PLS problem for u and beta
 function solve!(m::LMMGeneral, ubeta=false)
-    u = Float64[]
+    local u                             # so u from both branches is accessible
     if ubeta
         ltzty = m.LambdatZt * m.y
         cu = solve(m.L,solve(m.L,ltzty,CHOLMOD_P), CHOLMOD_L)
@@ -221,14 +220,14 @@ function solve!(m::LMMGeneral, ubeta=false)
         m.u[i] = reshape(sub(u,pos+(1:ll)), size(m.u[i]))
         pos += ll
     end
-    m
+    linpred!(m)
 end
 
 ## sqrlenu(m) -> total squared length of m.u (the penalty in the PLS problem)
-sqrlenu(m::LMMGeneral) = (s = 0.; for uu in m.u, u in uu s += u*u end; s)
+sqrlenu(m::LMMGeneral) = sum([mapreduce(Abs2(),Add(),u) for u in m.u])
 
 ## std(m) -> Vector{Vector{Float64}} estimated standard deviations of variance components
-std(m::LMMGeneral) = scale(m)*push!([Float64[norm(l[i,:]) for i in 1:size(l,1)] for l in m.lambda],[1.])
+std(m::LMMGeneral) = scale(m)*push!(Vector{Float64}[vec(vnorm(l,2,1)) for l in m.lambda],[1.])
 
 ## stderr(m) -> standard errors of fixed-effects parameters
 stderr(m::LMMGeneral) = sqrt(diag(vcov(m)))

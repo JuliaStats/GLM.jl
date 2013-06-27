@@ -1,7 +1,7 @@
 using DataFrames, Distributions, GLM  # should be externally available
 module MixedModels
 
-    using DataFrames, Distributions, NLopt
+    using DataFrames, Distributions, NLopt, NumericExtensions
     using Base.LinAlg.BLAS: gemm!, gemv!, syrk!, syrk, trmm!, trmm, trmv!, trsm!, trsv!
     using Base.LinAlg.CHOLMOD: CholmodDense, CholmodDense!, CholmodFactor,
           CholmodSparse, CholmodSparse!, chm_scale!, CHOLMOD_L, CHOLMOD_Lt, CHOLMOD_P, CHOLMOD_Pt
