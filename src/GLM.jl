@@ -2,23 +2,35 @@ using DataFrames, Distributions
 
 module GLM
 
-using DataFrames, Distributions         # This seems to be necessary within the module
+using DataFrames, Distributions, NumericExtensions
+using Base.LinAlg.LAPACK: geqrt3!, potrf!
+using Base.LinAlg.BLAS: syrk!
 
 import Base: (\), scale, size, show
-import Distributions: deviance, devresid, fit, mueta, var
+import Distributions: deviance, devresid, fit, var
 import DataFrames: model_frame, model_matrix, model_response
+import NumericExtensions: evaluate, result_type # to be able to define functors
 
 export                                  # types
+    CauchitLink,
+    CloglogLink,
     DensePred,
     DensePredQR,
     DensePredChol,
     GlmMod,
     GlmResp,
+    IdentityLink,
+    InverseLink,
+    Link,
     LinPred,
     LinPredModel,
+    LogitLink,
+    LogLink,
     LmMod,
     LmResp,
+    ProbitLink,
                                         # functions
+    canonicallink,  # canonical link function for a distribution
     coef,           # estimated coefficients
     coeftable,      # coefficients, standard errors, etc.
     confint,        # confidence intervals on coefficients
@@ -28,9 +40,15 @@ export                                  # types
     family,
     formula,
     glm,            # general interface
-    indicators,     # generate dense or sparse indicator matrices
+#    indicators,    # generate dense or sparse indicator matrices
+    linkfun,        # link function mapping mu to eta, the linear predictor
+    linkfun!,       # mutating link function
+    linkinv,        # inverse link mapping eta to mu
+    linkinv!,       # mutating inverse link
     linpred,        # linear predictor
     lm,             # linear model
+    mueta,          # derivative of inverse link
+    mueta!,         # mutating derivative of inverse link
     nobs,           # total number of observations
     predict,        # make predictions
     residuals,      # extractor for residuals
@@ -47,13 +65,13 @@ abstract LinPred             # linear predictor for statistical models
 abstract DensePred <: LinPred          # linear predictor with dense X
 
 ## Return the linear predictor vector
-linpred(p::LinPred, f::Real) = p.X * (p.beta0 + f * p.delbeta)
+linpred(p::LinPred, f::Real) = p.X * (f == 0. ? p.beta0 : fma(p.beta0, p.delbeta, f))
 linpred(p::LinPred) = linpred(p, 1.0)
 
 ## Install beta0 + f*delbeta as beta0 and zero out delbeta
 function installbeta(p::LinPred, f::Real)
-    p.beta0 += f * p.delbeta
-    p.delbeta[:] = zeros(length(p.delbeta))
+    fma!(p.beta0, p.delbeta, f)
+    fill!(p.delbeta, 0.)
     p.beta0
 end
 installbeta(p::LinPred) = installbeta(p, 1.0)
@@ -96,9 +114,8 @@ end
 
 function delbeta(p::DensePredChol, r::Vector{Float64}, sqrtwt::Vector{Float64})
     WX = scale(sqrtwt, p.X)
-    if LinAlg.LAPACK.potrf!('U', LinAlg.BLAS.syrk!('U', 'T', 1.0, WX, 0.0, p.chol.LR))[2] != 0
-        error("Singularity detected at column $(fac[2]) of weighted model matrix")
-    end
+    fac, info = potrf!('U', syrk!('U', 'T', 1.0, WX, 0.0, p.chol.LR))
+    info == 0 || error("Singularity detected at column $info of weighted model matrix")
     p.delbeta[:] = p.chol \ (WX'*(sqrtwt .* r))
 end
 
@@ -109,27 +126,6 @@ abstract LinPredModel  # statistical model based on a linear predictor
 dv(da::DataArray) = da.data # return the data values - move this to DataFrames?
 dv(pda::PooledDataArray) = pda.refs
 dv{T<:Number}(vv::Vector{T}) = vv
-
-if false
-    ## Probably no longer necessary
-    ## dense or sparse matrix of indicators of the levels of a vector
-    function indicators{T}(x::AbstractVector{T}, sparseX::Bool)
-        levs = sort!(unique(x))
-        nx   = length(x)
-        nlev = length(levs)
-        d    = Dict{T, Int}()
-        for i in 1:nlev d[levs[i]] = i end
-        ii   = 1:nx
-        jj   = [d[el] for el in x]
-            if sparseX return sparse(int32(ii), int32(jj), 1.), levs end
-            X    = zeros(nx, nlev)
-            for i in ii X[i, jj[i]] = 1. end
-            X, levs
-        end
-
-        ## default is dense indicators
-        indicators{T}(x::AbstractVector{T}) = indicators(x, false)
-end
 
 coef(x::LinPred) = x.beta0
 coef(x::LinPredModel) = coef(fit(x).pp)
@@ -145,9 +141,8 @@ vcov(x::DensePredQR) = LinAlg.BLAS.symmetrize!(LinAlg.LAPACK.potri!('U', x.qr[:R
 stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
-    @printf("\n%s\n\nCoefficients:\n", obj.ff)
+    println(io, "\n$(obj.ff)\n\nCoefficients:\n")
     println(io, coeftable(obj))
-#    @printf("R-squared: %0.4f\n", 0.0) # TODO: obj.r_squared)
 end
 
 ## function show(io::IO, obj::GlmMod)
@@ -196,6 +191,7 @@ nobs(obj::LinPredModel) = length(model_response(obj))
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 include("lm.jl")
+include("glmtools.jl")
 include("glmfit.jl")
 
 end # module

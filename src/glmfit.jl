@@ -30,7 +30,7 @@ GlmResp{T<:Real}(y::Vector{T}, d::Distribution, args...) = GlmResp(float64(y), d
 deviance( r::GlmResp) = deviance(r.d, r.mu, r.y, r.wts)
 devresid( r::GlmResp) = devresid(r.d, r.y, r.mu, r.wts)
 drsum(    r::GlmResp) = sum(devresid(r))
-mueta(    r::GlmResp) = mueta(r.l, r.eta)
+mueta!(r::GlmResp) = mueta!(r.l, r.mueta, r.eta)
 sqrtwrkwt(r::GlmResp) = mueta(r) .* sqrt(r.wts ./ var(r))
 var(      r::GlmResp) = var(r.d, r.mu)
 wrkresid( r::GlmResp) = (r.y - r.mu) ./ mueta(r)
@@ -38,10 +38,12 @@ wrkresp(  r::GlmResp) = (r.eta - r.offset) + wrkresid(r)
 
 function updatemu(r::GlmResp, linPr::Vector{Float64})
     n = length(linPr)
-    if length(r.mu) != n throw(LinAlg.LAPACK.DimensionMismatch("linPr")) end
-    r.eta[:] = linPr
-    if length(r.offset) == n r.eta += r.offset end
-    r.mu = linkinv(r.l, r.eta)
+    if length(r.offset) == n
+        map!(Add(), r.eta, linPr, r.offset)
+    else
+        copy!(r.eta, linPr)
+    end
+    linkinv!(r.l, r.mu, r.eta)
     deviance(r)
 end
 updatemu(r::GlmResp, linPr) = updatemu(r, float64(vec(linPr)))

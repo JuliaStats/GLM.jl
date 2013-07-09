@@ -11,11 +11,11 @@ clamp01(x::Real) = clamp(x, minfloat, oneMeps)
 chk01(x::Real) = 0. < x < 1. ? x : error("argument must be in (0,1)")
 
 type CauchitLink  <: Link end
-linkfun (l::CauchitLink,   mu::Real) = tan(pi * (mu - 0.5))
-linkinv (l::CauchitLink,  eta::Real) = 0.5 + atan(eta) / pi
-mueta   (l::CauchitLink,  eta::Real) = 1. /(pi * (1 + eta * eta))
-valideta(l::CauchitLink,  eta::Real) = chkfinite(eta)
-validmu (l::CauchitLink,   mu::Real) = chk01(mu)
+linkfun(l::CauchitLink, mu::Real) = tan(pi * (mu - 0.5))
+linkinv(l::CauchitLink, eta::Real) = 0.5 + atan(eta) / pi
+mueta(l::CauchitLink, eta::Real) = 1. /(pi * (1 + eta * eta))
+valideta(l::CauchitLink, eta::Real) = chkfinite(eta)
+validmu(l::CauchitLink, mu::Real) = chk01(mu)
 
 type CloglogLink  <: Link end
 linkfun (l::CloglogLink,   mu::Real) = log(-log(1. - mu))
@@ -26,8 +26,12 @@ validmu (l::CloglogLink,   mu::Real) = chk01(mu)
 
 type IdentityLink <: Link end
 linkfun (l::IdentityLink,  mu::Real) = mu
+linkfun!{T<:FloatingPoint}(l::IdentityLink, eta::Vector{T}, mu::Vector{T}) = copy!(eta, mu)
 linkinv (l::IdentityLink, eta::Real) = eta
+linkinv!{T<:FloatingPoint}(l::IdentityLink, mu::Vector{T}, eta::Vector{T}) = copy!(mu, eta)         
 mueta   (l::IdentityLink, eta::Real) = 1.
+mueta!{T<:FloatingPoint}(l::IdentityLink, me::Vector{T}, eta::Vector{T}) = fill!(me, one(T))
+mueta{T<:FloatingPoint}(l::IdentityLink, eta::Vector{T}) = ones(T, length(eta))
 valideta(l::IdentityLink, eta::Real) = chkfinite(eta)
 validmu (l::IdentityLink,  mu::Real) = chkfinite(mu)
 
@@ -39,16 +43,26 @@ valideta(l::InverseLink,  eta::Real) = chkpositive(eta)
 validmu (l::InverseLink,  eta::Real) = chkpositive(mu)
 
 type LogitLink    <: Link end
-linkfun (l::LogitLink,     mu::Real) = log(mu / (1 - mu))
-linkinv (l::LogitLink,    eta::Real) = 1. / (1. + exp(-eta))
+linkfun (l::LogitLink,     mu::Real) = logit(mu)
+linkfun!{T<:FloatingPoint}(l::LogitLink, eta::Vector{T}, mu::Vector{T}) = map!(Logit(), eta, mu)
+linkinv (l::LogitLink,    eta::Real) = logistic(mu)
+linkinv!{T<:FloatingPoint}(l::LogitLink, mu::Vector{T}, eta::Vector{T}) = map!(Logistic(), mu, eta)
 mueta   (l::LogitLink,    eta::Real) = (e = exp(-abs(eta)); f = 1. + e; e / (f * f))
+type LogistDens <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::LogistDens,x::T) = (e = exp(-abs(eta)); f = one(T) + e; e / (f * f))
+result_type{T<:FloatingPoint}(::LogistDens, ::Type{T}) = T
+mueta!{T<:FloatingPoint}(l::LogitLink, me::Vector{T}, eta::Vector{T}) = map!(LogistDens(), me, eta)
+mueta{T<:FloatingPoint}(l::LogitLink, eta::Vector{T}) = map(LogistDens(), eta)
 valideta(l::LogitLink,    eta::Real) = chkfinite(eta)
 validmu (l::LogitLink,     mu::Real) = chk01(mu)
 
 type LogLink      <: Link end
 linkfun (l::LogLink,       mu::Real) = log(mu)
+linkfun!{T<:FloatingPoint}(l::LogLink, eta::Vector{T}, mu::Vector{T}) = map!(Log(), eta, mu)
 linkinv (l::LogLink,      eta::Real) = exp(eta)
+linkinv!{T<:FloatingPoint}(l::LogLink, mu::Vector{T}, eta::Vector{T}) = map!(Exp(), mu, eta)
 mueta   (l::LogLink,      eta::Real) = eta < logeps ? eps() : exp(eta)
+mueta!{T<:FloatingPoint}(l::LogLink, me::Vector{T}, eta::Vector{T}) = map!(Exp(), mu, eta)
 valideta(l::LogLink,      eta::Real) = chkfinite(eta)
 validmu (l::LogLink,       mu::Real) = chkpositive(mu)
 
