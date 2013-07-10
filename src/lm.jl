@@ -80,8 +80,6 @@ function predict(mm::LmMod, newx::Matrix)
     newx * coef(fit(mm))
 end
 
-family(obj::LmMod) = {:family => "gaussian", :link => "identity"}
-
 function confint(obj::LmMod, level::Real)
     cft = coeftable(obj)
     hcat(coef(obj),coef(obj)) + cft["Std.Error"] *

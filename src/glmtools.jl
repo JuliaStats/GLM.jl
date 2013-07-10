@@ -49,7 +49,7 @@ linkinv (l::LogitLink,    eta::Real) = logistic(mu)
 linkinv!{T<:FloatingPoint}(l::LogitLink, mu::Vector{T}, eta::Vector{T}) = map!(Logistic(), mu, eta)
 mueta   (l::LogitLink,    eta::Real) = (e = exp(-abs(eta)); f = 1. + e; e / (f * f))
 type LogistDens <: UnaryFunctor end
-evaluate{T<:FloatingPoint}(::LogistDens,x::T) = (e = exp(-abs(eta)); f = one(T) + e; e / (f * f))
+evaluate{T<:FloatingPoint}(::LogistDens,x::T) = (e = exp(-abs(x)); f = one(T) + e; e / (f * f))
 result_type{T<:FloatingPoint}(::LogistDens, ::Type{T}) = T
 mueta!{T<:FloatingPoint}(l::LogitLink, me::Vector{T}, eta::Vector{T}) = map!(LogistDens(), me, eta)
 mueta{T<:FloatingPoint}(l::LogitLink, eta::Vector{T}) = map(LogistDens(), eta)
@@ -91,3 +91,65 @@ canonicallink(d::Gamma)     = InverseLink()
 canonicallink(d::Normal)    = IdentityLink()
 canonicallink(d::Bernoulli) = LogitLink()
 canonicallink(d::Poisson)   = LogLink()
+
+type BernoulliVar <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::BernoulliVar,x::T) = x * (one(T) - x)
+result_type{T<:FloatingPoint}(::BernoulliVar, ::Type{T}) = T
+
+var!{T<:FloatingPoint}(d::Bernoulli,v::Vector{T},mu::Vector{T}) = map!(BernoulliVar(),v,mu)
+var!{T<:FloatingPoint}(d::Gamma,v::Vector{T},mu::Vector{T}) = map!(Abs2(),v,mu)
+var!{T<:FloatingPoint}(d::Normal,v::Vector{T},mu::Vector{T}) = fill!(v,one(T))
+var!{T<:FloatingPoint}(d::Poisson,v::Vector{T},mu::Vector{T}) = copy!(v,mu)
+
+type BernoulliMuStart <: BinaryFunctor end
+evaluate{T<:FloatingPoint}(::BernoulliMuStart,y::T,w::T) = (w*y + convert(T,0.5))/(w + one(T))
+result_type{T<:FloatingPoint}(::BernoulliMuStart,::Type{T},::Type{T}) = T
+
+mustart{T<:FloatingPoint}(d::Bernoulli,y::Vector{T},wt::Vector{T}) = map(BernoulliMuStart(),y,wt)
+mustart{T<:FloatingPoint}(d::Gamma,y::Vector{T},wt::Vector{T}) = copy(y)
+mustart{T<:FloatingPoint}(d::Normal,y::Vector{T},wt::Vector{T}) = copy(y)
+mustart{T<:FloatingPoint}(d::Poisson,y::Vector{T},wt::Vector{T}) = map(Add(), y, convert(T,0.1))
+
+xlogx(x::Real) = x == 0.0 ? 0.0 : x * log(x)
+xlogxdmu(x::Real, mu::Real) = x == 0.0 ? 0.0 : x * log(x / mu)
+
+type BernoulliDevResid <: TernaryFunctor end
+function evaluate{T<:FloatingPoint}(::BernoulliDevResid,y::T,mu::T,wt::T)
+    omy = one(T)-y
+    2.wt*(xlogy(y,y/mu) + xlogy(omy,omy/(one(T)-mu)))
+end
+result_type{T<:FloatingPoint}(::BernoulliDevResid,::Type{T},::Type{T},::Type{T}) = T
+
+type PoissonDevResid <: TernaryFunctor end
+evaluate{T<:FloatingPoint}(::PoissonDevResid,y::T,mu::T,wt::T) = 2.wt * (xlogy(y,y/mu) - (y - mu))
+result_type{T<:FloatingPoint}(::PoissonDevResid,::Type{T},::Type{T},::Type{T}) = T
+
+function devresid!{T<:FloatingPoint}(d::Bernoulli,dr::Vector{T},y::Vector{T},
+                                     mu::Vector{T},wt::Vector{T})
+    map!(BernoulliDevResid(), dr, y, mu, wt)
+end
+function devresid!{T<:FloatingPoint}(d::Poisson,dr::Vector{T},y::Vector{T},
+                                     mu::Vector{T},wt::Vector{T})
+    map!(PoissonDevResid(), dr, y, mu, wt)
+end
+
+type BernoulliLogPdf <: BinaryFunctor end
+function evaluate{T<:FloatingPoint}(::BernoulliLogPdf, y::T, mu::T)
+    (y == zero(T) ? log(one(T) - mu) : (y == one(T) ? log(mu) : -inf(T)))
+end
+result_type{T<:FloatingPoint}(::BernoulliLogPdf,::Type{T},::Type{T}) = T
+
+type PoissonLogPdf <: BinaryFunctor end
+function evaluate{T<:FloatingPoint}(::PoissonLogPdf, y::T, mu::T)
+    ccall((:dpois,:libRmath), Cdouble, (Cdouble,Cdouble,Cint), y, mu, 1)
+end
+result_type{T<:FloatingPoint}(::PoissonLogPdf,::Type{T},::Type{T}) = Float64
+
+function deviance{T<:FloatingPoint}(d::Bernoulli, mu::Vector{T}, y::Vector{T}, wt::Vector{T})
+    -2. * wsum(wt, BernoulliLogPdf(), y, mu)
+end
+
+function deviance{T<:FloatingPoint}(d::Poisson, mu::Vector{T}, y::Vector{T}, wt::Vector{T})
+    -2. * wsum(wt, PoissonLogPdf(), y, mu)
+end
+

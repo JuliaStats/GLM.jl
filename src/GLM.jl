@@ -7,7 +7,7 @@ using Base.LinAlg.LAPACK: geqrt3!, potrf!
 using Base.LinAlg.BLAS: syrk!
 
 import Base: (\), scale, size, show
-import Distributions: deviance, devresid, fit, var
+import Distributions: fit, logpdf
 import DataFrames: model_frame, model_matrix, model_response
 import NumericExtensions: evaluate, result_type # to be able to define functors
 
@@ -35,12 +35,13 @@ export                                  # types
     coeftable,      # coefficients, standard errors, etc.
     confint,        # confidence intervals on coefficients
     contr_treatment,# treatment contrasts
+    delbeta!,        # evaluate the increment in the coefficient vector
+    deviance,       # deviance of fitted and observed responses
+    devresid,       # vector of squared deviance residuals
     df_residual,    # degrees of freedom for residuals
     drsum,          # sum of squared deviance residuals
-    family,
     formula,
     glm,            # general interface
-#    indicators,    # generate dense or sparse indicator matrices
     linkfun,        # link function mapping mu to eta, the linear predictor
     linkfun!,       # mutating link function
     linkinv,        # inverse link mapping eta to mu
@@ -49,14 +50,17 @@ export                                  # types
     lm,             # linear model
     mueta,          # derivative of inverse link
     mueta!,         # mutating derivative of inverse link
+    mustart,        # derive starting values for the mu vector
     nobs,           # total number of observations
     predict,        # make predictions
     residuals,      # extractor for residuals
     scalepar,       # estimate of scale parameter (sigma^2 for linear models)
     sqrtwrkwt,      # square root of the working weights
     stderr,         # standard errors of the coefficients
+    updatemu!,      # mutating update of the response type from the linear predictor
+    var!,           # mutating variance function
     vcov,           # estimated variance-covariance matrix of coef
-    wrkresid,       # working residuals
+    wrkresid!,      # mutating working residuals function
     wrkresp         # working response
 
 abstract ModResp                        # model response
@@ -106,20 +110,20 @@ DensePredQR{T<:Real}(X::Matrix{T}) = DensePredQR(float64(X))
 DensePredChol(X::Matrix{Float64}) = DensePredChol(X, zeros(Float64,(size(X,2),)))
 DensePredChol{T<:Real}(X::Matrix{T}) = DensePredChol(float64(X))
 
-function delbeta(p::DensePredQR, r::Vector{Float64}, sqrtwt::Vector{Float64})
-    p.qr.vs[:] = scale(sqrtwt, p.X)
-    p.qr.T[:] = LinAlg.LAPACK.geqrt3!(p.qr.vs)[2]
-    p.delbeta[:] = p.qr \ (sqrtwt .* r)
+function delbeta!(p::DensePredQR, r::Vector{Float64}, sqrtwt::Vector{Float64})
+    scale!(sqrtwt, copy!(p.qr.vs, p.X))
+    p.qr.T = geqrt3!(p.qr.vs)[2]
+    p.delbeta = p.qr \ (sqrtwt .* r)
 end
 
-function delbeta(p::DensePredChol, r::Vector{Float64}, sqrtwt::Vector{Float64})
+function delbeta!{T<:Float64}(p::DensePredChol, r::Vector{T}, sqrtwt::Vector{T})
     WX = scale(sqrtwt, p.X)
     fac, info = potrf!('U', syrk!('U', 'T', 1.0, WX, 0.0, p.chol.LR))
     info == 0 || error("Singularity detected at column $info of weighted model matrix")
-    p.delbeta[:] = p.chol \ (WX'*(sqrtwt .* r))
+    p.delbeta = p.chol \ (WX'*(sqrtwt .* r))
 end
 
-delbeta(p::DensePred, r::Vector{Float64}) = delbeta(p, r, ones(length(r)))
+delbeta!(p::DensePred, r::Vector{Float64}) = delbeta(p, r, ones(length(r)))
 
 abstract LinPredModel  # statistical model based on a linear predictor
 

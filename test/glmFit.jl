@@ -7,6 +7,6 @@ deviance(gm1)                           # something wrong here
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
 nm = download("http://www.ats.ucla.edu/stat/data/binary.csv", tempname())
-mm = float(readdlm(nm,',')[2:end,:])
-df = DataFrame(admit=mm[:,1], gre=mm[:,2], gpa=mm[:,3], rank=PooledDataArray(mm[:,4]))
-gm2 = glm(:(admit ~ gre + gpa + rank), dd, Bernoulli())
+df = within(readtable(nm),:(rank=compact(PooledDataArray(rank))))
+rm(nm)
+gm2 = glm(:(admit ~ gre + gpa + rank), df, Bernoulli());
