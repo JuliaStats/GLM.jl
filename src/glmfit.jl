@@ -36,7 +36,10 @@ drsum(r::GlmResp) = sum(r.devresid)
 linkinv!(r::GlmResp) = linkinv!(r.l, r.mu, r.eta)
 mueta!(r::GlmResp) = mueta!(r.l, r.mueta, r.eta)
 linkfun!(r::GlmResp) = linkfun!(r.l, r.eta, r.mu)
-sqrtwrkwt(r::GlmResp) = map1!(Multiply(), map1!(Sqrt(), map(Divide(),r.wts,r.var)), r.mueta)
+function wrkwt(r::GlmResp)
+    length(r.wts) == 0 && return [r.mueta[i] * r.mueta[i]/r.var[i] for i in 1:length(r.var)]
+    [r.wts[i] * r.mueta[i] * r.mueta[i]/r.var[i] for i in 1:length(r.var)]
+end
 var!(r::GlmResp) = var!(r.d, r.var, r.mu)
 wrkresid!(r::GlmResp) = map1!(Divide(), map!(Subtract(), r.wrkresid, r.y, r.mu), r.mueta)
 function wrkresp(r::GlmResp)
@@ -47,63 +50,56 @@ end
 function updatemu!{T<:FloatingPoint}(r::GlmResp{T}, linPr::Vector{T})
     n = length(linPr)
     length(r.offset) == n ? map!(Add(), r.eta, linPr, r.offset) : copy!(r.eta, linPr)
-    linkinv!(r.l, r.mu, r.eta); mueta!(r); var!(r); wrkresid!(r)
-    deviance(r)
+    linkinv!(r.l, r.mu, r.eta); mueta!(r); var!(r); wrkresid!(r); devresid!(r)
+    drsum(r)
 end
 updatemu!{T<:FloatingPoint}(r::GlmResp{T}, linPr) = updatemu!(r, convert(Vector{T},vec(linPr)))
 
 type GlmMod <: LinPredModel
     fr::ModelFrame
-    mm::ModelMatrix
     rr::GlmResp
     pp::LinPred
     ff::Formula
     fit::Bool
 end
-scalepar(x::GlmMod) = 1. # generalize this - only appropriate for Bernoulli and Poisson
+## scale(m) -> estimate, s, of the scale parameter
+## scale(m,true) -> estimate, s^2, of the squared scale parameter
+scale(x::GlmMod,sqr::Bool=false) = 1. # generalize this - only appropriate for Bernoulli and Poisson
 
 ## Change this to use optional arguments for the form of the predictor?
-function glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link, m::DataType)
-    m <: LinPred || error("Composite type $m does not extend LinPred")
-    mf = ModelFrame(f, df)
-    mm = ModelMatrix(mf)
-    rr = GlmResp(dv(model_response(mf)), d, l)
-    dp = m(mm.m)
-    GlmMod(mf, mm, rr, dp, f, false)
+function glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link)
+    mf = ModelFrame(f, df); mm = ModelMatrix(mf)
+    rr = GlmResp(model_response(mf), d, l)
+    GlmMod(mf, rr, DensePredChol(mm), f, false)
 end
 
-glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link) = glm(f, df, d, l, DensePredQR)
+#glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link) = glm(f, df, d, l, DensePredQR)
 glm(f::Formula, df::AbstractDataFrame, d::Distribution) = glm(f, df, d, canonicallink(d))
-glm(f::Expr, df::AbstractDataFrame, d::Distribution) = glm(Formula(f), df, d)
+glm(f::Expr, df::AbstractDataFrame, d::Distribution) = glm(Formula(f), df, d, canonicallink(d))
 glm(f::String, df::AbstractDataFrame, d::Distribution) = glm(Formula(parse(f)[1]), df, d)
 
 function fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6)
-    if !m.fit 
-        if maxIter < 1 error("maxIter must be positive") end
-        if !(0 < minStepFac < 1) error("minStepFac must be in (0, 1)") end
+    m.fit && return m
+    maxIter >= 1 || error("maxIter must be positive")
+    0 < minStepFac < 1 || error("minStepFac must be in (0, 1)")
 
-        cvg = false
-        devold = Inf
-        p = m.pp
-        r = m.rr
-        for i=1:maxIter
-            delbeta!(p, wrkresp(r), sqrtwrkwt(r))
-            dev  = updatemu!(r, linpred(p))
-            crit = (devold - dev)/dev
-            if verbose println("$i: $dev, $crit") end
-            if abs(crit) < convTol
-                cvg = true
-                break
-            end
-            if (dev >= devold)
-                error("code needed to handle the step-factor case")
-            end
-            devold = dev
+    cvg = false; p = m.pp; r = m.rr
+    devold = updatemu!(r, linpred(delbeta!(p, wrkresp(r), GLM.wrkwt(r))))
+    GLM.installbeta!(p)
+    for i=1:maxIter
+        f = 1.; dev = updatemu!(r, linpred(delbeta!(p, r.wrkresid, GLM.wrkwt(r)),f))
+        while dev > devold
+            f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $beta0")
+            dev = updatemu!(r, linpred(p, f))
         end
-        if !cvg error("failure to converge in $maxIter iterations") end
-        installbeta(p)
-        m.fit = true
+        installbeta!(p, f)
+        crit = (devold - dev)/dev
+        verbose && println("$i: $dev, $crit")
+        if crit < convTol; cvg = true; break end
+        devold = dev
     end
+    cvg || error("failure to converge in $maxIter iterations")
+    m.fit = true
     m
 end
 

@@ -110,8 +110,6 @@ mustart{T<:FloatingPoint}(d::Gamma,y::Vector{T},wt::Vector{T}) = copy(y)
 mustart{T<:FloatingPoint}(d::Normal,y::Vector{T},wt::Vector{T}) = copy(y)
 mustart{T<:FloatingPoint}(d::Poisson,y::Vector{T},wt::Vector{T}) = map(Add(), y, convert(T,0.1))
 
-xlogx(x::Real) = x == 0.0 ? 0.0 : x * log(x)
-xlogxdmu(x::Real, mu::Real) = x == 0.0 ? 0.0 : x * log(x / mu)
 
 type BernoulliDevResid <: TernaryFunctor end
 function evaluate{T<:FloatingPoint}(::BernoulliDevResid,y::T,mu::T,wt::T)
