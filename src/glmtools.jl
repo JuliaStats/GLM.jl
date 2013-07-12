@@ -62,7 +62,7 @@ linkfun!{T<:FloatingPoint}(l::LogLink, eta::Vector{T}, mu::Vector{T}) = map!(Log
 linkinv (l::LogLink,      eta::Real) = exp(eta)
 linkinv!{T<:FloatingPoint}(l::LogLink, mu::Vector{T}, eta::Vector{T}) = map!(Exp(), mu, eta)
 mueta   (l::LogLink,      eta::Real) = eta < logeps ? eps() : exp(eta)
-mueta!{T<:FloatingPoint}(l::LogLink, me::Vector{T}, eta::Vector{T}) = map!(Exp(), mu, eta)
+mueta!{T<:FloatingPoint}(l::LogLink, mu::Vector{T}, eta::Vector{T}) = map!(Exp(), mu, eta)
 valideta(l::LogLink,      eta::Real) = chkfinite(eta)
 validmu (l::LogLink,       mu::Real) = chkpositive(mu)
 
