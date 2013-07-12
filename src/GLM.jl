@@ -35,7 +35,7 @@ export                                  # types
     coeftable,      # coefficients, standard errors, etc.
     confint,        # confidence intervals on coefficients
     contr_treatment,# treatment contrasts
-    delbeta!,        # evaluate the increment in the coefficient vector
+    delbeta!,       # evaluate the increment in the coefficient vector
     deviance,       # deviance of fitted and observed responses
     devresid,       # vector of squared deviance residuals
     df_residual,    # degrees of freedom for residuals
@@ -70,16 +70,14 @@ abstract LinPred             # linear predictor for statistical models
 abstract DensePred <: LinPred          # linear predictor with dense X
 
 ## Return the linear predictor vector
-linpred(p::LinPred, f::Real) = p.X.m * (f == 0. ? p.beta0 : fma(p.beta0, p.delbeta, f))
-linpred(p::LinPred) = linpred(p, 1.0)
+linpred(p::LinPred, f::Real=1.) = p.X.m * (f == 0. ? p.beta0 : fma(p.beta0, p.delbeta, f))
 
 ## Install beta0 + f*delbeta as beta0 and zero out delbeta
-function installbeta!(p::LinPred, f::Real)
+function installbeta!(p::LinPred, f::Real=1.)
     fma!(p.beta0, p.delbeta, f)
     fill!(p.delbeta, 0.)
     p.beta0
 end
-installbeta!(p::LinPred) = installbeta!(p, 1.0)
 
 typealias BlasReal Union(Float32,Float64)
     
@@ -116,11 +114,11 @@ function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
     p
 end
 
-function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
-    WX = scale(wt, p.X.m)
-    fac, info = potrf!('U', gemm!('T', 'N', 1.0, WX, p.X.m, 0.0, p.chol.UL))
+function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T}, scr::Matrix{T})
+    vbroadcast!(Multiply(), scr, p.X.m, wt, 1)
+    fac, info = potrf!('U', gemm!('T', 'N', 1.0, scr, p.X.m, 0.0, p.chol.UL))
     info == 0 || error("Singularity detected at column $info of weighted model matrix")
-    solve!(p.chol, gemv!('T', 1.0, WX, r, 0.0, p.delbeta))
+    solve!(p.chol, gemv!('T', 1.0, scr, r, 0.0, p.delbeta))
     p
 end
 

@@ -84,10 +84,11 @@ function fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30, minStepFac::Re
     0 < minStepFac < 1 || error("minStepFac must be in (0, 1)")
 
     cvg = false; p = m.pp; r = m.rr
-    devold = updatemu!(r, linpred(delbeta!(p, wrkresp(r), GLM.wrkwt(r))))
+    scratch = similar(p.X.m)
+    devold = updatemu!(r, linpred(delbeta!(p, wrkresp(r), GLM.wrkwt(r), scratch)))
     GLM.installbeta!(p)
     for i=1:maxIter
-        f = 1.; dev = updatemu!(r, linpred(delbeta!(p, r.wrkresid, GLM.wrkwt(r)),f))
+        f = 1.; dev = updatemu!(r, linpred(delbeta!(p, r.wrkresid, GLM.wrkwt(r), scratch),f))
         while dev > devold
             f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $beta0")
             dev = updatemu!(r, linpred(p, f))
