@@ -97,7 +97,8 @@ function fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30, minStepFac::Re
     devold = updatemu!(r, linpred(delbeta!(p, wrkresp(r), GLM.wrkwt(r), scratch)))
     GLM.installbeta!(p)
     for i=1:maxIter
-        f = 1.; dev = updatemu!(r, linpred(delbeta!(p, r.wrkresid, GLM.wrkwt(r), scratch),f))
+        f = 1.0
+        dev = updatemu!(r, linpred(delbeta!(p, r.wrkresid, GLM.wrkwt(r), scratch)))
         while dev > devold
             f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $beta0")
             dev = updatemu!(r, linpred(p, f))
@@ -121,6 +122,7 @@ function glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link; dofit:
     dofit ? fit(res) : res
 end
 glm(f::Formula, df::AbstractDataFrame, d::Distribution) = glm(f, df, d, canonicallink(d))
+glm(f::Expr, df::AbstractDataFrame, d::Distribution, l::Link) = glm(Formula(f), df, d, l)
 glm(f::Expr, df::AbstractDataFrame, d::Distribution) = glm(Formula(f), df, d, canonicallink(d))
 glm(f::String, df::AbstractDataFrame, d::Distribution) = glm(Formula(parse(f)[1]), df, d)
 

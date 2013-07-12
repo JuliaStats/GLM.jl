@@ -1,100 +1,74 @@
-const minfloat = realmin(Float64)
-const oneMeps  = 1. - eps()
-const llmaxabs = log(-log(minfloat))
-const logeps   = log(eps())
-abstract Link                           # Link types define linkfun, linkinv, mueta,
-                                        # valideta and validmu.
+abstract Link             # Link types define linkfun!, linkinv!, and mueta!
 
-chkpositive(x::Real) = isfinite(x) && 0. < x ? x : error("argument must be positive")
-chkfinite(x::Real) = isfinite(x) ? x : error("argument must be finite")
-clamp01(x::Real) = clamp(x, minfloat, oneMeps)
-chk01(x::Real) = 0. < x < 1. ? x : error("argument must be in (0,1)")
+@Base.math_const sqrt2 1.4142135623730951 sqrt(big(2))
+@Base.math_const sqrt2pi 2.5066282746310007 sqrt(big(2)*pi)
 
-type CauchitLink  <: Link end
-linkfun(l::CauchitLink, mu::Real) = tan(pi * (mu - 0.5))
-linkinv(l::CauchitLink, eta::Real) = 0.5 + atan(eta) / pi
-mueta(l::CauchitLink, eta::Real) = 1. /(pi * (1 + eta * eta))
-valideta(l::CauchitLink, eta::Real) = chkfinite(eta)
-validmu(l::CauchitLink, mu::Real) = chk01(mu)
-
+type CauchitLink <: Link end
 type CloglogLink  <: Link end
-linkfun (l::CloglogLink,   mu::Real) = log(-log(1. - mu))
-linkinv (l::CloglogLink,  eta::Real) = -expm1(-exp(eta))
-mueta   (l::CloglogLink,  eta::Real) = exp(eta) * exp(-exp(eta))
-valideta(l::CloglogLink,  eta::Real) = abs(eta) < llmaxabs? eta: error("require abs(eta) < $llmaxabs")
-validmu (l::CloglogLink,   mu::Real) = chk01(mu)
-
 type IdentityLink <: Link end
-linkfun (l::IdentityLink,  mu::Real) = mu
-linkfun!{T<:FloatingPoint}(l::IdentityLink, eta::Vector{T}, mu::Vector{T}) = copy!(eta, mu)
-linkinv (l::IdentityLink, eta::Real) = eta
-linkinv!{T<:FloatingPoint}(l::IdentityLink, mu::Vector{T}, eta::Vector{T}) = copy!(mu, eta)         
-mueta   (l::IdentityLink, eta::Real) = 1.
-mueta!{T<:FloatingPoint}(l::IdentityLink, me::Vector{T}, eta::Vector{T}) = fill!(me, one(T))
-mueta{T<:FloatingPoint}(l::IdentityLink, eta::Vector{T}) = ones(T, length(eta))
-valideta(l::IdentityLink, eta::Real) = chkfinite(eta)
-validmu (l::IdentityLink,  mu::Real) = chkfinite(mu)
-
 type InverseLink  <: Link end
-linkfun (l::InverseLink,   mu::Real) =  1. / mu
-linkinv (l::InverseLink,  eta::Real) =  1. / eta
-mueta   (l::InverseLink,  eta::Real) = -1. / (eta * eta)
-valideta(l::InverseLink,  eta::Real) = chkpositive(eta)
-validmu (l::InverseLink,  eta::Real) = chkpositive(mu)
+type LogitLink <: Link end
+type LogLink <: Link end
+type ProbitLink <: Link end
 
-type LogitLink    <: Link end
-linkfun (l::LogitLink,     mu::Real) = logit(mu)
-linkfun!{T<:FloatingPoint}(l::LogitLink, eta::Vector{T}, mu::Vector{T}) = map!(Logit(), eta, mu)
-linkinv (l::LogitLink,    eta::Real) = logistic(mu)
-linkinv!{T<:FloatingPoint}(l::LogitLink, mu::Vector{T}, eta::Vector{T}) = map!(Logistic(), mu, eta)
-mueta   (l::LogitLink,    eta::Real) = (e = exp(-abs(eta)); f = 1. + e; e / (f * f))
-type LogistDens <: UnaryFunctor end
-evaluate{T<:FloatingPoint}(::LogistDens,x::T) = (e = exp(-abs(x)); f = one(T) + e; e / (f * f))
-result_type{T<:FloatingPoint}(::LogistDens, ::Type{T}) = T
-mueta!{T<:FloatingPoint}(l::LogitLink, me::Vector{T}, eta::Vector{T}) = map!(LogistDens(), me, eta)
-mueta{T<:FloatingPoint}(l::LogitLink, eta::Vector{T}) = map(LogistDens(), eta)
-valideta(l::LogitLink,    eta::Real) = chkfinite(eta)
-validmu (l::LogitLink,     mu::Real) = chk01(mu)
+type CauchLink <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::CauchLink,x::T) = tan(pi*(x - convert(T,0.5)))
+type CauchInv <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::CauchInv,x::T) = convert(T,0.5) + atan(x)/pi
+type CauchME <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::CauchME,x::T) = one(T)/(pi*(one(T) + abs2(x)))
+type CLgLgLink <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::CLgLgLink,x::T) = log(-log(one(T) - x))
+type CLgLgInv <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::CLgLgInv,x::T) = -expm1(-exp(x))
+type CLgLgME <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::CLgLgME,x::T) = exp(x)*exp(-exp(x))
+type InvME <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::InvME,x::T) = -one(T)/abs2(x)
+type LogitME <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::LogitME,x::T) = (e = exp(-abs(x)); f = one(T) + e; e / (f * f))
+type ProbLink <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::ProbLink,x::T) = sqrt2*erfinv(convert(T,2.0)*x-one(T))
+type ProbInv <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::ProbInv,x::T) = (one(T) + erf(x/sqrt2))/convert(T,2.0)
+type ProbME <: UnaryFunctor end
+evaluate{T<:FloatingPoint}(::ProbME,x::T) = exp(-x*x/convert(T,2.0))/sqrt2pi
 
-type LogLink      <: Link end
-linkfun (l::LogLink,       mu::Real) = log(mu)
-linkfun!{T<:FloatingPoint}(l::LogLink, eta::Vector{T}, mu::Vector{T}) = map!(Log(), eta, mu)
-linkinv (l::LogLink,      eta::Real) = exp(eta)
-linkinv!{T<:FloatingPoint}(l::LogLink, mu::Vector{T}, eta::Vector{T}) = map!(Exp(), mu, eta)
-mueta   (l::LogLink,      eta::Real) = eta < logeps ? eps() : exp(eta)
-mueta!{T<:FloatingPoint}(l::LogLink, mu::Vector{T}, eta::Vector{T}) = map!(Exp(), mu, eta)
-valideta(l::LogLink,      eta::Real) = chkfinite(eta)
-validmu (l::LogLink,       mu::Real) = chkpositive(mu)
+linkfun!{T<:FloatingPoint}(::CauchitLink, eta::Vector{T}, mu::Vector{T}) = map!(CauchLink(),eta,mu)
+linkinv!{T<:FloatingPoint}(::CauchitLink, mu::Vector{T}, eta::Vector{T}) = map!(CauchInv(),mu,eta)
+mueta!{T<:FloatingPoint}(::CauchitLink, me::Vector{T}, eta::Vector{T}) = map!(CauchME(),me,eta)
 
-type ProbitLink   <: Link end
-linkfun (l::ProbitLink,    mu::Real) = ccall((:qnorm5, Rmath), Float64,
-                                             (Float64,Float64,Float64,Int32,Int32),
-                                             mu, 0., 1., 1, 0)
-linkinv (l::ProbitLink,   eta::Real) = (1. + erf(eta/sqrt(2.))) / 2.
-mueta   (l::ProbitLink,   eta::Real) = exp(-0.5eta^2) / sqrt(2.pi)
-valideta(l::ProbitLink,   eta::Real) = chkfinite(eta)
-validmu (l::ProbitLink,    mu::Real) = chk01(mu)
-                                        # Vectorized methods, including validity checks
-function linkfun{T<:Real}(l::Link, mu::AbstractArray{T,1})
-    [linkfun(l, validmu(l, m)) for m in mu]
-end
+linkfun!{T<:FloatingPoint}(::CloglogLink, eta::Vector{T}, mu::Vector{T}) = map!(CLgLgLink(),eta,mu)
+linkinv!{T<:FloatingPoint}(::CloglogLink, mu::Vector{T}, eta::Vector{T}) = map!(CLgLgInv(),mu,eta)
+mueta!{T<:FloatingPoint}(::CloglogLink, me::Vector{T}, eta::Vector{T}) = map!(CLgLgME(),me,eta)
 
-function linkinv{T<:Real}(l::Link, eta::AbstractArray{T,1})
-    [linkinv(l, valideta(l, et)) for et in eta]
-end
+linkfun!{T<:FloatingPoint}(::IdentityLink, eta::Vector{T}, mu::Vector{T}) = copy!(eta,mu)
+linkinv!{T<:FloatingPoint}(::IdentityLink, mu::Vector{T}, eta::Vector{T}) = copy!(mu,eta)         
+mueta!{T<:FloatingPoint}(::IdentityLink, me::Vector{T}, eta::Vector{T}) = fill!(me,one(T))
 
-function mueta{T<:Real}(l::Link, eta::AbstractArray{T,1})
-    [mueta(l, valideta(l, et)) for et in eta]
-end
+linkfun!{T<:FloatingPoint}(::InverseLink, eta::Vector{T}, mu::Vector{T}) = map!(Divide(),eta,1.,mu)
+linkinv!{T<:FloatingPoint}(::InverseLink, mu::Vector{T}, eta::Vector{T}) = map!(Divide(),mu,1.,eta)
+mueta!{T<:FloatingPoint}(::InverseLink, me::Vector{T}, eta::Vector{T}) = map!(InvME(),me,eta)
 
-canonicallink(d::Gamma)     = InverseLink()
-canonicallink(d::Normal)    = IdentityLink()
-canonicallink(d::Bernoulli) = LogitLink()
-canonicallink(d::Poisson)   = LogLink()
+linkfun!{T<:FloatingPoint}(::LogitLink, eta::Vector{T}, mu::Vector{T}) = map!(Logit(),eta,mu)
+linkinv!{T<:FloatingPoint}(::LogitLink, mu::Vector{T}, eta::Vector{T}) = map!(NumericExtensions.Logistic(),mu,eta)
+mueta!{T<:FloatingPoint}(::LogitLink, me::Vector{T}, eta::Vector{T}) = map!(LogitME(),me,eta)
+
+linkfun!{T<:FloatingPoint}(::LogLink, eta::Vector{T}, mu::Vector{T}) = map!(Log(),eta,mu)
+linkinv!{T<:FloatingPoint}(::LogLink, mu::Vector{T}, eta::Vector{T}) = map!(Exp(),mu,eta)
+mueta!{T<:FloatingPoint}(::LogLink, mu::Vector{T}, eta::Vector{T}) = map!(Exp(),mu,eta)
+
+linkfun!{T<:FloatingPoint}(::ProbitLink, eta::Vector{T}, mu::Vector{T}) = map!(ProbLink(),eta,mu)
+linkinv!{T<:FloatingPoint}(::ProbitLink, mu::Vector{T}, eta::Vector{T}) = map!(ProbInv(),mu,eta)
+mueta!{T<:FloatingPoint}(::ProbitLink, me::Vector{T}, eta::Vector{T}) =  map!(ProbME(),me,eta)
+
+canonicallink(::Gamma) = InverseLink()
+canonicallink(::Normal) = IdentityLink()
+canonicallink(::Bernoulli) = LogitLink()
+canonicallink(d::Poisson) = LogLink()
 
 type BernoulliVar <: UnaryFunctor end
 evaluate{T<:FloatingPoint}(::BernoulliVar,x::T) = x * (one(T) - x)
-result_type{T<:FloatingPoint}(::BernoulliVar, ::Type{T}) = T
 
 var!{T<:FloatingPoint}(d::Bernoulli,v::Vector{T},mu::Vector{T}) = map!(BernoulliVar(),v,mu)
 var!{T<:FloatingPoint}(d::Gamma,v::Vector{T},mu::Vector{T}) = map!(Abs2(),v,mu)
@@ -109,6 +83,15 @@ mustart{T<:FloatingPoint}(d::Bernoulli,y::Vector{T},wt::Vector{T}) = map(Bernoul
 mustart{T<:FloatingPoint}(d::Gamma,y::Vector{T},wt::Vector{T}) = copy(y)
 mustart{T<:FloatingPoint}(d::Normal,y::Vector{T},wt::Vector{T}) = copy(y)
 mustart{T<:FloatingPoint}(d::Poisson,y::Vector{T},wt::Vector{T}) = map(Add(), y, convert(T,0.1))
+
+for Op in [:BernoulliVar,
+           :CauchLink, :CauchInv, :CauchME,
+           :CLgLgLink, :CLgLgInv, :CLgLgME,
+           :InvME,
+           :LogitME,
+           :ProbLink, :ProbInv, :ProbME]
+    @eval result_type{T<:FloatingPoint}(::$(Op), ::Type{T}) = T
+end
 
 
 type BernoulliDevResid <: TernaryFunctor end
@@ -130,24 +113,3 @@ function devresid!{T<:FloatingPoint}(d::Poisson,dr::Vector{T},y::Vector{T},
                                      mu::Vector{T},wt::Vector{T})
     map!(PoissonDevResid(), dr, y, mu, wt)
 end
-
-type BernoulliLogPdf <: BinaryFunctor end
-function evaluate{T<:FloatingPoint}(::BernoulliLogPdf, y::T, mu::T)
-    (y == zero(T) ? log(one(T) - mu) : (y == one(T) ? log(mu) : -inf(T)))
-end
-result_type{T<:FloatingPoint}(::BernoulliLogPdf,::Type{T},::Type{T}) = T
-
-type PoissonLogPdf <: BinaryFunctor end
-function evaluate{T<:FloatingPoint}(::PoissonLogPdf, y::T, mu::T)
-    ccall((:dpois,:libRmath), Cdouble, (Cdouble,Cdouble,Cint), y, mu, 1)
-end
-result_type{T<:FloatingPoint}(::PoissonLogPdf,::Type{T},::Type{T}) = Float64
-
-function deviance{T<:FloatingPoint}(d::Bernoulli, mu::Vector{T}, y::Vector{T}, wt::Vector{T})
-    -2. * wsum(wt, BernoulliLogPdf(), y, mu)
-end
-
-function deviance{T<:FloatingPoint}(d::Poisson, mu::Vector{T}, y::Vector{T}, wt::Vector{T})
-    -2. * wsum(wt, PoissonLogPdf(), y, mu)
-end
-
