@@ -1,71 +1,63 @@
-## FIXME: allow wts and offset to have length 0
-type LmResp <: ModResp                # response in a linear model
-    mu::Vector{Float64}               # mean response
-    offset::Vector{Float64}           # offset added to linear predictor (usually 0)
-    wts::Vector{Float64}              # prior weights
-    y::Vector{Float64}                # response
-    function LmResp(mu::Vector{Float64}, offset::Vector{Float64},
-                    wts::Vector{Float64},y::Vector{Float64})
-        if !(length(mu) == length(offset) == length(wts) == length(y))
-            error("mismatched sizes")
-        end
-        new(mu,offset,wts,y)
+type LmResp{T<:FloatingPoint} <: ModResp  # response in a linear model
+    mu::Vector{T}     # mean response
+    offset::Vector{T} # offset added to linear predictor (may have length 0)
+    wts::Vector{T}    # prior weights (may have length 0)
+    y::Vector{T}      # response
+    function LmResp(mu::Vector{T}, off::Vector{T}, wts::Vector{T}, y::Vector{T})
+        n = length(y); length(mu) == n || error("mismatched lengths of mu and y")
+        ll = length(off); ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
+        ll = length(wts); ll == 0 || ll == n || error("length of wts is $ll, must be $n or 0")
+        new(mu,off,wts,y)
     end
 end
+LmResp{T<:FloatingPoint}(y::Vector{T}) = LmResp{T}(zeros(T,length(y)), T[], T[], y)
 
-function LmResp(y::Vector{Float64})
-    n = length(y)
-    LmResp(zeros(n), zeros(n), ones(n), y)
-end
-
-function updatemu(r::LmResp, linPr::Vector{Float64})
-    n = length(linPr)
-    if length(r.mu) != n throw(LinAlg.LAPACK.DimensionMismatch("linpr")) end
-    r.mu[:] = linPr
-    if (length(r.offset) == n) r.mu += r.offset end
+function updatemu!{T<:FloatingPoint}(r::LmResp{T}, linPr::Vector{T})
+    n = length(linPr); length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
+    length(r.offset) == 0 ? copy!(r.mu, linPr) : map!(Add(), r.mu, linPr, r.offset)
     deviance(r)
 end
-updatemu(r::LmResp, linPr) = updatemu(r, float64(vec(linPr)))
+updatemu!{T<:FloatingPoint}(r::LmResp{T}, linPr) = updatemu!(r, convert(Vector{T},vec(linPr)))
 
-wrkresid(r::LmResp) = (r.y - r.mu) .* sqrt(r.wts)
-drsum(r::LmResp)    = sum(wrkresid(r) .^ 2)
-deviance(r::LmResp) = drsum(r)
-residuals(r::LmResp)= wrkresid(r)
+type WtResid <: TernaryFunctor end
+evaluate{T<:FloatingPoint}(::WtResid,wt::T,y::T,mu::T) = (y - mu)*sqrt(wt)
+result_type{T<:FloatingPoint}(::WtResid,wt::T,y::T,mu::T) = T
+
+deviance(r::LmResp) = length(r.wts) == 0 ? sqdiffsum(r.y, r.mu) : wsqdiffsum(r.wts,r.y,r.mu)
+residuals(r::LmResp)= length(r.wts) == 0 ? r.y - r.mu : map(WtResid(),r.wts,r.y,r.mu)
 
 type LmMod <: LinPredModel
     fr::ModelFrame
-    mm::ModelMatrix
     rr::LmResp
     pp::LinPred
     ff::Formula
-    fit::Bool                  # has the model been fit?
 end
 
-function lm(f::Formula, df::AbstractDataFrame, m::DataType)
-    if !(m <: LinPred) error("Composite type $m does not extend LinPred") end
-    mf = ModelFrame(f, df)
-    mm = ModelMatrix(mf)
-    rr = LmResp(dv(model_response(mf)))
-    dp = m(mm.m)
-    LmMod(mf, mm, rr, dp, f, false)
+function lm(f::Formula, df::AbstractDataFrame)
+    mf = ModelFrame(f, df); mm = ModelMatrix(mf)
+    rr = LmResp(model_response(mf)); pp = DensePredQR(mm)
+    installbeta!(delbeta!(pp, rr.y)); updatemu!(rr, linpred(pp,0.))
+    LmMod(mf, rr, pp, f)
 end
-lm(f::Formula, df::AbstractDataFrame) = lm(f, df, DensePredQR)
 lm(f::Expr, df::AbstractDataFrame) = lm(Formula(f), df)
 lm(f::String, df::AbstractDataFrame) = lm(Formula(parse(f)[1]), df)
 
-function fit(m::LmMod)
-    p = m.pp
-    r = m.rr
-    if !m.fit
-        delbeta(p, wrkresid(r), sqrt(r.wts))
-        updatemu(r, linpred(p))
-        installbeta(p)
-        m.fit = true
-    end
-    m
+function lmc(f::Formula, df::AbstractDataFrame)
+    mf = ModelFrame(f, df); mm = ModelMatrix(mf)
+    rr = LmResp(model_response(mf)); pp = DensePredChol(mm)
+    installbeta!(delbeta!(pp, rr.y)); updatemu!(rr, linpred(pp,0.))
+    LmMod(mf, rr, pp, f)
+end
+lmc(f::Expr, df::AbstractDataFrame) = lmc(Formula(f), df)
+lmc(f::String, df::AbstractDataFrame) = lmc(Formula(parse(f)[1]), df)
+
+## scale(m) -> estimate, s, of the scale parameter
+## scale(m,true) -> estimate, s^2, of the squared scale parameter
+function scale(x::LmMod, sqr::Bool=false)
+    ssqr = deviance(x.rr)/df_residual(x)
+    sqr ? ssqr : sqrt(ssqr)
 end
 
-scalepar(x::LmMod) = deviance(x)/df_residual(x)
 
 function coeftable(mm::LmMod)
     cc = coef(mm)
@@ -76,11 +68,8 @@ function coeftable(mm::LmMod)
 end
 
 function predict(mm::LmMod, newx::Matrix)
-    # TODO: Need to add intercept
-    newx * coef(fit(mm))
+    newx * coef(mm)
 end
-
-family(obj::LmMod) = {:family => "gaussian", :link => "identity"}
 
 function confint(obj::LmMod, level::Real)
     cft = coeftable(obj)
