@@ -1,3 +1,3 @@
 julia 0.2-
-DataFrames
-Distributions
+DataFrames 0.3.6-
+Distributions 0.2.0-
