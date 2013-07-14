@@ -60,11 +60,26 @@ end
 
 
 function coeftable(mm::LmMod)
+    if mm.fr.terms.intercept
+        vnames = UTF8String["(Intercept)"]
+    else
+        vnames = UTF8String[]
+    end
+    # Need to only include active levels
+    for term in mm.fr.terms.terms
+        if isa(mm.fr.df[term], PooledDataArray)
+            for lev in levels(mm.fr.df[term])[2:end]
+                push!(vnames, string(term, " - ", lev))
+            end
+        else
+            push!(vnames, string(term))
+        end
+    end
     cc = coef(mm)
     se = stderr(mm)
     tt = cc ./ se
-    DataFrame({cc, se, tt, ccdf(FDist(1, df_residual(mm)), tt .* tt)},
-              ["Estimate","Std.Error","t value", "Pr(>|t|)"])
+    DataFrame({vnames, cc, se, tt, ccdf(FDist(1, df_residual(mm)), tt .* tt)},
+              ["Term","Estimate","Std.Error","t value", "Pr(>|t|)"])
 end
 
 function predict(mm::LmMod, newx::Matrix)

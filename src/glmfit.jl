@@ -71,11 +71,26 @@ type GlmMod <: LinPredModel
 end
 
 function coeftable(mm::GlmMod)
+    if mm.fr.terms.intercept
+        vnames = UTF8String["(Intercept)"]
+    else
+        vnames = UTF8String[]
+    end
+    # Need to only include active levels
+    for term in mm.fr.terms.terms
+        if isa(mm.fr.df[term], PooledDataArray)
+            for lev in levels(mm.fr.df[term])[2:end]
+                push!(vnames, string(term, " - ", lev))
+            end
+        else
+            push!(vnames, string(term))
+        end
+    end
     cc = coef(mm)
     se = stderr(mm)
     zz = cc ./ se
-    DataFrame({cc, se, zz, 2.0 * ccdf(Normal(), abs(zz))},
-              ["Estimate","Std.Error","z value", "Pr(>|z|)"])
+    DataFrame({vnames, cc, se, zz, 2.0 * ccdf(Normal(), abs(zz))},
+              ["Term","Estimate","Std.Error","z value", "Pr(>|z|)"])
 end
 
 function confint(obj::GlmMod, level::Real)
