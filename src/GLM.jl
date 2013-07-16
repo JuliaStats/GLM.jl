@@ -64,6 +64,8 @@ export                                  # types
     wrkresid!,      # mutating working residuals function
     wrkresp         # working response
 
+typealias FP FloatingPoint
+
 abstract ModResp                        # model response
 
 abstract LinPred             # linear predictor for statistical models

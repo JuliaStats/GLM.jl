@@ -1,7 +1,7 @@
-type GlmResp{T<:FloatingPoint} <: ModResp               # response in a glm model
+type GlmResp{T<:FP} <: ModResp               # response in a glm model
     y::Vector{T}                # response
-    d::Distribution
-    l::Link
+    d::DataType
+    l::DataType
     devresid::Vector{T}         # (squared) deviance residuals
     eta::Vector{T}              # linear predictor
     mu::Vector{T}               # mean response
@@ -10,7 +10,7 @@ type GlmResp{T<:FloatingPoint} <: ModResp               # response in a glm mode
     var::Vector{T}              # (unweighted) variance at current mu
     wts::Vector{T}              # prior weights
     wrkresid::Vector{T}         # working residuals
-    function GlmResp(y::Vector{T}, d::Distribution, l::Link, eta::Vector{T},
+    function GlmResp(y::Vector{T}, d::DataType, l::DataType, eta::Vector{T},
                      mu::Vector{T}, off::Vector{T}, wts::Vector{T})
         insupport(d, y) || error("some elements of y are not in the support of d")
         n = length(y)
@@ -22,11 +22,11 @@ type GlmResp{T<:FloatingPoint} <: ModResp               # response in a glm mode
     end
 end
 
-function GlmResp{T<:FloatingPoint}(y::Vector{T}, d::Distribution, l::Link)
+function GlmResp{T<:FP}(y::Vector{T}, d::Distribution, l::Link)
     n  = length(y); wt = ones(T,n); mu = mustart(d, y, wt)
     GlmResp{T}(y, d, l, linkfun!(l,Array(T,n),mu), mu, T[], wt)
 end
-GlmResp{T<:FloatingPoint}(y::Vector{T}, d::Distribution) = GlmResp(y, d, canonicallink(d))
+GlmResp{T<:FP}(y::Vector{T}, d::Distribution) = GlmResp(y, d, canonicallink(d))
 GlmResp{T<:Integer}(y::Vector{T}, d::Distribution, args...) = GlmResp(float64(y), d, args...)
 
 deviance(r::GlmResp) = deviance(r.d, r.mu, r.y, r.wts)
@@ -39,14 +39,14 @@ linkinv!(r::GlmResp) = linkinv!(r.l, r.mu, r.eta)
 
 mueta!(r::GlmResp) = mueta!(r.l, r.mueta, r.eta)
 
-function updatemu!{T<:FloatingPoint}(r::GlmResp{T}, linPr::Vector{T})
+function updatemu!{T<:FP}(r::GlmResp{T}, linPr::Vector{T})
     n = length(linPr)
     length(r.offset) == n ? map!(Add(), r.eta, linPr, r.offset) : copy!(r.eta, linPr)
     linkinv!(r.l, r.mu, r.eta); mueta!(r); var!(r); wrkresid!(r); devresid!(r)
     sum(r.devresid)
 end
 
-updatemu!{T<:FloatingPoint}(r::GlmResp{T}, linPr) = updatemu!(r, convert(Vector{T},vec(linPr)))
+updatemu!{T<:FP}(r::GlmResp{T}, linPr) = updatemu!(r, convert(Vector{T},vec(linPr)))
 
 var!(r::GlmResp) = var!(r.d, r.var, r.mu)
 

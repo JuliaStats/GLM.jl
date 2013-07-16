@@ -1,4 +1,4 @@
-type LmResp{T<:FloatingPoint} <: ModResp  # response in a linear model
+type LmResp{T<:FP} <: ModResp  # response in a linear model
     mu::Vector{T}     # mean response
     offset::Vector{T} # offset added to linear predictor (may have length 0)
     wts::Vector{T}    # prior weights (may have length 0)
@@ -10,18 +10,18 @@ type LmResp{T<:FloatingPoint} <: ModResp  # response in a linear model
         new(mu,off,wts,y)
     end
 end
-LmResp{T<:FloatingPoint}(y::Vector{T}) = LmResp{T}(zeros(T,length(y)), T[], T[], y)
+LmResp{T<:FP}(y::Vector{T}) = LmResp{T}(zeros(T,length(y)), T[], T[], y)
 
-function updatemu!{T<:FloatingPoint}(r::LmResp{T}, linPr::Vector{T})
+function updatemu!{T<:FP}(r::LmResp{T}, linPr::Vector{T})
     n = length(linPr); length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copy!(r.mu, linPr) : map!(Add(), r.mu, linPr, r.offset)
     deviance(r)
 end
-updatemu!{T<:FloatingPoint}(r::LmResp{T}, linPr) = updatemu!(r, convert(Vector{T},vec(linPr)))
+updatemu!{T<:FP}(r::LmResp{T}, linPr) = updatemu!(r, convert(Vector{T},vec(linPr)))
 
 type WtResid <: TernaryFunctor end
-evaluate{T<:FloatingPoint}(::WtResid,wt::T,y::T,mu::T) = (y - mu)*sqrt(wt)
-result_type{T<:FloatingPoint}(::WtResid,wt::T,y::T,mu::T) = T
+evaluate{T<:FP}(::WtResid,wt::T,y::T,mu::T) = (y - mu)*sqrt(wt)
+result_type{T<:FP}(::WtResid,wt::T,y::T,mu::T) = T
 
 deviance(r::LmResp) = length(r.wts) == 0 ? sqdiffsum(r.y, r.mu) : wsqdiffsum(r.wts,r.y,r.mu)
 residuals(r::LmResp)= length(r.wts) == 0 ? r.y - r.mu : map(WtResid(),r.wts,r.y,r.mu)
