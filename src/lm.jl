@@ -60,21 +60,7 @@ end
 
 
 function coeftable(mm::LmMod)
-    if mm.fr.terms.intercept
-        vnames = UTF8String["(Intercept)"]
-    else
-        vnames = UTF8String[]
-    end
-    # Need to only include active levels
-    for term in mm.fr.terms.terms
-        if isa(mm.fr.df[term], PooledDataArray)
-            for lev in levels(mm.fr.df[term])[2:end]
-                push!(vnames, string(term, " - ", lev))
-            end
-        else
-            push!(vnames, string(term))
-        end
-    end
+    vnames = coefnames(mm.fr)
     cc = coef(mm)
     se = stderr(mm)
     tt = cc ./ se
