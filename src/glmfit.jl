@@ -23,8 +23,9 @@ type GlmResp{T<:FP} <: ModResp               # response in a glm model
 end
 
 function GlmResp{T<:FP}(y::Vector{T}, d::Distribution, l::Link)
-    n  = length(y); wt = ones(T,n); mu = mustart(d, y, wt)
-    GlmResp{T}(y, d, l, linkfun!(l,Array(T,n),mu), mu, T[], wt)
+    n  = length(y); wt = ones(T,n); dt = typeof(d); lt = typeof(l)
+    mu = mustart(dt, y, wt)
+    GlmResp{T}(y, dt, lt, linkfun!(lt,Array(T,n),mu), mu, T[], wt)
 end
 GlmResp{T<:FP}(y::Vector{T}, d::Distribution) = GlmResp(y, d, canonicallink(d))
 GlmResp{T<:Integer}(y::Vector{T}, d::Distribution, args...) = GlmResp(float64(y), d, args...)
