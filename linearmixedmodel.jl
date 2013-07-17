@@ -10,6 +10,7 @@ type LMMGeneral{Ti<:Union(Int32,Int64)} <: LinearMixedModel
     inds::Vector{Any}
     lambda::Vector{Matrix{Float64}}     # k lower triangular mats
     mu::Vector{Float64}
+    rowvalperm::Vector{Ti}
     u::Vector{Matrix{Float64}}
     y::Vector{Float64}
     REML::Bool
@@ -26,8 +27,9 @@ function lmer(f::Formula, fr::AbstractDataFrame)
     k = length(re); k > 0 || error("Formula $f has no random-effects terms")
 
     ## reorder terms by non-increasing number of levels
-    gf = PooledDataVector[df[t.args[3]] for t in re]  # grouping factors
-    p = sortperm(Int[length(f.pool) for f in gf],Sort.Reverse); re = re[p]; gf = gf[p]
+    gf = PooledDataVector[df[t.args[3]] for t in re];  # grouping factors
+    p = sortperm(Int[length(f.pool) for f in gf];order=Sort.Reverse)
+    re = re[p]; gf = gf[p]
 
     ## create and fill vectors of matrices from the random-effects terms
     u = Array(Matrix{Float64},k); Xs = similar(u); lambda = similar(u)
@@ -46,13 +48,16 @@ function lmer(f::Formula, fr::AbstractDataFrame)
     Ti = Int; if offset < typemax(Int32) Ti = Int32 end ## use 32-bit ints if possible
 
     ## create the LMMGeneral object
-    X = ModelMatrix(mf); p = size(X.m,2); nz = hcat(Xs...)'
+    X = ModelMatrix(mf); p = size(X.m,2); nz = hcat(Xs...)'; rv = vcat(rowval...)
     LambdatZt = CholmodSparse!(convert(Vector{Ti}, [1:size(nz,1):length(nz)+1]),
-                               convert(Vector{Ti}, vec(vcat(rowval...))),
+                               convert(Vector{Ti}, vec(rv)),
                                vec(nz), offset, n, 0)
     y = float(vector(model_response(mf)))
+    L = cholfact(LambdatZt,1.,true); pp = invperm(L.Perm + one(Ti))
+    rowvalperm = Ti[pp[rv[i,j]] for i in 1:size(rv,1), j in 1:size(rv,2)]
+
     LMMGeneral(cholfact(LambdatZt,1.,true),LambdatZt,cholfact(eye(p)),
-               X,Xs,X.m\y,inds,lambda,zeros(n),u,y,false,false)
+               X,Xs,X.m\y,inds,lambda,zeros(n),vec(rowvalperm),u,y,false,false)
 end
 lmer(ex::Expr, fr::AbstractDataFrame) = lmer(Formula(ex), fr)
 
@@ -199,18 +204,32 @@ end
 ##  size(m) -> n, p, q, t (lengths of y, beta, u and # of re terms)
 size(m::LMMGeneral) = (length(m.y), length(m.beta), sum([length(u) for u in m.u]), length(m.u))
 
-## solve!(m) -> m : solve PLS problem for u given current beta
+function cmult!{Ti<:Union(Int32,Int64),Tv<:Float64}(nzmat::Matrix{Tv}, cc::StridedVecOrMat{Tv},
+                                                    scrm::Matrix{Tv}, scrv::StridedVecOrMat{Tv},
+                                                    rvperm::Vector{Ti})
+    fill!(scrv, 0.)
+    for j in 1:size(cc,2)
+        @inbounds for jj in 1:size(nzmat,2), i in 1:size(nzmat,1) scrm[i,jj] = nzmat[i,jj]*cc[jj,j] end
+        @inbounds for i in 1:length(scrm) scrv[rvperm[i],j] += scrm[i] end
+    end
+    scrv
+end
+
+## solve!(m) -> m : solve PLS problem for u given beta
 ## solve!(m,true) -> m : solve PLS problem for u and beta
 function solve!(m::LMMGeneral, ubeta=false)
     local u                             # so u from both branches is accessible
+    n,p,q,k = size(m)
     if ubeta
-        ltzty = m.LambdatZt * m.y
-        cu = solve(m.L,solve(m.L,ltzty,CHOLMOD_P), CHOLMOD_L)
-        RZX = solve(m.L,solve(m.L,m.LambdatZt * m.X.m,CHOLMOD_P),CHOLMOD_L).mat
-        potrf!('U',syrk!('U','T',-1.,RZX,1.,syrk!('U','T',1.,m.X.m,0.,m.RX.UL)))
-        potrs!('U',m.RX.UL,gemv!('T',-1.,RZX,vec(cu.mat),1.,gemv!('T',1.,m.X.m,m.y,0.,m.beta)))
-        gemv!('N',-1.,RZX,m.beta,1.,vec(cu.mat))
-        u = vec(solve(m.L,solve(m.L,cu,CHOLMOD_Lt),CHOLMOD_Pt).mat)
+        nzmat = reshape(m.LambdatZt.nzval, (div(length(m.LambdatZt.nzval),n),n))
+        scrm = similar(nzmat); RZX = Array(Float64, sum(length, m.u), p)
+        rvperm = m.rowvalperm
+        cu = solve(m.L, cmult!(nzmat, m.y, scrm, RZX[:,1], rvperm), CHOLMOD_L)
+        ttt = solve(m.L,cmult!(nzmat, m.X.m, scrm, RZX, rvperm),CHOLMOD_L)
+        potrf!('U',syrk!('U','T',-1.,ttt,1.,syrk!('U','T',1.,m.X.m,0.,m.RX.UL)))
+        potrs!('U',m.RX.UL,gemv!('T',-1.,ttt,cu,1.,gemv!('T',1.,m.X.m,m.y,0.,m.beta)))
+        gemv!('N',-1.,ttt,m.beta,1.,cu)
+        u = solve(m.L,solve(m.L,cu,CHOLMOD_Lt),CHOLMOD_Pt)
     else
         u = vec(solve(m.L,m.LambdatZt * gemv!('N',-1.0,m.X.m,m.beta,1.0,copy(m.y))).mat)
     end
