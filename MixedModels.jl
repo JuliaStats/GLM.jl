@@ -8,8 +8,8 @@ module MixedModels
     using Base.LinAlg.LAPACK:  potrf!, potrs!
 
     import Base: cor, cholfact, scale, show, size, solve, std
-    import Distributions: deviance, fit
-    import GLM: coef, coeftable, confint, df_residual, linpred, stderr, vcov
+    import Distributions: fit
+    import GLM: coef, coeftable, confint, deviance, df_residual, linpred, stderr, vcov
 
     export                              # types
         MixedModel,
