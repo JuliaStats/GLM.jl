@@ -1,7 +1,7 @@
 type GlmResp{T<:FP} <: ModResp               # response in a glm model
     y::Vector{T}                # response
-    d::DataType
-    l::DataType
+    d::UnivariateDistribution
+    l::Link
     devresid::Vector{T}         # (squared) deviance residuals
     eta::Vector{T}              # linear predictor
     mu::Vector{T}               # mean response
@@ -10,9 +10,13 @@ type GlmResp{T<:FP} <: ModResp               # response in a glm model
     var::Vector{T}              # (unweighted) variance at current mu
     wts::Vector{T}              # prior weights
     wrkresid::Vector{T}         # working residuals
-    function GlmResp(y::Vector{T}, d::DataType, l::DataType, eta::Vector{T},
+    function GlmResp(y::Vector{T}, d::Distribution, l::Link, eta::Vector{T},
                      mu::Vector{T}, off::Vector{T}, wts::Vector{T})
-        insupport(d, y) || error("some elements of y are not in the support of d")
+        if isa(d, Binomial)
+            for yy in y; 0. <= yy <= 1. || error("$yy in y is not in [0,1]"); end
+        else
+            insupport(d, y) || error("some elements of y are not in the support of d")
+        end
         n = length(y)
         length(eta) == length(mu) == length(wts) == n || error("mismatched sizes")
         lo = length(off); lo == 0 || lo == n || error("offset must have length $n or length 0")
@@ -22,15 +26,7 @@ type GlmResp{T<:FP} <: ModResp               # response in a glm model
     end
 end
 
-function GlmResp{T<:FP}(y::Vector{T}, d::Distribution, l::Link)
-    n  = length(y); wt = ones(T,n); dt = typeof(d); lt = typeof(l)
-    mu = mustart(dt, y, wt)
-    GlmResp{T}(y, dt, lt, linkfun!(lt,Array(T,n),mu), mu, T[], wt)
-end
-GlmResp{T<:FP}(y::Vector{T}, d::Distribution) = GlmResp(y, d, canonicallink(d))
-GlmResp{T<:Integer}(y::Vector{T}, d::Distribution, args...) = GlmResp(float64(y), d, args...)
-
-deviance(r::GlmResp) = deviance(r.d, r.mu, r.y, r.wts)
+deviance(r::GlmResp) = sum(r.devresid)
 
 devresid!(r::GlmResp) = devresid!(r.d, r.devresid, r.y, r.mu, r.wts)
 
@@ -43,7 +39,7 @@ mueta!(r::GlmResp) = mueta!(r.l, r.mueta, r.eta)
 function updatemu!{T<:FP}(r::GlmResp{T}, linPr::Vector{T})
     n = length(linPr)
     length(r.offset) == n ? map!(Add(), r.eta, linPr, r.offset) : copy!(r.eta, linPr)
-    linkinv!(r.l, r.mu, r.eta); mueta!(r); var!(r); wrkresid!(r); devresid!(r)
+    linkinv!(r); mueta!(r); var!(r); wrkresid!(r); devresid!(r)
     sum(r.devresid)
 end
 
@@ -84,7 +80,7 @@ function confint(obj::GlmMod, level::Real)
     hcat(coef(obj),coef(obj)) + cft["Std.Error"] *
     quantile(Normal(), (1. - level)/2.) * [1. -1.]
 end
-confint(obj::LmMod) = confint(obj, 0.95)
+confint(obj::GlmMod) = confint(obj, 0.95)
         
 deviance(m::GlmMod)  = deviance(m.rr)
 
@@ -95,11 +91,11 @@ function fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30, minStepFac::Re
 
     cvg = false; p = m.pp; r = m.rr
     scratch = similar(p.X.m)
-    devold = updatemu!(r, linpred(delbeta!(p, wrkresp(r), GLM.wrkwt(r), scratch)))
-    GLM.installbeta!(p)
+    devold = updatemu!(r, linpred(delbeta!(p, wrkresp(r), wrkwt(r), scratch)))
+    installbeta!(p)
     for i=1:maxIter
         f = 1.0
-        dev = updatemu!(r, linpred(delbeta!(p, r.wrkresid, GLM.wrkwt(r), scratch)))
+        dev = updatemu!(r, linpred(delbeta!(p, r.wrkresid, wrkwt(r), scratch)))
         while dev > devold
             f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $beta0")
             dev = updatemu!(r, linpred(p, f))
@@ -115,17 +111,28 @@ function fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30, minStepFac::Re
     m
 end
 
-function glm(f::Formula, df::AbstractDataFrame, d::Distribution, l::Link; dofit::Bool=true)
+function glm(f::Formula, df::AbstractDataFrame, d::UnivariateDistribution, l::Link; dofit::Bool=true, wts=Float64[], offset=Float64[])
     mf = ModelFrame(f, df)
     mm = ModelMatrix(mf)
-    rr = GlmResp(model_response(mf), d, l)
+    y = model_response(mf); T = eltype(y);
+    if T <: Integer
+        y = float64(y)
+        T = Float64
+    end
+    n = length(y); lw = length(wts)
+    lw == 0 || lw == n || error("length(wts) = $lw should be 0 or $n")
+    w = lw == 0 ? ones(T,n) : (T <: Float64 ? copy(wts) : convert(Vector{T}, wts))
+    mu = mustart(d, y, w)
+    off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
+    rr = GlmResp{T}(y, d, l, linkfun!(l, similar(mu), mu), mu, off, w)
     res = GlmMod(mf, rr, DensePredChol(mm), f, false)
     dofit ? fit(res) : res
 end
-glm(f::Formula, df::AbstractDataFrame, d::Distribution) = glm(f, df, d, canonicallink(d))
-glm(f::Expr, df::AbstractDataFrame, d::Distribution, l::Link) = glm(Formula(f), df, d, l)
-glm(f::Expr, df::AbstractDataFrame, d::Distribution) = glm(Formula(f), df, d, canonicallink(d))
-glm(f::String, df::AbstractDataFrame, d::Distribution) = glm(Formula(parse(f)[1]), df, d)
+
+glm(e::Expr, df::AbstractDataFrame, d::UnivariateDistribution, l::Link) = glm(Formula(e),df,d,l)
+glm(e::Expr, df::AbstractDataFrame, d::UnivariateDistribution) = glm(Formula(e),df,d,canonicallink(d))
+glm(f::Formula, df::AbstractDataFrame, d::UnivariateDistribution) = glm(f, df, d, canonicallink(d))
+glm(s::String, df::AbstractDataFrame, d::UnivariateDistribution) = glm(Formula(parse(s)[1]), df, d)
 
 ## scale(m) -> estimate, s, of the scale parameter
 ## scale(m,true) -> estimate, s^2, of the squared scale parameter

@@ -1,4 +1,4 @@
-using DataFrames, Distributions
+using DataFrames, Distributions, NumericExtensions
 
 module GLM
 
