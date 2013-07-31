@@ -34,10 +34,12 @@ module MixedModels
     typealias ITypes Union(Int32,Int64)
 
     abstract MixedModel
+    abstract LinearMixedModel <: MixedModel
 
 #    include("rsc.jl")            # regular sparse column-oriented matrices
-#    include("utils.jl")         # utilities to deal with the model formula
-    include("linearmixedmodel.jl")
+    include("utils.jl")         # utilities to deal with the model formula
+    include("lmer.jl")          # fit and analyze linear mixed-effects models
+    include("LMMGeneral.jl")    # general form of linear mixed-effects models
 #    include("scalarlmm.jl")
 #    include("vectorlmm.jl")
 

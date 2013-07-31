@@ -1,4 +1,12 @@
-## Utilities to work with the random-effects part of the formula
+## Utilities 
+
+## convert a lower Cholesky factor to a correlation matrix
+function cc(c::Matrix{Float64})
+    m,n = size(c); m == n || error("argument of size $(size(c)) should be square")
+    m == 1 && return ones(1,1)
+    std = broadcast(/, c, Float64[norm(c[i,:]) for i in 1:size(c,1)])
+    std * std'
+end
 
 
 ## Check if all random-effects terms are simple
