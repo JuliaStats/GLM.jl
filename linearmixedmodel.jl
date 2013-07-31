@@ -28,7 +28,7 @@ function lmer(f::Formula, fr::AbstractDataFrame)
 
     ## reorder terms by non-increasing number of levels
     gf = PooledDataVector[df[t.args[3]] for t in re];  # grouping factors
-    p = sortperm(Int[length(f.pool) for f in gf];order=Sort.Reverse)
+    p = sortperm(Int[length(f.pool) for f in gf];rev=true)
     re = re[p]; gf = gf[p]
 
     ## create and fill vectors of matrices from the random-effects terms
