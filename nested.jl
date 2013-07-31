@@ -1,104 +1,3 @@
-## Types representing linear mixed models with simple, scalar random effects
-## The ScalarLMM1 type represents a model with a single scalar
-## random-effects term
-
-abstract ScalarLinearMixedModel <: LinearMixedModel
-
-function VarCorr(m::ScalarLinearMixedModel)
-    fit(m)
-    n, p, q = size(m)
-    [m.theta .^ 2, 1.] * (pwrss(m)/float(n - (m.REML ? p : 0)))
-end
-
-function grplevs(m::ScalarLinearMixedModel)
-    rv = m.Zt.rowval
-    [length(unique(rv[i,:]))::Int for i in 1:size(rv,1)]
-end
-
-## Fields are arranged by decreasing size, doubles then pointers then bools
-type ScalarLMM1{Ti<:Integer} <: ScalarLinearMixedModel
-    theta::Float64
-    Xt::Matrix{Float64}
-    XtX::Matrix{Float64}
-    XtZ::Matrix{Float64}
-    Xty::Vector{Float64}
-    Ztrv::Vector{Ti}           # indices into factor levels
-    Ztnz::Vector{Float64}      # left-hand side of r.e. term
-    ZtZ::Vector{Float64}
-    Zty::Vector{Float64}
-    beta::Vector{Float64}
-    mu::Vector{Float64}
-    u::Vector{Float64}
-    y::Vector{Float64}
-    REML::Bool
-    fit::Bool
-end
-
-function ScalarLMM1{Ti<:Integer}(X::Matrix{Float64}, Ztrv::Vector{Ti},
-                                 Ztnz::Vector{Float64}, y::Vector{Float64})
-    n,p = size(X)
-    if length(Ztrv) != n || length(Ztnz) != n || length(y) != n
-        error(string("Dimension mismatch: n = $n, ",
-                     "lengths of Ztrv = $(length(Ztrv)), ",
-                     "Ztnz = $(length(Ztnz)), y = $(length(y))"))
-    end
-    q   = length(unique(Ztrv))
-    if any(Ztrv .< 1) || any(Ztrv .> q)
-        error("All elements of Ztrv must be in 1:$q")
-    end
-    Xt = X'
-    ZtZ = zeros(q); XtZ = zeros(p,q); Zty = zeros(q);
-    for i in 1:n
-        j = Ztrv[i]; z = Ztnz[i]
-        ZtZ[j] += z*z; Zty[j] += z*y[i]; XtZ[:,j] += z*Xt[:,i]
-    end
-    ScalarLMM1{Ti}(1., Xt, syrk!('L','N',1.,Xt,0.,zeros(p,p)), # XtX
-                   XtZ, Xt*y, copy(Ztrv), copy(Ztnz), ZtZ, Zty,
-                   zeros(p), zeros(n), zeros(q), copy(y), false, false)
-end
-
-function ScalarLMM1{Ti<:Integer}(X::Matrix{Float64}, Ztrv::Vector{Ti},
-                                 y::Vector{Float64})
-    ScalarLMM1(X, Ztrv, ones(length(Ztrv)), y)
-end
-
-lower!(m::ScalarLMM1) = zeros(1)
-size(m::ScalarLMM1) = (length(m.y), length(m.beta), length(m.u), 1)
-thvec!(m::ScalarLMM1) = [m.theta]
-ranef!(m::ScalarLMM1) = m.theta * m.u
-grplevels(m::ScalarLMM1) = [length(u)]
-Zt!(m::ScalarLMM1) = SparseMatrixRSC(Ztrv, Ztnz')
-sqrtwts!(m::ScalarLMM1) = Float64[]
-function L(m::ScalarLMM1) # Can probably skip all the Diagonal stuff
-    thsq = square(m.theta)
-    convert(Vector{Diagonal{Float64}},
-            {Diagonal([sqrt(thsq*z + 1.) for z in m.ZtZ.diag])})
-end
-function objective!(m::ScalarLMM1, th::Float64)
-    if th < 0. error("theta = $th must be >= 0") end
-    m.theta = th; n,p,q,t = size(m)
-    L = [sqrt(th*th*z + 1.)::Float64 for z in m.ZtZ]
-    thlinv = th / L
-    LXZ = scale(m.XtZ, thlinv)
-    LX = cholfact!(syrk!('L', 'N', -1., LXZ, 1., copy(m.XtX)), :L)
-    m.u[:] = m.Zty .* thlinv      # initialize u to cu
-    m.beta[:] = m.Xty             # initialize beta to Xty
-    gemv!('N', -1., LXZ, m.u, 1., m.beta) # cbeta = Xty - RZX'cu
-    potrs!('L', LX.UL, m.beta)    # solve for beta in place
-    gemv!('T', -1., LXZ, m.beta, 1., m.u) # cu -= RZX'beta
-    m.u ./= L                     # solve for u in place
-    m.mu[:] = th*(m.u[m.Ztrv].*m.Ztnz) # mu = Z*Lambda*u
-    gemv!('T',1.,m.Xt,m.beta,1.,m.mu) # mu += X'beta
-    fn = float64(n - (m.REML ? p : 0))
-    ldL2 = (s=0.; for l in L s+=log(l) end;2.s)
-    obj = ldL2 + fn * (1. + log(2.pi * pwrss(m)/fn))
-    if m.REML obj += logdet(RX) end
-    obj
-end
-
-objective!(m::ScalarLMM1, tv::Vector{Float64}) = objective!(m, tv[1])
-
-objective(m::ScalarLMM1) = objective(m, m.theta)
 
 type NestedZtZ{Ti<:Integer}
     diags::Vector{Vector{Float64}}
@@ -108,7 +7,7 @@ end
 
 function NestedZtZ{Ti<:Integer}(Ztrv::Matrix{Ti},Ztnz::Matrix{Float64})
     t,n = size(Ztrv) # t is #levels, n is #objs
-    if t < 2 error("Use ScalarLMM1 for a single, scalar term") end
+    if t < 2 error("Use LMMScalar1 for a single, scalar term") end
     if (t,n) != size(Ztnz)
         error("size(Ztrv) = $(size(Ztrv)) != size(Ztnz) = $(size(Ztnz))")
     end
@@ -155,7 +54,7 @@ end
 ## The ScalarLMMn type represents a model with a multiple scalar
 ## random-effects terms that have nested grouping factors.
 
-type ScalarLMMnest{Ti<:Integer} <: ScalarLinearMixedModel
+type ScalarLMMnest{Ti<:Integer} <: LMMScalar
     theta::Vector{Float64}
     Xt::Matrix{Float64}
     XtX::Matrix{Float64}
@@ -197,15 +96,14 @@ end
 
 function ScalarLMMnest{Ti<:Integer}(X::Matrix{Float64}, Ztrv::Matrix{Ti},
                                  y::Vector{Float64})
-    ScalarLMM1(X, Ztrv, ones(size(Ztrv)), y)
+    ScalarLMMnest(X, Ztrv, ones(size(Ztrv)), y)
 end
-
 
 ## In the LMMsimple type the fixed-effects are incorporated in the
 ## symmetric, sparse system matrix A.  In the LMMsplit type they are
 ## separate.
 
-type LMMsimple{Tv<:Float64,Ti<:ITypes} <: ScalarLinearMixedModel
+type LMMsimple{Tv<:Float64,Ti<:ITypes} <: LMMScalar
     Zt::SparseMatrixRSC{Tv,Ti}# model matrices Z and X in an RSC structure
     theta::Vector{Tv}          # variance component parameter vector
     lower::Vector{Tv}          # lower bounds (always zeros(length(theta)) for these models)
@@ -284,7 +182,7 @@ fixef(m::LMMsimple) =  m.ubeta[m.Zt.q + (1:m.Zt.p)]
 
 ranef(m::LMMsimple) = (m.lambda .* m.ubeta)[1:m.Zt.q]
 
-type LMMsplit{Tv<:Float64,Ti<:ITypes} <: ScalarLinearMixedModel
+type LMMsplit{Tv<:Float64,Ti<:ITypes} <: LMMScalar
     Zt::SparseMatrixRSC{Tv,Ti} # random-effects model matrix Z
     X::Matrix{Tv}              # fixed-effects model matrix
     theta::Vector{Tv}          # variance component parameter vector

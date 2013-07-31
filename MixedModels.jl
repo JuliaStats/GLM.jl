@@ -7,7 +7,7 @@ module MixedModels
           CholmodSparse, CholmodSparse!, chm_scale!, CHOLMOD_L, CHOLMOD_Lt, CHOLMOD_P, CHOLMOD_Pt
     using Base.LinAlg.LAPACK:  potrf!, potrs!
 
-    import Base: cor, cholfact, scale, show, size, solve, std
+    import Base: cor, cholfact, logdet, scale, show, size, solve, std
     import Distributions: fit
     import GLM: coef, coeftable, confint, deviance, df_residual, linpred, stderr, vcov
 
@@ -15,6 +15,7 @@ module MixedModels
         MixedModel,
         LinearMixedModel,
         LMMGeneral,
+        LMMScalar1,
                                         # functions
         fixef,
         grplevels,
@@ -40,7 +41,7 @@ module MixedModels
     include("utils.jl")         # utilities to deal with the model formula
     include("lmer.jl")          # fit and analyze linear mixed-effects models
     include("LMMGeneral.jl")    # general form of linear mixed-effects models
-#    include("scalarlmm.jl")
+    include("LMMScalar1.jl")    # models with a single, scalar random-effects term
 #    include("vectorlmm.jl")
 
 

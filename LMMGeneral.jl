@@ -18,27 +18,11 @@ end
 ##  cholfact(x, RX=true) -> the Cholesky factor of the downdated X'X or LambdatZt
 cholfact(m::LMMGeneral,RX=true) = RX ? m.RX : m.L
 
-##  coef(m) -> current value of beta (can be a reference)
-coef(m::LMMGeneral) = m.beta
-
-## coeftable(m) -> DataFrame : the coefficients table
-## FIXME Create a type with its own show method for this type of table
-function coeftable(m::LMMGeneral)
-    fe = fixef(m); se = stderr(m)
-    DataFrame({fe, se, fe./se}, ["Estimate","Std.Error","z value"])
-end
-
 ## cor(m) -> correlation matrices of variance components
 cor(m::LMMGeneral) = [cc(l) for l in m.lambda]
 
 ## deviance!(m) -> Float64 : fit the model by maximum likelihood and return the deviance
 deviance!(m::LMMGeneral) = objective(fit(reml!(m,false)))
-
-## deviance(m) -> Float64
-deviance(m::LMMGeneral) = isfit(m) && !isreml(m) ? objective(m) : NaN
-
-##  fixef(m) -> current value of beta (can be a reference)
-fixef(m::LMMGeneral) = m.beta
 
 ##  grplevels(m) -> vector of number of levels in random-effect terms
 grplevels(m::LMMGeneral) = [size(u,2) for u in m.u]
@@ -48,9 +32,6 @@ isfit(m::LMMGeneral) = m.fit
     
 ## isscalar(m) -> Bool : Are all the random-effects terms scalar?
 isscalar(m::LMMGeneral) = all([size(l,1) == 1 for l in m.lambda])
-
-##  isreml(m) -> Bool : Is the REML criterion to be used?
-isreml(m::LMMGeneral) = m.REML
 
 ## linpred!(m) -> update mu
 function linpred!(m::LMMGeneral)
@@ -66,17 +47,11 @@ function linpred!(m::LMMGeneral)
     m
 end
 
+## Logarithm of the determinant of the generator matrix for the Cholesky factor, L or RX
+logdet(m::LMMGeneral,RX=true) = logdet(cholfact(m,RX))
+
 ## lower(m) -> lower bounds on elements of theta
 lower(m::LMMGeneral) = [x==0.?-Inf:0. for x in vcat([ltri(eye(M)) for M in m.lambda]...)]
-
-## objective(m) -> deviance or REML criterion according to m.REML
-function objective(m::LMMGeneral)
-     n,p = size(m.X.m); fn = float64(n - (m.REML ? p : 0))
-    logdet(m.L) + fn*(1.+log(2.pi*pwrss(m)/fn)) + (m.REML ? logdet(m.RX) : 0.)
-end
-
-## pwrss(m) -> penalized, weighted residual sum of squares
-pwrss(m::LMMGeneral) = sqrlenu(m) + sqdiffsum(m.mu, m.y)
 
 ##  ranef(m) -> vector of matrices of random effects on the original scale
 ##  ranef(m,true) -> vector of matrices of random effects on the U scale
@@ -99,35 +74,8 @@ function scale(m::LMMGeneral, sqr=false)
     sqr ? ssqr : sqrt(ssqr)
 end
 
-function show(io::IO, m::LinearMixedModel)
-    fit(m); n, p, q, k = size(m); REML = m.REML
-    println(io, string("Linear mixed model fit by ", REML ? "REML" : "maximum likelihood"))
-    oo = objective(m)
-    println(io, REML?" REML criterion: $oo":" logLik: $(round(-oo/2.,3)), deviance: $(round(oo,3))")
-    println("\n  Variance components:")
-    stddevs = vcat(std(m)...)
-    println(io,"    Std. deviation scale:", [signif(x,5) for x in stddevs])
-    println(io,"    Variance scale:", [signif(abs2(x),5) for x in stddevs])
-    isscalar(m) || println(io,"    Correlations:\n", cor(m))
-    println(io,"  Number of obs: $n; levels of grouping factors:", grplevels(m))
-    println(io,"\n  Fixed-effects parameters:")
-    tstrings = split(string(coeftable(m)),'\n')
-    for i in 2:p+2 print(io,tstrings[i]); print(io,"\n") end
-end
-
 ##  size(m) -> n, p, q, t (lengths of y, beta, u and # of re terms)
 size(m::LMMGeneral) = (length(m.y), length(m.beta), sum([length(u) for u in m.u]), length(m.u))
-
-function cmult!{Ti<:Union(Int32,Int64),Tv<:Float64}(nzmat::Matrix{Tv}, cc::StridedVecOrMat{Tv},
-                                                    scrm::Matrix{Tv}, scrv::StridedVecOrMat{Tv},
-                                                    rvperm::Vector{Ti})
-    fill!(scrv, 0.)
-    for j in 1:size(cc,2)
-        @inbounds for jj in 1:size(nzmat,2), i in 1:size(nzmat,1) scrm[i,jj] = nzmat[i,jj]*cc[jj,j] end
-        @inbounds for i in 1:length(scrm) scrv[rvperm[i],j] += scrm[i] end
-    end
-    scrv
-end
 
 ## solve!(m) -> m : solve PLS problem for u given beta
 ## solve!(m,true) -> m : solve PLS problem for u and beta
@@ -162,17 +110,6 @@ sqrlenu(m::LMMGeneral) = sum([mapreduce(Abs2(),Add(),u) for u in m.u])
 ## std(m) -> Vector{Vector{Float64}} estimated standard deviations of variance components
 std(m::LMMGeneral) = scale(m)*push!(Vector{Float64}[vec(vnorm(l,2,1)) for l in m.lambda],[1.])
 
-## stderr(m) -> standard errors of fixed-effects parameters
-stderr(m::LMMGeneral) = sqrt(diag(vcov(m)))
-
-## ltri(M) -> vector of elements from the lower triangle (column major order)    
-function ltri(M::Matrix)
-    m,n = size(M); m == n || error("size(M) = ($m,$n), should be square")
-    if m == 1 return [M[1,1]] end
-    r = Array(eltype(M), m*(m+1)>>1); pos = 1
-    for i in 1:m, j in i:m r[pos] = M[i,j]; pos += 1 end; r
-end
-    
 ## theta(m) -> vector of variance-component parameters
 theta(m::LMMGeneral) = vcat([ltri(M) for M in m.lambda]...)
 
@@ -196,6 +133,3 @@ end
 
 ##  unsetfit!(m) -> m : unset the m.fit flag
 unsetfit!(m::LMMGeneral) = (m.fit = false; m)    
-
-## vcov(m) -> estimated variance-covariance matrix of the fixed-effects parameters
-vcov(m::LMMGeneral) = scale(m,true) * inv(cholfact(m))
