@@ -1,16 +1,7 @@
-## Types representing linear mixed models with simple, scalar random effects
-## The ScalarLMM1 type represents a model with a single scalar
-## random-effects term
-
-abstract LMMScalar <: LinearMixedModel
-
-function VarCorr(m::LMMScalar)
-    n, p, q = size(m)
-    [m.theta .^ 2, 1.] * (pwrss(m)/float(n - (m.REML ? p : 0)))
-end
+## The ScalarLMM1 type represents a model with a single scalar random-effects term
 
 ## Fields are arranged by decreasing size, doubles then pointers then bools
-type LMMScalar1{Ti<:Integer} <: LMMScalar
+type LMMScalar1{Ti<:Integer} <: LinearMixedModel
     theta::Float64
     L::Vector{Float64}
     RX::Cholesky{Float64}
@@ -30,34 +21,19 @@ type LMMScalar1{Ti<:Integer} <: LMMScalar
     fit::Bool
 end
 
-if false
-    function LMMScalar1{Ti<:Integer}(X::Matrix{Float64}, Ztrv::Vector{Ti},
-                                     Ztnz::Vector{Float64}, y::Vector{Float64})
-        n,p = size(X)
-        if length(Ztrv) != n || length(Ztnz) != n || length(y) != n
-            error(string("Dimension mismatch: n = $n, ",
-                         "lengths of Ztrv = $(length(Ztrv)), ",
-                         "Ztnz = $(length(Ztnz)), y = $(length(y))"))
-        end
-        q   = length(unique(Ztrv))
-        if any(Ztrv .< 1) || any(Ztrv .> q)
-            error("All elements of Ztrv must be in 1:$q")
-        end
-        Xt = X'
-        ZtZ = zeros(q); XtZ = zeros(p,q); Zty = zeros(q);
-        for i in 1:n
-            j = Ztrv[i]; z = Ztnz[i]
-            ZtZ[j] += z*z; Zty[j] += z*y[i]; XtZ[:,j] += z*Xt[:,i]
-        end
-        LMMScalar1{Ti}(1., Xt, syrk!('L','N',1.,Xt,0.,zeros(p,p)), # XtX
-                       XtZ, Xt*y, copy(Ztrv), copy(Ztnz), ZtZ, Zty,
-                       zeros(p), zeros(n), zeros(q), copy(y), false, false)
+function LMMScalar1{Ti<:Integer}(Xt::Matrix{Float64}, Ztrv::Vector{Ti},
+                                 Ztnz::Vector{Float64}, y::Vector{Float64})
+    p,n = size(Xt)
+    length(Ztrv) == length(Ztnz) == length(y) == n || error("Dimension mismatch")
+    q = max(Ztrv); 0 < min(Ztrv) || error("elements of Ztrv must be positive")
+    XtX = Xt*Xt'; ZtZ = zeros(q); XtZ = zeros(p,q); Zty = zeros(q);
+    for i in 1:n
+        j = Ztrv[i]; z = Ztnz[i]
+        ZtZ[j] += z*z; Zty[j] += z*y[i]; XtZ[:,j] += z*Xt[:,i]
     end
-
-    function LMMScalar1{Ti<:Integer}(X::Matrix{Float64}, Ztrv::Vector{Ti},
-                                     y::Vector{Float64})
-        LMMScalar1(X, Ztrv, ones(length(Ztrv)), y)
-    end
+    LMMScalar1{Ti}(1., ones(q), cholfact(XtX), Xt, XtX,
+                   XtZ, Xt*y, Ztrv, Ztnz , ZtZ, Zty, zeros(p), zeros(n),
+                   zeros(q), copy(y), false, false)
 end
 
 ##  cholfact(x, RX=true) -> the Cholesky factor of the downdated X'X or LambdatZt

@@ -29,33 +29,12 @@ function lmer(f::Formula, fr::AbstractDataFrame; dofit=true)
     end
     Ti = Int; if offset < typemax(Int32) Ti = Int32 end ## use 32-bit ints if possible
 
-    X = ModelMatrix(mf); p = size(X.m,2); nz = hcat(Xs...)'; rv = vcat(rowval...)
-    y = float(vector(model_response(mf)))
-    local m
+    X = ModelMatrix(mf); rv = convert(Matrix{Ti},vcat(rowval...))
+    y = float64(vector(model_response(mf)))
                                      # create the appropriate type of LMM object
-    if k == 1 && scalar              # either LMMScalar1 or LMMVector1
-        ## FIXME: Move this to an external constructor
-        q = offset; Xt = X.m'; XtX = Xt*Xt'
-        ZtZ = zeros(q); XtZ = zeros(p,q); Zty = zeros(q);
-        Ztrv = convert(Vector{Ti},vec(rv)); Ztnz = vec(nz)
-        for i in 1:n
-            j = Ztrv[i]; z = Ztnz[i]
-            ZtZ[j] += z*z; Zty[j] += z*y[i]; XtZ[:,j] += z*Xt[:,i]
-        end
-        m = LMMScalar1{Ti}(1., ones(q), cholfact(XtX), Xt, XtX,
-                           XtZ, Xt*y, Ztrv, Ztnz, ZtZ, Zty,
-                           zeros(p), zeros(n), zeros(q), y, false, false);
-    else
-        ## FIXME: another external constructor
-        LambdatZt = CholmodSparse!(convert(Vector{Ti}, [1:size(nz,1):length(nz)+1]),
-                                   convert(Vector{Ti}, vec(rv)),
-                                   vec(nz), offset, n, 0)
-        L = cholfact(LambdatZt,1.,true); pp = invperm(L.Perm + one(Ti))
-        rowvalperm = Ti[pp[rv[i,j]] for i in 1:size(rv,1), j in 1:size(rv,2)]
-
-        m = LMMGeneral(cholfact(LambdatZt,1.,true),LambdatZt,cholfact(eye(p)),
-            X,Xs,X.m\y,inds,lambda,zeros(n),vec(rowvalperm),u,y,false,false)
-    end
+#    m = k == 1 && scalar ? LMMScalar1(X.m', vec(rv), vec(Xs[1]), y) :
+    m = LMMGeneral(offset,X,Xs,inds,u,rv,y,lambda)
+    println(typeof(m))
     dofit ? fit(m) : m
 end
 lmer(ex::Expr, fr::AbstractDataFrame) = lmer(Formula(ex), fr)

@@ -2,7 +2,7 @@ type LMMGeneral{Ti<:Union(Int32,Int64)} <: LinearMixedModel
     L::CholmodFactor{Float64,Ti}
     LambdatZt::CholmodSparse{Float64,Ti}
     RX::Cholesky{Float64}
-    X::ModelMatrix                      # fixed-effects model matrix
+    X::ModelMatrix{Float64}             # fixed-effects model matrix
     Xs::Vector{Matrix{Float64}}         # X_1,X_2,...,X_k
     beta::Vector{Float64}
     inds::Vector{Any}
@@ -13,6 +13,21 @@ type LMMGeneral{Ti<:Union(Int32,Int64)} <: LinearMixedModel
     y::Vector{Float64}
     REML::Bool
     fit::Bool
+end
+
+function LMMGeneral{Ti<:Union(Int32,Int64)}(q::Integer, X::ModelMatrix, Xs::Vector{Matrix{Float64}},
+                                            inds::Array, u::Vector{Matrix{Float64}}, rv::Matrix{Ti},
+                                            y::Vector{Float64}, lambda::Vector{Matrix{Float64}})
+    n,p = size(X.m); nz = hcat(Xs...)'
+    LambdatZt = CholmodSparse!(convert(Vector{Ti}, [1:size(nz,1):length(nz)+1]),
+                               vec(copy(rv)), vec(nz), q, n, 0)
+    L = cholfact(LambdatZt,1.,true); pp = invperm(L.Perm + one(Ti))
+    rowvalperm = Ti[pp[rv[i,j]] for i in 1:size(rv,1), j in 1:size(rv,2)]
+
+    res = LMMGeneral{Ti}(L,LambdatZt,cholfact(eye(p)),X,Xs,zeros(p),inds,lambda,
+        zeros(n),vec(rowvalperm),u,y,false,false)
+    println(Ti); println(typeof(res))
+    res
 end
 
 ##  cholfact(x, RX=true) -> the Cholesky factor of the downdated X'X or LambdatZt
@@ -27,9 +42,6 @@ deviance!(m::LMMGeneral) = objective(fit(reml!(m,false)))
 ##  grplevels(m) -> vector of number of levels in random-effect terms
 grplevels(m::LMMGeneral) = [size(u,2) for u in m.u]
 
-##  isfit(m) -> Bool - Has the model been fit?
-isfit(m::LMMGeneral) = m.fit
-    
 ## isscalar(m) -> Bool : Are all the random-effects terms scalar?
 isscalar(m::LMMGeneral) = all([size(l,1) == 1 for l in m.lambda])
 
