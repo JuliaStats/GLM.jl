@@ -142,6 +142,3 @@ function theta!(m::LMMGeneral, th::Vector{Float64})
     cholfact!(m.L,m.LambdatZt,1.)
     m
 end
-
-##  unsetfit!(m) -> m : unset the m.fit flag
-unsetfit!(m::LMMGeneral) = (m.fit = false; m)    

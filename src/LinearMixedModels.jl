@@ -90,3 +90,6 @@ stderr(m::LinearMixedModel) = sqrt(diag(vcov(m)))
 
 ## vcov(m) -> estimated variance-covariance matrix of the fixed-effects parameters
 vcov(m::LinearMixedModel) = scale(m,true) * inv(cholfact(m))
+
+##  unsetfit!(m) -> m : unset the m.fit flag
+unsetfit!(m::LinearMixedModel) = (m.fit = false; m)

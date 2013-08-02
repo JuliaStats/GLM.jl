@@ -58,9 +58,6 @@ logdet(m::LMMScalar1,RX=true) = RX ? logdet(m.RX) : 2.sum(Log(),m.L)
 ## lower(m) -> lower bounds on elements of theta
 lower(m::LMMScalar1) = zeros(1)
 
-## sqrlenu(m) -> total squared length of m.u (the penalty in the PLS problem)
-sqrlenu(m::LMMScalar1) = sqsum(m.u)
-
 ##  ranef(m) -> vector of matrices of random effects on the original scale
 ##  ranef(m,true) -> vector of matrices of random effects on the U scale
 function ranef(m::LMMScalar1, uscale=false)
@@ -70,6 +67,9 @@ end
 
 ##  size(m) -> n, p, q, t (lengths of y, beta, u and # of re terms)
 size(m::LMMScalar1) = (length(m.y), length(m.beta), length(m.u), 1)
+
+## sqrlenu(m) -> total squared length of m.u (the penalty in the PLS problem)
+sqrlenu(m::LMMScalar1) = sqsum(m.u)
 
 theta(m::LMMScalar1) = [m.theta]
 

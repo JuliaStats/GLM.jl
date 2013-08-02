@@ -29,6 +29,7 @@ module GLM
         LinearMixedModel,
         LMMGeneral,
         LMMScalar1,
+        LMMVector1,
         LogitLink,
         LogLink,
         LmMod,
@@ -56,6 +57,7 @@ module GLM
         linkinv!,       # mutating inverse link
         linkinv,        # inverse link mapping eta to mu
         linpred,        # linear predictor
+        linpred!,       # update the linear predictor
         lm,             # linear model (QR factorization)
         lmc,            # linear model (Cholesky factorization)          
         lmm,            # fit a linear mixed-effects model (LMM)
@@ -106,6 +108,7 @@ module GLM
     include("LinearMixedModels.jl") # method definitions for the abstract class
     include("LMMGeneral.jl") # general form of linear mixed-effects models
     include("LMMScalar1.jl") # models with a single, scalar random-effects term
+    include("LMMVector1.jl") # models with a single, vector-valued random-effects term
     include("lmm.jl")    # fit and analyze linear mixed-effects models
 
 end # module
