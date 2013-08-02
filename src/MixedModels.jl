@@ -31,17 +31,12 @@ module MixedModels
         theta!,
         theta
 
-    typealias VTypes Union(Float64,Complex128)
-    typealias ITypes Union(Int32,Int64)
-
-    abstract MixedModel
-    abstract LinearMixedModel <: MixedModel
-
 #    include("rsc.jl")            # regular sparse column-oriented matrices
     include("utils.jl")         # utilities to deal with the model formula
-    include("lmer.jl")          # fit and analyze linear mixed-effects models
+    include("LinearMixedModels.jl")     # method definitions for the abstract class
     include("LMMGeneral.jl")    # general form of linear mixed-effects models
     include("LMMScalar1.jl")    # models with a single, scalar random-effects term
+    include("lmer.jl")          # fit and analyze linear mixed-effects models
 #    include("vectorlmm.jl")
 
 

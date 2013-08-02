@@ -37,7 +37,7 @@ function LMMScalar1{Ti<:Integer}(Xt::Matrix{Float64}, Ztrv::Vector{Ti},
 end
 
 ##  cholfact(x, RX=true) -> the Cholesky factor of the downdated X'X or LambdatZt
-cholfact(m::LMMScalar,RX=true) = RX ? m.RX : Diagonal(m.L)
+cholfact(m::LMMScalar1,RX=true) = RX ? m.RX : Diagonal(m.L)
 
 grplevels(m::LMMScalar1) = [length(m.u)]
 
