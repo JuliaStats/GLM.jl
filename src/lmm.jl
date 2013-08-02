@@ -1,6 +1,6 @@
 const template = Formula(:(~ foo))      # for evaluating the lhs of r.e. terms
 
-function lmer(f::Formula, fr::AbstractDataFrame; dofit=true)
+function lmm(f::Formula, fr::AbstractDataFrame; dofit=true)
     mf = ModelFrame(f, fr); df = mf.df; n = size(df,1)
     
     ## extract random-effects terms and check there is at least one
@@ -37,4 +37,4 @@ function lmer(f::Formula, fr::AbstractDataFrame; dofit=true)
     println(typeof(m))
     dofit ? fit(m) : m
 end
-lmer(ex::Expr, fr::AbstractDataFrame) = lmer(Formula(ex), fr)
+lmm(ex::Expr, fr::AbstractDataFrame) = lmer(Formula(ex), fr)
