@@ -31,10 +31,20 @@ function lmm(f::Formula, fr::AbstractDataFrame; dofit=true)
 
     X = ModelMatrix(mf); rv = convert(Matrix{Ti},vcat(rowval...))
     y = float64(vector(model_response(mf)))
+    local m
                                      # create the appropriate type of LMM object
-#    m = k == 1 && scalar ? LMMScalar1(X.m', vec(rv), vec(Xs[1]), y) :
-    m = LMMGeneral(offset,X,Xs,inds,u,rv,y,lambda)
-    println(typeof(m))
+    if k == 1 && scalar
+        m = LMMScalar1(X.m', vec(rv), vec(Xs[1]), y)
+    else
+        q = offset; p = size(X.m,2); nz = hcat(Xs...)'
+        LambdatZt = CholmodSparse!(convert(Vector{Ti}, [1:size(nz,1):length(nz)+1]),
+                                   vec(copy(rv)), vec(nz), q, n, 0)
+        L = cholfact(LambdatZt,1.,true); pp = invperm(L.Perm + one(Ti))
+        rowvalperm = Ti[pp[rv[i,j]] for i in 1:size(rv,1), j in 1:size(rv,2)]
+
+        m = LMMGeneral{Ti}(L,LambdatZt,cholfact(eye(p)),X,Xs,zeros(p),inds,lambda,
+            zeros(n),vec(rowvalperm),u,y,false,false)
+    end
     dofit ? fit(m) : m
 end
-lmm(ex::Expr, fr::AbstractDataFrame) = lmer(Formula(ex), fr)
+lmm(ex::Expr, fr::AbstractDataFrame) = lmm(Formula(ex), fr)
