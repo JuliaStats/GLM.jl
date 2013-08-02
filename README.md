@@ -197,7 +197,7 @@ julia> deviance(fm3)    # does not agree with the value from R
 
 Typical distributions for use with glm and their canonical link
 functions are
-    Bernoulli (LogitLink)
+     Binomial (LogitLink)
         Gamma (InverseLink)
        Normal (IdentityLink)
       Poisson (LogLink)
