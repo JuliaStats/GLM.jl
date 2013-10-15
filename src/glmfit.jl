@@ -15,7 +15,7 @@ type GlmResp{T<:FP} <: ModResp               # response in a glm model
         if isa(d, Binomial)
             for yy in y; 0. <= yy <= 1. || error("$yy in y is not in [0,1]"); end
         else
-            insupport(d, y) || error("some elements of y are not in the support of d")
+            insupport(d, y) || error("y must be in the support of d")
         end
         n = length(y)
         length(eta) == length(mu) == length(wts) == n || error("mismatched sizes")
