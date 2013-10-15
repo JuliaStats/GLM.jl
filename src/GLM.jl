@@ -5,10 +5,13 @@ module GLM
     using DataFrames, Distributions, NumericExtensions
     using Base.LinAlg.LAPACK: geqrt3!, potrf!, potri!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!, symmetrize!
+    using Stats: StatisticalModel, RegressionModel
 
     import Base: (\), cholfact, cor, scale, show, size
     import Distributions: fit
     import DataFrames: ModelFrame, ModelMatrix, model_response
+    import Stats: coef, coeftable, confint, loglikelihood, nobs, stderr, vcov,
+                  residuals, predict
     import NumericExtensions: evaluate, result_type
 
     export                              # types
@@ -31,9 +34,6 @@ module GLM
         ProbitLink,
                                         # functions
         canonicallink,  # canonical link function for a distribution
-        coef,           # estimated coefficients
-        coeftable,      # coefficients, standard errors, etc.
-        confint,        # confidence intervals on coefficients
         contr_treatment,# treatment contrasts
         delbeta!,       # evaluate the increment in the coefficient vector
         deviance,       # deviance of fitted and observed responses
@@ -56,12 +56,10 @@ module GLM
         nobs,           # total number of observations
         objective,      # the objective function in fitting a model
         predict,        # make predictions
-        residuals,      # extractor for residuals
         sqrtwrkwt,      # square root of the working weights
         stderr,         # standard errors of the coefficients
         updatemu!,      # update the response type from the linear predictor
         var!,           # mutating variance function
-        vcov,           # estimated variance-covariance matrix of coef
         wrkresid!,      # mutating working residuals function
         wrkresid,       # extract the working residuals              
         wrkresp         # working response
@@ -72,7 +70,7 @@ module GLM
 
     abstract LinPred                   # linear predictor in statistical models
     abstract DensePred <: LinPred      # linear predictor with dense X
-    abstract LinPredModel              # model based on a linear predictor
+    abstract LinPredModel <: StatisticalModel # model based on a linear predictor
 
     include("linpred.jl")
     include("lm.jl")

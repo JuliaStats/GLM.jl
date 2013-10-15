@@ -1,7 +1,5 @@
 abstract Link             # Link types define linkfun!, linkinv!, and mueta!
 
-using NumericExtensions.Logistic        # instead of the Logistic distribution
-
 import Base.@math_const
 
 @math_const sqrt2   1.4142135623730950488 sqrt(big(2.))
@@ -47,7 +45,7 @@ for (l, lf, li, mueta) in
     ((:CauchitLink, :CauchLink, :CauchInv, :CauchME),
      (:CloglogLink, :CLgLgLink, :CLgLgInv, :CLgLgME),
      (:InverseLink, :Recip, :Recip, :InvME),
-     (:LogitLink, :Logit, :Logistic, :LogitME),
+     (:LogitLink, :LogitFun, :LogisticFun, :LogitME),
      (:LogLink, :Log, :Exp, :Exp),
      (:ProbitLink, :ProbLink, :ProbInv, :ProbME))
     @eval begin
