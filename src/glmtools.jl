@@ -46,7 +46,7 @@ for (l, lf, li, mueta) in
      (:CloglogLink, :CLgLgLink, :CLgLgInv, :CLgLgME),
      (:InverseLink, :Recip, :Recip, :InvME),
      (:LogitLink, :LogitFun, :LogisticFun, :LogitME),
-     (:LogLink, :Log, :Exp, :Exp),
+     (:LogLink, :LogFun, :ExpFun, :ExpFun),
      (:ProbitLink, :ProbLink, :ProbInv, :ProbME))
     @eval begin
         linkfun!{T<:FP}(::$l,eta::Vector{T},mu::Vector{T}) = map!($lf(),eta,mu)

@@ -23,7 +23,7 @@ type WtResid <: TernaryFunctor end
 evaluate{T<:FP}(::WtResid,wt::T,y::T,mu::T) = (y - mu)*sqrt(wt)
 result_type{T<:FP}(::WtResid,wt::T,y::T,mu::T) = T
 
-deviance(r::LmResp) = length(r.wts) == 0 ? sqdiffsum(r.y, r.mu) : wsqdiffsum(r.wts,r.y,r.mu)
+deviance(r::LmResp) = length(r.wts) == 0 ? sumsqdiff(r.y, r.mu) : wsumsqdiff(r.wts,r.y,r.mu)
 residuals(r::LmResp)= length(r.wts) == 0 ? r.y - r.mu : map(WtResid(),r.wts,r.y,r.mu)
 
 type LmMod <: LinPredModel
