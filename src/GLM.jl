@@ -3,7 +3,7 @@ using DataFrames, Distributions, NumericExtensions
 module GLM
 
     using DataFrames, Distributions, NumericExtensions
-    using Base.LinAlg.LAPACK: geqrt3!, potrf!, potri!, potrs!
+    using Base.LinAlg.LAPACK: potrf!, potri!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!, symmetrize!
     using Stats: StatisticalModel, RegressionModel
 

@@ -1,5 +1,4 @@
 julia 0.2-
 DataFrames 0.3.6-
 Distributions 0.2.0-
-NLopt
 NumericExtensions 0.2.17-
