@@ -1,14 +1,8 @@
 # Linear models (lm's) and generalized linear models (glm's) in Julia
 
+[![Build Status](https://travis-ci.org/JuliaStats/GLM.jl.png)](https://travis-ci.org/JuliaStats/GLM.jl)
+
 ## Installation
-
-This package requires Steve Johnson's
-[NLopt](https://github.com/stevengj/NLopt.jl.git) package for
-Julia. Before installing the `NLopt` package be sure to read the
-installation instructions as it requires you to have installed the
-`nlopt` library of C functions.
-
-Once the `NLopt` package is installed
 
 ```julia
 Pkg.add("GLM")
