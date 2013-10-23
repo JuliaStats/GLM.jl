@@ -69,6 +69,10 @@ end
 
 predict(mm::LmMod, newx::Matrix) =  newx * coef(mm)
 
+function predict(mm::LmMod, xs...)
+    predict(mm, reshape([1.,xs...],1,length(xs)+1))[1]
+end
+
 function confint(obj::LmMod, level::Real)
     hcat(coef(obj),coef(obj)) + stderr(obj) *
     quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
