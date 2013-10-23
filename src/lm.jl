@@ -71,6 +71,10 @@ function predict(mm::LmMod, newx::Matrix)
     newx * coef(mm)
 end
 
+function predict(mm::LmMod, xs...)
+    predict(mm, reshape([1.,xs...],1,length(xs)+1))[1]
+end
+
 function confint(obj::LmMod, level::Real)
     cft = coeftable(obj)
     hcat(coef(obj),coef(obj)) + cft["Std.Error"] *
