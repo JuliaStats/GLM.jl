@@ -10,6 +10,5 @@ eta = ModelMatrix(ModelFrame(Formula(:(~ (x1 + x2 + ss))), df2)).m * beta;
 mu = linkinv!(LogitLink(), similar(eta), eta);
 df2["y"] = float64(rand(n) .< mu); df2["eta"] = eta; df2["mu"] = mu;
 head(df2)
-gc()
-gc()
-@time gm6 = glm(:(y ~ x1 + x2 + ss), df2, Binomial(), LogitLink())
+gm6 = glm(:(y ~ x1 + x2 + ss), df2, Binomial(), LogitLink())
+@time glm(:(y ~ x1 + x2 + ss), df2, Binomial(), LogitLink());
