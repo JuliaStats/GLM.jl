@@ -64,7 +64,7 @@ type BernoulliVar <: UnaryFunctor end
 evaluate{T<:FP}(::BernoulliVar,x::T) = x * (one(T) - x)
 
 var!{T<:FP}(::Binomial,v::Vector{T},mu::Vector{T}) = map!(BernoulliVar(),v,mu)
-var!{T<:FP}(::Gamma,v::Vector{T},mu::Vector{T}) = map!(Abs2(),v,mu)
+var!{T<:FP}(::Gamma,v::Vector{T},mu::Vector{T}) = map!(Abs2Fun(),v,mu)
 var!{T<:FP}(::Normal,v::Vector{T},mu::Vector{T}) = fill!(v,one(T))
 var!{T<:FP}(::Poisson,v::Vector{T},mu::Vector{T}) = copy!(v,mu)
 
