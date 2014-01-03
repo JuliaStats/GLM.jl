@@ -12,7 +12,7 @@ module GLM
     import DataFrames: ModelFrame, ModelMatrix, model_response
     import Stats: coef, coeftable, confint, loglikelihood, nobs, stderr, vcov,
                   residuals, predict
-    import NumericExtensions: evaluate, result_type
+    import NumericExtensions: evaluate, result_type, UnaryFunctor, BinaryFunctor, TernaryFunctor
 
     export                              # types
         CauchitLink,
