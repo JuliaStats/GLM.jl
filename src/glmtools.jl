@@ -13,27 +13,27 @@ type LogitLink <: Link end
 type LogLink <: Link end
 type ProbitLink <: Link end
 
-type CauchLink <: UnaryFunctor end
+type CauchLink <: Functor{1} end
 evaluate{T<:FP}(::CauchLink,x::T) = tan(pi*(x - convert(T,0.5)))
-type CauchInv <: UnaryFunctor end
+type CauchInv <: Functor{1} end
 evaluate{T<:FP}(::CauchInv,x::T) = convert(T,0.5) + atan(x)/pi
-type CauchME <: UnaryFunctor end
+type CauchME <: Functor{1} end
 evaluate{T<:FP}(::CauchME,x::T) = one(T)/(pi*(one(T) + abs2(x)))
-type CLgLgLink <: UnaryFunctor end
+type CLgLgLink <: Functor{1} end
 evaluate{T<:FP}(::CLgLgLink,x::T) = log(-log(one(T) - x))
-type CLgLgInv <: UnaryFunctor end
+type CLgLgInv <: Functor{1} end
 evaluate{T<:FP}(::CLgLgInv,x::T) = -expm1(-exp(x))
-type CLgLgME <: UnaryFunctor end
+type CLgLgME <: Functor{1} end
 evaluate{T<:FP}(::CLgLgME,x::T) = exp(x)*exp(-exp(x))
-type InvME <: UnaryFunctor end
+type InvME <: Functor{1} end
 evaluate{T<:FP}(::InvME,x::T) = -one(T)/abs2(x)
-type LogitME <: UnaryFunctor end
+type LogitME <: Functor{1} end
 evaluate{T<:FP}(::LogitME,x::T) = (e = exp(-abs(x)); f = one(T) + e; e / (f * f))
-type ProbLink <: UnaryFunctor end
+type ProbLink <: Functor{1} end
 evaluate{T<:FP}(::ProbLink,x::T) = sqrt2*erfinv(convert(T,2.0)*x-one(T))
-type ProbInv <: UnaryFunctor end
+type ProbInv <: Functor{1} end
 evaluate{T<:FP}(::ProbInv,x::T) = (one(T) + erf(x/sqrt2))/convert(T,2.0)
-type ProbME <: UnaryFunctor end
+type ProbME <: Functor{1} end
 evaluate{T<:FP}(::ProbME,x::T) = exp(-x*x/convert(T,2.0))/sqrt2pi
 
                                         # IdentityLink is a special case - nothing to map
@@ -60,7 +60,7 @@ canonicallink(::Normal) = IdentityLink()
 canonicallink(::Binomial) = LogitLink()
 canonicallink(::Poisson) = LogLink()
 
-type BernoulliVar <: UnaryFunctor end
+type BernoulliVar <: Functor{1} end
 evaluate{T<:FP}(::BernoulliVar,x::T) = x * (one(T) - x)
 
 var!{T<:FP}(::Binomial,v::Vector{T},mu::Vector{T}) = map!(BernoulliVar(),v,mu)
@@ -68,7 +68,7 @@ var!{T<:FP}(::Gamma,v::Vector{T},mu::Vector{T}) = map!(Abs2Fun(),v,mu)
 var!{T<:FP}(::Normal,v::Vector{T},mu::Vector{T}) = fill!(v,one(T))
 var!{T<:FP}(::Poisson,v::Vector{T},mu::Vector{T}) = copy!(v,mu)
 
-type BinomialMuStart <: BinaryFunctor end
+type BinomialMuStart <: Functor{2} end
 evaluate{T<:FP}(::BinomialMuStart,y::T,w::T) = (w*y + convert(T,0.5))/(w + one(T))
 result_type{T<:FP}(::BinomialMuStart,::Type{T},::Type{T}) = T
 
@@ -87,14 +87,14 @@ for Op in [:BernoulliVar,
 end
 
 
-type BinomialDevResid <: TernaryFunctor end
+type BinomialDevResid <: Functor{3} end
 function evaluate{T<:FP}(::BinomialDevResid,y::T,mu::T,wt::T)
     omy = one(T)-y
     2.wt*(xlogy(y,y/mu) + xlogy(omy,omy/(one(T)-mu)))
 end
 result_type{T<:FP}(::BinomialDevResid,::Type{T},::Type{T},::Type{T}) = T
 
-type PoissonDevResid <: TernaryFunctor end
+type PoissonDevResid <: Functor{3} end
 evaluate{T<:FP}(::PoissonDevResid,y::T,mu::T,wt::T) = 2.wt * (xlogy(y,y/mu) - (y - mu))
 result_type{T<:FP}(::PoissonDevResid,::Type{T},::Type{T},::Type{T}) = T
 

@@ -19,7 +19,7 @@ function updatemu!{T<:FP}(r::LmResp{T}, linPr::Vector{T})
 end
 updatemu!{T<:FP}(r::LmResp{T}, linPr) = updatemu!(r, convert(Vector{T},vec(linPr)))
 
-type WtResid <: TernaryFunctor end
+type WtResid <: Functor{3} end
 evaluate{T<:FP}(::WtResid,wt::T,y::T,mu::T) = (y - mu)*sqrt(wt)
 result_type{T<:FP}(::WtResid,wt::T,y::T,mu::T) = T
 
