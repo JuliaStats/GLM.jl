@@ -5,12 +5,12 @@ module GLM
     using DataFrames, Distributions, NumericExtensions
     using Base.LinAlg.LAPACK: potrf!, potri!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!, symmetrize!
-    using Stats: StatisticalModel, RegressionModel
+    using StatsBase: StatisticalModel, RegressionModel
 
     import Base: (\), cholfact, cor, scale, show, size
     import Distributions: fit
     import DataFrames: ModelFrame, ModelMatrix, model_response
-    import Stats: coef, coeftable, confint, loglikelihood, nobs, stderr, vcov,
+    import StatsBase: coef, coeftable, confint, loglikelihood, nobs, stderr, vcov,
                   residuals, predict
     import NumericExtensions: evaluate, result_type, UnaryFunctor, BinaryFunctor, TernaryFunctor
 
