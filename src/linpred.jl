@@ -62,7 +62,7 @@ df_residual(x::DensePred) = size(x.X, 1) - length(x.beta0)
     
 vcov(x::LinPredModel) = scale(x,true) * vcov(x.pp)
 vcov(x::DensePredChol) = inv(x.chol)
-vcov(x::DensePredQR) = symmetrize!(potri!('U', x.qr[:R]))
+vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
 
 stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
 

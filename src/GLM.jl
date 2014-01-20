@@ -4,7 +4,8 @@ module GLM
 
     using DataFrames, Distributions, NumericExtensions
     using Base.LinAlg.LAPACK: potrf!, potri!, potrs!
-    using Base.LinAlg.BLAS: gemm!, gemv!, symmetrize!
+    using Base.LinAlg.BLAS: gemm!, gemv!
+    using Base.LinAlg: copytri!
     using StatsBase: StatisticalModel, RegressionModel
 
     import Base: (\), cholfact, cor, scale, show, size
