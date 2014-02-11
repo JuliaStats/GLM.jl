@@ -71,14 +71,13 @@ function coeftable(mm::GlmMod)
     cc = coef(mm)
     se = stderr(mm)
     zz = cc ./ se
-    DataFrame({cc, se, zz, 2.0 * ccdf(Normal(), abs(zz))},
-              ["Estimate","Std.Error","z value", "Pr(>|z|)"])
+    CoefTable(DataFrame({cc, se, zz, 2.0 * ccdf(Normal(), abs(zz))},
+                        ["Estimate","Std.Error","z value", "Pr(>|z|)"]),
+              coefnames(mm.fr), 4)
 end
 
 function confint(obj::GlmMod, level::Real)
-    cft = coeftable(obj)
-    hcat(coef(obj),coef(obj)) + cft["Std.Error"] *
-    quantile(Normal(), (1. - level)/2.) * [1. -1.]
+    hcat(coef(obj),coef(obj)) + stderror(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
 end
 confint(obj::GlmMod) = confint(obj, 0.95)
         

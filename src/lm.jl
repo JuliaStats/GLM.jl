@@ -63,17 +63,15 @@ function coeftable(mm::LmMod)
     cc = coef(mm)
     se = stderr(mm)
     tt = cc ./ se
-    DataFrame({cc, se, tt, ccdf(FDist(1, df_residual(mm)), tt .* tt)},
-              ["Estimate","Std.Error","t value", "Pr(>|t|)"])
+    CoefTable(DataFrame({cc, se, tt, ccdf(FDist(1, df_residual(mm)), abs2(tt))},
+                        ["Estimate","Std.Error","t value", "Pr(>|t|)"]),
+              coefnames(mm.fr), 4)
 end
 
-function predict(mm::LmMod, newx::Matrix)
-    newx * coef(mm)
-end
+predict(mm::LmMod, newx::Matrix) =  newx * coef(mm)
 
 function confint(obj::LmMod, level::Real)
-    cft = coeftable(obj)
-    hcat(coef(obj),coef(obj)) + cft["Std.Error"] *
+    hcat(coef(obj),coef(obj)) + stderror(obj) *
     quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
 confint(obj::LmMod) = confint(obj, 0.95)
