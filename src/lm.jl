@@ -60,11 +60,12 @@ end
 
 
 function coeftable(mm::LmMod)
+    vnames = coefnames(mm.fr)
     cc = coef(mm)
     se = stderr(mm)
     tt = cc ./ se
-    DataFrame({cc, se, tt, ccdf(FDist(1, df_residual(mm)), tt .* tt)},
-              ["Estimate","Std.Error","t value", "Pr(>|t|)"])
+    DataFrame({vnames, cc, se, tt, ccdf(FDist(1, df_residual(mm)), tt .* tt)},
+              ["Term","Estimate","Std.Error","t value", "Pr(>|t|)"])
 end
 
 function predict(mm::LmMod, newx::Matrix)

@@ -68,11 +68,12 @@ type GlmMod <: LinPredModel
 end
 
 function coeftable(mm::GlmMod)
+    vnames = coefnames(mm.fr)
     cc = coef(mm)
     se = stderr(mm)
     zz = cc ./ se
-    DataFrame({cc, se, zz, 2.0 * ccdf(Normal(), abs(zz))},
-              ["Estimate","Std.Error","z value", "Pr(>|z|)"])
+    DataFrame({vnames, cc, se, zz, 2.0 * ccdf(Normal(), abs(zz))},
+              ["Term","Estimate","Std.Error","z value", "Pr(>|z|)"])
 end
 
 function confint(obj::GlmMod, level::Real)
