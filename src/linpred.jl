@@ -16,7 +16,7 @@ type DensePredQR{T<:BlasReal} <: DensePred
     X::ModelMatrix{T}             # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
-    qr::QR{T}
+    qr::QRCompactWY{T}
     function DensePredQR(X::ModelMatrix{T}, beta0::Vector{T})
         n,p = size(X); length(beta0) == p || error("dimension mismatch")
         new(X, beta0, zeros(T,p), qrfact(X.m))

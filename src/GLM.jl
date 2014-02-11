@@ -9,6 +9,7 @@ module GLM
     using StatsBase: StatisticalModel, RegressionModel
 
     import Base: (\), cholfact, cor, scale, show, size
+    import Base.LinAlg: QRCompactWY
     import Distributions: fit
     import DataFrames: ModelFrame, ModelMatrix, model_response
     import StatsBase: coef, coeftable, confint, loglikelihood, nobs, stderr, vcov,
