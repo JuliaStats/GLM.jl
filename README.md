@@ -41,24 +41,27 @@ The corresponding model with the `GLM` package is
 julia> using RDatasets, GLM
 
 julia> form = data("datasets", "Formaldehyde")
-6x2 DataFrame:
-        carb optden
-[1,]     0.1  0.086
-[2,]     0.3  0.269
-[3,]     0.5  0.446
-[4,]     0.6  0.538
-[5,]     0.7  0.626
-[6,]     0.9  0.782
+6x2 DataFrame
+|-------|------|--------|
+| Row # | Carb | OptDen |
+| 1     | 0.1  | 0.086  |
+| 2     | 0.3  | 0.269  |
+| 3     | 0.5  | 0.446  |
+| 4     | 0.6  | 0.538  |
+| 5     | 0.7  | 0.626  |
+| 6     | 0.9  | 0.782  |
 
-julia> fm1 = lm(:(optden ~ carb), form)
+julia> fm1 = lm(OptDen ~ Carb, form)
 
-Formula: optden ~ carb
+Formula: OptDen ~ Carb
 
 Coefficients:
-2x4 DataFrame:
-          Estimate  Std.Error  t value   Pr(>|t|)
-[1,]    0.00508571 0.00783368 0.649211   0.551595
-[2,]      0.876286  0.0135345  64.7444 3.40919e-7
+
+2x4 DataFrame
+|-------|------------|------------|----------|------------|
+| Row # | Estimate   | Std.Error  | t value  | Pr(>|t|)   |
+| 1     | 0.00508571 | 0.00783368 | 0.649211 | 0.551595   |
+| 2     | 0.876286   | 0.0135345  | 64.7444  | 3.40919e-7 |
 
 julia> confint(fm1)
 2x2 Float64 Array:
@@ -78,21 +81,43 @@ ddpi         0.4096949279 0.1961971276  2.0881801 0.0424711387
 ```
 with the corresponding Julia code
 ```julia
-julia> LifeCycleSavings = data("datasets", "LifeCycleSavings");
+julia> LifeCycleSavings = data("datasets", "LifeCycleSavings")
+50x6 DataFrame
+|-------|----------------|-------|-------|-------|---------|-------|
+| Row # | Country        | SR    | Pop15 | Pop75 | DPI     | DDPI  |
+| 1     | Australia      | 11.43 | 29.35 | 2.87  | 2329.68 | 2.87  |
+| 2     | Austria        | 12.07 | 23.32 | 4.41  | 1507.99 | 3.93  |
+| 3     | Belgium        | 13.17 | 23.8  | 4.43  | 2108.47 | 3.82  |
+| 4     | Bolivia        | 5.75  | 41.89 | 1.67  | 189.13  | 0.22  |
+| 5     | Brazil         | 12.88 | 42.19 | 0.83  | 728.47  | 4.56  |
+| 6     | Canada         | 8.79  | 31.72 | 2.85  | 2982.88 | 2.43  |
+| 7     | Chile          | 0.6   | 39.74 | 1.34  | 662.86  | 2.67  |
+| 8     | China          | 11.9  | 44.75 | 0.67  | 289.52  | 6.51  |
+⋮
+| 42    | Tunisia        | 2.81  | 46.12 | 1.21  | 249.87  | 1.13  |
+| 43    | United Kingdom | 7.81  | 23.27 | 4.46  | 1813.93 | 2.01  |
+| 44    | United States  | 7.56  | 29.81 | 3.43  | 4001.89 | 2.45  |
+| 45    | Venezuela      | 9.22  | 46.4  | 0.9   | 813.39  | 0.53  |
+| 46    | Zambia         | 18.56 | 45.25 | 0.56  | 138.33  | 5.14  |
+| 47    | Jamaica        | 7.72  | 41.12 | 1.73  | 380.47  | 10.23 |
+| 48    | Uruguay        | 9.24  | 28.13 | 2.72  | 766.54  | 1.88  |
+| 49    | Libya          | 8.89  | 43.69 | 2.07  | 123.58  | 16.71 |
+| 50    | Malaysia       | 4.71  | 47.2  | 0.66  | 242.69  | 5.08  |
 
-julia> fm2 = lm(:(sr ~ pop15 + pop75 + dpi + ddpi), LifeCycleSavings)
+julia> fm2 = lm(SR ~ Pop15 + Pop75 + DPI + DDPI, LifeCycleSavings)
 
-Formula: sr ~ :(+(pop15,pop75,dpi,ddpi))
+Formula: SR ~ :(+(Pop15,Pop75,DPI,DDPI))
 
 Coefficients:
-5x4 DataFrame:
-            Estimate   Std.Error   t value    Pr(>|t|)
-[1,]         28.5661     7.35452   3.88416 0.000333825
-[2,]       -0.461193    0.144642  -3.18851  0.00260302
-[3,]         -1.6915      1.0836    -1.561     0.12553
-[4,]    -0.000336902 0.000931107 -0.361829    0.719173
-[5,]        0.409695    0.196197   2.08818   0.0424711
 
+5x4 DataFrame
+|-------|--------------|-------------|-----------|-------------|
+| Row # | Estimate     | Std.Error   | t value   | Pr(>|t|)    |
+| 1     | 28.5661      | 7.35452     | 3.88416   | 0.000333825 |
+| 2     | -0.461193    | 0.144642    | -3.18851  | 0.00260302  |
+| 3     | -1.6915      | 1.0836      | -1.561    | 0.12553     |
+| 4     | -0.000336902 | 0.000931107 | -0.361829 | 0.719173    |
+| 5     | 0.409695     | 0.196197    | 2.08818   | 0.0424711   |
 ```
 
 The `glm` function works similarly to the corresponding R function
@@ -167,35 +192,39 @@ Number of Fisher Scoring iterations: 4
 ```
 In Julia this becomes
 ```julia
-julia> dobson = DataFrame({[18.,17,15,20,10,20,25,13,12], gl(3,1,9), gl(3,3)},
-                                 ["counts","outcome","treatment"])
-9x3 DataFrame:
-        counts outcome treatment
-[1,]      18.0       1         1
-[2,]      17.0       2         1
-[3,]      15.0       3         1
-[4,]      20.0       1         2
-[5,]      10.0       2         2
-[6,]      20.0       3         2
-[7,]      25.0       1         3
-[8,]      13.0       2         3
-[9,]      12.0       3         3
+julia> dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
+                          Outcome = gl(3,1,9),
+                          Treatment = gl(3,3))
+9x3 DataFrame
+|-------|--------|---------|-----------|
+| Row # | Counts | Outcome | Treatment |
+| 1     | 18.0   | 1       | 1         |
+| 2     | 17.0   | 2       | 1         |
+| 3     | 15.0   | 3       | 1         |
+| 4     | 20.0   | 1       | 2         |
+| 5     | 10.0   | 2       | 2         |
+| 6     | 20.0   | 3       | 2         |
+| 7     | 25.0   | 1       | 3         |
+| 8     | 13.0   | 2       | 3         |
+| 9     | 12.0   | 3       | 3         |
 
+julia> fm3 = glm(Counts ~ Outcome + Treatment, dobson, Poisson())
 
-julia> fm3 = glm(:(counts ~ outcome + treatment), dobson, Poisson())
-Formula: counts ~ :(+(outcome,treatment))
+Formula: Counts ~ :(+(Outcome,Treatment))
 
 Coefficients:
-5x4 DataFrame:
-          Estimate Std.Error    z value    Pr(>|z|)
-[1,]       3.04452  0.170893    17.8153 5.37376e-71
-[2,]     -0.454255  0.202152    -2.2471   0.0246337
-[3,]     -0.292987  0.192728   -1.52021    0.128457
-[4,]    1.92349e-8  0.199983 9.61826e-8         1.0
-[5,]    8.38339e-9  0.199986 4.19198e-8         1.0
 
-julia> deviance(fm3)    # does not agree with the value from R
-46.76131840195778
+5x4 DataFrame
+|-------|--------------|-----------|-------------|-------------|
+| Row # | Estimate     | Std.Error | z value     | Pr(>|z|)    |
+| 1     | 3.04452      | 0.170899  | 17.8148     | 5.42677e-71 |
+| 2     | -0.454255    | 0.202171  | -2.24689    | 0.0246471   |
+| 3     | -0.292987    | 0.192742  | -1.5201     | 0.128487    |
+| 4     | 2.62621e-16  | 0.2       | 1.3131e-15  | 1.0         |
+| 5     | -5.44239e-18 | 0.2       | -2.7212e-17 | 1.0         |
+
+julia> deviance(fm3)
+5.129141077001146
 ```
 
 Typical distributions for use with glm and their canonical link
@@ -270,7 +299,7 @@ the `Dyestuff` data.
 
 ```R
 > str(Dyestuff)
-'data.frame':	30 obs. of  2 variables:
+'data.frame':   30 obs. of  2 variables:
  $ Batch: Factor w/ 6 levels "A","B","C","D",..: 1 1 1 1 1 2 2 2 2 2 ...
  $ Yield: num  1545 1440 1440 1520 1580 ...
 > (fm1 <- lmer(Yield ~ 1|Batch, Dyestuff, REML=FALSE))
