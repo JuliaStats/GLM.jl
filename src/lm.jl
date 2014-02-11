@@ -72,7 +72,7 @@ function predict(mm::LmMod, newx::Matrix)
 end
 
 function predict(mm::LmMod, xs...)
-    predict(mm, reshape([1.,xs...],1,length(xs)+1))[1]
+    predict(mm, transpose([1.,xs...]))[1]
 end
 
 function confint(obj::LmMod, level::Real)
