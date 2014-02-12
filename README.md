@@ -40,7 +40,7 @@ The corresponding model with the `GLM` package is
 ```julia
 julia> using RDatasets, GLM
 
-julia> form = data("datasets", "Formaldehyde")
+julia> form = dataset("datasets", "Formaldehyde")
 6x2 DataFrame
 |-------|------|--------|
 | Row # | Carb | OptDen |
@@ -81,7 +81,7 @@ ddpi         0.4096949279 0.1961971276  2.0881801 0.0424711387
 ```
 with the corresponding Julia code
 ```julia
-julia> LifeCycleSavings = data("datasets", "LifeCycleSavings")
+julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
 50x6 DataFrame
 |-------|----------------|-------|-------|-------|---------|-------|
 | Row # | Country        | SR    | Pop15 | Pop75 | DPI     | DDPI  |
@@ -325,7 +325,7 @@ These `Dyestuff` data are available in the `RDatasets` package for `julia`
 ```julia
 julia> using MixedModels, RDatasets
 
-julia> ds = data("lme4","Dyestuff");
+julia> ds = dataset("lme4","Dyestuff");
 
 julia> dump(ds)
 DataFrame  30 observations of 2 variables
@@ -412,7 +412,7 @@ nearly 75,000 evaluations by 2972 students on a total of 1128
 instructors.
 
 ```julia
-julia> inst = data("lme4","InstEval");
+julia> inst = dataset("lme4","InstEval");
 
 julia> dump(inst)
 DataFrame  73421 observations of 7 variables
@@ -468,7 +468,7 @@ Linear mixed model fit by maximum likelihood
 
 Models with vector-valued random effects can be fit
 ```julia
-julia> sleep = data("lme4","sleepstudy");
+julia> sleep = dataset("lme4","sleepstudy");
 
 julia> dump(sleep)
 DataFrame  180 observations of 3 variables
