@@ -77,7 +77,7 @@ function coeftable(mm::GlmMod)
 end
 
 function confint(obj::GlmMod, level::Real)
-    hcat(coef(obj),coef(obj)) + stderror(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
+    hcat(coef(obj),coef(obj)) + stderr(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
 end
 confint(obj::GlmMod) = confint(obj, 0.95)
         

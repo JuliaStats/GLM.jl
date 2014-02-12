@@ -26,49 +26,49 @@ representation that inherits from :class:`LmMod`.  The abstract
 
     julia> using GLM, RDatasets
 
-    julia> form = data("datasets", "Formaldehyde")
-    6x2 DataFrame:
-	    carb optden
-    [1,]     0.1  0.086
-    [2,]     0.3  0.269
-    [3,]     0.5  0.446
-    [4,]     0.6  0.538
-    [5,]     0.7  0.626
-    [6,]     0.9  0.782
+    julia> form = dataset("datasets", "Formaldehyde")
+    6x2 DataFrame
+    |-------|------|--------|
+    | Row # | Carb | OptDen |
+    | 1     | 0.1  | 0.086  |
+    | 2     | 0.3  | 0.269  |
+    | 3     | 0.5  | 0.446  |
+    | 4     | 0.6  | 0.538  |
+    | 5     | 0.7  | 0.626  |
+    | 6     | 0.9  | 0.782  |
 
-
-    julia> lm1 = lm(:(optden ~ carb), form)
-
-    Formula: optden ~ carb
+    julia> lm1 = lm(OptDen ~ Carb, form)
+    Formula: OptDen ~ Carb
 
     Coefficients:
+		   Estimate  Std.Error  t value Pr(>|t|)
+    (Intercept)  0.00508571 0.00783368 0.649211   0.5516
+    Carb           0.876286  0.0135345  64.7444   3.4e-7
 
-    2x4 DataFrame:
-	      Estimate  Std.Error  t value   Pr(>|t|)
-    [1,]    0.00508571 0.00783368 0.649211   0.551595
-    [2,]      0.876286  0.0135345  64.7444 3.40919e-7
+    julia> dobson = DataFrame(counts=[18.,17,15,20,10,20,25,13,12], outcome=gl(3,1,9), treatment=gl(3,3))
+    9x3 DataFrame
+    |-------|--------|---------|-----------|
+    | Row # | counts | outcome | treatment |
+    | 1     | 18.0   | 1       | 1         |
+    | 2     | 17.0   | 2       | 1         |
+    | 3     | 15.0   | 3       | 1         |
+    | 4     | 20.0   | 1       | 2         |
+    | 5     | 10.0   | 2       | 2         |
+    | 6     | 20.0   | 3       | 2         |
+    | 7     | 25.0   | 1       | 3         |
+    | 8     | 13.0   | 2       | 3         |
+    | 9     | 12.0   | 3       | 3         |
 
-    julia> dobson = DataFrame(counts=[18.,17,15,20,10,20,25,13,12], outcome=gl(3,1,9), treatment=gl(3,3));
-
-    julia> dump(dobson)
-    DataFrame  9 observations of 3 variables
-      counts: DataArray{Float64,1}(9) [18.0,17.0,15.0,20.0]
-      outcome: PooledDataArray{Int64,Uint8,1}(9) [1,2,3,1]
-      treatment: PooledDataArray{Int64,Uint8,1}(9) [1,1,1,2]
-
-    julia> gm1 = glm(:(counts ~ outcome + treatment), dobson, Poisson())
-
+    julia> gm1 = glm(counts ~ outcome + treatment, dobson, Poisson())
     Formula: counts ~ :(+(outcome,treatment))
 
     Coefficients:
-
-    5x4 DataFrame:
-		Estimate Std.Error      z value    Pr(>|z|)
-    [1,]         3.04452  0.170899      17.8148 5.42677e-71
-    [2,]       -0.454255  0.202171     -2.24689   0.0246471
-    [3,]       -0.292987  0.192742      -1.5201    0.128487
-    [4,]     5.36273e-16       0.2  2.68137e-15         1.0
-    [5,]    -5.07534e-17       0.2 -2.53767e-16         1.0
+		       Estimate Std.Error      z value Pr(>|z|)
+    (Intercept)         3.04452  0.170899      17.8148  < eps()
+    outcome - 2       -0.454255  0.202171     -2.24689   0.0246
+    outcome - 3       -0.292987  0.192742      -1.5201   0.1285
+    treatment - 2   5.36273e-16       0.2  2.68137e-15      1.0
+    treatment - 3  -5.07534e-17       0.2 -2.53767e-16      1.0
 
 ------------
 Constructors
@@ -77,18 +77,13 @@ Constructors
 .. function:: lm(f, fr)
 
    Create the representation for a linear regression model with
-   formula ``f`` evaluated in the :type:`DataFrame` ``fr``.  The
-   primary method is for ``f`` of type :type:`Formula` but more
-   commonly ``f`` is an expression (:type:`Expr`) as in the example
-   above.
+   formula ``f`` evaluated in the :type:`DataFrame` ``fr``.
 
 .. function:: glm(f, fr, d[, l])
 
    Create the representation for a linear regression model with
    formula ``f`` evaluated in the :type:`DataFrame` ``fr`` with
-   distribution ``d`` and, optionally, link ``l``.  The primary method is
-   for ``f`` of type :type:`Formula` but more commonly ``f`` is an
-   expression (:type:`Expr`) as in the example above.  If ``l`` is
+   distribution ``d`` and, optionally, link ``l``.  If ``l`` is
    omitted the canonical link for ``d`` is used.
 
 ----------

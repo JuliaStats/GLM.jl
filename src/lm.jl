@@ -58,7 +58,6 @@ function scale(x::LmMod, sqr::Bool=false)
     sqr ? ssqr : sqrt(ssqr)
 end
 
-
 function coeftable(mm::LmMod)
     cc = coef(mm)
     se = stderr(mm)
@@ -71,7 +70,7 @@ end
 predict(mm::LmMod, newx::Matrix) =  newx * coef(mm)
 
 function confint(obj::LmMod, level::Real)
-    hcat(coef(obj),coef(obj)) + stderror(obj) *
+    hcat(coef(obj),coef(obj)) + stderr(obj) *
     quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
 confint(obj::LmMod) = confint(obj, 0.95)

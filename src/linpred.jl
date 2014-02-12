@@ -67,8 +67,8 @@ vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
 stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
-    println(io, "\n$(obj.ff)\n\nCoefficients:\n")
-    println(io, coeftable(obj))
+    println(io, "$(obj.ff)\n\nCoefficients:")
+    print(io, coeftable(obj))
 end
 
 ## function show(io::IO, obj::GlmMod)

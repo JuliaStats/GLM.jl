@@ -6,9 +6,10 @@ form = DataFrame(Carb=[0.1,0.3,0.5,0.6,0.7,0.9],OptDen=[0.086,0.269,0.446,0.538,
 lm1 = lm(OptDen ~ Carb, form)
 @test_approx_eq coef(lm1) linreg(convert(Array,form[:Carb]),convert(Array,form[:OptDen]))
 
-dobson = DataFrame(counts=[18.,17,15,20,10,20,25,13,12], outcome=gl(3,1,9), treatment=gl(3,3))
-gm1 = glm(counts ~ outcome + treatment, dobson, Poisson());
+dobson = DataFrame(Counts=[18.,17,15,20,10,20,25,13,12], Outcome=gl(3,1,9), Treatment=gl(3,3))
+gm1 = glm(Counts ~ Outcome + Treatment, dobson, Poisson());
 @test_approx_eq deviance(gm1) 5.12914107700115
+@test_approx_eq coef(gm1)[1:3] [3.044522437723423,-0.45425527227759555,-0.29298712468147375]
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
 nm = download("http://www.ats.ucla.edu/stat/data/binary.csv", tempname())
