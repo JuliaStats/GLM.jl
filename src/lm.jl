@@ -70,7 +70,11 @@ end
 predict(mm::LmMod, newx::Matrix) =  newx * coef(mm)
 
 function predict(mm::LmMod, xs...)
-    predict(mm, transpose([1.,xs...]))[1]
+    if mm.fr.terms.intercept
+        return predict(mm, transpose([1.,xs...]))[1]
+    else
+        return predict(mm, transpose([xs...]))[1]
+    end
 end
 
 function confint(obj::LmMod, level::Real)
