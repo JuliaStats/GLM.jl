@@ -29,7 +29,7 @@ Many of the methods provided by this package have names similar to those in R.
 
 
 An example of a simple linear model in `R` is
-```R
+```s
 > coef(summary(lm(optden ~ carb, Formaldehyde)))
                Estimate  Std. Error    t value     Pr(>|t|)
 (Intercept) 0.005085714 0.007833679  0.6492115 5.515953e-01
@@ -65,7 +65,7 @@ julia> confint(lm1)
 ```
 
 A more complex example in `R` is
-```R
+```s
 > coef(summary(lm(sr ~ pop15 + pop75 + dpi + ddpi, LifeCycleSavings)))
                  Estimate   Std. Error    t value     Pr(>|t|)
 (Intercept) 28.5660865407 7.3545161062  3.8841558 0.0003338249
@@ -116,7 +116,7 @@ DDPI             0.409695    0.196197   2.08818   0.0425
 The `glm` function works similarly to the corresponding R function
 except that the `family` argument is replaced by a `Distribution` type
 and, optionally, a `Link` type.  The first example from `?glm` in R is
-```R
+```s
 glm> ## Dobson (1990) Page 93: Randomized Controlled Trial :
 glm> counts <- c(18,17,15,20,10,20,25,13,12)
 
