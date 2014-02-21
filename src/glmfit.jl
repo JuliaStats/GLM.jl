@@ -60,9 +60,9 @@ function wrkresp(r::GlmResp)
     map(Add(), r.eta, r.wrkresid)
 end
 
-function wrkwt(r::GlmResp)
-    length(r.wts) == 0 && return [r.mueta[i] * r.mueta[i]/r.var[i] for i in 1:length(r.var)]
-    [r.wts[i] * r.mueta[i] * r.mueta[i]/r.var[i] for i in 1:length(r.var)]
+function wrkwt{T<:FP}(r::GlmResp{T})
+    length(r.wts) == 0 && return [(r.mueta[i] * r.mueta[i]/r.var[i])::T for i in 1:length(r.var)]
+    [(r.wts[i] * r.mueta[i] * r.mueta[i]/r.var[i])::T for i in 1:length(r.var)]
 end
 
 type GlmMod <: LinPredModel
