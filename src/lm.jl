@@ -33,6 +33,8 @@ type LmMod <: LinPredModel
     ff::Formula
 end
 
+cholfact(x::LmMod) = cholfact(x.pp)
+
 function lm(f::Formula, df::AbstractDataFrame)
     mf = ModelFrame(f, df); mm = ModelMatrix(mf)
     rr = LmResp(model_response(mf)); pp = DensePredQR(mm)

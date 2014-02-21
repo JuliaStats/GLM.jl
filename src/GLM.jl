@@ -3,18 +3,17 @@ using DataFrames, Distributions, NumericExtensions
 module GLM
 
     using DataFrames, Distributions, NumericExtensions
-    using Base.LinAlg.LAPACK: potrf!, potri!, potrs!
+    using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
-    using Base.LinAlg: copytri!
+    using Base.LinAlg: QRCompactWY
     using StatsBase: CoefTable, StatisticalModel, RegressionModel
 
     import Base: (\), cholfact, cor, scale, show, size
-    import Base.LinAlg: QRCompactWY
     import Distributions: fit
     import DataFrames: ModelFrame, ModelMatrix, model_response
     import StatsBase: coef, coeftable, confint, loglikelihood, nobs, stderr, vcov,
                   residuals, predict
-    import NumericExtensions: evaluate, result_type, UnaryFunctor, BinaryFunctor, TernaryFunctor
+    import NumericExtensions: evaluate, result_type
 
     export                              # types
         CauchitLink,

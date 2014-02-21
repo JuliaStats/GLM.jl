@@ -24,6 +24,8 @@ type DensePredQR{T<:BlasReal} <: DensePred
 end
 DensePredQR{T<:BlasReal}(X::ModelMatrix{T}) = DensePredQR{T}(X, zeros(T,size(X,2)))
 
+cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T}(p.qr[:R],'U')
+
 delbeta!{T<:BlasReal}(p::DensePredQR{T}, r::Vector{T}) = (p.delbeta = p.qr\r; p)
               
 type DensePredChol{T<:BlasReal} <: DensePred
@@ -39,6 +41,8 @@ end
 DensePredChol{T<:BlasReal}(X::ModelMatrix{T}) = DensePredChol{T}(X, zeros(T,size(X,2)))
 
 solve!{T<:BlasReal}(C::Cholesky{T}, B::StridedVecOrMat{T}) = potrs!(C.uplo, C.UL, B)
+
+cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; Cholesky{T}(copy(c.UL),c.uplo))
 
 function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
     solve!(p.chol, gemv!('T', 1.0, p.X.m, r, 0.0, p.delbeta))
@@ -60,9 +64,11 @@ coef(x::LinPredModel) = coef(x.pp)
 df_residual(x::LinPredModel) = df_residual(x.pp)
 df_residual(x::DensePred) = size(x.X, 1) - length(x.beta0)
     
-vcov(x::LinPredModel) = scale(x,true) * vcov(x.pp)
-vcov(x::DensePredChol) = inv(x.chol)
-vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
+vcov(x::LinPredModel) = scale(x,true) * inv(cholfact(x.pp))
+#vcov(x::DensePredChol) = inv(x.chol)
+#vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
+
+cor(x::LinPredModel) = (invstd = map(RcpFun(),stderr(x)); scale!(invstd,scale!(vcov(x),invstd)))
 
 stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
 
