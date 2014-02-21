@@ -62,8 +62,8 @@ function coeftable(mm::LmMod)
     cc = coef(mm)
     se = stderr(mm)
     tt = cc ./ se
-    CoefTable(DataFrame({cc, se, tt, ccdf(FDist(1, df_residual(mm)), abs2(tt))},
-                        ["Estimate","Std.Error","t value", "Pr(>|t|)"]),
+    CoefTable(hcat(cc,se,tt,ccdf(FDist(1, df_residual(mm)), abs2(tt))),
+              ["Estimate","Std.Error","t value", "Pr(>|t|)"],
               coefnames(mm.fr), 4)
 end
 

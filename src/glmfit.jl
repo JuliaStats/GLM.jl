@@ -1,17 +1,18 @@
 type GlmResp{T<:FP} <: ModResp               # response in a glm model
-    y::Vector{T}                # response
+    y::AbstractVector{T}                # response
     d::UnivariateDistribution
     l::Link
-    devresid::Vector{T}         # (squared) deviance residuals
-    eta::Vector{T}              # linear predictor
-    mu::Vector{T}               # mean response
-    mueta::Vector{T}            # derivative of mu w.r.t. eta
-    offset::Vector{T}           # offset added to linear predictor (usually 0)
-    var::Vector{T}              # (unweighted) variance at current mu
-    wts::Vector{T}              # prior weights
-    wrkresid::Vector{T}         # working residuals
-    function GlmResp(y::Vector{T}, d::Distribution, l::Link, eta::Vector{T},
-                     mu::Vector{T}, off::Vector{T}, wts::Vector{T})
+    devresid::AbstractVector{T}         # (squared) deviance residuals
+    eta::AbstractVector{T}              # linear predictor
+    mu::AbstractVector{T}               # mean response
+    mueta::AbstractVector{T}            # derivative of mu w.r.t. eta
+    offset::AbstractVector{T}           # offset added to linear predictor (usually 0)
+    var::AbstractVector{T}              # (unweighted) variance at current mu
+    wts::AbstractVector{T}              # prior weights
+    wrkresid::AbstractVector{T}         # working residuals
+    function GlmResp(y::AbstractVector{T}, d::UnivariateDistribution, l::Link,
+                     eta::AbstractVector{T}, mu::AbstractVector{T},
+                     off::AbstractVector{T}, wts::AbstractVector{T})
         if isa(d, Binomial)
             for yy in y; 0. <= yy <= 1. || error("$yy in y is not in [0,1]"); end
         else
@@ -20,20 +21,25 @@ type GlmResp{T<:FP} <: ModResp               # response in a glm model
         n = length(y)
         length(eta) == length(mu) == length(wts) == n || error("mismatched sizes")
         lo = length(off); lo == 0 || lo == n || error("offset must have length $n or length 0")
-        res = new(y,d,l,Array(T,n),eta,mu,Array(T,n),off,Array(T,n),wts,Array(T,n))
+        res = new(y,d,l,similar(y),eta,mu,similar(y),off,similar(y),wts,similar(y))
         updatemu!(res, eta)
         res
     end
 end
 
+# returns the sum of the squared deviance residuals
 deviance(r::GlmResp) = sum(r.devresid)
 
+# update the `devresid` field
 devresid!(r::GlmResp) = devresid!(r.d, r.devresid, r.y, r.mu, r.wts)
 
+# apply the link function generating the linear predictor (eta) vector from the mean vector (mu)
 linkfun!(r::GlmResp) = linkfun!(r.l, r.eta, r.mu)
 
+# apply the inverse link function generating the mean vector (mu) from the linear predictor (eta)
 linkinv!(r::GlmResp) = linkinv!(r.l, r.mu, r.eta)
 
+# evaluate the mueta vector (derivative of mu w.r.t. eta) from the linear predictor (eta)
 mueta!(r::GlmResp) = mueta!(r.l, r.mueta, r.eta)
 
 function updatemu!{T<:FP}(r::GlmResp{T}, linPr::Vector{T})
@@ -43,7 +49,7 @@ function updatemu!{T<:FP}(r::GlmResp{T}, linPr::Vector{T})
     sum(r.devresid)
 end
 
-updatemu!{T<:FP}(r::GlmResp{T}, linPr) = updatemu!(r, convert(Vector{T},vec(linPr)))
+updatemu!{T<:FP}(r::GlmResp{T}, linPr) = updatemu!(r, convert(typeof(r.y),vec(linPr)))
 
 var!(r::GlmResp) = var!(r.d, r.var, r.mu)
 
@@ -71,8 +77,8 @@ function coeftable(mm::GlmMod)
     cc = coef(mm)
     se = stderr(mm)
     zz = cc ./ se
-    CoefTable(DataFrame({cc, se, zz, 2.0 * ccdf(Normal(), abs(zz))},
-                        ["Estimate","Std.Error","z value", "Pr(>|z|)"]),
+    CoefTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
+              ["Estimate","Std.Error","z value", "Pr(>|z|)"],
               coefnames(mm.fr), 4)
 end
 
