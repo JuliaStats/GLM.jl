@@ -18,7 +18,7 @@ the results from R.
 
 ## Methods applied to fitted models
 
-Many of the methods provided by this package have names similar to those in R.
+Many of the methods provided by this package have names similar to those in [R](http://www.r-project.org).
 - `coef`: extract the estimates of the coefficients in the model
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
 - `df_residual`: degrees of freedom for residuals, when meaningful
@@ -216,8 +216,9 @@ julia> deviance(gm1)
 5.129141077001149
 ```
 
-Typical distributions for use with glm and their canonical link
+Typical distributions for use with `glm` and their canonical link
 functions are
+
      Binomial (LogitLink)
         Gamma (InverseLink)
        Normal (IdentityLink)
