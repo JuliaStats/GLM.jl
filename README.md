@@ -38,6 +38,8 @@ carb        0.876285714 0.013534536 64.7444207 3.409192e-07
 The corresponding model with the `GLM` package is
 
 ```julia
+julia> using GLM, RDatasets
+
 julia> form = dataset("datasets","Formaldehyde")
 6x2 DataFrame
 |-------|------|--------|
