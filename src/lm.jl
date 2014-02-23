@@ -1,23 +1,23 @@
-type LmResp{T<:FP} <: ModResp  # response in a linear model
-    mu::Vector{T}     # mean response
-    offset::Vector{T} # offset added to linear predictor (may have length 0)
-    wts::Vector{T}    # prior weights (may have length 0)
-    y::Vector{T}      # response
-    function LmResp(mu::Vector{T}, off::Vector{T}, wts::Vector{T}, y::Vector{T})
+type LmResp{V<:FPStoredVector} <: ModResp  # response in a linear model
+    mu::V                                  # mean response
+    offset::V                              # offset added to linear predictor (may have length 0)
+    wts::V                                 # prior weights (may have length 0)
+    y::V                                   # response
+    function LmResp(mu::V, off::V, wts::V, y::V)
         n = length(y); length(mu) == n || error("mismatched lengths of mu and y")
         ll = length(off); ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
         ll = length(wts); ll == 0 || ll == n || error("length of wts is $ll, must be $n or 0")
         new(mu,off,wts,y)
     end
 end
-LmResp{T<:FP}(y::Vector{T}) = LmResp{T}(zeros(T,length(y)), T[], T[], y)
+LmResp{V<:FPStoredVector}(y::V) = LmResp{V}(fill!(similar(y), zero(eltype(V))), similar(y, 0), similar(y, 0), y)
 
-function updatemu!{T<:FP}(r::LmResp{T}, linPr::Vector{T})
+function updatemu!{V<:FPStoredVector}(r::LmResp{V}, linPr::V)
     n = length(linPr); length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copy!(r.mu, linPr) : map!(Add(), r.mu, linPr, r.offset)
     deviance(r)
 end
-updatemu!{T<:FP}(r::LmResp{T}, linPr) = updatemu!(r, convert(Vector{T},vec(linPr)))
+updatemu!{V<:FPStoredVector}(r::LmResp{V}, linPr) = updatemu!(r, convert(V,vec(linPr)))
 
 type WtResid <: Functor{3} end
 evaluate{T<:FP}(::WtResid,wt::T,y::T,mu::T) = (y - mu)*sqrt(wt)
