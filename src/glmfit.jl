@@ -66,11 +66,16 @@ function wrkwt(r::GlmResp)
 end
 
 type GlmMod <: LinPredModel
-    fr::ModelFrame
     rr::GlmResp
     pp::LinPred
-    ff::Formula
     fit::Bool
+
+    # optional
+    fr::ModelFrame
+    ff::Formula
+
+    GlmMod(rr::GlmResp, pp::LinPred, fit::Bool, fr::ModelFrame, ff::Formula) = new(rr, pp, fit, fr, ff)
+    GlmMod(rr::GlmResp, pp::LinPred, fit::Bool) = new(rr, pp, fit)
 end
 
 function coeftable(mm::GlmMod)
@@ -79,7 +84,7 @@ function coeftable(mm::GlmMod)
     zz = cc ./ se
     CoefTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
               ["Estimate","Std.Error","z value", "Pr(>|z|)"],
-              coefnames(mm.fr), 4)
+              isdefined(mm, :fr) ? coefnames(mm.fr) : ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
 function confint(obj::GlmMod, level::Real)
@@ -95,7 +100,7 @@ function fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30, minStepFac::Re
     0 < minStepFac < 1 || error("minStepFac must be in (0, 1)")
 
     cvg = false; p = m.pp; r = m.rr
-    scratch = similar(p.X.m)
+    scratch = similar(p.X)
     devold = updatemu!(r, linpred(delbeta!(p, wrkresp(r), wrkwt(r), scratch)))
     installbeta!(p)
     for i=1:maxIter
@@ -116,7 +121,34 @@ function fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30, minStepFac::Re
     m
 end
 
-function glm(f::Formula, df::AbstractDataFrame, d::UnivariateDistribution, l::Link; dofit::Bool=true, wts=Float64[], offset=Float64[])
+function fit(m::GlmMod, y; wts=nothing, offset=nothing, args...)
+    r = m.rr
+    V = typeof(r.y)
+    r.y = isa(y, V) ? copy(y) : convert(V, y)
+    wts == nothing || (r.wts = isa(wts, V) ? copy(wts) : convert(V, wts))
+    offset == nothing || (r.offset = isa(offset, V) ? copy(offset) : convert(V, offset))
+    m.fit = false
+    fit(m; args...)
+end
+
+function glm{T<:FloatingPoint,V<:FPStoredVector}(X::Matrix{T}, y::V, d::UnivariateDistribution,
+                                                 l::Link=canonicallink(d);
+                                                 dofit::Bool=true,
+                                                 wts::V=fill!(similar(y), one(eltype(y))),
+                                                 offset::V=similar(y, 0))
+    size(X, 1) == size(y, 1) || DimensionMismatch("number of rows in X and y must match")
+    n = length(y)
+    length(wts) == n || error("length(wts) = $lw should be 0 or $n")
+    mu = mustart(d, y, wts)
+    rr = GlmResp{typeof(y)}(y, d, l, linkfun!(l, similar(mu), mu), mu, offset, wts)
+    res = GlmMod(rr, DensePredChol(X), false)
+    dofit ? fit(res) : res
+end
+
+glm(X::Matrix, y::AbstractVector, args...; kwargs...) = glm(float(X), float(y), args...; kwargs...)
+
+function glm(f::Formula, df::AbstractDataFrame, d::UnivariateDistribution, l::Link=canonicallink(d);
+             dofit::Bool=true, wts=Float64[], offset=Float64[])
     mf = ModelFrame(f, df)
     mm = ModelMatrix(mf)
     y = model_response(mf); T = eltype(y);
@@ -130,13 +162,12 @@ function glm(f::Formula, df::AbstractDataFrame, d::UnivariateDistribution, l::Li
     mu = mustart(d, y, w)
     off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
     rr = GlmResp{typeof(y)}(y, d, l, linkfun!(l, similar(mu), mu), mu, off, w)
-    res = GlmMod(mf, rr, DensePredChol(mm), f, false)
+    res = GlmMod(rr, DensePredChol(mm.m), false, mf, f)
     dofit ? fit(res) : res
 end
 
 glm(e::Expr, df::AbstractDataFrame, d::UnivariateDistribution, l::Link) = glm(Formula(e),df,d,l)
 glm(e::Expr, df::AbstractDataFrame, d::UnivariateDistribution) = glm(Formula(e),df,d,canonicallink(d))
-glm(f::Formula, df::AbstractDataFrame, d::UnivariateDistribution) = glm(f, df, d, canonicallink(d))
 glm(s::String, df::AbstractDataFrame, d::UnivariateDistribution) = glm(Formula(parse(s)[1]), df, d)
 
 ## scale(m) -> estimate, s, of the scale parameter

@@ -37,7 +37,7 @@ cholfact(x::LmMod) = cholfact(x.pp)
 
 function lm(f::Formula, df::AbstractDataFrame)
     mf = ModelFrame(f, df); mm = ModelMatrix(mf)
-    rr = LmResp(model_response(mf)); pp = DensePredQR(mm)
+    rr = LmResp(model_response(mf)); pp = DensePredQR(mm.m)
     installbeta!(delbeta!(pp, rr.y)); updatemu!(rr, linpred(pp,0.))
     LmMod(mf, rr, pp, f)
 end
@@ -46,7 +46,7 @@ lm(f::String, df::AbstractDataFrame) = lm(Formula(parse(f)[1]), df)
 
 function lmc(f::Formula, df::AbstractDataFrame)
     mf = ModelFrame(f, df); mm = ModelMatrix(mf)
-    rr = LmResp(model_response(mf)); pp = DensePredChol(mm)
+    rr = LmResp(model_response(mf)); pp = DensePredChol(mm.m)
     installbeta!(delbeta!(pp, rr.y)); updatemu!(rr, linpred(pp,0.))
     LmMod(mf, rr, pp, f)
 end

@@ -29,3 +29,15 @@ gm4 = glm(admit ~ gre + gpa + rank, df, Binomial(), CauchitLink())
 gm5 = glm(admit ~ gre + gpa + rank, df, Binomial(), CloglogLink())
 @test_approx_eq deviance(gm5) 458.89439629612616
 
+mf = ModelFrame(admit ~ gre + gpa + rank, df)
+X = ModelMatrix(mf).m
+gm6 = glm(X, model_response(mf), Binomial())
+@test_approx_eq deviance(gm2) 458.5174924758994
+@test_approx_eq coef(gm2) [-3.9899786606380734,0.0022644256521549043,0.8040374535155766,-0.6754428594116577,-1.3402038117481079,-1.5514636444657492]
+
+y = rand(0:1, size(X, 1))
+fit(gm6, y)
+
+gm7 = glm(X, y, Binomial())
+@test_approx_eq_eps deviance(gm6) deviance(gm7) 1e-6
+@test_approx_eq_eps coef(gm6) coef(gm7) 1e-6
