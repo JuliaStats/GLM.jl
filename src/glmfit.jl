@@ -1,18 +1,18 @@
-type GlmResp{T<:FP} <: ModResp               # response in a glm model
-    y::AbstractVector{T}                # response
+type GlmResp{V<:FPStoredVector} <: ModResp   # response in a glm model
+    y::V                                       # response
     d::UnivariateDistribution
     l::Link
-    devresid::AbstractVector{T}         # (squared) deviance residuals
-    eta::AbstractVector{T}              # linear predictor
-    mu::AbstractVector{T}               # mean response
-    mueta::AbstractVector{T}            # derivative of mu w.r.t. eta
-    offset::AbstractVector{T}           # offset added to linear predictor (usually 0)
-    var::AbstractVector{T}              # (unweighted) variance at current mu
-    wts::AbstractVector{T}              # prior weights
-    wrkresid::AbstractVector{T}         # working residuals
-    function GlmResp(y::AbstractVector{T}, d::UnivariateDistribution, l::Link,
-                     eta::AbstractVector{T}, mu::AbstractVector{T},
-                     off::AbstractVector{T}, wts::AbstractVector{T})
+    devresid::V                                # (squared) deviance residuals
+    eta::V                                     # linear predictor
+    mu::V                                      # mean response
+    mueta::V                                   # derivative of mu w.r.t. eta
+    offset::V                                  # offset added to linear predictor (usually 0)
+    var::V                                     # (unweighted) variance at current mu
+    wts::V                                     # prior weights
+    wrkresid::V                                # working residuals
+    function GlmResp(y::V, d::UnivariateDistribution, l::Link,
+                     eta::V, mu::V,
+                     off::V, wts::V)
         if isa(d, Binomial)
             for yy in y; 0. <= yy <= 1. || error("$yy in y is not in [0,1]"); end
         else
@@ -42,14 +42,14 @@ linkinv!(r::GlmResp) = linkinv!(r.l, r.mu, r.eta)
 # evaluate the mueta vector (derivative of mu w.r.t. eta) from the linear predictor (eta)
 mueta!(r::GlmResp) = mueta!(r.l, r.mueta, r.eta)
 
-function updatemu!{T<:FP}(r::GlmResp{T}, linPr::Vector{T})
+function updatemu!{T<:FPStoredVector}(r::GlmResp{T}, linPr::T)
     n = length(linPr)
     length(r.offset) == n ? map!(Add(), r.eta, linPr, r.offset) : copy!(r.eta, linPr)
     linkinv!(r); mueta!(r); var!(r); wrkresid!(r); devresid!(r)
     sum(r.devresid)
 end
 
-updatemu!{T<:FP}(r::GlmResp{T}, linPr) = updatemu!(r, convert(typeof(r.y),vec(linPr)))
+updatemu!{T<:FPStoredVector}(r::GlmResp{T}, linPr) = updatemu!(r, convert(T,vec(linPr)))
 
 var!(r::GlmResp) = var!(r.d, r.var, r.mu)
 
@@ -60,9 +60,9 @@ function wrkresp(r::GlmResp)
     map(Add(), r.eta, r.wrkresid)
 end
 
-function wrkwt{T<:FP}(r::GlmResp{T})
-    length(r.wts) == 0 && return [(r.mueta[i] * r.mueta[i]/r.var[i])::T for i in 1:length(r.var)]
-    [(r.wts[i] * r.mueta[i] * r.mueta[i]/r.var[i])::T for i in 1:length(r.var)]
+function wrkwt(r::GlmResp)
+    length(r.wts) == 0 && return [r.mueta[i] * r.mueta[i]/r.var[i] for i in 1:length(r.var)]
+    [r.wts[i] * r.mueta[i] * r.mueta[i]/r.var[i] for i in 1:length(r.var)]
 end
 
 type GlmMod <: LinPredModel
@@ -126,10 +126,10 @@ function glm(f::Formula, df::AbstractDataFrame, d::UnivariateDistribution, l::Li
     end
     n = length(y); lw = length(wts)
     lw == 0 || lw == n || error("length(wts) = $lw should be 0 or $n")
-    w = lw == 0 ? ones(T,n) : (T <: Float64 ? copy(wts) : convert(Vector{T}, wts))
+    w = lw == 0 ? ones(T,n) : (T <: Float64 ? copy(wts) : convert(typeof(y), wts))
     mu = mustart(d, y, w)
     off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
-    rr = GlmResp{T}(y, d, l, linkfun!(l, similar(mu), mu), mu, off, w)
+    rr = GlmResp{typeof(y)}(y, d, l, linkfun!(l, similar(mu), mu), mu, off, w)
     res = GlmMod(mf, rr, DensePredChol(mm), f, false)
     dofit ? fit(res) : res
 end
