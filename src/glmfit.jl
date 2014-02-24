@@ -127,6 +127,10 @@ function fit(m::GlmMod, y; wts=nothing, offset=nothing, args...)
     r.y = isa(y, V) ? copy(y) : convert(V, y)
     wts == nothing || (r.wts = isa(wts, V) ? copy(wts) : convert(V, wts))
     offset == nothing || (r.offset = isa(offset, V) ? copy(offset) : convert(V, offset))
+    r.mu = mustart(r.d, r.y, r.wts)
+    linkfun!(r.l, r.eta, r.mu)
+    updatemu!(r, r.eta)
+    fill!(m.pp.beta0, zero(eltype(m.pp.beta0)))
     m.fit = false
     fit(m; args...)
 end
