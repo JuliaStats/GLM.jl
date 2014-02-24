@@ -44,7 +44,7 @@ mueta!{T<:FP}(::IdentityLink, me::Vector{T}, eta::Vector{T}) = fill!(me,one(T))
 for (l, lf, li, mueta) in
     ((:CauchitLink, :CauchLink, :CauchInv, :CauchME),
      (:CloglogLink, :CLgLgLink, :CLgLgInv, :CLgLgME),
-     (:InverseLink, :Recip, :Recip, :InvME),
+     (:InverseLink, :RcpFun, :RcpFun, :InvME),
      (:LogitLink, :LogitFun, :LogisticFun, :LogitME),
      (:LogLink, :LogFun, :ExpFun, :ExpFun),
      (:ProbitLink, :ProbLink, :ProbInv, :ProbME))
@@ -98,6 +98,14 @@ type PoissonDevResid <: Functor{3} end
 evaluate{T<:FP}(::PoissonDevResid,y::T,mu::T,wt::T) = 2.wt * (xlogy(y,y/mu) - (y - mu))
 result_type{T<:FP}(::PoissonDevResid,::Type{T},::Type{T},::Type{T}) = T
 
+type GammaDevResid <: Functor{3} end
+evaluate{T<:FP}(::GammaDevResid,y::T,mu::T,wt::T) = -2.wt * (log(y/mu) - (y - mu)/mu)
+result_type{T<:FP}(::GammaDevResid,::Type{T},::Type{T},::Type{T}) = T
+
+type GaussianDevResid <: Functor{3} end
+evaluate{T<:FP}(::GaussianDevResid,y::T,mu::T,wt::T) = wt * abs2(y - mu)
+result_type{T<:FP}(::GaussianDevResid,::Type{T},::Type{T},::Type{T}) = T
+
 function devresid!{T<:FP}(::Binomial,dr::Vector{T},y::Vector{T},
                                      mu::Vector{T},wt::Vector{T})
     map!(BinomialDevResid(), dr, y, mu, wt)
@@ -105,4 +113,12 @@ end
 function devresid!{T<:FP}(::Poisson,dr::Vector{T},y::Vector{T},
                                      mu::Vector{T},wt::Vector{T})
     map!(PoissonDevResid(), dr, y, mu, wt)
+end
+function devresid!{T<:FP}(::Gamma,dr::Vector{T},y::Vector{T},
+                                  mu::Vector{T},wt::Vector{T})
+    map!(GammaDevResid(), dr, y, mu, wt)
+end
+function devresid!{T<:FP}(::Normal,dr::Vector{T},y::Vector{T},
+                                     mu::Vector{T},wt::Vector{T})
+    map!(GaussianDevResid(), dr, y, mu, wt)
 end
