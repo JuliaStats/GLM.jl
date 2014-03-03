@@ -128,8 +128,12 @@ function glm(f::Formula, df::AbstractDataFrame, d::UnivariateDistribution, l::Li
     lw == 0 || lw == n || error("length(wts) = $lw should be 0 or $n")
     w = lw == 0 ? ones(T,n) : (T <: Float64 ? copy(wts) : convert(typeof(y), wts))
     mu = mustart(d, y, w)
+    eta = linkfun!(l, similar(mu), mu)
     off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
-    rr = GlmResp{typeof(y)}(y, d, l, linkfun!(l, similar(mu), mu), mu, off, w)
+    if !isempty(off)
+        subtract!(eta, off)
+    end
+    rr = GlmResp{typeof(y)}(y, d, l, eta, mu, off, w)
     res = GlmMod(mf, rr, DensePredChol(mm), f, false)
     dofit ? fit(res) : res
 end
