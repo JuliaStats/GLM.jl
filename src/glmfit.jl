@@ -9,6 +9,7 @@ type GlmResp{V<:FPStoredVector} <: ModResp   # response in a glm model
     offset::V                                  # offset added to linear predictor (usually 0)
     var::V                                     # (unweighted) variance at current mu
     wts::V                                     # prior weights
+    wrkwts::V                                  # working weights
     wrkresid::V                                # working residuals
     function GlmResp(y::V, d::UnivariateDistribution, l::Link,
                      eta::V, mu::V,
@@ -21,7 +22,7 @@ type GlmResp{V<:FPStoredVector} <: ModResp   # response in a glm model
         n = length(y)
         length(eta) == length(mu) == length(wts) == n || error("mismatched sizes")
         lo = length(off); lo == 0 || lo == n || error("offset must have length $n or length 0")
-        res = new(y,d,l,similar(y),eta,mu,similar(y),off,similar(y),wts,similar(y))
+        res = new(y,d,l,similar(y),eta,mu,similar(y),off,similar(y),wts,similar(y),similar(y))
         updatemu!(res, eta)
         res
     end
@@ -60,9 +61,21 @@ function wrkresp(r::GlmResp)
     map(Add(), r.eta, r.wrkresid)
 end
 
-function wrkwt(r::GlmResp)
-    length(r.wts) == 0 && return [r.mueta[i] * r.mueta[i]/r.var[i] for i in 1:length(r.var)]
-    [r.wts[i] * r.mueta[i] * r.mueta[i]/r.var[i] for i in 1:length(r.var)]
+function wrkwt!(r::GlmResp)
+    wrkwts = r.wrkwts
+    mueta = r.mueta
+    var = r.var
+    if length(r.wts) == 0
+        for i = 1:length(r.var)
+            @inbounds wrkwts[i] = abs2(mueta[i])/var[i]
+        end
+    else
+        wts = r.wts
+        for i = 1:length(r.var)
+            @inbounds wrkwts[i] = wts[i] * abs2(mueta[i])/var[i]
+        end
+    end
+    wrkwts
 end
 
 type GlmMod <: LinPredModel
@@ -96,13 +109,13 @@ function fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30, minStepFac::Re
 
     cvg = false; p = m.pp; r = m.rr
     scratch = similar(p.X.m)
-    devold = updatemu!(r, linpred(delbeta!(p, wrkresp(r), wrkwt(r), scratch)))
+    devold = updatemu!(r, linpred(delbeta!(p, wrkresp(r), wrkwt!(r), scratch)))
     installbeta!(p)
     for i=1:maxIter
         f = 1.0
-        dev = updatemu!(r, linpred(delbeta!(p, r.wrkresid, wrkwt(r), scratch)))
+        dev = updatemu!(r, linpred(delbeta!(p, r.wrkresid, wrkwt!(r), scratch)))
         while dev > devold
-            f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $beta0")
+            f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
             dev = updatemu!(r, linpred(p, f))
         end
         installbeta!(p, f)
@@ -145,4 +158,13 @@ glm(s::String, df::AbstractDataFrame, d::UnivariateDistribution) = glm(Formula(p
 
 ## scale(m) -> estimate, s, of the scale parameter
 ## scale(m,true) -> estimate, s^2, of the squared scale parameter
-scale(x::GlmMod,sqr::Bool=false) = 1. # generalize this - only appropriate for Bernoulli and Poisson
+type DispersionFun <: Functor{2} end
+evaluate{T<:FP}(::DispersionFun,wt::T,resid::T) = wt*abs2(resid)
+function scale(m::GlmMod, sqr::Bool=false)
+    if isa(m.rr.d, Union(Bernoulli, Poisson))
+        return 1.
+    end
+
+    s = sum(DispersionFun(), m.rr.wrkwts, m.rr.wrkresid)/df_residual(m)
+    sqr ? s : sqrt(s)
+end
