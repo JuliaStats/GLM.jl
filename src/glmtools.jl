@@ -12,6 +12,7 @@ type InverseLink  <: Link end
 type LogitLink <: Link end
 type LogLink <: Link end
 type ProbitLink <: Link end
+type SqrtLink <: Link end
 
 type CauchLink <: Functor{1} end
 evaluate{T<:FP}(::CauchLink,x::T) = tan(pi*(x - convert(T,0.5)))
@@ -35,6 +36,12 @@ type ProbInv <: Functor{1} end
 evaluate{T<:FP}(::ProbInv,x::T) = (one(T) + erf(x/sqrt2))/convert(T,2.0)
 type ProbME <: Functor{1} end
 evaluate{T<:FP}(::ProbME,x::T) = exp(-x*x/convert(T,2.0))/sqrt2pi
+type SqrtME <: Functor{1} end
+evaluate{T<:FP}(::SqrtME,x::T) = 2*x
+
+type LogisticFun <: Functor{1} end
+evaluate{T<:FP}(::LogisticFun,x::T) = one(x) / (one(x) + exp(-x))
+
 
                                         # IdentityLink is a special case - nothing to map
 linkfun!{T<:FP}(::IdentityLink, eta::Vector{T}, mu::Vector{T}) = copy!(eta,mu)
@@ -75,7 +82,7 @@ result_type{T<:FP}(::BinomialMuStart,::Type{T},::Type{T}) = T
 mustart{T<:FP}(::Binomial,y::Vector{T},wt::Vector{T}) = map(BinomialMuStart(),y,wt)
 mustart{T<:FP}(::Gamma,y::Vector{T},::Vector{T}) = copy(y)
 mustart{T<:FP}(::Normal,y::Vector{T},::Vector{T}) = copy(y)
-mustart{T<:FP}(::Poisson,y::Vector{T},::Vector{T}) = y + convert(T,0.1)
+mustart{T<:FP}(::Poisson,y::Vector{T},::Vector{T}) = y .+ convert(T,0.1)
 
 for Op in [:BernoulliVar,
            :CauchLink, :CauchInv, :CauchME,

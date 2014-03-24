@@ -2,7 +2,7 @@ using DataFrames, Distributions, NumericExtensions
 
 module GLM
 
-    using DataFrames, Distributions, NumericExtensions
+    using DataFrames, Distributions, NumericExtensions, NumericFuns
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
     using Base.LinAlg: QRCompactWY
