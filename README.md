@@ -51,7 +51,7 @@ julia> form = dataset("datasets","Formaldehyde")
 | 5     | 0.7  | 0.626  |
 | 6     | 0.9  | 0.782  |
 
-julia> lm1 = lm(OptDen ~ Carb, form)
+julia> lm1 = fit(LmMod, OptDen ~ Carb, form)
 Formula: OptDen ~ Carb
 
 Coefficients:
@@ -103,7 +103,7 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
 | 49    | Libya          | 8.89  | 43.69 | 2.07  | 123.58  | 16.71 |
 | 50    | Malaysia       | 4.71  | 47.2  | 0.66  | 242.69  | 5.08  |
 
-julia> fm2 = lm(SR ~ Pop15 + Pop75 + DPI + DDPI, LifeCycleSavings)
+julia> fm2 = fit(LmMod, SR ~ Pop15 + Pop75 + DPI + DDPI, LifeCycleSavings)
 Formula: SR ~ :(+(Pop15,Pop75,DPI,DDPI))
 
 Coefficients:
@@ -203,7 +203,7 @@ julia> dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
 | 8     | 13.0   | 2       | 3         |
 | 9     | 12.0   | 3       | 3         |
 
-julia> gm1 = glm(Counts ~ Outcome + Treatment, dobson, Poisson())
+julia> gm1 = fit(GlmMod, Counts ~ Outcome + Treatment, dobson, Poisson())
 Formula: Counts ~ :(+(Outcome,Treatment))
 
 Coefficients:

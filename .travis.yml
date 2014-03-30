@@ -9,6 +9,6 @@ before_install:
   - sudo apt-get update -qq -y
   - sudo apt-get install libpcre3-dev julia -y
 script:
-  - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir())/GLM`); Pkg.resolve()'
+  - julia -e 'Pkg.init(); run(`ln -s $(pwd()) $(Pkg.dir())/GLM`); Pkg.resolve(); Pkg.add("DataFrames"); Pkg.checkout("DataFrames")'
   - julia -e 'using GLM; @assert isdefined(:GLM); @assert typeof(GLM) === Module'
   - julia ./test/glmFit.jl
