@@ -1,18 +1,17 @@
-using DataFrames, Distributions, NumericExtensions
+using Distributions, NumericExtensions
 
 module GLM
 
-    using DataFrames, Distributions, NumericExtensions, NumericFuns
+    using Distributions, NumericExtensions, NumericFuns
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
     using Base.LinAlg: QRCompactWY
     using StatsBase: CoefTable, StatisticalModel, RegressionModel
 
     import Base: (\), cholfact, cor, scale, show, size
-    import Distributions: fit
-    import DataFrames: ModelFrame, ModelMatrix, model_response
-    import StatsBase: coef, coeftable, confint, loglikelihood, nobs, stderr, vcov,
-                  residuals, predict
+    import StatsBase
+    import StatsBase: coef, coeftable, confint, deviance, loglikelihood, nobs, stderr,
+                      vcov, residuals, predict, fit
     import NumericExtensions: evaluate, result_type
 
     export                              # types
@@ -41,6 +40,7 @@ module GLM
         devresid,       # vector of squared deviance residuals
         df_residual,    # degrees of freedom for residuals
         drsum,          # sum of squared deviance residuals
+        fit,            # function to fit models, from StatsBase
         formula,        # extract the formula from a model
         glm,            # general interface
         linkfun!,       # mutating link function
@@ -72,11 +72,12 @@ module GLM
 
     abstract LinPred                   # linear predictor in statistical models
     abstract DensePred <: LinPred      # linear predictor with dense X
-    abstract LinPredModel <: StatisticalModel # model based on a linear predictor
+    abstract LinPredModel <: RegressionModel # model based on a linear predictor
 
     include("linpred.jl")
     include("lm.jl")
     include("glmtools.jl")
     include("glmfit.jl")
+    include("deprecated.jl")
 
 end # module
