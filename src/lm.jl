@@ -26,32 +26,19 @@ result_type{T<:FP}(::WtResid,wt::T,y::T,mu::T) = T
 deviance(r::LmResp) = length(r.wts) == 0 ? sumsqdiff(r.y, r.mu) : wsumsqdiff(r.wts,r.y,r.mu)
 residuals(r::LmResp)= length(r.wts) == 0 ? r.y - r.mu : map(WtResid(),r.wts,r.y,r.mu)
 
-type LmMod <: LinPredModel
-    fr::ModelFrame
+type LmMod{T<:LinPred} <: LinPredModel
     rr::LmResp
-    pp::LinPred
-    ff::Formula
+    pp::T
 end
 
 cholfact(x::LmMod) = cholfact(x.pp)
 
-function lm(f::Formula, df::AbstractDataFrame)
-    mf = ModelFrame(f, df); mm = ModelMatrix(mf)
-    rr = LmResp(float(model_response(mf))); pp = DensePredQR(mm)
+function StatsBase.fit{LinPredT<:LinPred}(::Type{LmMod{LinPredT}}, X::Matrix, y::Vector)
+    rr = LmResp(float(y)); pp = LinPredT(X)
     installbeta!(delbeta!(pp, rr.y)); updatemu!(rr, linpred(pp,0.))
-    LmMod(mf, rr, pp, f)
+    LmMod(rr, pp)
 end
-lm(f::Expr, df::AbstractDataFrame) = lm(Formula(f), df)
-lm(f::String, df::AbstractDataFrame) = lm(Formula(parse(f)[1]), df)
-
-function lmc(f::Formula, df::AbstractDataFrame)
-    mf = ModelFrame(f, df); mm = ModelMatrix(mf)
-    rr = LmResp(model_response(mf)); pp = DensePredChol(mm)
-    installbeta!(delbeta!(pp, rr.y)); updatemu!(rr, linpred(pp,0.))
-    LmMod(mf, rr, pp, f)
-end
-lmc(f::Expr, df::AbstractDataFrame) = lmc(Formula(f), df)
-lmc(f::String, df::AbstractDataFrame) = lmc(Formula(parse(f)[1]), df)
+StatsBase.fit(::Type{LmMod}, X::Matrix, y::Vector) = StatsBase.fit(LmMod{DensePredQR}, X, y)
 
 ## scale(m) -> estimate, s, of the scale parameter
 ## scale(m,true) -> estimate, s^2, of the squared scale parameter
@@ -66,7 +53,7 @@ function coeftable(mm::LmMod)
     tt = cc ./ se
     CoefTable(hcat(cc,se,tt,ccdf(FDist(1, df_residual(mm)), abs2(tt))),
               ["Estimate","Std.Error","t value", "Pr(>|t|)"],
-              coefnames(mm.fr), 4)
+              ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
 predict(mm::LmMod, newx::Matrix) =  newx * coef(mm)
