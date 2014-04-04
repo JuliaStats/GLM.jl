@@ -82,8 +82,6 @@ type GlmMod <: LinPredModel
     rr::GlmResp
     pp::LinPred
     fit::Bool
-
-    GlmMod(rr::GlmResp, pp::LinPred, fit::Bool) = new(rr, pp, fit)
 end
 
 function coeftable(mm::GlmMod)
