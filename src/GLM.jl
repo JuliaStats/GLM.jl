@@ -34,6 +34,7 @@ module GLM
         LmResp,
         ProbitLink,
                                         # functions
+        anovatable,     #make anova table for LmMod
         canonicallink,  # canonical link function for a distribution
         contr_treatment,# treatment contrasts
         delbeta!,       # evaluate the increment in the coefficient vector
@@ -41,6 +42,7 @@ module GLM
         devresid,       # vector of squared deviance residuals
         df_residual,    # degrees of freedom for residuals
         drsum,          # sum of squared deviance residuals
+        effects,        # effects for terms in LmMod
         formula,        # extract the formula from a model
         glm,            # general interface
         linkfun!,       # mutating link function
