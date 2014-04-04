@@ -5,7 +5,7 @@ module GLM
     using Distributions, NumericExtensions, NumericFuns
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
-    using Base.LinAlg: QRCompactWY
+    using Base.LinAlg: QRCompactWY, Cholesky
     using StatsBase: CoefTable, StatisticalModel, RegressionModel
 
     import Base: (\), cholfact, cor, scale, show, size
