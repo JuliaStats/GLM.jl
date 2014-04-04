@@ -1,4 +1,4 @@
-type GlmResp{V<:FPStoredVector} <: ModResp   # response in a glm model
+type GlmResp{V<:FPVector} <: ModResp           # response in a glm model
     y::V                                       # response
     d::UnivariateDistribution
     l::Link
@@ -43,14 +43,14 @@ linkinv!(r::GlmResp) = linkinv!(r.l, r.mu, r.eta)
 # evaluate the mueta vector (derivative of mu w.r.t. eta) from the linear predictor (eta)
 mueta!(r::GlmResp) = mueta!(r.l, r.mueta, r.eta)
 
-function updatemu!{T<:FPStoredVector}(r::GlmResp{T}, linPr::T)
+function updatemu!{T<:FPVector}(r::GlmResp{T}, linPr::T)
     n = length(linPr)
     length(r.offset) == n ? map!(Add(), r.eta, linPr, r.offset) : copy!(r.eta, linPr)
     linkinv!(r); mueta!(r); var!(r); wrkresid!(r); devresid!(r)
     sum(r.devresid)
 end
 
-updatemu!{T<:FPStoredVector}(r::GlmResp{T}, linPr) = updatemu!(r, convert(T,vec(linPr)))
+updatemu!{T<:FPVector}(r::GlmResp{T}, linPr) = updatemu!(r, convert(T,vec(linPr)))
 
 var!(r::GlmResp) = var!(r.d, r.var, r.mu)
 
@@ -142,7 +142,7 @@ function StatsBase.fit(m::GlmMod, y; wts=nothing, offset=nothing, fitargs...)
     dofit ? fit(m; fitargs...) : m
 end
 
-function StatsBase.fit{T<:FloatingPoint,V<:FPStoredVector}(::Type{GlmMod},
+function StatsBase.fit{T<:FloatingPoint,V<:FPVector}(::Type{GlmMod},
                                                            X::Matrix{T}, y::V, d::UnivariateDistribution,
                                                            l::Link=canonicallink(d);
                                                            dofit::Bool=true,

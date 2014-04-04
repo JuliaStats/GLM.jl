@@ -66,7 +66,7 @@ module GLM
         wrkresp         # working response
 
     typealias FP FloatingPoint
-    typealias FPStoredVector{T<:FloatingPoint} StoredArray{T,1}
+    typealias FPVector{T<:FloatingPoint} DenseArray{T,1}
 
     abstract ModResp                   # model response
 
