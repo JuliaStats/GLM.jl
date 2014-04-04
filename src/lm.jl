@@ -76,3 +76,41 @@ function confint(obj::LmMod, level::Real)
     quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
 confint(obj::LmMod) = confint(obj, 0.95)
+
+# get effects for model terms from vector for linear models Q'y = effects matrix
+effects(mod::LmMod)=(mod.pp.qr[:Q]'*mod.rr.y)[1:size(mod.pp.X.m,2)]
+
+
+function anovatable(mod::LmMod)
+	eff=effects(mod)
+	termnames=mod.fr.terms.terms
+	termnames=[:Intercept,termnames,:Residuals]
+	terms=[unique(mod.pp.X.assign),-1]
+	DF=zeros(Int,length(terms))
+	SS=zeros(Float64,length(terms))
+	MS=zeros(Float64,length(terms))
+	fstat=zeros(Float64,length(terms))
+	pval=zeros(Float64,length(terms))
+	DF[end]=df_residual(mod.pp)
+	SS[end]=deviance(mod.rr)
+	MS[end]=SS[end]/DF[end]
+
+	for i=1:(length(terms)-1)
+		jj=eff[mod.pp.X.assign.==terms[i]]
+		DF[i]=length(jj)
+		#SS[i]=sum(Abs2(),jj)
+        SS[i]=sumsq(jj)
+		MS[i]=SS[i]/DF[i]
+		fstat[i]=MS[i]/MS[end]
+		pval[i]=ccdf(FDist(DF[i], DF[end]), fstat[i])
+	end
+	table=DataFrame(
+		Terms = termnames[2:end],
+		DF = DF[2:end],
+		SS = SS[2:end],
+		MS = MS[2:end],
+		F = fstat[2:end],
+		pval = pval[2:end]
+		)
+end
+
