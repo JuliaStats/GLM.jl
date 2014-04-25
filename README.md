@@ -7,7 +7,7 @@
 This documentation applies to GLM.jl 0.4, which has not yet been released. You may be interested in the documentation for:
 
 - [GLM.jl 0.3.2](https://github.com/JuliaStats/GLM.jl/tree/v0.3.2), the latest release for Julia 0.3
-- [GLM.jl 0.2.4](https://github.com/JuliaStats/GLM.jl/tree/v0.2.4), the latest release for Julia 0.2
+- [GLM.jl 0.2.5](https://github.com/JuliaStats/GLM.jl/tree/v0.2.5), the latest release for Julia 0.2
 
 ## Installation
 
