@@ -15,6 +15,7 @@ module GLM
     import NumericExtensions: evaluate, result_type
 
     export                              # types
+        ANOVAtest,
         CauchitLink,
         CloglogLink,
         DensePred,
@@ -33,6 +34,7 @@ module GLM
         LmResp,
         ProbitLink,
                                         # functions
+        ANOVAtest,      #ANOVA style test fro set of terms in formula or columns of X from LmMod
         canonicallink,  # canonical link function for a distribution
         contr_treatment,# treatment contrasts
         delbeta!,       # evaluate the increment in the coefficient vector
@@ -40,6 +42,7 @@ module GLM
         devresid,       # vector of squared deviance residuals
         df_residual,    # degrees of freedom for residuals
         drsum,          # sum of squared deviance residuals
+        effects,        # effects for terms in formula or columns of X in LmMod
         fit,            # function to fit models, from StatsBase
         formula,        # extract the formula from a model
         glm,            # general interface
