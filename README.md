@@ -29,8 +29,8 @@ Many of the methods provided by this package have names similar to those in [R](
 - `coef`: extract the estimates of the coefficients in the model
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
 - `df_residual`: degrees of freedom for residuals, when meaningful
-- `glm`: fit a generalized linear model
-- `lm`: fit a linear model
+- `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
+- `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
 - `stderr`: standard errors of the coefficients
 - `vcov`: estimated variance-covariance matrix of the coefficient estimates
 
@@ -58,7 +58,7 @@ julia> form = dataset("datasets","Formaldehyde")
 | 5     | 0.7  | 0.626  |
 | 6     | 0.9  | 0.782  |
 
-julia> lm1 = fit(LmMod, OptDen ~ Carb, form)
+julia> lm1 = fit(LinearModel, OptDen ~ Carb, form)
 Formula: OptDen ~ Carb
 
 Coefficients:
@@ -110,7 +110,7 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
 | 49    | Libya          | 8.89  | 43.69 | 2.07  | 123.58  | 16.71 |
 | 50    | Malaysia       | 4.71  | 47.2  | 0.66  | 242.69  | 5.08  |
 
-julia> fm2 = fit(LmMod, SR ~ Pop15 + Pop75 + DPI + DDPI, LifeCycleSavings)
+julia> fm2 = fit(LinearModel, SR ~ Pop15 + Pop75 + DPI + DDPI, LifeCycleSavings)
 Formula: SR ~ :(+(Pop15,Pop75,DPI,DDPI))
 
 Coefficients:
@@ -122,9 +122,11 @@ DPI          -0.000336902 0.000931107 -0.361829   0.7192
 DDPI             0.409695    0.196197   2.08818   0.0425
 ```
 
-The `glm` function works similarly to the corresponding R function
-except that the `family` argument is replaced by a `Distribution` type
-and, optionally, a `Link` type.  The first example from `?glm` in R is
+The `glm` function (or equivalently, `fit(GeneralizedLinearModel, ...)`)
+works similarly to the R `glm` function except that the `family`
+argument is replaced by a `Distribution` type and, optionally, a `Link` type.
+The first example from `?glm` in R is
+
 ```s
 glm> ## Dobson (1990) Page 93: Randomized Controlled Trial :
 glm> counts <- c(18,17,15,20,10,20,25,13,12)
@@ -210,7 +212,7 @@ julia> dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
 | 8     | 13.0   | 2       | 3         |
 | 9     | 12.0   | 3       | 3         |
 
-julia> gm1 = fit(GlmMod, Counts ~ Outcome + Treatment, dobson, Poisson())
+julia> gm1 = fit(GeneralizedLinearModel, Counts ~ Outcome + Treatment, dobson, Poisson())
 Formula: Counts ~ :(+(Outcome,Treatment))
 
 Coefficients:

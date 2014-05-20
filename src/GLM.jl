@@ -20,19 +20,24 @@ module GLM
         DensePred,
         DensePredQR,
         DensePredChol,
-        GlmMod,
+        GeneralizedLinearModel,
         GlmResp,
         IdentityLink,
         InverseLink,
+        LinearModel,
         Link,
         LinPred,
         LinPredModel,
         LogitLink,
         LogLink,
-        LmMod,
         LmResp,
         ProbitLink,
         SqrtLink,
+
+        # Deprecated
+        LmMod,
+        GlmMod,
+
                                         # functions
         canonicallink,  # canonical link function for a distribution
         contr_treatment,# treatment contrasts
