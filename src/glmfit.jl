@@ -128,7 +128,7 @@ function StatsBase.fit(m::GlmMod; verbose::Bool=false, maxIter::Integer=30,
     m
 end
 
-function StatsBase.fit(m::GlmMod, y; wts=nothing, offset=nothing, fitargs...)
+function StatsBase.fit(m::GlmMod, y; wts=nothing, offset=nothing, dofit::Bool=true, fitargs...)
     r = m.rr
     V = typeof(r.y)
     r.y = isa(y, V) ? copy(y) : convert(V, y)
@@ -143,11 +143,11 @@ function StatsBase.fit(m::GlmMod, y; wts=nothing, offset=nothing, fitargs...)
 end
 
 function StatsBase.fit{T<:FloatingPoint,V<:FPVector}(::Type{GlmMod},
-                                                           X::Matrix{T}, y::V, d::UnivariateDistribution,
-                                                           l::Link=canonicallink(d);
-                                                           dofit::Bool=true,
-                                                           wts::V=fill!(similar(y), one(eltype(y))),
-                                                           offset::V=similar(y, 0), fitargs...)
+                                                     X::Matrix{T}, y::V, d::UnivariateDistribution,
+                                                     l::Link=canonicallink(d);
+                                                     dofit::Bool=true,
+                                                     wts::V=fill!(similar(y), one(eltype(y))),
+                                                     offset::V=similar(y, 0), fitargs...)
     size(X, 1) == size(y, 1) || DimensionMismatch("number of rows in X and y must match")
     n = length(y)
     length(wts) == n || error("length(wts) = $lw should be 0 or $n")
@@ -163,8 +163,9 @@ function StatsBase.fit{T<:FloatingPoint,V<:FPVector}(::Type{GlmMod},
     dofit ? fit(res; fitargs...) : res
 end
 
-StatsBase.fit(::Type{GlmMod}, X::Matrix, y::AbstractVector, args...; kwargs...) =
-    fit(GlmMod, float(X), float(y), args...; kwargs...)
+StatsBase.fit(::Type{GlmMod}, X::Matrix, y::AbstractVector, d::UnivariateDistribution,
+              l::Link=canonicallink(d); kwargs...) =
+    fit(GlmMod, float(X), float(y), d, l; kwargs...)
 
 ## scale(m) -> estimate, s, of the scale parameter
 ## scale(m,true) -> estimate, s^2, of the squared scale parameter
