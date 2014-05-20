@@ -54,7 +54,8 @@ for (l, lf, li, mueta) in
      (:InverseLink, :RcpFun, :RcpFun, :InvME),
      (:LogitLink, :LogitFun, :LogisticFun, :LogitME),
      (:LogLink, :LogFun, :ExpFun, :ExpFun),
-     (:ProbitLink, :ProbLink, :ProbInv, :ProbME))
+     (:ProbitLink, :ProbLink, :ProbInv, :ProbME),
+     (:SqrtLink, :SqrtFun, :Abs2Fun, :SqrtME))
     @eval begin
         linkfun!{T<:FP}(::$l,eta::Vector{T},mu::Vector{T}) = map!($lf(),eta,mu)
         linkinv!{T<:FP}(::$l,mu::Vector{T},eta::Vector{T}) = map!($li(),mu,eta)
