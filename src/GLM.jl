@@ -6,10 +6,10 @@ module GLM
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
     using Base.LinAlg: QRCompactWY, Cholesky
-    using StatsBase: CoefTable, StatisticalModel, RegressionModel
+    using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel
+    using Distributions: sqrt2, sqrt2π
 
     import Base: (\), cholfact, cor, scale, show, size
-    import StatsBase
     import StatsBase: coef, coeftable, confint, deviance, loglikelihood, nobs, stderr,
                       vcov, residuals, predict, fit
     import NumericExtensions: evaluate, result_type

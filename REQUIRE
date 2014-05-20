@@ -1,5 +1,5 @@
 julia 0.3-
-Distributions 0.4-
+Distributions 0.4.6-
 NumericExtensions 0.6-
 NumericFuns 0.2.1-
 StatsBase 0.3.9+

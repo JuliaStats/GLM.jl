@@ -1,10 +1,5 @@
 abstract Link             # Link types define linkfun!, linkinv!, and mueta!
 
-import Base.@math_const
-
-@math_const sqrt2   1.4142135623730950488 sqrt(big(2.))
-@math_const sqrt2pi 2.5066282746310005024 sqrt(big(2.)*π)
-
 type CauchitLink <: Link end
 type CloglogLink  <: Link end
 type IdentityLink <: Link end
@@ -35,7 +30,7 @@ evaluate{T<:FP}(::ProbLink,x::T) = sqrt2*erfinv(convert(T,2.0)*x-one(T))
 type ProbInv <: Functor{1} end
 evaluate{T<:FP}(::ProbInv,x::T) = (one(T) + erf(x/sqrt2))/convert(T,2.0)
 type ProbME <: Functor{1} end
-evaluate{T<:FP}(::ProbME,x::T) = exp(-x*x/convert(T,2.0))/sqrt2pi
+evaluate{T<:FP}(::ProbME,x::T) = exp(-x*x/convert(T,2.0))/sqrt2π
 type SqrtME <: Functor{1} end
 evaluate{T<:FP}(::SqrtME,x::T) = 2*x
 
