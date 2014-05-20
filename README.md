@@ -1,6 +1,6 @@
 # Linear models (lm's) and generalized linear models (glm's) in Julia
 
-[![Build Status](https://travis-ci.org/JuliaStats/GLM.jl.png)](https://travis-ci.org/JuliaStats/GLM.jl)
+[![Build Status](https://travis-ci.org/JuliaStats/GLM.jl.svg?branch=master)](https://travis-ci.org/JuliaStats/GLM.jl)
 
 ## Older versions
 
