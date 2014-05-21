@@ -20,11 +20,11 @@ specification similar to that of for `R <http://www.R-project.org>`__.
 Example
 -------
 
-The :func:`lm()` function creates a linear model
-representation that inherits from :class:`LmMod`.  The abstract
+The :func:`fit(LinearModel, ...)` method creates a linear model
+representation that inherits from :class:`LinearModel`.  The abstract
 :class:`LinPredModel` type includes both linear and generalized linear models.
 
-    julia> using GLM, RDatasets
+    julia> using GLM, DataFrames, RDatasets
 
     julia> form = dataset("datasets", "Formaldehyde")
     6x2 DataFrame
@@ -74,24 +74,39 @@ representation that inherits from :class:`LmMod`.  The abstract
 Constructors
 ------------
 
-.. function:: lm(f, fr)
+.. function:: fit(LinearModel, X, y)
 
-   Create the representation for a linear regression model with
-   formula ``f`` evaluated in the :type:`DataFrame` ``fr``.
+   Create the representation for a linear regression model with design
+   matrix ``X`` and response vector ``y``. When DataFrames is imported,
+   ``X`` and ``y`` may also be a model formula and :type:`DataFrame`
+   respectively.
 
-.. function:: glm(f, fr, d[, l])
 
-   Create the representation for a linear regression model with
-   formula ``f`` evaluated in the :type:`DataFrame` ``fr`` with
-   distribution ``d`` and, optionally, link ``l``.  If ``l`` is
-   omitted the canonical link for ``d`` is used.
+.. function:: lm(X, y)
+
+   Alias for ``fit(LinearModel, X, y)``.
+
+
+.. function:: fit(GeneralizedLinearModel, X, y, d[, l])
+
+   Create the representation for a generalized linear model with design
+   matrix ``X``, response vector ``y``, distribution ``d`` and,
+   optionally, link ``l``.  When DataFrames is imported, ``X`` and ``y``
+   may also be a model formula and :type:`DataFrame` respectively. If
+   ``l`` is omitted the canonical link for ``d`` is used.
+
+
+.. function:: glm(X, y, d[, l])
+
+   Alias for ``fit(GeneralizedLinearModel, X, y, d[, l])``.
+
 
 ----------
 Extractors
 ----------
 
 These extractors are defined for ``m`` of type
-:type:`LMMGeneral`.
+:type:`LinPredModel`.
 
 .. function:: coef(m) -> Vector{Float64}
 

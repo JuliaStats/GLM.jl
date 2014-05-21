@@ -1,12 +1,7 @@
 import Base.depwarn
 
-for (fitfn, fittype) in ((:glm, :GlmMod), (:lm, :LmMod), (:lmc, :(LmMod{DensePredChol})))
+for (fitfn, fittype) in ((:glm, :GeneralizedLinearModel), (:lm, :LinearModel), (:lmc, :(LinearModel{DensePredChol})))
     @eval begin
-        function $fitfn(f, df, args...; kwargs...)
-            depwarn($("$(string(fitfn))(f::Formula, df::AbstractDataFrame, ...) is deprecated, use fit($(string(fittype)), f::Formula, df::AbstractDataFrame, ...) instead"), $(Base.Meta.quot(fitfn)))
-            fit($fittype, f, df, args...; kwargs...)
-        end
-
         function $fitfn(e::Expr, df, args...; kwargs...)
             depwarn($("$(string(fitfn))(e::Expr, df::AbstractDataFrame, ...) is deprecated, use fit($(string(fittype)), f::Formula, df::AbstractDataFrame, ...) instead"), $(Base.Meta.quot(fitfn)))
             eval(quote; import DataFrames; end)
@@ -20,3 +15,6 @@ for (fitfn, fittype) in ((:glm, :GlmMod), (:lm, :LmMod), (:lmc, :(LmMod{DensePre
         end
     end
 end
+
+typealias LmMod LinearModel
+typealias GlmMod GeneralizedLinearModel

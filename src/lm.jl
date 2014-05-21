@@ -26,28 +26,31 @@ result_type{T<:FP}(::WtResid,wt::T,y::T,mu::T) = T
 deviance(r::LmResp) = length(r.wts) == 0 ? sumsqdiff(r.y, r.mu) : wsumsqdiff(r.wts,r.y,r.mu)
 residuals(r::LmResp)= length(r.wts) == 0 ? r.y - r.mu : map(WtResid(),r.wts,r.y,r.mu)
 
-type LmMod{T<:LinPred} <: LinPredModel
+type LinearModel{T<:LinPred} <: LinPredModel
     rr::LmResp
     pp::T
 end
 
-cholfact(x::LmMod) = cholfact(x.pp)
+cholfact(x::LinearModel) = cholfact(x.pp)
 
-function StatsBase.fit{LinPredT<:LinPred}(::Type{LmMod{LinPredT}}, X::Matrix, y::Vector)
+function StatsBase.fit{LinPredT<:LinPred}(::Type{LinearModel{LinPredT}}, X::Matrix, y::Vector)
     rr = LmResp(float(y)); pp = LinPredT(X)
     installbeta!(delbeta!(pp, rr.y)); updatemu!(rr, linpred(pp,0.))
-    LmMod(rr, pp)
+    LinearModel(rr, pp)
 end
-StatsBase.fit(::Type{LmMod}, X::Matrix, y::Vector) = StatsBase.fit(LmMod{DensePredQR}, X, y)
+StatsBase.fit(::Type{LinearModel}, X::Matrix, y::Vector) = StatsBase.fit(LinearModel{DensePredQR}, X, y)
+
+lm(X, y) = fit(LinearModel, X, y)
+lmc(X, y) = fit(LinearModel{DensePredChol}, X, y)
 
 ## scale(m) -> estimate, s, of the scale parameter
 ## scale(m,true) -> estimate, s^2, of the squared scale parameter
-function scale(x::LmMod, sqr::Bool=false)
+function scale(x::LinearModel, sqr::Bool=false)
     ssqr = deviance(x.rr)/df_residual(x)
     sqr ? ssqr : sqrt(ssqr)
 end
 
-function coeftable(mm::LmMod)
+function coeftable(mm::LinearModel)
     cc = coef(mm)
     se = stderr(mm)
     tt = cc ./ se
@@ -56,10 +59,10 @@ function coeftable(mm::LmMod)
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
-predict(mm::LmMod, newx::Matrix) =  newx * coef(mm)
+predict(mm::LinearModel, newx::Matrix) =  newx * coef(mm)
 
-function confint(obj::LmMod, level::Real)
+function confint(obj::LinearModel, level::Real)
     hcat(coef(obj),coef(obj)) + stderr(obj) *
     quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
-confint(obj::LmMod) = confint(obj, 0.95)
+confint(obj::LinearModel) = confint(obj, 0.95)
