@@ -174,7 +174,7 @@ glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwarg
 type DispersionFun <: Functor{2} end
 evaluate{T<:FP}(::DispersionFun,wt::T,resid::T) = wt*abs2(resid)
 function scale(m::GeneralizedLinearModel, sqr::Bool=false)
-    if isa(m.rr.d, Union(Bernoulli, Poisson))
+    if isa(m.rr.d, Union(Binomial, Poisson))
         return 1.
     end
 
