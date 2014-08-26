@@ -20,4 +20,4 @@ script:
     - if [ $JULIAVERSION = "julianightlies" ]; then julia -e 'Pkg.test("GLM"; coverage=true)'; fi
     - if [ $JULIAVERSION = "juliareleases" ]; then julia -e 'Pkg.test("GLM")'; fi
 after_success:
-    - if [ $JULIAVERSION = "juliareleases" ]; then julia -e 'cd(Pkg.dir("GLM")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
+    - if [ $JULIAVERSION = "julianightlies" ]; then julia -e 'cd(Pkg.dir("GLM")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
