@@ -181,3 +181,9 @@ function scale(m::GeneralizedLinearModel, sqr::Bool=false)
     s = sum(DispersionFun(), m.rr.wrkwts, m.rr.wrkresid)/df_residual(m)
     sqr ? s : sqrt(s)
 end
+
+## Prediction function for GLMs
+function predict(mm::GeneralizedLinearModel, newX::Matrix)
+    eta = newX * coef(mm)
+    mu = linkinv!(mm.rr.l, eta, eta)
+end
