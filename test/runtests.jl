@@ -65,3 +65,15 @@ gm10 = fit(GeneralizedLinearModel, lot1 ~ u, clotting, Gamma(), IdentityLink(), 
 @test_approx_eq coef(gm10) [99.250446880986,-18.374324929002]
 @test_approx_eq scale(gm10.model, true) 0.1041772704067886
 @test_approx_eq stderr(gm10) [17.864388462865,4.297968703823]
+
+## Prediction for GLMs
+srand(1)
+X = rand(10, 2)
+Y = logistic(X * [3; -3])
+
+gm11 = fit(GeneralizedLinearModel, X, Y, Binomial())
+@test_approx_eq predict(gm11) Y
+
+newX = rand(10, 2)
+newY = logistic(newX * coef(gm11))
+@test_approx_eq predict(gm11, newX) newY
