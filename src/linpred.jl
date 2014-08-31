@@ -40,7 +40,7 @@ if VERSION >= v"0.4.0-dev+122"
     cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,Matrix{T},:U}(p.qr[:R])
     cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; typeof(c)(copy(c.UL)))
 else
-    cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky(p.qr[:R], :U)
+    cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky(p.qr[:R], 'U')
     cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; Cholesky(copy(c.UL),c.uplo))
 end
 
