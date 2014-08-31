@@ -20,6 +20,16 @@ and `NumericExtensions` packages.
 The `RDatasets` package is useful for fitting models to compare with
 the results from R.
 
+## Fitting GLM models
+
+To fit a Generalized Linear Model (GLM), use the function, `glm(formula, data, family, link)`, where,
+- `formula`: uses column symbols from the DataFrame data, for example, if names(data)=[:Y,:X], then a valid formula is Y~X
+- `data`: a DataFrame which may contain NA values where any rows with NA values are ignored
+- `family`: chosen from `Binomial()`, `Gamma()`, `Normal()`, or `Poisson()`
+- `link`: chosen from the list below, for example, `LogitLink()` is a valid link for the `Binomial()` family
+
+An intercept is included in any GLM by default.
+
 ## Methods applied to fitted models
 
 Many of the methods provided by this package have names similar to those in [R](http://www.r-project.org).
@@ -31,6 +41,59 @@ Many of the methods provided by this package have names similar to those in [R](
 - `stderr`: standard errors of the coefficients
 - `vcov`: estimated variance-covariance matrix of the coefficient estimates
 
+## Minimal examples
+
+Ordinary Least Squares Regression:
+```julia
+julia> data=DataFrame(X=[1,2,3],Y=[2,4,7])
+3x2 DataFrame
+|-------|---|---|
+| Row # | X | Y |
+| 1     | 1 | 2 |
+| 2     | 2 | 4 |
+| 3     | 3 | 7 |
+
+julia> OLS = glm(Y~X,data,Normal(),IdentityLink())
+DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
+
+Coefficients:
+              Estimate Std.Error  z value Pr(>|z|)
+(Intercept)  -0.666667   0.62361 -1.06904   0.2850
+X                  2.5  0.288675  8.66025   <1e-17
+
+julia> stderr(OLS)
+2-element Array{Float64,1}:
+ 3.53553
+ 4.33013
+
+```
+
+Probit Regression:
+```julia
+julia> data=DataFrame(X=[1,2,3],Y=[1,0,1])
+3x2 DataFrame
+|-------|---|---|
+| Row # | X | Y |
+| 1     | 1 | 1 |
+| 2     | 2 | 0 |
+| 3     | 3 | 1 |
+
+julia> Probit = glm(Y~X,data,Binomial(),ProbitLink())
+DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
+
+Coefficients:
+                Estimate Std.Error     z value Pr(>|z|)
+(Intercept)     0.430727   1.98019    0.217518   0.8278
+X            2.37745e-17   0.91665 2.59362e-17   1.0000
+
+julia> vcov(Probit)
+2x2 Array{Float64,2}:
+  3.92116  -1.6805  
+ -1.6805    0.840248
+```
+
+
+## Other examples
 
 An example of a simple linear model in `R` is
 ```s
