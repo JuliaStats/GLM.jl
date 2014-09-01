@@ -23,8 +23,8 @@ the results from R.
 ## Fitting GLM models
 
 To fit a Generalized Linear Model (GLM), use the function, `glm(formula, data, family, link)`, where,
-- `formula`: uses column symbols from the DataFrame data, for example, if names(data)=[:Y,:X], then a valid formula is Y~X
-- `data`: a DataFrame which may contain NA values where any rows with NA values are ignored
+- `formula`: uses column symbols from the DataFrame data, for example, if `names(data)=[:Y,:X1,:X2]`, then a valid formula is `Y~X1+X2`
+- `data`: a DataFrame which may contain NA values, any rows with NA values are ignored
 - `family`: chosen from `Binomial()`, `Gamma()`, `Normal()`, or `Poisson()`
 - `link`: chosen from the list below, for example, `LogitLink()` is a valid link for the `Binomial()` family
 
@@ -40,6 +40,7 @@ Many of the methods provided by this package have names similar to those in [R](
 - `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
 - `stderr`: standard errors of the coefficients
 - `vcov`: estimated variance-covariance matrix of the coefficient estimates
+- `predict` : obtain predicted values of the dependent variable from the fitted model
 
 ## Minimal examples
 
@@ -65,6 +66,12 @@ julia> stderr(OLS)
 2-element Array{Float64,1}:
  3.53553
  4.33013
+ 
+julia> predict(OLS)
+3-element Array{Float64,1}:
+ 1.83333
+ 4.33333
+ 6.83333
 
 ```
 
