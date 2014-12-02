@@ -9,7 +9,7 @@ function installbeta!(p::LinPred, f::Real=1.)
 end
 
 typealias BlasReal Union(Float32,Float64)
-    
+
 type DensePredQR{T<:BlasReal} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
@@ -23,7 +23,7 @@ end
 DensePredQR{T<:BlasReal}(X::Matrix{T}) = DensePredQR{T}(X, zeros(T,size(X,2)))
 
 delbeta!{T<:BlasReal}(p::DensePredQR{T}, r::Vector{T}) = (p.delbeta = p.qr\r; p)
-              
+
 type DensePredChol{T<:BlasReal} <: DensePred
     X::Matrix{T}                   # model matrix
     beta0::Vector{T}               # base vector for coefficients
@@ -62,7 +62,7 @@ coef(x::LinPredModel) = coef(x.pp)
 
 df_residual(x::LinPredModel) = df_residual(x.pp)
 df_residual(x::DensePred) = size(x.X, 1) - length(x.beta0)
-    
+
 vcov(x::LinPredModel) = scale(x,true) * inv(cholfact(x.pp))
 #vcov(x::DensePredChol) = inv(x.chol)
 #vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
@@ -72,7 +72,7 @@ cor(x::LinPredModel) = (invstd = map(RcpFun(),stderr(x)); scale!(invstd,scale!(v
 stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
-    println(io, "$(typeof(obj)):\n\nCoefficients:", coeftable(obj))
+    println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
 end
 
 ## function show(io::IO, obj::GlmMod)
