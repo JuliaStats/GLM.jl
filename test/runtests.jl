@@ -93,3 +93,14 @@ gm11 = fit(GeneralizedLinearModel, X, Y, Binomial())
 newX = rand(10, 2)
 newY = logistic(newX * coef(gm11))
 @test_approx_eq predict(gm11, newX) newY
+
+## Prediction from DataFrames
+d = convert(DataFrame, X)
+d[:y] = Y
+
+gm12 = fit(GeneralizedLinearModel, y ~ 0 + x1 + x2, d, Binomial())
+@test predict(gm12) == predict(gm12, d[[:x1, :x2]])
+@test predict(gm12) == predict(gm12, d)
+
+newd = convert(DataFrame, newX)
+predict(gm12, newd)
