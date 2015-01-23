@@ -1,5 +1,6 @@
 ## Return the linear predictor vector
 linpred(p::LinPred, f::Real=1.) = p.X * (f == 0. ? p.beta0 : fma(p.beta0, p.delbeta, f))
+linpred!(out, p::LinPred, f::Real=1.) = A_mul_B!(out, p.X, (f == 0. ? p.beta0 : fma(p.beta0, p.delbeta, f)))
 
 ## Install beta0 + f*delbeta as beta0 and zero out delbeta
 function installbeta!(p::LinPred, f::Real=1.)
@@ -29,9 +30,10 @@ type DensePredChol{T<:BlasReal} <: DensePred
     beta0::Vector{T}               # base vector for coefficients
     delbeta::Vector{T}             # coefficient increment
     chol::Cholesky{T}
+    scratch::Matrix{T}
     function DensePredChol(X::Matrix{T}, beta0::Vector{T})
         n,p = size(X); length(beta0) == p || error("dimension mismatch")
-        new(X, beta0, zeros(T,p), cholfact(X'X))
+        new(X, beta0, zeros(T,p), cholfact(X'X), similar(X))
     end
 end
 DensePredChol{T<:BlasReal}(X::Matrix{T}) = DensePredChol{T}(X, zeros(T,size(X,2)))
@@ -49,8 +51,9 @@ function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
     p
 end
 
-function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T}, scr::Matrix{T})
-    vbroadcast!(Multiply(), scr, p.X, wt, 1)
+function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
+    scr = p.scratch
+    scale!(scr, wt, p.X)
     cholfact!(At_mul_B!(p.chol.UL, scr, p.X), :U)
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, scr, r))
     p
@@ -63,7 +66,7 @@ coef(x::LinPredModel) = coef(x.pp)
 df_residual(x::LinPredModel) = df_residual(x.pp)
 df_residual(x::DensePred) = size(x.X, 1) - length(x.beta0)
 
-vcov(x::LinPredModel) = scale(x,true) * inv(cholfact(x.pp))
+vcov(x::LinPredModel) = scale!(inv(cholfact(x.pp)), scale(x,true))
 #vcov(x::DensePredChol) = inv(x.chol)
 #vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
 

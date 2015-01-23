@@ -75,10 +75,11 @@ type BinomialMuStart <: Functor{2} end
 evaluate{T<:FP}(::BinomialMuStart,y::T,w::T) = (w*y + convert(T,0.5))/(w + one(T))
 result_type{T<:FP}(::BinomialMuStart,::Type{T},::Type{T}) = T
 
-mustart{T<:FP}(::Binomial,y::Vector{T},wt::Vector{T}) = map(BinomialMuStart(),y,wt)
-mustart{T<:FP}(::Gamma,y::Vector{T},::Vector{T}) = copy(y)
-mustart{T<:FP}(::Normal,y::Vector{T},::Vector{T}) = copy(y)
-mustart{T<:FP}(::Poisson,y::Vector{T},::Vector{T}) = y .+ convert(T,0.1)
+mustart!{T<:FP}(::Binomial,mu::Vector{T},y::Vector{T},wt::Vector{T}) = map!(BinomialMuStart(),mu,y,wt)
+mustart!{T<:FP}(::Gamma,mu::Vector{T},y::Vector{T},::Vector{T}) = copy!(mu, y)
+mustart!{T<:FP}(::Normal,mu::Vector{T},y::Vector{T},::Vector{T}) = copy!(mu, y)
+mustart!{T<:FP}(::Poisson,mu::Vector{T},y::Vector{T},::Vector{T}) = broadcast!(+, mu, y, convert(T,0.1))
+mustart{T<:FP}(d::Distribution,y::Vector{T},wt::Vector{T}) = mustart!(d, similar(y), y, wt)
 
 for Op in [:BernoulliVar,
            :CauchLink, :CauchInv, :CauchME,
