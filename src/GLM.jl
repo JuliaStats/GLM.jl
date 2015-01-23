@@ -1,8 +1,6 @@
-using Distributions, NumericExtensions
-
 module GLM
-
-    using Distributions, NumericExtensions, NumericFuns
+    using NumericFuns, Reexport, Compat
+    @reexport using Distributions
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
     using Base.LinAlg: QRCompactWY, Cholesky
@@ -12,7 +10,7 @@ module GLM
     import Base: (\), cholfact, cor, scale, show, size
     import StatsBase: coef, coeftable, confint, deviance, loglikelihood, nobs, stderr,
                       vcov, residuals, predict, fit
-    import NumericExtensions: evaluate, result_type
+    import NumericFuns: evaluate
 
     export                              # types
         CauchitLink,

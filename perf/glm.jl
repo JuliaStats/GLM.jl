@@ -16,3 +16,4 @@ y = float64(rand(n) .< mu);        # simulate observed responses
 
 gm6 = glm(mm.m, y, Binomial())
 @time glm(mm.m, y, Binomial());
+# Profile.print()
