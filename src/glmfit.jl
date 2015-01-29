@@ -55,10 +55,11 @@ updatemu!{T<:FPVector}(r::GlmResp{T}, linPr) = updatemu!(r, convert(T,vec(linPr)
 var!(r::GlmResp) = var!(r.d, r.var, r.mu)
 
 wrkresid!(r::GlmResp) = map1!(Divide(), map!(Subtract(), r.wrkresid, r.y, r.mu), r.mueta)
+wrkresid(r::GlmResp) = r.wrkresid
 
 function wrkresp(r::GlmResp)
-    if length(r.offset) > 0 return map1!(Add(), map(Subtract(), r.eta, r.offset), r.wrkresid) end
-    map(Add(), r.eta, r.wrkresid)
+    if length(r.offset) > 0 return map1!(Add(), map(Subtract(), r.eta, r.offset), wrkresid(r)) end
+    map(Add(), r.eta, wrkresid(r))
 end
 
 function wrkwt!(r::GlmResp)
