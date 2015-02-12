@@ -1,7 +1,7 @@
-type GlmResp{V<:FPVector} <: ModResp           # response in a glm model
+type GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp       # response in a glm model
     y::V                                       # response
-    d::UnivariateDistribution
-    l::Link
+    d::D
+    l::L
     devresid::V                                # (squared) deviance residuals
     eta::V                                     # linear predictor
     mu::V                                      # mean response
@@ -11,7 +11,7 @@ type GlmResp{V<:FPVector} <: ModResp           # response in a glm model
     wts::V                                     # prior weights
     wrkwts::V                                  # working weights
     wrkresid::V                                # working residuals
-    function GlmResp(y::V, d::UnivariateDistribution, l::Link,
+    function GlmResp(y::V, d::D, l::L,
                      eta::V, mu::V,
                      off::V, wts::V)
         if isa(d, Binomial)
@@ -45,20 +45,33 @@ mueta!(r::GlmResp) = mueta!(r.l, r.mueta, r.eta)
 
 function updatemu!{T<:FPVector}(r::GlmResp{T}, linPr::T)
     n = length(linPr)
-    length(r.offset) == n ? map!(Add(), r.eta, linPr, r.offset) : copy!(r.eta, linPr)
+    length(r.offset) == n ? simdmap!(Add(), r.eta, linPr, r.offset) : copy!(r.eta, linPr)
     linkinv!(r); mueta!(r); var!(r); wrkresid!(r); devresid!(r)
-    sum(r.devresid)
+    r
 end
 
 updatemu!{T<:FPVector}(r::GlmResp{T}, linPr) = updatemu!(r, convert(T,vec(linPr)))
 
 var!(r::GlmResp) = var!(r.d, r.var, r.mu)
 
-wrkresid!(r::GlmResp) = map1!(Divide(), map!(Subtract(), r.wrkresid, r.y, r.mu), r.mueta)
+function wrkresid!(r::GlmResp)
+    wrkresid = r.wrkresid
+    y = r.y
+    mu = r.mu
+    mueta = r.mueta
+    @inbounds @simd for i = 1:length(wrkresid)
+        wrkresid[i] = (y[i] - mu[i])/mueta[i]
+    end
+    wrkresid
+end
 
 function wrkresp(r::GlmResp)
-    if length(r.offset) > 0 return map1!(Add(), map(Subtract(), r.eta, r.offset), r.wrkresid) end
-    map(Add(), r.eta, r.wrkresid)
+    if length(r.offset) > 0
+        tmp = r.eta - r.offset
+        broadcast!(+, tmp, tmp, r.wrkresid)
+    else
+        r.eta + r.wrkresid
+    end
 end
 
 function wrkwt!(r::GlmResp)
@@ -66,21 +79,21 @@ function wrkwt!(r::GlmResp)
     mueta = r.mueta
     var = r.var
     if length(r.wts) == 0
-        for i = 1:length(r.var)
+        @simd for i = 1:length(r.var)
             @inbounds wrkwts[i] = abs2(mueta[i])/var[i]
         end
     else
         wts = r.wts
-        for i = 1:length(r.var)
+        @simd for i = 1:length(r.var)
             @inbounds wrkwts[i] = wts[i] * abs2(mueta[i])/var[i]
         end
     end
     wrkwts
 end
 
-type GeneralizedLinearModel <: LinPredModel
-    rr::GlmResp
-    pp::LinPred
+type GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: LinPredModel
+    rr::G
+    pp::L
     fit::Bool
 end
 
@@ -100,22 +113,40 @@ confint(obj::GeneralizedLinearModel) = confint(obj, 0.95)
         
 deviance(m::GeneralizedLinearModel)  = deviance(m.rr)
 
-function StatsBase.fit(m::GeneralizedLinearModel; verbose::Bool=false, maxIter::Integer=30,
-                       minStepFac::Real=0.001, convTol::Real=1.e-6)
+function _fit(m::GeneralizedLinearModel, verbose::Bool, maxIter::Integer, minStepFac::Real,
+              convTol::Real, start)
     m.fit && return m
     maxIter >= 1 || error("maxIter must be positive")
     0 < minStepFac < 1 || error("minStepFac must be in (0, 1)")
 
     cvg = false; p = m.pp; r = m.rr
-    scratch = similar(p.X)
-    devold = updatemu!(r, linpred(delbeta!(p, wrkresp(r), wrkwt!(r), scratch)))
-    installbeta!(p)
+    lp = r.mu
+    if start != nothing
+        copy!(p.beta0, start)
+        fill!(p.delbeta, 0)
+        updatemu!(r, linpred!(lp, p, 0))
+    else
+        updatemu!(r, linpred!(lp, delbeta!(p, wrkresp(r), wrkwt!(r))))
+        installbeta!(p)
+    end
+    devold = deviance(m)
     for i=1:maxIter
         f = 1.0
-        dev = updatemu!(r, linpred(delbeta!(p, r.wrkresid, wrkwt!(r), scratch)))
+        local dev
+        try
+            updatemu!(r, linpred!(lp, delbeta!(p, r.wrkresid, wrkwt!(r))))
+            dev = deviance(m)
+        catch e
+            isa(e, DomainError) ? (dev = Inf) : rethrow(e)
+        end
         while dev > devold
             f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
-            dev = updatemu!(r, linpred(p, f))
+            try
+                updatemu!(r, linpred(p, f))
+                dev = deviance(m)
+            catch e
+                isa(e, DomainError) ? (dev = Inf) : rethrow(e)
+            end
         end
         installbeta!(p, f)
         crit = (devold - dev)/dev
@@ -128,18 +159,28 @@ function StatsBase.fit(m::GeneralizedLinearModel; verbose::Bool=false, maxIter::
     m
 end
 
-function StatsBase.fit(m::GeneralizedLinearModel, y; wts=nothing, offset=nothing, dofit::Bool=true, fitargs...)
+StatsBase.fit(m::GeneralizedLinearModel; verbose::Bool=false, maxIter::Integer=30,
+              minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing) =
+    _fit(m, verbose, maxIter, minStepFac, convTol, start)
+
+function StatsBase.fit(m::GeneralizedLinearModel, y; wts=nothing, offset=nothing, dofit::Bool=true,
+                       verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
+                       start=nothing)
     r = m.rr
     V = typeof(r.y)
-    r.y = isa(y, V) ? copy(y) : convert(V, y)
-    wts == nothing || (r.wts = isa(wts, V) ? copy(wts) : convert(V, wts))
-    offset == nothing || (r.offset = isa(offset, V) ? copy(offset) : convert(V, offset))
-    r.mu = mustart(r.d, r.y, r.wts)
+    r.y = copy!(r.y, y)
+    isa(wts, Nothing) || copy!(r.wts, wts)
+    isa(offset, Nothing) || copy!(r.offset, offset)
+    mustart!(r.d, r.mu, r.y, r.wts)
     linkfun!(r.l, r.eta, r.mu)
     updatemu!(r, r.eta)
     fill!(m.pp.beta0, zero(eltype(m.pp.beta0)))
     m.fit = false
-    dofit ? fit(m; fitargs...) : m
+    if dofit
+        _fit(m, verbose, maxIter, minStepFac, convTol, start)
+    else
+        m
+    end
 end
 
 function StatsBase.fit{T<:FloatingPoint,V<:FPVector}(::Type{GeneralizedLinearModel},
@@ -148,17 +189,20 @@ function StatsBase.fit{T<:FloatingPoint,V<:FPVector}(::Type{GeneralizedLinearMod
                                                      dofit::Bool=true,
                                                      wts::V=fill!(similar(y), one(eltype(y))),
                                                      offset::V=similar(y, 0), fitargs...)
-    size(X, 1) == size(y, 1) || DimensionMismatch("number of rows in X and y must match")
+    size(X, 1) == size(y, 1) || throw(DimensionMismatch("number of rows in X and y must match"))
     n = length(y)
-    length(wts) == n || error("length(wts) = $lw should be 0 or $n")
+    length(wts) == n || throw(DimensionMismatch("length(wts) does not match length(y)"))
+    length(offset) == n || length(offset) == 0 || throw(DimensionMismatch("length(offset) does not match length(y)"))
     wts = T <: Float64 ? copy(wts) : convert(typeof(y), wts)
     off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
     mu = mustart(d, y, wts)
     eta = linkfun!(l, similar(mu), mu)
     if !isempty(off)
-        subtract!(eta, off)
+        @inbounds @simd for i = 1:length(eta)
+            eta[i] -= off[i]
+        end
     end
-    rr = GlmResp{typeof(y)}(y, d, l, eta, mu, offset, wts)
+    rr = GlmResp{typeof(y),typeof(d),typeof(l)}(y, d, l, eta, mu, offset, wts)
     res = GeneralizedLinearModel(rr, DensePredChol(X), false)
     dofit ? fit(res; fitargs...) : res
 end
@@ -171,19 +215,24 @@ glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwarg
 
 ## scale(m) -> estimate, s, of the scale parameter
 ## scale(m,true) -> estimate, s^2, of the squared scale parameter
-type DispersionFun <: Functor{2} end
-evaluate{T<:FP}(::DispersionFun,wt::T,resid::T) = wt*abs2(resid)
 function scale(m::GeneralizedLinearModel, sqr::Bool=false)
+    wrkwts = m.rr.wrkwts
+    wrkresid = m.rr.wrkresid
+
     if isa(m.rr.d, Union(Binomial, Poisson))
-        return 1.
+        return one(eltype(wrkwts))
     end
 
-    s = sum(DispersionFun(), m.rr.wrkwts, m.rr.wrkresid)/df_residual(m)
+    s = zero(eltype(wrkwts))
+    @inbounds @simd for i = 1:length(wrkwts)
+        s += wrkwts[i]*abs2(wrkresid[i])
+    end
+    s /= df_residual(m)
     sqr ? s : sqrt(s)
 end
 
 ## Prediction function for GLMs
-function predict(mm::GeneralizedLinearModel, newX::Matrix)
+function predict(mm::GeneralizedLinearModel, newX::AbstractMatrix)
     eta = newX * coef(mm)
     mu = linkinv!(mm.rr.l, eta, eta)
 end

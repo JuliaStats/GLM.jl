@@ -1,10 +1,27 @@
 ## Return the linear predictor vector
-linpred(p::LinPred, f::Real=1.) = p.X * (f == 0. ? p.beta0 : fma(p.beta0, p.delbeta, f))
+function linpred!(out, p::LinPred, f::Real=1.)
+    if f == 0
+        A_mul_B!(out, p.X, p.beta0)
+    else
+        beta0 = p.beta0
+        delbeta = p.delbeta
+        scbeta = p.scratchbeta
+        @inbounds for i = 1:length(scbeta)
+            scbeta[i] = beta0[i] + f*delbeta[i]
+        end
+        A_mul_B!(out, p.X, scbeta)
+    end
+end
+linpred(p::LinPred, f::Real=1.) = linpred!(Array(eltype(p.X), size(p.X, 1)), p, f)
 
 ## Install beta0 + f*delbeta as beta0 and zero out delbeta
 function installbeta!(p::LinPred, f::Real=1.)
-    fma!(p.beta0, p.delbeta, f)
-    fill!(p.delbeta, 0.)
+    beta0 = p.beta0
+    delbeta = p.delbeta
+    @inbounds for i = 1:length(beta0)
+        beta0[i] += delbeta[i]*f
+        delbeta[i] = 0
+    end
     p.beta0
 end
 
@@ -14,10 +31,11 @@ type DensePredQR{T<:BlasReal} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
+    scratchbeta::Vector{T}
     qr::QRCompactWY{T}
     function DensePredQR(X::Matrix{T}, beta0::Vector{T})
         n,p = size(X); length(beta0) == p || error("dimension mismatch")
-        new(X, beta0, zeros(T,p), qrfact(X))
+        new(X, beta0, zeros(T,p), zeros(T,p), qrfact(X))
     end
 end
 DensePredQR{T<:BlasReal}(X::Matrix{T}) = DensePredQR{T}(X, zeros(T,size(X,2)))
@@ -28,10 +46,12 @@ type DensePredChol{T<:BlasReal} <: DensePred
     X::Matrix{T}                   # model matrix
     beta0::Vector{T}               # base vector for coefficients
     delbeta::Vector{T}             # coefficient increment
+    scratchbeta::Vector{T}
     chol::Cholesky{T}
+    scratch::Matrix{T}
     function DensePredChol(X::Matrix{T}, beta0::Vector{T})
         n,p = size(X); length(beta0) == p || error("dimension mismatch")
-        new(X, beta0, zeros(T,p), cholfact(X'X))
+        new(X, beta0, zeros(T,p), zeros(T,p), cholfact(X'X), similar(X))
     end
 end
 DensePredChol{T<:BlasReal}(X::Matrix{T}) = DensePredChol{T}(X, zeros(T,size(X,2)))
@@ -49,8 +69,9 @@ function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
     p
 end
 
-function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T}, scr::Matrix{T})
-    vbroadcast!(Multiply(), scr, p.X, wt, 1)
+function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
+    scr = p.scratch
+    scale!(scr, wt, p.X)
     cholfact!(At_mul_B!(p.chol.UL, scr, p.X), :U)
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, scr, r))
     p
@@ -63,7 +84,7 @@ coef(x::LinPredModel) = coef(x.pp)
 df_residual(x::LinPredModel) = df_residual(x.pp)
 df_residual(x::DensePred) = size(x.X, 1) - length(x.beta0)
 
-vcov(x::LinPredModel) = scale(x,true) * inv(cholfact(x.pp))
+vcov(x::LinPredModel) = scale!(inv(cholfact(x.pp)), scale(x,true))
 #vcov(x::DensePredChol) = inv(x.chol)
 #vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
 

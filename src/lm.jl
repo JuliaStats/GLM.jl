@@ -23,7 +23,22 @@ type WtResid <: Functor{3} end
 evaluate{T<:FP}(::WtResid,wt::T,y::T,mu::T) = (y - mu)*sqrt(wt)
 result_type{T<:FP}(::WtResid,wt::T,y::T,mu::T) = T
 
-deviance(r::LmResp) = length(r.wts) == 0 ? sumsqdiff(r.y, r.mu) : wsumsqdiff(r.wts,r.y,r.mu)
+function deviance(r::LmResp)
+    y = r.y
+    mu = r.mu
+    wts = r.wts
+    v = zero(eltype(y))+zero(eltype(y))*zero(eltype(wts))
+    if isempty(wts)
+        @inbounds @simd for i = 1:length(y)
+            v += abs2(y[i] - mu[i])
+        end
+    else
+        @inbounds @simd for i = 1:length(y)
+            v += abs2(y[i] - mu[i])*wts[i]
+        end
+    end
+    v
+end
 residuals(r::LmResp)= length(r.wts) == 0 ? r.y - r.mu : map(WtResid(),r.wts,r.y,r.mu)
 
 type LinearModel{T<:LinPred} <: LinPredModel
