@@ -78,15 +78,9 @@ function wrkwt!(r::GlmResp)
     wrkwts = r.wrkwts
     mueta = r.mueta
     var = r.var
-    if length(r.wts) == 0
-        @simd for i = 1:length(r.var)
-            @inbounds wrkwts[i] = abs2(mueta[i])/var[i]
-        end
-    else
-        wts = r.wts
-        @simd for i = 1:length(r.var)
-            @inbounds wrkwts[i] = wts[i] * abs2(mueta[i])/var[i]
-        end
+    wts = r.wts
+    @simd for i = 1:length(r.var)
+        @inbounds wrkwts[i] = wts[i] * abs2(mueta[i])/var[i]
     end
     wrkwts
 end
