@@ -232,15 +232,14 @@ function scale(m::GeneralizedLinearModel, sqr::Bool=false)
 end
 
 ## Prediction function for GLMs
-function predict(mm::GeneralizedLinearModel, newX::AbstractMatrix; offset=nothing)
+function predict(mm::GeneralizedLinearModel, newX::AbstractMatrix; offset::FPVector=Array(eltype(newX),0))
     eta = newX * coef(mm)
     if length(mm.rr.offset) > 0
-        isa(offset, FPVector) &&
-            length(offset) == size(newX, 1) ||
+        length(offset) == size(newX, 1) ||
             error(ArgumentError("fit with offset, so `offset` kw arg must be an offset of length `size(newX, 1)`"))
         simdmap!(Add(), eta, eta, offset)
     else
-        isa(offset, FPVector) && length(offset) > 0 && error(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
+        length(offset) > 0 && error(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
     end
     mu = linkinv!(mm.rr.l, eta, eta)
 end
