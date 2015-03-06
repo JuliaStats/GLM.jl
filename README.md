@@ -5,7 +5,7 @@
 
 ## Older versions
 
-This documentation applies to GLM.jl 0.4.0, which is the latest release for Julia 0.3 and later. You may also be interested in the documentation for [GLM.jl 0.2.5](https://github.com/JuliaStats/GLM.jl/tree/v0.2.5), the latest release for Julia 0.2.
+This documentation applies to the current version of GLM.jl, which requires Julia 0.3 or later. You may also be interested in the documentation for [GLM.jl 0.2.5](https://github.com/JuliaStats/GLM.jl/tree/v0.2.5), the last release for Julia 0.2.
 
 ## Installation
 
