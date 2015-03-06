@@ -45,13 +45,22 @@ mueta!(r::GlmResp) = mueta!(r.l, r.mueta, r.eta)
 
 function updatemu!{T<:FPVector}(r::GlmResp{T}, linPr::T)
     n = length(linPr)
-    length(r.offset) == n ? simdmap!(Add(), r.eta, linPr, r.offset) : copy!(r.eta, linPr)
-    linkinv!(r); mueta!(r); var!(r); wrkresid!(r); devresid!(r)
+    if length(r.offset) == n
+        simdmap!(Add(), r.eta, linPr, r.offset)
+    else
+        copy!(r.eta, linPr)
+    end
+    linkinv!(r)
+    mueta!(r)
+    var!(r)
+    wrkresid!(r)
+    devresid!(r)
     r
 end
 
 updatemu!{T<:FPVector}(r::GlmResp{T}, linPr) = updatemu!(r, convert(T,vec(linPr)))
 
+var!{V<:FPVector,L<:Link}(r::GlmResp{V,Binomial,L}) = var!(r.d, r.l, r.var, r.eta)
 var!(r::GlmResp) = var!(r.d, r.var, r.mu)
 
 function wrkresid!(r::GlmResp)
@@ -110,7 +119,7 @@ function confint(obj::GeneralizedLinearModel, level::Real)
     hcat(coef(obj),coef(obj)) + stderr(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
 end
 confint(obj::GeneralizedLinearModel) = confint(obj, 0.95)
-        
+
 deviance(m::GeneralizedLinearModel)  = deviance(m.rr)
 
 function _fit(m::GeneralizedLinearModel, verbose::Bool, maxIter::Integer, minStepFac::Real,
@@ -124,9 +133,12 @@ function _fit(m::GeneralizedLinearModel, verbose::Bool, maxIter::Integer, minSte
     if start != nothing
         copy!(p.beta0, start)
         fill!(p.delbeta, 0)
-        updatemu!(r, linpred!(lp, p, 0))
+        linpred!(lp, p, 0)
+        updatemu!(r, lp)
     else
-        updatemu!(r, linpred!(lp, delbeta!(p, wrkresp(r), wrkwt!(r))))
+        delbeta!(p, wrkresp(r), wrkwt!(r))
+        linpred!(lp, p)
+        updatemu!(r, lp)
         installbeta!(p)
     end
     devold = deviance(m)
@@ -134,7 +146,9 @@ function _fit(m::GeneralizedLinearModel, verbose::Bool, maxIter::Integer, minSte
         f = 1.0
         local dev
         try
-            updatemu!(r, linpred!(lp, delbeta!(p, r.wrkresid, wrkwt!(r))))
+            delbeta!(p, r.wrkresid, wrkwt!(r))
+            linpred!(lp, p)
+            updatemu!(r, lp)
             dev = deviance(m)
         catch e
             isa(e, DomainError) ? (dev = Inf) : rethrow(e)
