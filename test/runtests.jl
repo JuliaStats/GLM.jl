@@ -90,17 +90,26 @@ Y = logistic(X * [3; -3])
 gm11 = fit(GeneralizedLinearModel, X, Y, Binomial())
 @test_approx_eq predict(gm11) Y
 
-newX = rand(10, 2)
+newX = rand(5, 2)
 newY = logistic(newX * coef(gm11))
 @test_approx_eq predict(gm11, newX) newY
+
+off = rand(10)
+newoff = rand(5)
+
+@test_throws ArgumentError predict(gm11, newX, offset=newoff)
+
+gm12 = fit(GeneralizedLinearModel, X, Y, Binomial(), offset=off)
+@test_throws ArgumentError predict(gm12, newX)
+@test_approx_eq predict(gm12, newX, offset=newoff) logistic(newX * coef(gm12) .+ newoff)
 
 ## Prediction from DataFrames
 d = convert(DataFrame, X)
 d[:y] = Y
 
-gm12 = fit(GeneralizedLinearModel, y ~ 0 + x1 + x2, d, Binomial())
-@test predict(gm12) == predict(gm12, d[[:x1, :x2]])
-@test predict(gm12) == predict(gm12, d)
+gm13 = fit(GeneralizedLinearModel, y ~ 0 + x1 + x2, d, Binomial())
+@test predict(gm13) == predict(gm13, d[[:x1, :x2]])
+@test predict(gm13) == predict(gm13, d)
 
 newd = convert(DataFrame, newX)
-predict(gm12, newd)
+predict(gm13, newd)
