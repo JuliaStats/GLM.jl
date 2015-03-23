@@ -1,5 +1,11 @@
 using Base.Cartesian
 
+# We use simdmap! instead of map! because we need to support 0.3, where
+# we have to call evaluate(f, x) instead of f(x). Also, even on 0.4,
+# map! is slow when given >2 input arrays. Finally, we can use @simd
+# here, although it's unclear how big the performance advantage really
+# is. Revisit when we drop support for julia 0.3 and
+# https://github.com/JuliaLang/julia/issues/9900 is fixed.
 @ngenerate N typeof(A) function simdmap!(f, A::AbstractArray, Xs::NTuple{N,AbstractArray}...)
     @nexprs N d->(length(Xs_d) == length(A) || throw(DimensionMismatch()))
     @inbounds @simd for i = 1:length(A)
