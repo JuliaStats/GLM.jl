@@ -88,7 +88,14 @@ vcov(x::LinPredModel) = scale!(inv(cholfact(x.pp)), scale(x,true))
 #vcov(x::DensePredChol) = inv(x.chol)
 #vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
 
-cor(x::LinPredModel) = (invstd = map(RcpFun(),stderr(x)); scale!(invstd,scale!(vcov(x),invstd)))
+function cor(x::LinPredModel)
+    Σ = vcov(x)
+    invstd = similar(Σ, size(Σ, 1))
+    for i = 1:size(Σ, 1)
+        invstd[i] = 1/sqrt(Σ[i, i])
+    end
+    scale!(invstd, scale!(Σ, invstd))
+end
 
 stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
 
