@@ -10,6 +10,10 @@ form = DataFrame(Carb=[0.1,0.3,0.5,0.6,0.7,0.9],OptDen=[0.086,0.269,0.446,0.538,
 lm1 = fit(LinearModel, OptDen ~ Carb, form)
 test_show(lm1)
 @test_approx_eq coef(lm1) linreg(array(form[:Carb]),array(form[:OptDen]))
+Σ = [6.136653061224592e-05 -9.464489795918525e-05
+    -9.464489795918525e-05 1.831836734693908e-04]
+@test_approx_eq vcov(lm1) Σ
+@test_approx_eq cor(lm1.model) diagm(diag(Σ))^(-1/2)*Σ*diagm(diag(Σ))^(-1/2)
 
 dobson = DataFrame(Counts=[18.,17,15,20,10,20,25,13,12], Outcome=gl(3,1,9), Treatment=gl(3,3))
 gm1 = fit(GeneralizedLinearModel, Counts ~ Outcome + Treatment, dobson, Poisson())
