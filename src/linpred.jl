@@ -54,17 +54,20 @@ DensePredChol{T<:BlasReal}(X::Matrix{T}) =
     DensePredChol(X, zeros(T, size(X, 2)), zeros(T, size(X, 2)), zeros(T, size(X, 2)), cholfact!(X'X), similar(X))
 
 if VERSION >= v"0.4.0-dev+4356"
-    cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,Matrix{T}}(p.qr[:R], 'U')
-    cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; Cholesky(c.factors, c.uplo))
     cholfactors(c::Cholesky) = c.factors
-elseif VERSION >= v"0.4.0-dev+122"
-    cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,Matrix{T},:U}(p.qr[:R])
-    cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; typeof(c)(c.UL))
-    cholfactors(c::Cholesky) = c.UL
 else
-    cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky(p.qr[:R], 'U')
-    cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; Cholesky(c.UL, c.uplo))
     cholfactors(c::Cholesky) = c.UL
+end
+LinAlg.cholfact!{T<:FP}(p::DensePredChol{T}) = p.chol
+
+if v"0.4.0-dev+122" <= VERSION <= v"0.4.0-dev+4356"
+    LinAlg.cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,Matrix{T},:U}(copy(p.qr[:R]))
+    LinAlg.cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; typeof(c)(copy(c.UL)))
+    LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky{T,Matrix{T},:U}(p.qr[:R])
+else
+    LinAlg.cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky(copy(p.qr[:R]), 'U')
+    LinAlg.cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; Cholesky(copy(cholfactors(c)), c.uplo))
+    LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky(p.qr[:R], 'U')
 end
 
 function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
@@ -87,7 +90,7 @@ coef(x::LinPredModel) = coef(x.pp)
 df_residual(x::LinPredModel) = df_residual(x.pp)
 df_residual(x::DensePred) = size(x.X, 1) - length(x.beta0)
 
-vcov(x::LinPredModel) = scale!(inv(cholfact(x.pp)), scale(x,true))
+vcov(x::LinPredModel) = scale!(inv(cholfact!(x.pp)), scale(x,true))
 #vcov(x::DensePredChol) = inv(x.chol)
 #vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
 
