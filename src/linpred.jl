@@ -42,26 +42,29 @@ DensePredQR{T<:BlasReal}(X::Matrix{T}) = DensePredQR{T}(X, zeros(T,size(X,2)))
 
 delbeta!{T<:BlasReal}(p::DensePredQR{T}, r::Vector{T}) = (p.delbeta = p.qr\r; p)
 
-type DensePredChol{T<:BlasReal} <: DensePred
+type DensePredChol{T<:BlasReal,C} <: DensePred
     X::Matrix{T}                   # model matrix
     beta0::Vector{T}               # base vector for coefficients
     delbeta::Vector{T}             # coefficient increment
     scratchbeta::Vector{T}
-    chol::Cholesky{T}
+    chol::C
     scratch::Matrix{T}
-    function DensePredChol(X::Matrix{T}, beta0::Vector{T})
-        n,p = size(X); length(beta0) == p || error("dimension mismatch")
-        new(X, beta0, zeros(T,p), zeros(T,p), cholfact(X'X), similar(X))
-    end
 end
-DensePredChol{T<:BlasReal}(X::Matrix{T}) = DensePredChol{T}(X, zeros(T,size(X,2)))
+DensePredChol{T<:BlasReal}(X::Matrix{T}) =
+    DensePredChol(X, zeros(T, size(X, 2)), zeros(T, size(X, 2)), zeros(T, size(X, 2)), cholfact!(X'X), similar(X))
 
-if VERSION >= v"0.4.0-dev+122"
+if VERSION >= v"0.4.0-dev+4356"
+    cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,Matrix{T}}(p.qr[:R], 'U')
+    cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; Cholesky(c.factors, c.uplo))
+    cholfactors(c::Cholesky) = c.factors
+elseif VERSION >= v"0.4.0-dev+122"
     cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,Matrix{T},:U}(p.qr[:R])
-    cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; typeof(c)(copy(c.UL)))
+    cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; typeof(c)(c.UL))
+    cholfactors(c::Cholesky) = c.UL
 else
     cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky(p.qr[:R], 'U')
-    cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; Cholesky(copy(c.UL),c.uplo))
+    cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; Cholesky(c.UL, c.uplo))
+    cholfactors(c::Cholesky) = c.UL
 end
 
 function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
@@ -72,7 +75,7 @@ end
 function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
     scr = p.scratch
     scale!(scr, wt, p.X)
-    cholfact!(At_mul_B!(p.chol.UL, scr, p.X), :U)
+    cholfact!(At_mul_B!(cholfactors(p.chol), scr, p.X), :U)
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, scr, r))
     p
 end
