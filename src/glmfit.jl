@@ -250,10 +250,10 @@ function predict(mm::GeneralizedLinearModel, newX::AbstractMatrix; offset::FPVec
     eta = newX * coef(mm)
     if length(mm.rr.offset) > 0
         length(offset) == size(newX, 1) ||
-            error(ArgumentError("fit with offset, so `offset` kw arg must be an offset of length `size(newX, 1)`"))
+            throw(ArgumentError("fit with offset, so `offset` kw arg must be an offset of length `size(newX, 1)`"))
         simdmap!(Add(), eta, eta, offset)
     else
-        length(offset) > 0 && error(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
+        length(offset) > 0 && throw(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
     end
     mu = linkinv!(mm.rr.l, eta, eta)
 end
