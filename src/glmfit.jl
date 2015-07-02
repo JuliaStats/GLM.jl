@@ -173,11 +173,11 @@ function _fit(m::GeneralizedLinearModel, verbose::Bool, maxIter::Integer, minSte
     m
 end
 
-StatsBase.fit(m::GeneralizedLinearModel; verbose::Bool=false, maxIter::Integer=30,
+fit(m::GeneralizedLinearModel; verbose::Bool=false, maxIter::Integer=30,
               minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing) =
     _fit(m, verbose, maxIter, minStepFac, convTol, start)
 
-function StatsBase.fit(m::GeneralizedLinearModel, y; wts=nothing, offset=nothing, dofit::Bool=true,
+function fit(m::GeneralizedLinearModel, y; wts=nothing, offset=nothing, dofit::Bool=true,
                        verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
                        start=nothing)
     r = m.rr
@@ -197,7 +197,7 @@ function StatsBase.fit(m::GeneralizedLinearModel, y; wts=nothing, offset=nothing
     end
 end
 
-function StatsBase.fit{T<:FloatingPoint,V<:FPVector}(::Type{GeneralizedLinearModel},
+function fit{T<:FloatingPoint,V<:FPVector}(::Type{GeneralizedLinearModel},
                                                      X::Matrix{T}, y::V, d::UnivariateDistribution,
                                                      l::Link=canonicallink(d);
                                                      dofit::Bool=true,
@@ -221,7 +221,7 @@ function StatsBase.fit{T<:FloatingPoint,V<:FPVector}(::Type{GeneralizedLinearMod
     dofit ? fit(res; fitargs...) : res
 end
 
-StatsBase.fit(::Type{GeneralizedLinearModel}, X::Matrix, y::AbstractVector, d::UnivariateDistribution,
+fit(::Type{GeneralizedLinearModel}, X::Matrix, y::AbstractVector, d::UnivariateDistribution,
               l::Link=canonicallink(d); kwargs...) =
     fit(GeneralizedLinearModel, float(X), float(y), d, l; kwargs...)
 
