@@ -1,4 +1,4 @@
-using Base.Test, GLM, DataFrames
+using Base.Test, DataFrames, GLM
 
 function test_show(x)
 	io = IOBuffer()
@@ -9,7 +9,7 @@ end
 form = DataFrame(Carb=[0.1,0.3,0.5,0.6,0.7,0.9],OptDen=[0.086,0.269,0.446,0.538,0.626,0.782])
 lm1 = fit(LinearModel, OptDen ~ Carb, form)
 test_show(lm1)
-@test_approx_eq coef(lm1) linreg(array(form[:Carb]),array(form[:OptDen]))
+@test_approx_eq coef(lm1) linreg(convert(Array, form[:Carb]), convert(Array, form[:OptDen]))
 Σ = [6.136653061224592e-05 -9.464489795918525e-05
     -9.464489795918525e-05 1.831836734693908e-04]
 @test_approx_eq vcov(lm1) Σ
@@ -47,14 +47,14 @@ test_show(gm5)
 df = readtable(Pkg.dir("GLM","data","anorexia.csv.gz"))
 df[:Treat] = pool(df[:Treat])
 
-gm6 = fit(GeneralizedLinearModel, Postwt ~ Prewt + Treat, df, Normal(), IdentityLink(), offset=array(df[:Prewt]))
+gm6 = fit(GeneralizedLinearModel, Postwt ~ Prewt + Treat, df, Normal(), IdentityLink(), offset=convert(Array, df[:Prewt]))
 test_show(gm6)
 @test_approx_eq deviance(gm6) 3311.262619919613
 @test_approx_eq coef(gm6) [49.7711090149846,-0.5655388496391,-4.0970655280729,4.5630626529188]
 @test_approx_eq scale(gm6.model, true) 48.6950385282296
 @test_approx_eq stderr(gm6) [13.3909581420259,0.1611823618518,1.8934926069669,2.1333359226431]
 
-gm7 = fit(GeneralizedLinearModel, Postwt ~ Prewt + Treat, df, Normal(), LogLink(), offset=array(df[:Prewt]),
+gm7 = fit(GeneralizedLinearModel, Postwt ~ Prewt + Treat, df, Normal(), LogLink(), offset=convert(Array, df[:Prewt]),
 	      convTol=1e-8)
 test_show(gm7)
 @test_approx_eq deviance(gm7) 3265.207242977156
