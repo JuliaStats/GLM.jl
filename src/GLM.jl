@@ -8,8 +8,7 @@ module GLM
     using Distributions: sqrt2, sqrt2π
 
     import Base: (\), cholfact, cor, scale, show, size
-    import StatsBase: coef, coeftable, confint, deviance, loglikelihood, nobs, stderr,
-                      vcov, residuals, predict, fit
+    import StatsBase: coef, coeftable, confint, deviance, df_residual, loglikelihood, nobs, stderr,vcov, residuals, predict, fit, model_response, xlogy
     import NumericFuns: evaluate
 
     export                              # types
@@ -42,9 +41,7 @@ module GLM
         delbeta!,       # evaluate the increment in the coefficient vector
         deviance,       # deviance of fitted and observed responses
         devresid,       # vector of squared deviance residuals
-        df_residual,    # degrees of freedom for residuals
         drsum,          # sum of squared deviance residuals
-        fit,            # function to fit models, from StatsBase
         formula,        # extract the formula from a model
         glm,            # general interface
         linkfun!,       # mutating link function

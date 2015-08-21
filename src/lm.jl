@@ -48,12 +48,12 @@ end
 
 cholfact(x::LinearModel) = cholfact(x.pp)
 
-function StatsBase.fit{LinPredT<:LinPred}(::Type{LinearModel{LinPredT}}, X::Matrix, y::Vector)
+function fit{LinPredT<:LinPred}(::Type{LinearModel{LinPredT}}, X::Matrix, y::Vector)
     rr = LmResp(float(y)); pp = LinPredT(X)
     installbeta!(delbeta!(pp, rr.y)); updatemu!(rr, linpred(pp,0.))
     LinearModel(rr, pp)
 end
-StatsBase.fit(::Type{LinearModel}, X::Matrix, y::Vector) = StatsBase.fit(LinearModel{DensePredQR}, X, y)
+fit(::Type{LinearModel}, X::Matrix, y::Vector) = fit(LinearModel{DensePredQR}, X, y)
 
 lm(X, y) = fit(LinearModel, X, y)
 lmc(X, y) = fit(LinearModel{DensePredChol}, X, y)

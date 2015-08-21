@@ -145,7 +145,7 @@ function evaluate{T<:FP}(::BinomialDevResid,y::T,mu::T,wt::T)
 end
 
 type PoissonDevResid <: Functor{3} end
-evaluate{T<:FP}(::PoissonDevResid,y::T,mu::T,wt::T) = 2.wt * (StatsBase.xlogy(y,y/mu) - (y - mu))
+evaluate{T<:FP}(::PoissonDevResid,y::T,mu::T,wt::T) = 2.wt * (xlogy(y,y/mu) - (y - mu))
 
 type GammaDevResid <: Functor{3} end
 evaluate{T<:FP}(::GammaDevResid,y::T,mu::T,wt::T) = -2.wt * (log(y/mu) - (y - mu)/mu)
