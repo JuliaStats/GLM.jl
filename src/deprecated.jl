@@ -8,7 +8,7 @@ for (fitfn, fittype) in ((:glm, :GeneralizedLinearModel), (:lm, :LinearModel), (
             fit($fittype, DataFrames.Formula(e), df, args...; kwargs...)
         end
 
-        function $fitfn(s::String, df, args...; kwargs...)
+        function $fitfn(s::AbstractString, df, args...; kwargs...)
             depwarn($("$(string(fitfn))(e::String, df::AbstractDataFrame, ...) is deprecated, use fit($(string(fittype)), f::Formula, df::AbstractDataFrame, ...) instead"), $(Base.Meta.quot(fitfn)))
             eval(quote; import DataFrames; end)
             fit($fittype, DataFrames.Formula(parse(s)[1]), df, args...; kwargs...)

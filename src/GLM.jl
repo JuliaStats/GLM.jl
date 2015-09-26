@@ -67,8 +67,8 @@ module GLM
         wrkresid,       # extract the working residuals              
         wrkresp         # working response
 
-    typealias FP FloatingPoint
-    typealias FPVector{T<:FloatingPoint} DenseArray{T,1}
+    typealias FP AbstractFloat
+    typealias FPVector{T<:FP} DenseArray{T,1}
 
     abstract ModResp                   # model response
 

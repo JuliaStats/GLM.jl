@@ -183,8 +183,8 @@ function fit(m::GeneralizedLinearModel, y; wts=nothing, offset=nothing, dofit::B
     r = m.rr
     V = typeof(r.y)
     r.y = copy!(r.y, y)
-    isa(wts, Nothing) || copy!(r.wts, wts)
-    isa(offset, Nothing) || copy!(r.offset, offset)
+    isa(wts, @compat Void) || copy!(r.wts, wts)
+    isa(offset, @compat Void) || copy!(r.offset, offset)
     mustart!(r.d, r.mu, r.y, r.wts)
     linkfun!(r.l, r.eta, r.mu)
     updatemu!(r, r.eta)
@@ -197,12 +197,12 @@ function fit(m::GeneralizedLinearModel, y; wts=nothing, offset=nothing, dofit::B
     end
 end
 
-function fit{T<:FloatingPoint,V<:FPVector}(::Type{GeneralizedLinearModel},
-                                                     X::Matrix{T}, y::V, d::UnivariateDistribution,
-                                                     l::Link=canonicallink(d);
-                                                     dofit::Bool=true,
-                                                     wts::V=fill!(similar(y), one(eltype(y))),
-                                                     offset::V=similar(y, 0), fitargs...)
+function fit{T<:FP,V<:FPVector}(::Type{GeneralizedLinearModel},
+                                X::Matrix{T}, y::V, d::UnivariateDistribution,
+                                l::Link=canonicallink(d);
+                                dofit::Bool=true,
+                                wts::V=fill!(similar(y), one(eltype(y))),
+                                offset::V=similar(y, 0), fitargs...)
     size(X, 1) == size(y, 1) || throw(DimensionMismatch("number of rows in X and y must match"))
     n = length(y)
     length(wts) == n || throw(DimensionMismatch("length(wts) does not match length(y)"))
@@ -233,7 +233,7 @@ function scale(m::GeneralizedLinearModel, sqr::Bool=false)
     wrkwts = m.rr.wrkwts
     wrkresid = m.rr.wrkresid
 
-    if isa(m.rr.d, Union(Binomial, Poisson))
+    if isa(m.rr.d, @compat Union{Binomial, Poisson})
         return one(eltype(wrkwts))
     end
 
