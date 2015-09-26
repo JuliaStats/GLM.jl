@@ -8,7 +8,8 @@ module GLM
     using Distributions: sqrt2, sqrt2π
 
     import Base: (\), cholfact, cor, scale, show, size
-    import StatsBase: coef, coeftable, confint, deviance, df_residual, loglikelihood, nobs, stderr,vcov, residuals, predict, fit, model_response, xlogy
+    import StatsBase: coef, coeftable, confint, deviance, df_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, xlogy
+    export coef, coeftable, confint, deviance, df_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response
     import NumericFuns: evaluate
 
     export                              # types
