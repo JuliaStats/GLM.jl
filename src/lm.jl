@@ -14,14 +14,10 @@ LmResp{V<:FPVector}(y::V) = LmResp{V}(fill!(similar(y), zero(eltype(V))), simila
 
 function updatemu!{V<:FPVector}(r::LmResp{V}, linPr::V)
     n = length(linPr); length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
-    length(r.offset) == 0 ? copy!(r.mu, linPr) : map!(Add(), r.mu, linPr, r.offset)
+    length(r.offset) == 0 ? copy!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
     deviance(r)
 end
 updatemu!{V<:FPVector}(r::LmResp{V}, linPr) = updatemu!(r, convert(V,vec(linPr)))
-
-type WtResid <: Functor{3} end
-evaluate{T<:FP}(::WtResid,wt::T,y::T,mu::T) = (y - mu)*sqrt(wt)
-result_type{T<:FP}(::WtResid,wt::T,y::T,mu::T) = T
 
 function deviance(r::LmResp)
     y = r.y
@@ -39,7 +35,21 @@ function deviance(r::LmResp)
     end
     v
 end
-residuals(r::LmResp)= length(r.wts) == 0 ? r.y - r.mu : map(WtResid(),r.wts,r.y,r.mu)
+
+function residuals(r::LmResp)
+    y = r.y
+    mu = r.mu
+    if isempty(r.wts)
+        y - mu
+    else
+        wts = r.wts
+        resid = similar(y)
+        @simd for i = 1:length(r)
+            @inbounds resid[i] = (y[i] - mu[i])*sqrt(wts[i])
+        end
+        resid
+    end
+end
 
 type LinearModel{T<:LinPred} <: LinPredModel
     rr::LmResp

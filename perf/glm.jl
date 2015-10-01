@@ -1,4 +1,4 @@
-using GLM, DataFrames
+using GLM, DataFrames, Compat
 glm(y ~ 1, DataFrame(y = float64(bitrand(10))), Binomial())
 
 n = 2_500_000; srand(1234321)
@@ -11,8 +11,8 @@ beta = unshift!(rand(Normal(),52), 0.5); # "true" parameter values
 
 ## Create linear predictor and mean response
 eta = mm.m * beta;
-mu = linkinv!(LogitLink(), similar(eta), eta); 
-y = float64(rand(n) .< mu);        # simulate observed responses
+mu = [linkinv(LogitLink(), x) for x in eta]
+y = map(Float64, rand(n) .< mu);        # simulate observed responses
 
 gm6 = glm(mm.m, y, Binomial())
 @time glm(mm.m, y, Binomial());

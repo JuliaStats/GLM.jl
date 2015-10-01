@@ -1,16 +1,15 @@
 module GLM
-    using NumericFuns, Reexport, Compat
+    using Reexport, Compat
     @reexport using Distributions
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
     using Base.LinAlg: QRCompactWY, Cholesky
-    using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel
+    using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel, logit, logistic
     using Distributions: sqrt2, sqrt2π
 
     import Base: (\), cholfact, cor, scale, show, size
     import StatsBase: coef, coeftable, confint, deviance, df_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, xlogy
     export coef, coeftable, confint, deviance, df_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response
-    import NumericFuns: evaluate
 
     export                              # types
         CauchitLink,
