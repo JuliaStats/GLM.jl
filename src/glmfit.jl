@@ -93,13 +93,15 @@ function wrkwt!(r::GlmResp)
     wrkwts
 end
 
-type GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: LinPredModel
+abstract AbstractGLM <: LinPredModel
+
+type GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     rr::G
     pp::L
     fit::Bool
 end
 
-function coeftable(mm::GeneralizedLinearModel)
+function coeftable(mm::AbstractGLM)
     cc = coef(mm)
     se = stderr(mm)
     zz = cc ./ se
@@ -108,14 +110,14 @@ function coeftable(mm::GeneralizedLinearModel)
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
-function confint(obj::GeneralizedLinearModel, level::Real)
+function confint(obj::AbstractGLM, level::Real)
     hcat(coef(obj),coef(obj)) + stderr(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
 end
-confint(obj::GeneralizedLinearModel) = confint(obj, 0.95)
+confint(obj::AbstractGLM) = confint(obj, 0.95)
 
-deviance(m::GeneralizedLinearModel)  = deviance(m.rr)
+deviance(m::AbstractGLM)  = deviance(m.rr)
 
-function _fit(m::GeneralizedLinearModel, verbose::Bool, maxIter::Integer, minStepFac::Real,
+function _fit(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
               convTol::Real, start)
     m.fit && return m
     maxIter >= 1 || error("maxIter must be positive")
@@ -166,7 +168,7 @@ function _fit(m::GeneralizedLinearModel, verbose::Bool, maxIter::Integer, minSte
     m
 end
 
-fit(m::GeneralizedLinearModel; verbose::Bool=false, maxIter::Integer=30,
+fit(m::AbstractGLM; verbose::Bool=false, maxIter::Integer=30,
               minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing) =
     _fit(m, verbose, maxIter, minStepFac, convTol, start)
 
@@ -186,7 +188,7 @@ function initialeta!(dist::UnivariateDistribution, link::Link,
     eta
 end
 
-function fit(m::GeneralizedLinearModel, y; wts=nothing, offset=nothing, dofit::Bool=true,
+function fit(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::Bool=true,
              verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
              start=nothing)
     r = m.rr
@@ -205,12 +207,12 @@ function fit(m::GeneralizedLinearModel, y; wts=nothing, offset=nothing, dofit::B
     end
 end
 
-function fit{T<:FP,V<:FPVector}(::Type{GeneralizedLinearModel},
-                                X::Matrix{T}, y::V, d::UnivariateDistribution,
-                                l::Link=canonicallink(d);
-                                dofit::Bool=true,
-                                wts::V=fill!(similar(y), one(eltype(y))),
-                                offset::V=similar(y, 0), fitargs...)
+function fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
+                                               X::Matrix{T}, y::V, d::UnivariateDistribution,
+                                               l::Link=canonicallink(d);
+                                               dofit::Bool=true,
+                                               wts::V=fill!(similar(y), one(eltype(y))),
+                                               offset::V=similar(y, 0), fitargs...)
     size(X, 1) == size(y, 1) || throw(DimensionMismatch("number of rows in X and y must match"))
     n = length(y)
     length(wts) == n || throw(DimensionMismatch("length(wts) does not match length(y)"))
@@ -219,19 +221,19 @@ function fit{T<:FP,V<:FPVector}(::Type{GeneralizedLinearModel},
     off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
     eta = initialeta!(d, l, similar(y), y, wts, off)
     rr = GlmResp{typeof(y),typeof(d),typeof(l)}(y, d, l, eta, similar(y), offset, wts)
-    res = GeneralizedLinearModel(rr, DensePredChol(X), false)
+    res = M(rr, DensePredChol(X), false)
     dofit ? fit(res; fitargs...) : res
 end
 
-fit(::Type{GeneralizedLinearModel}, X::Matrix, y::AbstractVector, d::UnivariateDistribution,
+fit{M<:AbstractGLM}(::Type{M}, X::Matrix, y::AbstractVector, d::UnivariateDistribution,
               l::Link=canonicallink(d); kwargs...) =
-    fit(GeneralizedLinearModel, float(X), float(y), d, l; kwargs...)
+    fit(M, float(X), float(y), d, l; kwargs...)
 
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
 ## scale(m) -> estimate, s, of the scale parameter
 ## scale(m,true) -> estimate, s^2, of the squared scale parameter
-function scale(m::GeneralizedLinearModel, sqr::Bool=false)
+function scale(m::AbstractGLM, sqr::Bool=false)
     wrkwts = m.rr.wrkwts
     wrkresid = m.rr.wrkresid
 
@@ -248,7 +250,7 @@ function scale(m::GeneralizedLinearModel, sqr::Bool=false)
 end
 
 ## Prediction function for GLMs
-function predict(mm::GeneralizedLinearModel, newX::AbstractMatrix; offset::FPVector=Array(eltype(newX),0))
+function predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Array(eltype(newX),0))
     eta = newX * coef(mm)
     if length(mm.rr.offset) > 0
         length(offset) == size(newX, 1) ||
