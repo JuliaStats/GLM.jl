@@ -31,47 +31,40 @@ end
 # returns the sum of the squared deviance residuals
 deviance(r::GlmResp) = sum(r.devresid)
 
-# update the `devresid` field
-devresid!(r::GlmResp) = devresid!(r.d, r.devresid, r.y, r.mu, r.wts)
-
-# apply the link function generating the linear predictor (eta) vector from the mean vector (mu)
-linkfun!(r::GlmResp) = linkfun!(r.l, r.eta, r.mu)
-
-# apply the inverse link function generating the mean vector (mu) from the linear predictor (eta)
-linkinv!(r::GlmResp) = linkinv!(r.l, r.mu, r.eta)
-
-# evaluate the mueta vector (derivative of mu w.r.t. eta) from the linear predictor (eta)
-mueta!(r::GlmResp) = mueta!(r.l, r.mueta, r.eta)
-
 function updatemu!{T<:FPVector}(r::GlmResp{T}, linPr::T)
-    n = length(linPr)
-    if length(r.offset) == n
-        simdmap!(Add(), r.eta, linPr, r.offset)
-    else
-        copy!(r.eta, linPr)
-    end
-    linkinv!(r)
-    mueta!(r)
-    var!(r)
-    wrkresid!(r)
-    devresid!(r)
-    r
-end
-
-updatemu!{T<:FPVector}(r::GlmResp{T}, linPr) = updatemu!(r, convert(T,vec(linPr)))
-
-var!{V<:FPVector,L<:Link}(r::GlmResp{V,Binomial,L}) = var!(r.d, r.l, r.var, r.eta)
-var!(r::GlmResp) = var!(r.d, r.var, r.mu)
-
-function wrkresid!(r::GlmResp)
-    wrkresid = r.wrkresid
     y = r.y
+    dist = r.d
+    link = r.l
+    eta = r.eta
     mu = r.mu
-    mueta = r.mueta
-    @inbounds @simd for i = 1:length(wrkresid)
-        wrkresid[i] = (y[i] - mu[i])/mueta[i]
+    muetav = r.mueta
+    offset = r.offset
+    var = r.var
+    wts = r.wts
+    wrkresid = r.wrkresid
+    devresidv = r.devresid
+
+    if length(offset) == length(eta)
+        broadcast!(+, eta, linPr, offset)
+    else
+        copy!(eta, linPr)
     end
-    wrkresid
+
+    @inbounds @simd for i = 1:length(eta)
+        η = eta[i]
+
+        # apply the inverse link function generating the mean vector (μ) from the linear predictor (η)
+        μ = mu[i] = linkinv(link, η)
+
+        # evaluate the mueta vector (derivative of μ w.r.t. η) from the linear predictor (eta)
+        dμdη = muetav[i] = mueta(link, η)
+
+        var[i] = glmvar(dist, link, μ, η)
+        ys = y[i]
+        wrkresid[i] = (ys - μ)/dμdη
+        devresidv[i] = devresid(dist, ys, μ, wts[i])
+    end
+    r
 end
 
 function wrkresp(r::GlmResp)
@@ -177,16 +170,31 @@ fit(m::GeneralizedLinearModel; verbose::Bool=false, maxIter::Integer=30,
               minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing) =
     _fit(m, verbose, maxIter, minStepFac, convTol, start)
 
+function initialeta!(dist::UnivariateDistribution, link::Link,
+                     eta::AbstractVector, y::AbstractVector, wts::AbstractVector,
+                     off::AbstractVector)
+    length(eta) == length(y) == length(wts) || throw(DimensionMismatch("argument lengths do not match"))
+    @inbounds @simd for i = 1:length(y)
+        μ = mustart(dist, y[i], wts[i])
+        eta[i] = linkfun(link, μ)
+    end
+    if !isempty(off)
+        @inbounds @simd for i = 1:length(eta)
+            eta[i] -= off[i]
+        end
+    end
+    eta
+end
+
 function fit(m::GeneralizedLinearModel, y; wts=nothing, offset=nothing, dofit::Bool=true,
-                       verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
-                       start=nothing)
+             verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
+             start=nothing)
     r = m.rr
     V = typeof(r.y)
     r.y = copy!(r.y, y)
     isa(wts, @compat Void) || copy!(r.wts, wts)
     isa(offset, @compat Void) || copy!(r.offset, offset)
-    mustart!(r.d, r.mu, r.y, r.wts)
-    linkfun!(r.l, r.eta, r.mu)
+    initialeta!(r.d, r.l, r.eta, r.y, r.wts, r.offset)
     updatemu!(r, r.eta)
     fill!(m.pp.beta0, zero(eltype(m.pp.beta0)))
     m.fit = false
@@ -209,14 +217,8 @@ function fit{T<:FP,V<:FPVector}(::Type{GeneralizedLinearModel},
     length(offset) == n || length(offset) == 0 || throw(DimensionMismatch("length(offset) does not match length(y)"))
     wts = T <: Float64 ? copy(wts) : convert(typeof(y), wts)
     off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
-    mu = mustart(d, y, wts)
-    eta = linkfun!(l, similar(mu), mu)
-    if !isempty(off)
-        @inbounds @simd for i = 1:length(eta)
-            eta[i] -= off[i]
-        end
-    end
-    rr = GlmResp{typeof(y),typeof(d),typeof(l)}(y, d, l, eta, mu, offset, wts)
+    eta = initialeta!(d, l, similar(y), y, wts, off)
+    rr = GlmResp{typeof(y),typeof(d),typeof(l)}(y, d, l, eta, similar(y), offset, wts)
     res = GeneralizedLinearModel(rr, DensePredChol(X), false)
     dofit ? fit(res; fitargs...) : res
 end
@@ -251,9 +253,9 @@ function predict(mm::GeneralizedLinearModel, newX::AbstractMatrix; offset::FPVec
     if length(mm.rr.offset) > 0
         length(offset) == size(newX, 1) ||
             throw(ArgumentError("fit with offset, so `offset` kw arg must be an offset of length `size(newX, 1)`"))
-        simdmap!(Add(), eta, eta, offset)
+        broadcast!(+, eta, eta, offset)
     else
         length(offset) > 0 && throw(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
     end
-    mu = linkinv!(mm.rr.l, eta, eta)
+    mu = [linkinv(mm.rr.l, x) for x in eta]
 end
