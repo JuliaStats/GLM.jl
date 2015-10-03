@@ -208,7 +208,8 @@ function fit(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::Bool=true,
 end
 
 function fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
-                                               X::Matrix{T}, y::V, d::UnivariateDistribution,
+                                               X::@compat(Union{Matrix{T},SparseMatrixCSC{T}}), y::V,
+                                               d::UnivariateDistribution,
                                                l::Link=canonicallink(d);
                                                dofit::Bool=true,
                                                wts::V=fill!(similar(y), one(eltype(y))),
@@ -221,12 +222,12 @@ function fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
     off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
     eta = initialeta!(d, l, similar(y), y, wts, off)
     rr = GlmResp{typeof(y),typeof(d),typeof(l)}(y, d, l, eta, similar(y), offset, wts)
-    res = M(rr, DensePredChol(X), false)
+    res = M(rr, cholpred(X), false)
     dofit ? fit(res; fitargs...) : res
 end
 
-fit{M<:AbstractGLM}(::Type{M}, X::Matrix, y::AbstractVector, d::UnivariateDistribution,
-              l::Link=canonicallink(d); kwargs...) =
+fit{M<:AbstractGLM}(::Type{M}, X::@compat(Union{Matrix,SparseMatrixCSC}), y::AbstractVector,
+                    d::UnivariateDistribution, l::Link=canonicallink(d); kwargs...) =
     fit(M, float(X), float(y), d, l; kwargs...)
 
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)

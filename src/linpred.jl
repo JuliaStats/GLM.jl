@@ -52,6 +52,7 @@ type DensePredChol{T<:BlasReal,C} <: DensePred
 end
 DensePredChol{T<:BlasReal}(X::Matrix{T}) =
     DensePredChol(X, zeros(T, size(X, 2)), zeros(T, size(X, 2)), zeros(T, size(X, 2)), cholfact!(X'X), similar(X))
+cholpred(X::Matrix) = DensePredChol(X)
 
 if VERSION >= v"0.4.0-dev+4356"
     cholfactors(c::Cholesky) = c.factors
@@ -76,13 +77,40 @@ function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
 end
 
 function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
-    scr = p.scratch
-    scale!(scr, wt, p.X)
+    scr = scale!(p.scratch, wt, p.X)
     cholfact!(At_mul_B!(cholfactors(p.chol), scr, p.X), :U)
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, scr, r))
     p
 end
 
+type SparsePredChol{T,M<:SparseMatrixCSC,C} <: GLM.LinPred
+    X::M                           # model matrix
+    Xt::M                          # X'
+    beta0::Vector{T}               # base vector for coefficients
+    delbeta::Vector{T}             # coefficient increment
+    scratchbeta::Vector{T}
+    chol::C
+    scratch::M
+end
+function SparsePredChol{T}(X::SparseMatrixCSC{T})
+    chol = cholfact(speye(size(X, 2)))
+    SparsePredChol{eltype(X),typeof(X),typeof(chol)}(X, X', zeros(T, size(X, 2)), zeros(T, size(X, 2)), zeros(T, size(X, 2)), chol, similar(X))
+end
+cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
+
+@eval function delbeta!{T}(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T})
+    scr = scale!(p.scratch, wt, p.X)
+    XtWX = p.Xt*scr
+    c = p.chol = $(if VERSION >= v"0.4.0-dev+3307"
+        :(cholfact(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'U')))
+    else
+        :(cholfact(scale!(XtWX + XtWX', convert(eltype(XtWX), 1/2))))
+    end)
+    p.delbeta = c\Ac_mul_B!(p.delbeta, scr, r)
+end
+
+Base.cholfact{T}(p::SparsePredChol{T}) = copy(p.chol)
+Base.cholfact!{T}(p::SparsePredChol{T}) = p.chol
 
 coef(x::LinPred) = x.beta0
 coef(x::LinPredModel) = coef(x.pp)
@@ -90,7 +118,9 @@ coef(x::LinPredModel) = coef(x.pp)
 df_residual(x::LinPredModel) = df_residual(x.pp)
 df_residual(x::DensePred) = size(x.X, 1) - length(x.beta0)
 
-vcov(x::LinPredModel) = scale!(inv(cholfact!(x.pp)), scale(x,true))
+invchol(x::DensePred) = inv(cholfact!(x))
+invchol(x::SparsePredChol) = cholfact!(x)\eye(size(x.X, 2))
+vcov(x::LinPredModel) = scale!(invchol(x.pp), scale(x,true))
 #vcov(x::DensePredChol) = inv(x.chol)
 #vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
 
