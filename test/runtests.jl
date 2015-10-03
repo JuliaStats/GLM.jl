@@ -86,6 +86,19 @@ test_show(gm10)
 @test_approx_eq scale(gm10.model, true) 0.1041772704067886
 @test_approx_eq stderr(gm10) [17.864388462865,4.297968703823]
 
+## Fitting GLMs with sparse matrices
+srand(1)
+X = sprand(1000, 10, 0.01)
+β = randn(10)
+y = Bool[rand() < x for x in logistic(X * β)]
+
+gmsparse = fit(GeneralizedLinearModel, X, y, Binomial())
+gmdense = fit(GeneralizedLinearModel, full(X), y, Binomial())
+
+@test_approx_eq deviance(gmsparse) deviance(gmdense)
+@test_approx_eq coef(gmsparse) coef(gmdense)
+@test_approx_eq vcov(gmsparse) vcov(gmdense)
+
 ## Prediction for GLMs
 srand(1)
 X = rand(10, 2)
