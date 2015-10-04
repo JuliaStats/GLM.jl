@@ -1,20 +1,16 @@
-import Base.depwarn
+import Base
 
-for (fitfn, fittype) in ((:glm, :GeneralizedLinearModel), (:lm, :LinearModel), (:lmc, :(LinearModel{DensePredChol})))
-    @eval begin
-        function $fitfn(e::Expr, df, args...; kwargs...)
-            depwarn($("$(string(fitfn))(e::Expr, df::AbstractDataFrame, ...) is deprecated, use fit($(string(fittype)), f::Formula, df::AbstractDataFrame, ...) instead"), $(Base.Meta.quot(fitfn)))
-            eval(quote; import DataFrames; end)
-            fit($fittype, DataFrames.Formula(e), df, args...; kwargs...)
-        end
+@deprecate(fit(m::AbstractGLM; verbose::Bool=false, maxIter::Integer=30,
+               minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing),
+           fit!(m; verbose=verbose, maxIter=maxIter, minStepFac=minStepFac,
+                convTol=convTol, start=start))
 
-        function $fitfn(s::AbstractString, df, args...; kwargs...)
-            depwarn($("$(string(fitfn))(e::String, df::AbstractDataFrame, ...) is deprecated, use fit($(string(fittype)), f::Formula, df::AbstractDataFrame, ...) instead"), $(Base.Meta.quot(fitfn)))
-            eval(quote; import DataFrames; end)
-            fit($fittype, DataFrames.Formula(parse(s)[1]), df, args...; kwargs...)
-        end
-    end
-end
+@deprecate(fit(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::Bool=true,
+               verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
+               start=nothing),
+           fit!(m, y; wts=wts, offset=offset, dofit=dofit,
+                verbose=verbose, maxIter=maxIter, minStepFac=minStepFac, convTol=convTol,
+                start=start))
 
 typealias LmMod LinearModel
 typealias GlmMod GeneralizedLinearModel

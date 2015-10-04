@@ -9,7 +9,7 @@ module GLM
 
     import Base: (\), cholfact, cor, scale, show, size
     import StatsBase: coef, coeftable, confint, deviance, df_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, xlogy
-    export coef, coeftable, confint, deviance, df_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response
+    export coef, coeftable, confint, deviance, df_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response
 
     export                              # types
         CauchitLink,

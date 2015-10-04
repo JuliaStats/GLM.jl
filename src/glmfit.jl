@@ -117,7 +117,7 @@ confint(obj::AbstractGLM) = confint(obj, 0.95)
 
 deviance(m::AbstractGLM)  = deviance(m.rr)
 
-function _fit(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
+function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
               convTol::Real, start)
     m.fit && return m
     maxIter >= 1 || error("maxIter must be positive")
@@ -168,9 +168,9 @@ function _fit(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
     m
 end
 
-fit(m::AbstractGLM; verbose::Bool=false, maxIter::Integer=30,
+StatsBase.fit!(m::AbstractGLM; verbose::Bool=false, maxIter::Integer=30,
               minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing) =
-    _fit(m, verbose, maxIter, minStepFac, convTol, start)
+    _fit!(m, verbose, maxIter, minStepFac, convTol, start)
 
 function initialeta!(dist::UnivariateDistribution, link::Link,
                      eta::AbstractVector, y::AbstractVector, wts::AbstractVector,
@@ -188,9 +188,9 @@ function initialeta!(dist::UnivariateDistribution, link::Link,
     eta
 end
 
-function fit(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::Bool=true,
-             verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
-             start=nothing)
+function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::Bool=true,
+                        verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
+                        start=nothing)
     r = m.rr
     V = typeof(r.y)
     r.y = copy!(r.y, y)
@@ -201,7 +201,7 @@ function fit(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::Bool=true,
     fill!(m.pp.beta0, zero(eltype(m.pp.beta0)))
     m.fit = false
     if dofit
-        _fit(m, verbose, maxIter, minStepFac, convTol, start)
+        _fit!(m, verbose, maxIter, minStepFac, convTol, start)
     else
         m
     end
@@ -223,7 +223,7 @@ function fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
     eta = initialeta!(d, l, similar(y), y, wts, off)
     rr = GlmResp{typeof(y),typeof(d),typeof(l)}(y, d, l, eta, similar(y), offset, wts)
     res = M(rr, cholpred(X), false)
-    dofit ? fit(res; fitargs...) : res
+    dofit ? fit!(res; fitargs...) : res
 end
 
 fit{M<:AbstractGLM}(::Type{M}, X::@compat(Union{Matrix,SparseMatrixCSC}), y::AbstractVector,
