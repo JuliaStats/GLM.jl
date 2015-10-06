@@ -102,7 +102,7 @@ cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
     scr = scale!(p.scratch, wt, p.X)
     XtWX = p.Xt*scr
     c = p.chol = $(if VERSION >= v"0.4.0-dev+3307"
-        :(cholfact(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'U')))
+        :(cholfact(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L')))
     else
         :(cholfact(scale!(XtWX + XtWX', convert(eltype(XtWX), 1/2))))
     end)
@@ -116,7 +116,7 @@ coef(x::LinPred) = x.beta0
 coef(x::LinPredModel) = coef(x.pp)
 
 df_residual(x::LinPredModel) = df_residual(x.pp)
-df_residual(x::DensePred) = size(x.X, 1) - length(x.beta0)
+df_residual(x::@compat(Union{DensePred,SparsePredChol})) = size(x.X, 1) - length(x.beta0)
 
 invchol(x::DensePred) = inv(cholfact!(x))
 invchol(x::SparsePredChol) = cholfact!(x)\eye(size(x.X, 2))
