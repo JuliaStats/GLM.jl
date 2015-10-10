@@ -1,23 +1,17 @@
-language: cpp
-compiler:
-    - clang
+language: julia
+os:
+    - linux
+    - osx
+julia:
+    - 0.3
+    - 0.4
+    - nightly
 notifications:
-  email: false
-env:
-  matrix:
-    - JULIAVERSION="juliareleases"
-    - JULIAVERSION="julianightlies"
-before_install:
-    - sudo add-apt-repository ppa:staticfloat/julia-deps -y
-    - sudo add-apt-repository ppa:staticfloat/${JULIAVERSION} -y
-    - sudo apt-get update -qq -y
-    - sudo apt-get install libpcre3-dev julia -y
-    - git config --global user.name "Travis User"
-    - git config --global user.email "travis@example.net"
-    - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+    email: false
+sudo: false
 script:
-    - julia -e 'versioninfo(); Pkg.clone(pwd())'
-    - if [ $JULIAVERSION = "julianightlies" ]; then julia -e 'Pkg.test("GLM"; coverage=true)'; fi
-    - if [ $JULIAVERSION = "juliareleases" ]; then julia -e 'Pkg.test("GLM")'; fi
+    - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+    - julia -e 'Pkg.clone(pwd()); Pkg.build("GLM")'
+    - julia -e 'Pkg.test("GLM", coverage=true)'
 after_success:
-    - if [ $JULIAVERSION = "julianightlies" ]; then julia -e 'cd(Pkg.dir("GLM")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'; fi
+    - julia -e 'cd(Pkg.dir("GLM")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder())'
