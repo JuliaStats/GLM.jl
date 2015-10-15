@@ -14,16 +14,13 @@ module GLM
     export                              # types
         CauchitLink,
         CloglogLink,
-        DensePred,
-        DensePredQR,
-        DensePredChol,
         GeneralizedLinearModel,
         GlmResp,
         IdentityLink,
         InverseLink,
         LinearModel,
         Link,
-        LinPred,
+        LinFact,
         LinPredModel,
         LogitLink,
         LogLink,
@@ -71,8 +68,7 @@ module GLM
 
     abstract ModResp                   # model response
 
-    abstract LinPred                   # linear predictor in statistical models
-    abstract DensePred <: LinPred      # linear predictor with dense X
+    abstract LinFact{T}                      # factorization of design matrix
     abstract LinPredModel <: RegressionModel # model based on a linear predictor
 
     include("linpred.jl")

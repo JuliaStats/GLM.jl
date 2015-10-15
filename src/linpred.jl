@@ -1,125 +1,147 @@
-## Return the linear predictor vector
-function linpred!(out, p::LinPred, f::Real=1.)
-    if f == 0
-        A_mul_B!(out, p.X, p.beta0)
-    else
-        beta0 = p.beta0
-        delbeta = p.delbeta
-        scbeta = p.scratchbeta
-        @inbounds for i = 1:length(scbeta)
-            scbeta[i] = beta0[i] + f*delbeta[i]
-        end
-        A_mul_B!(out, p.X, scbeta)
-    end
-end
-linpred(p::LinPred, f::Real=1.) = linpred!(Array(eltype(p.X), size(p.X, 1)), p, f)
-
-## Install beta0 + f*delbeta as beta0 and zero out delbeta
-function installbeta!(p::LinPred, f::Real=1.)
-    beta0 = p.beta0
-    delbeta = p.delbeta
-    @inbounds for i = 1:length(beta0)
-        beta0[i] += delbeta[i]*f
-        delbeta[i] = 0
-    end
-    p.beta0
-end
-
 @compat typealias BlasReal Union{Float32,Float64}
 
-type DensePredQR{T<:BlasReal} <: DensePred
+abstract QR{T} <: LinFact{T}
+
+"Dense QR factorization (using DenseQR), unweighted"
+type DenseQRUnweighted{T} <: QR{T}
     X::Matrix{T}                  # model matrix
-    beta0::Vector{T}              # base coefficient vector
-    delbeta::Vector{T}            # coefficient increment
-    scratchbeta::Vector{T}
-    qr::QRCompactWY{T}
-    function DensePredQR(X::Matrix{T}, beta0::Vector{T})
-        n,p = size(X); length(beta0) == p || error("dimension mismatch")
-        new(X, beta0, zeros(T,p), zeros(T,p), qrfact(X))
-    end
+    scratch::Matrix{T}            # scratch for QR
+    qr::QRCompactWY{T,Matrix{T}}  # QR object
+    DenseQRUnweighted(X::Matrix{T}) = new(X, similar(X))
 end
-DensePredQR{T<:BlasReal}(X::Matrix{T}) = DensePredQR{T}(X, zeros(T,size(X,2)))
+DenseQRUnweighted{T<:BlasReal}(X::Matrix{T}) = DenseQRUnweighted{T}(X)
 
-delbeta!{T<:BlasReal}(p::DensePredQR{T}, r::Vector{T}) = (p.delbeta = p.qr\r; p)
+"Computes the QR factorization of X"
+factorize!{T}(p::DenseQRUnweighted{T}) =
+    (p.qr = qrfact!(copy!(p.scratch, p.X)); p)
 
-type DensePredChol{T<:BlasReal,C} <: DensePred
+Base.(:\){T}(p::DenseQRUnweighted{T}, r::AbstractVector{T}) =
+    p.qr\r
+
+
+"Dense QR factorization (using LAPACK), weighted"
+type DenseQRWeighted{T} <: QR{T}
+    X::Matrix{T}                  # model matrix
+    scratch::Matrix{T}            # scratch for QR
+    sqrtwt::Vector{T}             # sqrt of weights
+    rscratch::Vector{T}           # scratch for computation of r.*sqrt(wt)
+    qr::QRCompactWY{T,Matrix{T}}  # QR object
+    DenseQRWeighted(X::Matrix{T}) = new(X, similar(X), similar(X, size(X, 1)), similar(X, size(X, 1)))
+end
+DenseQRWeighted{T<:BlasReal}(X::Matrix{T}) = DenseQRWeighted{T}(X)
+
+"Computes the QR factorization of WX where W = diagm(sqrt(wt))"
+function factorize!{T}(p::DenseQRWeighted{T}, wt::AbstractVector{T})
+    broadcast!(sqrt, p.sqrtwt, wt)
+    scale!(p.scratch, p.sqrtwt, p.X)
+    p.qr = qrfact!(p.scratch)
+    p
+end
+
+Base.(:\){T}(p::DenseQRWeighted{T}, r::AbstractVector{T}) =
+    p.qr\broadcast!(*, p.rscratch, r, p.sqrtwt)
+
+Base.LinAlg.cholfact!{T<:FP}(p::QR{T}) =
+    Cholesky(p.qr[:R], 'U')
+
+
+
+abstract Chol{T} <: LinFact{T}
+
+"Dense Cholesky factorization, unweighted"
+immutable DenseCholUnweighted{T<:BlasReal,C} <: Chol{T}
     X::Matrix{T}                   # model matrix
-    beta0::Vector{T}               # base vector for coefficients
-    delbeta::Vector{T}             # coefficient increment
-    scratchbeta::Vector{T}
-    chol::C
-    scratch::Matrix{T}
+    chol::C                        # Cholesky object
 end
-DensePredChol{T<:BlasReal}(X::Matrix{T}) =
-    DensePredChol(X, zeros(T, size(X, 2)), zeros(T, size(X, 2)), zeros(T, size(X, 2)), cholfact!(X'X), similar(X))
-cholpred(X::Matrix) = DensePredChol(X)
+DenseCholUnweighted{T<:BlasReal}(X::Matrix{T}) = 
+    DenseCholUnweighted(X, Cholesky(Array(T, size(X, 2), size(X, 2)), 'U'))
 
-if VERSION >= v"0.4.0-dev+4356"
-    cholfactors(c::Cholesky) = c.factors
-else
-    cholfactors(c::Cholesky) = c.UL
+"Computes the Cholesky factorization of X'X"
+factorize!{T}(p::DenseCholUnweighted{T}) =
+    (cholfact!(At_mul_B!(p.chol.factors, p.X, p.X), :U); p)
+
+solve!{T}(beta::StridedVector{T}, p::DenseCholUnweighted{T}, r::AbstractVector{T}) =
+    A_ldiv_B!(p.chol, At_mul_B!(beta, p.X, r))
+
+
+"Dense Cholesky factorization, weighted"
+immutable DenseCholWeighted{T<:BlasReal,C} <: Chol{T}
+    X::Matrix{T}                   # model matrix
+    WX::Matrix{T}                  # W*X
+    chol::C                        # Cholesky object
 end
-Base.LinAlg.cholfact!{T<:FP}(p::DensePredChol{T}) = p.chol
+DenseCholWeighted{T<:BlasReal}(X::Matrix{T}) =
+    DenseCholWeighted(X, similar(X), Cholesky(Array(T, size(X, 2), size(X, 2)), 'U'))
 
-if v"0.4.0-dev+122" <= VERSION < v"0.4.0-dev+4356"
-    Base.LinAlg.cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,Matrix{T},:U}(copy(p.qr[:R]))
-    Base.LinAlg.cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; typeof(c)(copy(c.UL)))
-    Base.LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky{T,Matrix{T},:U}(p.qr[:R])
-else
-    Base.LinAlg.cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky(copy(p.qr[:R]), 'U')
-    Base.LinAlg.cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; Cholesky(copy(cholfactors(c)), c.uplo))
-    Base.LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky(p.qr[:R], 'U')
-end
-
-function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
-    A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, p.X, r))
+"Computes the Cholesky factorization of X'WX where W = diagm(wt)"
+function factorize!{T}(p::DenseCholWeighted{T}, wt::AbstractVector{T})
+    scale!(p.WX, wt, p.X)
+    cholfact!(At_mul_B!(p.chol.factors, p.WX, p.X), :U)
     p
 end
 
-function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
-    scr = scale!(p.scratch, wt, p.X)
-    cholfact!(At_mul_B!(cholfactors(p.chol), scr, p.X), :U)
-    A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, scr, r))
-    p
-end
+solve!{T}(beta::StridedVector{T}, p::DenseCholWeighted{T}, r::AbstractVector{T}) =
+    A_ldiv_B!(p.chol, At_mul_B!(beta, p.WX, r))
 
-type SparsePredChol{T,M<:SparseMatrixCSC,C} <: GLM.LinPred
+
+
+"Sparse Cholesky factorization using CHOLMOD"
+type SparseChol{T,M<:SparseMatrixCSC} <: Chol{T}
     X::M                           # model matrix
     Xt::M                          # X'
-    beta0::Vector{T}               # base vector for coefficients
-    delbeta::Vector{T}             # coefficient increment
-    scratchbeta::Vector{T}
-    chol::C
-    scratch::M
+    WX::M                          # WX
+    chol::Base.SparseMatrix.CHOLMOD.Factor{T}
+    SparseChol(X) = new(X, X', similar(X))
 end
-function SparsePredChol{T}(X::SparseMatrixCSC{T})
-    chol = cholfact(speye(size(X, 2)))
-    SparsePredChol{eltype(X),typeof(X),typeof(chol)}(X, X', zeros(T, size(X, 2)), zeros(T, size(X, 2)), zeros(T, size(X, 2)), chol, similar(X))
-end
-cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
+SparseChol{T}(X::SparseMatrixCSC{T}) = SparseChol{T,typeof(X)}(X)
 
-@eval function delbeta!{T}(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T})
-    scr = scale!(p.scratch, wt, p.X)
-    XtWX = p.Xt*scr
-    c = p.chol = $(if VERSION >= v"0.4.0-dev+3307"
-        :(cholfact(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L')))
-    else
-        :(cholfact(scale!(XtWX + XtWX', convert(eltype(XtWX), 1/2))))
-    end)
-    p.delbeta = c\Ac_mul_B!(p.delbeta, scr, r)
+"Computes the Cholesky factorization of X'X"
+function factorize!{T}(p::SparseChol{T})
+    p.WX = p.X
+    p.chol = cholfact(Symmetric{T,typeof(p.X)}(p.Xt*p.X, 'U'))
+    p
 end
 
-Base.cholfact{T}(p::SparsePredChol{T}) = copy(p.chol)
-Base.cholfact!{T}(p::SparsePredChol{T}) = p.chol
+"Computes the Cholesky factorization of X'WX where W = diagm(wt)"
+function factorize!{T}(p::SparseChol{T}, wt::Vector{T})
+    scr = scale!(p.WX, wt, p.X)
+    XtX = p.Xt*scr
+    p.chol = cholfact(Symmetric{eltype(XtX),typeof(XtX)}(XtX, 'U'))
+    p
+end
 
-coef(x::LinPred) = x.beta0
-coef(x::LinPredModel) = coef(x.pp)
+solve!{T}(beta::StridedVector{T}, p::SparseChol{T}, r::AbstractVector{T}) =
+    p.chol\Ac_mul_B!(beta, p.WX, r)
+
+Base.LinAlg.cholfact!{T<:FP}(p::Chol{T}) = p.chol
+
+
+
+# We assume one of solve or solve! is defined for each LinFact.
+# Otherwise you will get a StackOverflowError.
+"""
+Solves the least squares problem after the factorization has been
+computed using factorize! and returns the results in the first argument
+
+Unlike A_ldiv_B!, this may use the vector provided as the first
+argument as the output, or it may return a new vector.
+"""
+solve!{T}(out::StridedVector{T}, p::LinFact{T}, beta::AbstractVector) = p\beta
+
+"""
+Solves the least squares problem after the factorization has been
+computed using factorize!
+"""
+Base.(:\){T}(p::LinFact{T}, beta::AbstractVector) = solve!(Array(T, size(p.X, 2)), p, beta)
+
+Base.A_mul_B!(out::AbstractVector, p::LinFact, beta::AbstractVector) =
+    A_mul_B!(out, p.X, beta)
 
 df_residual(x::LinPredModel) = df_residual(x.pp)
-df_residual(x::@compat(Union{DensePred,SparsePredChol})) = size(x.X, 1) - length(x.beta0)
+df_residual(x::LinFact) = size(x.X, 1) - size(x.X, 2)
 
-invchol(x::DensePred) = inv(cholfact!(x))
-invchol(x::SparsePredChol) = cholfact!(x)\eye(size(x.X, 2))
+invchol(x::LinFact) = inv(cholfact!(x))
+invchol(x::SparseChol) = cholfact!(x)\eye(size(x.X, 2))
 vcov(x::LinPredModel) = scale!(invchol(x.pp), scale(x,true))
 #vcov(x::DensePredChol) = inv(x.chol)
 #vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
@@ -174,7 +196,6 @@ end
 ##     end
 ## end
 
-ModelFrame(obj::LinPredModel) = obj.fr
 ModelMatrix(obj::LinPredModel) = obj.pp.X
 model_response(obj::LinPredModel) = obj.rr.y
 

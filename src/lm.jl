@@ -51,22 +51,41 @@ function residuals(r::LmResp)
     end
 end
 
-type LinearModel{T<:LinPred} <: LinPredModel
+type LinearModel{LF<:LinFact,T} <: LinPredModel
     rr::LmResp
-    pp::T
+    pp::LF
+    beta::Vector{T}
 end
 
 cholfact(x::LinearModel) = cholfact(x.pp)
 
-function fit{LinPredT<:LinPred}(::Type{LinearModel{LinPredT}}, X::Matrix, y::Vector)
-    rr = LmResp(float(y)); pp = LinPredT(X)
-    installbeta!(delbeta!(pp, rr.y)); updatemu!(rr, linpred(pp,0.))
-    LinearModel(rr, pp)
+function StatsBase.fit!{LF,T}(lm::LinearModel{LF,T}, y::Vector{T})
+    lm.beta = solve!(lm.beta, lm.pp, y)
+    lp = A_mul_B!(lm.rr.mu, lm.pp, lm.beta)
+    updatemu!(lm.rr, lp)
 end
-fit(::Type{LinearModel}, X::Matrix, y::Vector) = fit(LinearModel{DensePredQR}, X, y)
+
+function StatsBase.fit{LF<:LinFact}(::Type{LinearModel{LF}}, X::AbstractMatrix, y::Vector)
+    y = float(y)
+    rr = LmResp(y)
+    pp = LF(float(X))
+
+    factorize!(pp)
+    beta = pp\y
+    lp = A_mul_B!(similar(y), pp, beta)
+    updatemu!(rr, lp)
+    LinearModel(rr, pp, beta)
+end
+
+StatsBase.fit(::Type{LinearModel}, X::Matrix, y::Vector) = fit(LinearModel{DenseQRUnweighted}, X, y)
+StatsBase.fit(::Type{LinearModel{QR}}, X::Matrix, y::Vector) = fit(LinearModel{DenseQRUnweighted}, X, y)
+StatsBase.fit(::Type{LinearModel{Chol}}, X::Matrix, y::Vector) = fit(LinearModel{DenseCholUnweighted}, X, y)
+
+StatsBase.fit(::Type{LinearModel}, X::SparseMatrixCSC, y::Vector) = fit(LinearModel{SparseChol}, X, y)
+StatsBase.fit(::Type{LinearModel{Chol}}, X::SparseMatrixCSC, y::Vector) = fit(LinearModel{SparseChol}, X, y)
+# TODO: support sparse QR
 
 lm(X, y) = fit(LinearModel, X, y)
-lmc(X, y) = fit(LinearModel{DensePredChol}, X, y)
 
 ## scale(m) -> estimate, s, of the scale parameter
 ## scale(m,true) -> estimate, s^2, of the squared scale parameter
@@ -75,6 +94,7 @@ function scale(x::LinearModel, sqr::Bool=false)
     sqr ? ssqr : sqrt(ssqr)
 end
 
+coef(mm::LinearModel) = mm.beta
 function coeftable(mm::LinearModel)
     cc = coef(mm)
     se = stderr(mm)

@@ -93,14 +93,23 @@ function wrkwt!(r::GlmResp)
     wrkwts
 end
 
-abstract AbstractGLM <: LinPredModel
+abstract AbstractGLM{L<:LinFact} <: LinPredModel
 
-type GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
+type GeneralizedLinearModel{L<:LinFact,G<:GlmResp,T} <: AbstractGLM
     rr::G
     pp::L
     fit::Bool
+    beta0::Vector{T}
+    delbeta::Vector{T}
+    curbeta::Vector{T}
 end
 
+GeneralizedLinearModel{T}(rr::GlmResp, pp::LinFact{T}) =
+    GeneralizedLinearModel{typeof(pp),typeof(rr),T}(rr, pp, false, Array(T, size(pp.X, 2)),
+                                                    Array(T, size(pp.X, 2)), Array(T, size(pp.X, 2)))
+call{LF}(::Type{GeneralizedLinearModel{LF}}, rr::GlmResp, pp::LF) = GeneralizedLinearModel(rr, pp)
+
+coef(mm::AbstractGLM) = mm.beta0
 function coeftable(mm::AbstractGLM)
     cc = coef(mm)
     se = stderr(mm)
@@ -117,6 +126,24 @@ confint(obj::AbstractGLM) = confint(obj, 0.95)
 
 deviance(m::AbstractGLM)  = deviance(m.rr)
 
+"Update curbeta as beta0 + f*delbeta and return it"
+function curbeta!(m::AbstractGLM, f::Real=1.)
+    beta0 = m.beta0
+    delbeta = m.delbeta
+    curbeta = m.curbeta
+    @simd for i = 1:length(curbeta)
+        @inbounds curbeta[i] = beta0[i] + f*delbeta[i]
+    end
+    curbeta
+end
+
+"Install curbeta as beta0 and clear delbeta"
+function installbeta!(m::AbstractGLM)
+    m.beta0, m.curbeta = m.curbeta, m.beta0
+    fill!(m.delbeta, 0)
+    nothing
+end
+
 function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
               convTol::Real, start)
     m.fit && return m
@@ -125,39 +152,39 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
 
     cvg = false; p = m.pp; r = m.rr
     lp = r.mu
-    if start != nothing
-        copy!(p.beta0, start)
-        fill!(p.delbeta, 0)
-        linpred!(lp, p, 0)
-        updatemu!(r, lp)
+    if start !== nothing
+        copy!(m.beta0, start)
     else
-        delbeta!(p, wrkresp(r), wrkwt!(r))
-        linpred!(lp, p)
-        updatemu!(r, lp)
-        installbeta!(p)
+        factorize!(p, wrkwt!(r))
+        m.beta0 = solve!(m.beta0, p, wrkresp(r))
     end
+    A_mul_B!(lp, p, m.beta0)
+    updatemu!(r, lp)
     devold = deviance(m)
+
     for i=1:maxIter
         f = 1.0
         local dev
         try
-            delbeta!(p, r.wrkresid, wrkwt!(r))
-            linpred!(lp, p)
+            factorize!(p, wrkwt!(r))
+            m.delbeta = solve!(m.delbeta, p, r.wrkresid)
+            A_mul_B!(lp, p, curbeta!(m))
             updatemu!(r, lp)
             dev = deviance(m)
         catch e
             isa(e, DomainError) ? (dev = Inf) : rethrow(e)
         end
         while dev > devold
-            f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
+            f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $(m.beta0)")
             try
-                updatemu!(r, linpred(p, f))
+                A_mul_B!(lp, p, curbeta!(m, f))
+                updatemu!(r, lp)
                 dev = deviance(m)
             catch e
                 isa(e, DomainError) ? (dev = Inf) : rethrow(e)
             end
         end
-        installbeta!(p, f)
+        installbeta!(m)
         crit = (devold - dev)/dev
         verbose && println("$i: $dev, $crit")
         if crit < convTol; cvg = true; break end
@@ -198,7 +225,6 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
     isa(offset, @compat Void) || copy!(r.offset, offset)
     initialeta!(r.d, r.l, r.eta, r.y, r.wts, r.offset)
     updatemu!(r, r.eta)
-    fill!(m.pp.beta0, zero(eltype(m.pp.beta0)))
     m.fit = false
     if dofit
         _fit!(m, verbose, maxIter, minStepFac, convTol, start)
@@ -207,27 +233,38 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
     end
 end
 
-function fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
-                                               X::@compat(Union{Matrix{T},SparseMatrixCSC{T}}), y::V,
-                                               d::UnivariateDistribution,
-                                               l::Link=canonicallink(d);
-                                               dofit::Bool=true,
-                                               wts::V=fill!(similar(y), one(eltype(y))),
-                                               offset::V=similar(y, 0), fitargs...)
+"""
+Determine the appropriate factorization for a model given the model
+type and design matrix
+"""
+glmfact(::Type{GeneralizedLinearModel}, X) = glmfact(GeneralizedLinearModel{Chol}, X)
+glmfact(::Type{GeneralizedLinearModel{Chol}}, X::Matrix) = DenseCholWeighted(X)
+glmfact(::Type{GeneralizedLinearModel{QR}}, X::Matrix) = DenseQRWeighted(X)
+glmfact(::Type{GeneralizedLinearModel{Chol}}, X::SparseMatrixCSC) = SparseChol(X)
+glmfact{T<:LinFact}(::Type{GeneralizedLinearModel{T}}, X::AbstractMatrix) = T(X)
+# TODO sparse QR
+
+function StatsBase.fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
+                                                         X::AbstractMatrix{T}, y::V,
+                                                         d::UnivariateDistribution,
+                                                         l::Link=canonicallink(d);
+                                                         dofit::Bool=true,
+                                                         wts::V=fill!(similar(y), one(eltype(y))),
+                                                         offset::V=similar(y, 0), fitargs...)
     size(X, 1) == size(y, 1) || throw(DimensionMismatch("number of rows in X and y must match"))
     n = length(y)
     length(wts) == n || throw(DimensionMismatch("length(wts) does not match length(y)"))
     length(offset) == n || length(offset) == 0 || throw(DimensionMismatch("length(offset) does not match length(y)"))
-    wts = T <: Float64 ? copy(wts) : convert(typeof(y), wts)
-    off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
+    wts = Base.LinAlg.copy_oftype(wts, T)
+    off = Base.LinAlg.copy_oftype(offset, T)
     eta = initialeta!(d, l, similar(y), y, wts, off)
     rr = GlmResp{typeof(y),typeof(d),typeof(l)}(y, d, l, eta, similar(y), offset, wts)
-    res = M(rr, cholpred(X), false)
+    res = M(rr, glmfact(M, X))
     dofit ? fit!(res; fitargs...) : res
 end
 
-fit{M<:AbstractGLM}(::Type{M}, X::@compat(Union{Matrix,SparseMatrixCSC}), y::AbstractVector,
-                    d::UnivariateDistribution, l::Link=canonicallink(d); kwargs...) =
+StatsBase.fit{M<:AbstractGLM}(::Type{M}, X::AbstractMatrix, y::AbstractVector,
+                              d::UnivariateDistribution, l::Link=canonicallink(d); kwargs...) =
     fit(M, float(X), float(y), d, l; kwargs...)
 
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)

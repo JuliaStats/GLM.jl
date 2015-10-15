@@ -1,4 +1,4 @@
-julia 0.3
+julia 0.4
 Distributions 0.4.6-
 StatsBase 0.7.1
 Reexport

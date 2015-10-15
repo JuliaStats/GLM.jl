@@ -12,5 +12,9 @@ import Base
                 verbose=verbose, maxIter=maxIter, minStepFac=minStepFac, convTol=convTol,
                 start=start))
 
+@deprecate lmc(X, y) fit(LinearModel{Chol}, X, y)
+
 typealias LmMod LinearModel
 typealias GlmMod GeneralizedLinearModel
+typealias DensePredQR DenseQRUnweighted
+typealias DensePredChol DenseCholUnweighted
