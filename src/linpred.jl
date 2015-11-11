@@ -115,12 +115,6 @@ end
 Base.cholfact{T}(p::SparsePredChol{T}) = copy(p.chol)
 Base.cholfact!{T}(p::SparsePredChol{T}) = p.chol
 
-coef(x::LinPred) = x.beta0
-coef(x::LinPredModel) = coef(x.pp)
-
-df_residual(x::LinPredModel) = df_residual(x.pp)
-df_residual(x::@compat(Union{DensePred,SparsePredChol})) = size(x.X, 1) - length(x.beta0)
-
 invchol(x::DensePred) = inv(cholfact!(x))
 invchol(x::SparsePredChol) = cholfact!(x) \ eye(size(x.X, 2))
 vcov(x::LinPredModel) = scale!(invchol(x.pp), scale(x,true))
@@ -182,5 +176,24 @@ model_response(obj::LinPredModel) = obj.rr.y
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
 formula(obj::LinPredModel) = ModelFrame(obj).formula
-nobs(obj::LinPredModel) = length(model_response(obj))
 residuals(obj::LinPredModel) = residuals(obj.rr)
+
+"""
+    nobs(obj::LinearModel)
+    nobs(obj::GLM)
+
+For linear and generalized linear models, returns the number of rows, or,
+when prior weights are specified, the sum of weights.
+"""
+function nobs(obj::LinPredModel)
+    if isempty(obj.rr.wts)
+        oftype(sum(one(eltype(obj.rr.wts))), length(obj.rr.y))
+    else
+        sum(obj.rr.wts)
+    end
+end
+
+coef(x::LinPred) = x.beta0
+coef(obj::LinPredModel) = coef(obj.pp)
+
+df_residual(obj::LinPredModel) = nobs(obj) - length(coef(obj))

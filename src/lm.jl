@@ -41,6 +41,43 @@ function deviance(r::LmResp)
     v
 end
 
+function nulldeviance(r::LmResp)
+    y = r.y
+    m = mean(y)
+    wts = r.wts
+    v = zero(eltype(y))*zero(eltype(wts))
+    if isempty(wts)
+        @inbounds @simd for i = 1:length(y)
+            v += abs2(y[i] - m)
+        end
+    else
+        @inbounds @simd for i = 1:length(y)
+            v += abs2(y[i] - m)*wts[i]
+        end
+    end
+    v
+end
+
+function loglikelihood(r::LmResp)
+    n = length(r.y)
+    wts = r.wts
+    sw = zero(log(one(eltype(wts))))
+    for w in wts
+        sw += log(w)
+    end
+    -n/2 * (log(2π * deviance(r)/n) + 1 - sw)
+end
+
+function nullloglikelihood(r::LmResp)
+    n = length(r.y)
+    wts = r.wts
+    sw = zero(log(one(eltype(wts))))
+    for w in wts
+        sw += log(w)
+    end
+    -n/2 * (log(2π * nulldeviance(r)/n) + 1 - sw)
+end
+
 function residuals(r::LmResp)
     y = r.y
     mu = r.mu
@@ -79,6 +116,34 @@ end
 
 lm(X, y) = fit(LinearModel, X, y)
 lmc(X, y) = fit(LinearModel{DensePredChol}, X, y)
+
+
+df(x::LinearModel) = length(coef(x)) + 1
+
+"""
+    deviance(obj::LinearModel)
+
+For linear models, the deviance is equal to the residual sum of squares (RSS).
+"""
+deviance(obj::LinearModel) = deviance(obj.rr)
+
+"""
+    nulldeviance(obj::LinearModel)
+
+For linear models, the deviance of the null model is equal to the total sum of squares (TSS).
+"""
+nulldeviance(obj::LinearModel) = nulldeviance(obj.rr)
+loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
+nullloglikelihood(obj::LinearModel) = nullloglikelihood(obj.rr)
+
+R2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
+
+function adjR2(obj::LinearModel)
+    n = nobs(obj)
+    # df() includes the dispersion parameter
+    p = df(obj) - 1
+    1 - (1 - R²(obj))*(n-1)/(n-p)
+end
 
 ## scale(m) -> estimate, s, of the scale parameter
 ## scale(m,true) -> estimate, s^2, of the squared scale parameter
