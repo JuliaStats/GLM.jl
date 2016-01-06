@@ -10,7 +10,7 @@ type LmResp{V<:FPVector} <: ModResp  # response in a linear model
         new(mu,off,wts,y)
     end
 end
-LmResp{V<:FPVector}(y::V) = LmResp{V}(fill!(similar(y), zero(eltype(V))), similar(y, 0), similar(y, 0), y)
+convert{V<:FPVector}(::Type{LmResp{V}}, y::V) = LmResp{V}(fill!(similar(y), zero(eltype(V))), similar(y, 0), similar(y, 0), y)
 
 function updatemu!{V<:FPVector}(r::LmResp{V}, linPr::V)
     n = length(linPr); length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
@@ -51,19 +51,25 @@ function residuals(r::LmResp)
     end
 end
 
-type LinearModel{T<:LinPred} <: LinPredModel
-    rr::LmResp
+type LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
+    rr::L
     pp::T
 end
 
 cholfact(x::LinearModel) = cholfact(x.pp)
 
-function fit{LinPredT<:LinPred}(::Type{LinearModel{LinPredT}}, X::Matrix, y::Vector)
-    rr = LmResp(float(y)); pp = LinPredT(X)
-    installbeta!(delbeta!(pp, rr.y)); updatemu!(rr, linpred(pp,0.))
+function fit{LmRespT<:LmResp,LinPredT<:LinPred}(::Type{LinearModel{LmRespT,LinPredT}}, X::Matrix, y::Vector)
+    rr = LmRespT(y)
+    pp = LinPredT(X)
+    installbeta!(delbeta!(pp, rr.y))
+    updatemu!(rr, linpred(pp, 0.))
     LinearModel(rr, pp)
 end
-fit(::Type{LinearModel}, X::Matrix, y::Vector) = fit(LinearModel{DensePredQR}, X, y)
+function fit(::Type{LinearModel}, X::Matrix, y::Vector)
+    T = promote_type(eltype(X), eltype(y), Float32)
+    yy = convert(Vector{T}, y)
+    return fit(LinearModel{LmResp{typeof(yy)}, DensePredQR{T}}, X, y)
+end
 
 lm(X, y) = fit(LinearModel, X, y)
 lmc(X, y) = fit(LinearModel{DensePredChol}, X, y)

@@ -34,11 +34,12 @@ type DensePredQR{T<:BlasReal} <: DensePred
     scratchbeta::Vector{T}
     qr::QRCompactWY{T}
     function DensePredQR(X::Matrix{T}, beta0::Vector{T})
-        n,p = size(X); length(beta0) == p || error("dimension mismatch")
+        n, p = size(X)
+        length(beta0) == p || error("dimension mismatch")
         new(X, beta0, zeros(T,p), zeros(T,p), qrfact(X))
     end
 end
-DensePredQR{T<:BlasReal}(X::Matrix{T}) = DensePredQR{T}(X, zeros(T,size(X,2)))
+convert{T}(::Type{DensePredQR{T}}, X::Matrix{T}) = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
 delbeta!{T<:BlasReal}(p::DensePredQR{T}, r::Vector{T}) = (p.delbeta = p.qr\r; p)
 
