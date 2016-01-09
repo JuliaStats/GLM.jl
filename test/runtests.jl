@@ -5,6 +5,8 @@ function test_show(x)
 	show(io, x)
 end
 
+const glm_datadir = joinpath(dirname(@__FILE__), "..", "data")
+
 ## Formaldehyde data from the R Datasets package
 form = DataFrame(Carb=[0.1,0.3,0.5,0.6,0.7,0.9],OptDen=[0.086,0.269,0.446,0.538,0.626,0.782])
 lm1 = fit(LinearModel, OptDen ~ Carb, form)
@@ -22,7 +24,7 @@ test_show(gm1)
 @test_approx_eq coef(gm1)[1:3] [3.044522437723423,-0.45425527227759555,-0.29298712468147375]
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
-df = readtable(Pkg.dir("GLM","data","admit.csv.gz"))
+df = readtable(joinpath(glm_datadir, "admit.csv.gz"))
 df[:rank] = pool(df[:rank])
 
 gm2 = fit(GeneralizedLinearModel, admit ~ gre + gpa + rank, df, Binomial())
@@ -44,7 +46,7 @@ test_show(gm5)
 @test_approx_eq deviance(gm5) 458.89439629612616
 
 ## Example with offsets from Venables & Ripley (2002, p.189)
-df = readtable(Pkg.dir("GLM","data","anorexia.csv.gz"))
+df = readtable(joinpath(glm_datadir, "anorexia.csv.gz"))
 df[:Treat] = pool(df[:Treat])
 
 gm6 = fit(GeneralizedLinearModel, Postwt ~ Prewt + Treat, df, Normal(), IdentityLink(), offset=convert(Array, df[:Prewt]))
