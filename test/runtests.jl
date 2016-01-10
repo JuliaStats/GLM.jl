@@ -130,3 +130,8 @@ gm13 = fit(GeneralizedLinearModel, y ~ 0 + x1 + x2, d, Binomial())
 
 newd = convert(DataFrame, newX)
 predict(gm13, newd)
+
+# Issue 118
+@inferred nobs(lm(randn(10, 2), randn(10)))
+
+
