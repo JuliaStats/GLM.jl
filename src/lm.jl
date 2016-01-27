@@ -21,6 +21,11 @@ function convert{T<:Real}(::Type{LmResp}, y::AbstractVector{T})
     convert(LmResp{typeof(yy)}, yy)
 end
 
+"""
+    updatemu!{V<:FPVector}(r::LmResp{V}, linPr::V)
+
+Update the response `r` from the linear predictor `V`.
+"""
 function updateμ!{V<:FPVector}(r::LmResp{V}, linPr::V)
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
@@ -113,6 +118,11 @@ end
 
 fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector) = fit!(LinearModel(LmResp(y), cholpred(X)))
 
+"""
+    lm(X::Matrix, y::Vector)
+
+Fit a linear model using QR factorization.
+"""
 lm(X, y) = fit(LinearModel, X, y)
 
 dof(x::LinearModel) = length(coef(x)) + 1
@@ -156,6 +166,13 @@ function coeftable(mm::LinearModel)
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
+"""
+    predict(mm, newx)
+
+Return the predictions from a fitted model `mm` based on a matrix of independent variables `newx`.
+Each row of `newx` represents an observation for which to predict the response, and each column
+represents an independent variable.
+"""
 predict(mm::LinearModel, newx::AbstractMatrix) = newx * coef(mm)
 
 """
@@ -178,7 +195,6 @@ function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, l
     interval = quantile(TDist(dof_residual(mm)), (1 - level)/2) * sqrt.(retvariance)
     hcat(retmean, retmean .+ interval, retmean .- interval)
 end
-
 
 function confint(obj::LinearModel, level::Real)
     hcat(coef(obj),coef(obj)) + stderr(obj) *

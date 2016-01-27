@@ -1,7 +1,22 @@
 ## Return the linear predictor vector
+"""
+    linpred!(out, p::LinPred, f::Real=1.)
+
+Compute the linear predictor inplace. The inputs are linear predictor `p`.
+The step factor f determines the parameter value at which the linear predictor
+is evaluated in an iterative algorithm like IRLS.
+"""
 function linpred!(out, p::LinPred, f::Real=1.)
     A_mul_B!(out, p.X, f == 0 ? p.beta0 : broadcast!(muladd, p.scratchbeta, f, p.delbeta, p.beta0))
 end
+
+"""
+    linpred(p, f)
+
+Return the linear predictor. The inputs are linear predictor `p`.
+The step factor f determines the parameter value at which the linear predictor
+is evaluated in an iterative algorithm like IRLS.
+"""
 linpred(p::LinPred, f::Real=1.) = linpred!(Vector{eltype(p.X)}(size(p.X, 1)), p, f)
 
 ## Install beta0 + f*delbeta as beta0 and zero out delbeta
@@ -80,6 +95,11 @@ function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
     p
 end
 
+"""
+    delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
+
+Evaluate the increment in the coefficient vector.
+"""
 function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
     scr = scale!(p.scratch, wt, p.X)
     if VERSION < v"0.5.0-dev+4677"
@@ -125,6 +145,13 @@ Base.cholfact!{T}(p::SparsePredChol{T}) = p.chol
 
 invchol(x::DensePred) = inv(cholfact!(x))
 invchol(x::SparsePredChol) = cholfact!(x) \ eye(size(x.X, 2))
+
+"""
+    vcov(x::LinPredModel)
+
+Return the estimated variance-covariance matrix of the coefficient estimates
+for the model `x`.
+"""
 vcov(x::LinPredModel) = scale!(invchol(x.pp), dispersion(x, true))
 
 function cor(x::LinPredModel)
@@ -136,6 +163,11 @@ function cor(x::LinPredModel)
     scale!(invstd, scale!(Σ, invstd))
 end
 
+"""
+    stderr(x::LinPredModel)
+
+Return the standard errors of the coefficients of the model `x`.
+"""
 stderr(x::LinPredModel) = sqrt.(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
@@ -148,7 +180,14 @@ model_response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
+
+"""
+    formula(obj::LinPredModel)
+
+Extract the formula from the model `obj`.
+"""
 formula(obj::LinPredModel) = ModelFrame(obj).formula
+
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 """
@@ -166,7 +205,18 @@ function nobs(obj::LinPredModel)
     end
 end
 
+"""
+    coef(x)
+
+Extract the estimates of the coefficients in the model `x` which is either
+`LinPred` or `LinPredModel`.
+"""
+function coef end
+
 coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
 
+"""
+Returns the residual degrees of freedom.
+"""
 dof_residual(obj::LinPredModel) = nobs(obj) - length(coef(obj))
