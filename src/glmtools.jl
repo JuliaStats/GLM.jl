@@ -11,6 +11,27 @@ type LogLink <: Link end
 type ProbitLink <: Link end
 type SqrtLink <: Link end
 
+"""
+    linkfun(Link, μ)
+
+Compute η (the linear predictor) from μ using link function of type `Link`.
+"""
+function linkfun end
+
+"""
+    linkinv(Link, η)
+
+Return the inverse Link function mapping μ(mean predictor) to η(the linear predictor).
+"""
+function linkinv end
+
+"""
+   mueta(Link, η)
+
+Return the derivative of inverse link.
+"""
+function mueta end    
+
 linkfun(::CauchitLink, μ) = tan(pi*(μ - oftype(μ, 0.5)))
 linkinv(::CauchitLink, η) = oftype(η, 0.5) + atan(η)/pi
 mueta(::CauchitLink, η) = one(η)/(pi*(one(η) + abs2(η)))
@@ -43,6 +64,14 @@ linkfun(::SqrtLink, μ) = sqrt(μ)
 linkinv(::SqrtLink, η) = abs2(η)
 mueta(::SqrtLink, η) = 2η
 
+"""
+    canonicallink(d)
+
+Get the canonical link function for distribution `d`. Supported distributions
+include `Bernoulli()`, `Binomial()`, `Gamma()`, `Normal()` and `Poisson()`.
+"""
+function canonicallink end
+
 canonicallink(::Binomial) = LogitLink()
 canonicallink(::Gamma) = InverseLink()
 canonicallink(::Normal) = IdentityLink()
@@ -58,10 +87,33 @@ glmvar(::Gamma, ::Link, μ, η) = abs2(μ)
 glmvar(::Normal, ::Link, μ, η) = 1
 glmvar(::Poisson, ::Link, μ, η) = μ
 
+"""
+    mustart(d, y, wt)
+
+Derive starting values for the mu vector.
+
+#### Arguments:                                                                             
+* `d`: Distribution, can be any one of `::Binomial`, `::Gamma`, `::Normal` or `::Poisson`  * `y`:                                                                                     * `wt`:
+"""
+function mustart end
+    
 mustart(::Binomial, y, wt) = (wt*y + oftype(y,0.5))/(wt + one(y))
 mustart(::Gamma, y, wt) = y
 mustart(::Normal, y, wt) = y
 mustart(::Poisson, y, wt) = y + oftype(y, 0.1)
+
+"""
+    devresid(d, y, μ, wt)
+
+Return a vector of squared deviance residuals.
+
+#### Arguments:
+* `d`: Distribution, can be any one of `::Binomial`, `::Gamma`, `::Normal` or `::Poisson`
+* `y`: 
+* `μ`:
+* `wt`:
+"""
+function devresid end    
 
 function devresid(::Binomial, y, μ, wt)
     if y == 1
@@ -72,6 +124,8 @@ function devresid(::Binomial, y, μ, wt)
         return 2.0*wt*(y*(log(y) - log(μ)) + (1 - y)*(log1p(-y) - log1p(-μ)))
     end
 end
+
+
 devresid(::Gamma, y, μ, wt) = -2wt * (log(y/μ) - (y - μ)/μ)
 devresid(::Normal, y, μ, wt) = wt * abs2(y - μ)
 devresid(::Poisson, y, μ, wt) = 2wt * (xlogy(y,y/μ) - (y - μ))

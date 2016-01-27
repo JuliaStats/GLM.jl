@@ -12,6 +12,11 @@ type LmResp{V<:FPVector} <: ModResp  # response in a linear model
 end
 convert{V<:FPVector}(::Type{LmResp{V}}, y::V) = LmResp{V}(fill!(similar(y), zero(eltype(V))), similar(y, 0), similar(y, 0), y)
 
+"""
+    updatemu!{V<:FPVector}(r::LmResp{V}, linPr::V)
+
+Update the response `r` from the linear predictor `V`.
+"""
 function updatemu!{V<:FPVector}(r::LmResp{V}, linPr::V)
     n = length(linPr); length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copy!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
@@ -71,7 +76,18 @@ function fit(::Type{LinearModel}, X::Matrix, y::Vector)
     return fit(LinearModel{LmResp{typeof(yy)}, DensePredQR{T}}, X, y)
 end
 
+"""
+    lm(X::Matrix, y::Vector)
+
+Fit a linear model using QR factorization.
+"""
 lm(X, y) = fit(LinearModel, X, y)
+
+"""
+    lmc(X::Matrix, y::Vector)
+
+Fit a linear model using Cholesky factorization.
+"""
 lmc(X, y) = fit(LinearModel{DensePredChol}, X, y)
 
 ## scale(m) -> estimate, s, of the scale parameter
@@ -90,6 +106,11 @@ function coeftable(mm::LinearModel)
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
+"""
+    predict(mm, newx)
+
+Return the predictions from a fitted model `mm` based on a matrix of independent variables `newx`. Each row of `newx` represents an observation for which to predict the response, and each column represents an independent variable.
+"""
 predict(mm::LinearModel, newx::Matrix) =  newx * coef(mm)
 
 function confint(obj::LinearModel, level::Real)

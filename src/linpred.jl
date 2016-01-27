@@ -1,4 +1,11 @@
 ## Return the linear predictor vector
+"""
+    linpred!(out, p::LinPred, f::Real=1.)
+
+Compute the linear predictor inplace. The inputs are linear predictor `p`.
+The step factor f determines the parameter value at which the linear predictor
+is evaluated in an iterative algorithm like IRLS.
+"""
 function linpred!(out, p::LinPred, f::Real=1.)
     if f == 0
         A_mul_B!(out, p.X, p.beta0)
@@ -12,6 +19,13 @@ function linpred!(out, p::LinPred, f::Real=1.)
         A_mul_B!(out, p.X, scbeta)
     end
 end
+"""
+    linpred(p, f)
+
+Return the linear predictor. The inputs are linear predictor `p`.
+The step factor f determines the parameter value at which the linear predictor
+is evaluated in an iterative algorithm like IRLS.
+"""
 linpred(p::LinPred, f::Real=1.) = linpred!(Array(eltype(p.X), size(p.X, 1)), p, f)
 
 ## Install beta0 + f*delbeta as beta0 and zero out delbeta
@@ -77,6 +91,11 @@ function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
     p
 end
 
+"""
+    delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
+
+Evaluate the increment in the coefficient vector.
+"""
 function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
     scr = scale!(p.scratch, wt, p.X)
     cholfact!(At_mul_B!(cholfactors(p.chol), scr, p.X), :U)
@@ -113,14 +132,34 @@ end
 Base.cholfact{T}(p::SparsePredChol{T}) = copy(p.chol)
 Base.cholfact!{T}(p::SparsePredChol{T}) = p.chol
 
+"""
+    coef(x)
+
+Extract the estimates of the coefficients in the model `x` which is either
+`LinPred` or `LinPredModel`.
+"""
+function coef end
+
 coef(x::LinPred) = x.beta0
 coef(x::LinPredModel) = coef(x.pp)
+
+"""
+Returns the residual degrees of freedom.
+"""
+function df_residual end
 
 df_residual(x::LinPredModel) = df_residual(x.pp)
 df_residual(x::@compat(Union{DensePred,SparsePredChol})) = size(x.X, 1) - length(x.beta0)
 
 invchol(x::DensePred) = inv(cholfact!(x))
 invchol(x::SparsePredChol) = cholfact!(x)\eye(size(x.X, 2))
+
+"""
+    vcov(x::LinPredModel)
+
+Return the estimated variance-covariance matrix of the coefficient estimates
+for the model `x`.
+"""
 vcov(x::LinPredModel) = scale!(invchol(x.pp), scale(x,true))
 #vcov(x::DensePredChol) = inv(x.chol)
 #vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
@@ -134,6 +173,11 @@ function cor(x::LinPredModel)
     scale!(invstd, scale!(Σ, invstd))
 end
 
+"""
+    stderr(x::LinPredModel)
+
+Return the standard errors of the coefficients of the model `x`.
+"""
 stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
@@ -181,6 +225,18 @@ model_response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
+
+"""
+    formula(obj::LinPredModel)
+
+Extract the formula from the model `obj`.
+"""
 formula(obj::LinPredModel) = ModelFrame(obj).formula
+
+"""
+    nobs(obj::LinPredModel)
+
+Return the total number of observations in the model `obj`.
+"""
 nobs(obj::LinPredModel) = length(model_response(obj))
 residuals(obj::LinPredModel) = residuals(obj.rr)
