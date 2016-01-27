@@ -72,11 +72,17 @@ else
     Base.LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky(p.qr[:R], 'U')
 end
 
+"""
+Evaluate the increment in the coefficient vector.
+"""
 function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, p.X, r))
     p
 end
 
+"""
+Evaluate the increment in the coefficient vector.
+"""
 function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
     scr = scale!(p.scratch, wt, p.X)
     cholfact!(At_mul_B!(cholfactors(p.chol), scr, p.X), :U)
@@ -113,14 +119,24 @@ end
 Base.cholfact{T}(p::SparsePredChol{T}) = copy(p.chol)
 Base.cholfact!{T}(p::SparsePredChol{T}) = p.chol
 
+"""
+Extract the estimates of the coefficients in the model
+"""
 coef(x::LinPred) = x.beta0
 coef(x::LinPredModel) = coef(x.pp)
 
+"""
+Degrees of freedom for residuals, when meaningful
+"""
 df_residual(x::LinPredModel) = df_residual(x.pp)
 df_residual(x::@compat(Union{DensePred,SparsePredChol})) = size(x.X, 1) - length(x.beta0)
 
 invchol(x::DensePred) = inv(cholfact!(x))
 invchol(x::SparsePredChol) = cholfact!(x)\eye(size(x.X, 2))
+
+"""
+Estimated variance-covariance matrix of the coefficient estimates.
+"""
 vcov(x::LinPredModel) = scale!(invchol(x.pp), scale(x,true))
 #vcov(x::DensePredChol) = inv(x.chol)
 #vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
@@ -134,6 +150,9 @@ function cor(x::LinPredModel)
     scale!(invstd, scale!(Σ, invstd))
 end
 
+"""
+Standard errors of the coefficients.
+"""
 stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
@@ -181,6 +200,13 @@ model_response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
+
+"""
+Extract the formula from a model.
+"""
 formula(obj::LinPredModel) = ModelFrame(obj).formula
+"""
+Total number of observations.
+"""
 nobs(obj::LinPredModel) = length(model_response(obj))
 residuals(obj::LinPredModel) = residuals(obj.rr)

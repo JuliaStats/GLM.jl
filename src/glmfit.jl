@@ -67,6 +67,9 @@ function updatemu!{T<:FPVector}(r::GlmResp{T}, linPr::T)
     r
 end
 
+"""
+Working response.
+"""
 function wrkresp(r::GlmResp)
     if length(r.offset) > 0
         tmp = r.eta - r.offset
@@ -230,6 +233,9 @@ fit{M<:AbstractGLM}(::Type{M}, X::@compat(Union{Matrix,SparseMatrixCSC}), y::Abs
                     d::UnivariateDistribution, l::Link=canonicallink(d); kwargs...) =
     fit(M, float(X), float(y), d, l; kwargs...)
 
+"""
+Fit a generalized linear model.
+"""
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
 ## scale(m) -> estimate, s, of the scale parameter
