@@ -17,6 +17,24 @@ test_show(lm1)
 @test_approx_eq vcov(lm1) Σ
 @test_approx_eq cor(lm1.model) diagm(diag(Σ))^(-1/2)*Σ*diagm(diag(Σ))^(-1/2)
 
+#1).
+data=DataFrame(X=[1,2,3],Y=[2,4,7])
+
+gm0 = fit(GeneralizedLinearModel,Y~X,data,Normal(),IdentityLink())
+
+@test_approx_eq_eps coef(gm0) [-0.6666, 2.5000] 1e-3
+@test_approx_eq_eps stderr(gm0) [0.6236, 0.2886] 1e-3
+
+#2).
+data1=DataFrame(X=[1,2,3],Y=[1,0,1])
+
+gm01 = fit(GeneralizedLinearModel, Y~X,data1,Binomial(),SqrtLink())
+
+@test_approx_eq coef(gm01) [0.8164965809876493,-3.7740636138506924e-17]
+@test_approx_eq stderr(gm01) [0.44094786686024684,0.20411919904552372]
+
+######
+
 dobson = DataFrame(Counts=[18.,17,15,20,10,20,25,13,12], Outcome=gl(3,1,9), Treatment=gl(3,3))
 gm1 = fit(GeneralizedLinearModel, Counts ~ Outcome + Treatment, dobson, Poisson())
 test_show(gm1)
@@ -135,5 +153,4 @@ predict(gm13, newd)
 
 # Issue 118
 @inferred nobs(lm(randn(10, 2), randn(10)))
-
 

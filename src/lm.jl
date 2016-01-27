@@ -19,6 +19,9 @@ function updatemu!{V<:FPVector}(r::LmResp{V}, linPr::V)
 end
 updatemu!{V<:FPVector}(r::LmResp{V}, linPr) = updatemu!(r, convert(V,vec(linPr)))
 
+"""
+Measure of the model fit, weighted residual sum of squares for lm's
+"""
 function deviance(r::LmResp)
     y = r.y
     mu = r.mu
@@ -71,6 +74,9 @@ function fit(::Type{LinearModel}, X::Matrix, y::Vector)
     return fit(LinearModel{LmResp{typeof(yy)}, DensePredQR{T}}, X, y)
 end
 
+"""
+Fit a linear model.
+"""
 lm(X, y) = fit(LinearModel, X, y)
 lmc(X, y) = fit(LinearModel{DensePredChol}, X, y)
 
