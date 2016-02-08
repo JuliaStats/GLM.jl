@@ -37,33 +37,22 @@ module GLM
 
                                         # functions
         canonicallink,  # canonical link function for a distribution
-        contr_treatment,# treatment contrasts
         delbeta!,       # evaluate the increment in the coefficient vector
         deviance,       # deviance of fitted and observed responses
         devresid,       # vector of squared deviance residuals
-        drsum,          # sum of squared deviance residuals
         formula,        # extract the formula from a model
         glm,            # general interface
-        linkfun!,       # mutating link function
         linkfun,        # link function mapping mu to eta, the linear predictor
-        linkinv!,       # mutating inverse link
         linkinv,        # inverse link mapping eta to mu
         linpred,        # linear predictor
         linpred!,       # update the linear predictor
         lm,             # linear model (QR factorization)
         lmc,            # linear model (Cholesky factorization)
-        mueta!,         # mutating derivative of inverse link
         mueta,          # derivative of inverse link
         mustart,        # derive starting values for the mu vector
         nobs,           # total number of observations
-        objective,      # the objective function in fitting a model
         predict,        # make predictions
-        sqrtwrkwt,      # square root of the working weights
-        stderr,         # standard errors of the coefficients
         updatemu!,      # update the response type from the linear predictor
-        var!,           # mutating variance function
-        wrkresid!,      # mutating working residuals function
-        wrkresid,       # extract the working residuals
         wrkresp         # working response
 
     typealias FP AbstractFloat
