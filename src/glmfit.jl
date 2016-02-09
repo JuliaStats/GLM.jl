@@ -44,13 +44,13 @@ function updatemu!{T<:FPVector}(r::GlmResp{T}, linPr::T)
     wrkresid = r.wrkresid
     devresidv = r.devresid
 
-    if length(offset) == length(eta)
-        broadcast!(+, eta, linPr, offset)
-    else
+    if isempty(offset)
         copy!(eta, linPr)
+    else
+        broadcast!(+, eta, linPr, offset)
     end
 
-    @inbounds @simd for i = 1:length(eta)
+    @inbounds @simd for i = eachindex(eta,mu,muetav,var,y,wrkresid,devresidv)
         η = eta[i]
 
         # apply the inverse link function generating the mean vector (μ) from the linear predictor (η)
@@ -68,25 +68,21 @@ function updatemu!{T<:FPVector}(r::GlmResp{T}, linPr::T)
 end
 
 function wrkresp(r::GlmResp)
-    if length(r.offset) > 0
-        tmp = r.eta - r.offset
-        broadcast!(+, tmp, tmp, r.wrkresid)
-    else
-        r.eta + r.wrkresid
-    end
+    tmp = r.eta + r.wrkresid
+    isempty(r.offset) ? tmp : broadcast!(-, tmp, tmp, r.offset)
 end
 
 function wrkwt!(r::GlmResp)
     wrkwts = r.wrkwts
     mueta = r.mueta
     var = r.var
-    if length(r.wts) == 0
-        @simd for i = 1:length(r.var)
+    if isempty(r.wts)
+        @simd for i = eachindex(var,wrkwts,mueta)
             @inbounds wrkwts[i] = abs2(mueta[i])/var[i]
         end
     else
         wts = r.wts
-        @simd for i = 1:length(r.var)
+        @simd for i = eachindex(var,wrkwts,wts,mueta,var)
             @inbounds wrkwts[i] = wts[i] * abs2(mueta[i])/var[i]
         end
     end
@@ -176,12 +172,12 @@ function initialeta!(dist::UnivariateDistribution, link::Link,
                      eta::AbstractVector, y::AbstractVector, wts::AbstractVector,
                      off::AbstractVector)
     length(eta) == length(y) == length(wts) || throw(DimensionMismatch("argument lengths do not match"))
-    @inbounds @simd for i = 1:length(y)
+    @inbounds @simd for i = eachindex(y,eta,wts)
         μ = mustart(dist, y[i], wts[i])
         eta[i] = linkfun(link, μ)
     end
     if !isempty(off)
-        @inbounds @simd for i = 1:length(eta)
+        @inbounds @simd for i = eachindex(eta,off)
             eta[i] -= off[i]
         end
     end
@@ -243,7 +239,7 @@ function scale(m::AbstractGLM, sqr::Bool=false)
     end
 
     s = zero(eltype(wrkwts))
-    @inbounds @simd for i = 1:length(wrkwts)
+    @inbounds @simd for i = eachindex(wrkwts,wrkresid)
         s += wrkwts[i]*abs2(wrkresid[i])
     end
     s /= df_residual(m)
