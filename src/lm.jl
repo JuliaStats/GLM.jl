@@ -44,7 +44,7 @@ function residuals(r::LmResp)
     else
         wts = r.wts
         resid = similar(y)
-        @simd for i = eachindex(r)
+        @simd for i = eachindex(resid,y,mu,wts)
             @inbounds resid[i] = (y[i] - mu[i])*sqrt(wts[i])
         end
         resid
