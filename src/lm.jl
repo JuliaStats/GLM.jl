@@ -25,11 +25,11 @@ function deviance(r::LmResp)
     wts = r.wts
     v = zero(eltype(y))+zero(eltype(y))*zero(eltype(wts))
     if isempty(wts)
-        @inbounds @simd for i = eachindex(y)
+        @inbounds @simd for i = eachindex(y,mu)
             v += abs2(y[i] - mu[i])
         end
     else
-        @inbounds @simd for i = eachindex(y)
+        @inbounds @simd for i = eachindex(y,mu,wts)
             v += abs2(y[i] - mu[i])*wts[i]
         end
     end

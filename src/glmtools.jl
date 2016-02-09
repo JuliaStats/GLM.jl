@@ -1,5 +1,3 @@
-#using Base.Cartesian
-
 abstract Link             # Link types define linkfun!, linkinv!, and mueta!
 
 type CauchitLink <: Link end

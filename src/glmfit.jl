@@ -50,7 +50,7 @@ function updatemu!{T<:FPVector}(r::GlmResp{T}, linPr::T)
         broadcast!(+, eta, linPr, offset)
     end
 
-    @inbounds @simd for i = eachindex(eta)
+    @inbounds @simd for i = eachindex(eta,mu,muetav,var,y,wrkresid,devresidv)
         η = eta[i]
 
         # apply the inverse link function generating the mean vector (μ) from the linear predictor (η)
@@ -77,12 +77,12 @@ function wrkwt!(r::GlmResp)
     mueta = r.mueta
     var = r.var
     if isempty(r.wts)
-        @simd for i = eachindex(r.var)
+        @simd for i = eachindex(var,wrkwts,mueta)
             @inbounds wrkwts[i] = abs2(mueta[i])/var[i]
         end
     else
         wts = r.wts
-        @simd for i = eachindex(r.var)
+        @simd for i = eachindex(var,wrkwts,wts,mueta,var)
             @inbounds wrkwts[i] = wts[i] * abs2(mueta[i])/var[i]
         end
     end
@@ -172,12 +172,12 @@ function initialeta!(dist::UnivariateDistribution, link::Link,
                      eta::AbstractVector, y::AbstractVector, wts::AbstractVector,
                      off::AbstractVector)
     length(eta) == length(y) == length(wts) || throw(DimensionMismatch("argument lengths do not match"))
-    @inbounds @simd for i = eachindex(y)
+    @inbounds @simd for i = eachindex(y,eta,wts)
         μ = mustart(dist, y[i], wts[i])
         eta[i] = linkfun(link, μ)
     end
     if !isempty(off)
-        @inbounds @simd for i = eachindex(eta)
+        @inbounds @simd for i = eachindex(eta,off)
             eta[i] -= off[i]
         end
     end
@@ -239,7 +239,7 @@ function scale(m::AbstractGLM, sqr::Bool=false)
     end
 
     s = zero(eltype(wrkwts))
-    @inbounds @simd for i = eachindex(wrkwts)
+    @inbounds @simd for i = eachindex(wrkwts,wrkresid)
         s += wrkwts[i]*abs2(wrkresid[i])
     end
     s /= df_residual(m)
