@@ -4,26 +4,31 @@ type LmResp{V<:FPVector} <: ModResp  # response in a linear model
     wts::V                                 # prior weights (may have length 0)
     y::V                                   # response
     function LmResp(mu::V, off::V, wts::V, y::V)
-        n = length(y); length(mu) == n || error("mismatched lengths of mu and y")
-        ll = length(off); ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
-        ll = length(wts); ll == 0 || ll == n || error("length of wts is $ll, must be $n or 0")
-        new(mu,off,wts,y)
+        n = length(y)
+        length(mu) == n || error("mismatched lengths of mu and y")
+        ll = length(off)
+        ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
+        ll = length(wts)
+        ll == 0 || ll == n || error("length of wts is $ll, must be $n or 0")
+        new(mu, off, wts, y)
     end
 end
-convert{V<:FPVector}(::Type{LmResp{V}}, y::V) = LmResp{V}(fill!(similar(y), zero(eltype(V))), similar(y, 0), similar(y, 0), y)
+convert{V<:FPVector}(::Type{LmResp{V}}, y::V) =
+    LmResp{V}(zeros(y), similar(y, 0), similar(y, 0), y)
 
 function updatemu!{V<:FPVector}(r::LmResp{V}, linPr::V)
-    n = length(linPr); length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
+    n = length(linPr)
+    length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copy!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
     deviance(r)
 end
-updatemu!{V<:FPVector}(r::LmResp{V}, linPr) = updatemu!(r, convert(V,vec(linPr)))
+updatemu!{V<:FPVector}(r::LmResp{V}, linPr) = updatemu!(r, convert(V, vec(linPr)))
 
 function deviance(r::LmResp)
     y = r.y
     mu = r.mu
     wts = r.wts
-    v = zero(eltype(y))+zero(eltype(y))*zero(eltype(wts))
+    v = zero(eltype(y)) + zero(eltype(y)) * zero(eltype(wts))
     if isempty(wts)
         @inbounds @simd for i = 1:length(y)
             v += abs2(y[i] - mu[i])
@@ -45,7 +50,7 @@ function residuals(r::LmResp)
         wts = r.wts
         resid = similar(y)
         @simd for i = 1:length(r)
-            @inbounds resid[i] = (y[i] - mu[i])*sqrt(wts[i])
+            @inbounds resid[i] = (y[i] - mu[i]) * sqrt(wts[i])
         end
         resid
     end
@@ -58,11 +63,12 @@ end
 
 cholfact(x::LinearModel) = cholfact(x.pp)
 
-function fit{LmRespT<:LmResp,LinPredT<:LinPred}(::Type{LinearModel{LmRespT,LinPredT}}, X::Matrix, y::Vector)
+function fit{LmRespT<:LmResp,LinPredT<:LinPred}(::Type{LinearModel{LmRespT,LinPredT}},
+    X::AbstractMatrix, y::Vector)
     rr = LmRespT(y)
     pp = LinPredT(X)
     installbeta!(delbeta!(pp, rr.y))
-    updatemu!(rr, linpred(pp, 0.))
+    updatemu!(rr, linpred(pp, 0.0))
     LinearModel(rr, pp)
 end
 function fit(::Type{LinearModel}, X::Matrix, y::Vector)
@@ -78,7 +84,7 @@ lmc(X, y) = fit(LinearModel{DensePredChol}, X, y)
 ## scale(m,true) -> estimate, s^2, of the squared scale parameter
 function scale(x::LinearModel, sqr::Bool=false)
     ssqr = deviance(x.rr)/df_residual(x)
-    sqr ? ssqr : sqrt(ssqr)
+    return sqr ? ssqr : sqrt(ssqr)
 end
 
 function coeftable(mm::LinearModel)

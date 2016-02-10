@@ -51,7 +51,7 @@ module GLM
         linpred,        # linear predictor
         linpred!,       # update the linear predictor
         lm,             # linear model (QR factorization)
-        lmc,            # linear model (Cholesky factorization)          
+        lmc,            # linear model (Cholesky factorization)
         mueta!,         # mutating derivative of inverse link
         mueta,          # derivative of inverse link
         mustart,        # derive starting values for the mu vector
@@ -63,7 +63,7 @@ module GLM
         updatemu!,      # update the response type from the linear predictor
         var!,           # mutating variance function
         wrkresid!,      # mutating working residuals function
-        wrkresid,       # extract the working residuals              
+        wrkresid,       # extract the working residuals
         wrkresp         # working response
 
     typealias FP AbstractFloat
