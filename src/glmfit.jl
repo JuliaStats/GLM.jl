@@ -11,17 +11,20 @@ type GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp       # r
     wts::V                                     # prior weights
     wrkwts::V                                  # working weights
     wrkresid::V                                # working residuals
-    function GlmResp(y::V, d::D, l::L,
-                     eta::V, mu::V,
-                     off::V, wts::V)
+    function GlmResp(y::V, d::D, l::L, eta::V, mu::V, off::V, wts::V)
         if isa(d, Binomial)
-            for yy in y; 0. <= yy <= 1. || error("$yy in y is not in [0,1]"); end
+            for yy in y
+                0. <= yy <= 1. || error("$yy in y is not in [0,1]")
+            end
         else
-            for yy in y; insupport(d, yy) || error("y must be in the support of d"); end
+            for yy in y
+                insupport(d, yy) || error("y must be in the support of d")
+            end
         end
         n = length(y)
         length(eta) == length(mu) == length(wts) == n || error("mismatched sizes")
-        lo = length(off); lo == 0 || lo == n || error("offset must have length $n or length 0")
+        lo = length(off)
+        lo == 0 || lo == n || error("offset must have length $n or length 0")
         res = new(y,d,l,similar(y),eta,mu,similar(y),off,similar(y),wts,similar(y),similar(y))
         updatemu!(res, eta)
         res
@@ -123,7 +126,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
     maxIter >= 1 || error("maxIter must be positive")
     0 < minStepFac < 1 || error("minStepFac must be in (0, 1)")
 
-    cvg = false; p = m.pp; r = m.rr
+    cvg, p, r = false, m.pp, m.rr
     lp = r.mu
     if start != nothing
         copy!(p.beta0, start)
@@ -149,7 +152,8 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
             isa(e, DomainError) ? (dev = Inf) : rethrow(e)
         end
         while dev > devold
-            f /= 2.; f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
+            f /= 2.
+            f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
             try
                 updatemu!(r, linpred(p, f))
                 dev = deviance(m)
@@ -160,7 +164,10 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         installbeta!(p, f)
         crit = (devold - dev)/dev
         verbose && println("$i: $dev, $crit")
-        if crit < convTol; cvg = true; break end
+        if crit < convTol
+            cvg = true
+            break
+        end
         devold = dev
     end
     cvg || error("failure to converge in $maxIter iterations")
@@ -198,7 +205,7 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
     isa(offset, @compat Void) || copy!(r.offset, offset)
     initialeta!(r.d, r.l, r.eta, r.y, r.wts, r.offset)
     updatemu!(r, r.eta)
-    fill!(m.pp.beta0, zero(eltype(m.pp.beta0)))
+    fill!(m.pp.beta0, 0)
     m.fit = false
     if dofit
         _fit!(m, verbose, maxIter, minStepFac, convTol, start)
@@ -208,26 +215,33 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
 end
 
 function fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
-                                               X::@compat(Union{Matrix{T},SparseMatrixCSC{T}}), y::V,
-                                               d::UnivariateDistribution,
-                                               l::Link=canonicallink(d);
-                                               dofit::Bool=true,
-                                               wts::V=fill!(similar(y), one(eltype(y))),
-                                               offset::V=similar(y, 0), fitargs...)
+    X::@compat(Union{Matrix{T},SparseMatrixCSC{T}}), y::V,
+    d::UnivariateDistribution,
+    l::Link = canonicallink(d);
+    dofit::Bool = true,
+    wts::V = ones(y),
+    offset::V = similar(y, 0), fitargs...)
+
     size(X, 1) == size(y, 1) || throw(DimensionMismatch("number of rows in X and y must match"))
     n = length(y)
     length(wts) == n || throw(DimensionMismatch("length(wts) does not match length(y)"))
-    length(offset) == n || length(offset) == 0 || throw(DimensionMismatch("length(offset) does not match length(y)"))
+    if length(offset) != n && length(offset) != 0
+        throw(DimensionMismatch("length(offset) does not match length(y)"))
+    end
+
     wts = T <: Float64 ? copy(wts) : convert(typeof(y), wts)
     off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
     eta = initialeta!(d, l, similar(y), y, wts, off)
-    rr = GlmResp{typeof(y),typeof(d),typeof(l)}(y, d, l, eta, similar(y), offset, wts)
+    rr = GlmResp{typeof(y), typeof(d), typeof(l)}(y, d, l, eta, similar(y), offset, wts)
     res = M(rr, cholpred(X), false)
     dofit ? fit!(res; fitargs...) : res
 end
 
-fit{M<:AbstractGLM}(::Type{M}, X::@compat(Union{Matrix,SparseMatrixCSC}), y::AbstractVector,
-                    d::UnivariateDistribution, l::Link=canonicallink(d); kwargs...) =
+fit{M<:AbstractGLM}(::Type{M},
+    X::@compat(Union{Matrix,SparseMatrixCSC}),
+    y::AbstractVector,
+    d::UnivariateDistribution,
+    l::Link=canonicallink(d); kwargs...) =
     fit(M, float(X), float(y), d, l; kwargs...)
 
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)

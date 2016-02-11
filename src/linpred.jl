@@ -41,7 +41,10 @@ type DensePredQR{T<:BlasReal} <: DensePred
 end
 convert{T}(::Type{DensePredQR{T}}, X::Matrix{T}) = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
-delbeta!{T<:BlasReal}(p::DensePredQR{T}, r::Vector{T}) = (p.delbeta = p.qr\r; p)
+function delbeta!{T<:BlasReal}(p::DensePredQR{T}, r::Vector{T})
+    p.delbeta = p.qr\r
+    return p
+end
 
 type DensePredChol{T<:BlasReal,C} <: DensePred
     X::Matrix{T}                   # model matrix
@@ -52,7 +55,12 @@ type DensePredChol{T<:BlasReal,C} <: DensePred
     scratch::Matrix{T}
 end
 DensePredChol{T<:BlasReal}(X::Matrix{T}) =
-    DensePredChol(X, zeros(T, size(X, 2)), zeros(T, size(X, 2)), zeros(T, size(X, 2)), cholfact!(X'X), similar(X))
+    DensePredChol(X,
+        zeros(T, size(X, 2)),
+        zeros(T, size(X, 2)),
+        zeros(T, size(X, 2)),
+        cholfact!(X'X),
+        similar(X))
 cholpred(X::Matrix) = DensePredChol(X)
 
 if VERSION >= v"0.4.0-dev+4356"
@@ -64,11 +72,17 @@ Base.LinAlg.cholfact!{T<:FP}(p::DensePredChol{T}) = p.chol
 
 if v"0.4.0-dev+122" <= VERSION < v"0.4.0-dev+4356"
     Base.LinAlg.cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,Matrix{T},:U}(copy(p.qr[:R]))
-    Base.LinAlg.cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; typeof(c)(copy(c.UL)))
+    function Base.LinAlg.cholfact{T<:FP}(p::DensePredChol{T})
+        c = p.chol
+        return typeof(c)(copy(c.UL))
+    end
     Base.LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky{T,Matrix{T},:U}(p.qr[:R])
 else
     Base.LinAlg.cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky(copy(p.qr[:R]), 'U')
-    Base.LinAlg.cholfact{T<:FP}(p::DensePredChol{T}) = (c = p.chol; Cholesky(copy(cholfactors(c)), c.uplo))
+    function Base.LinAlg.cholfact{T<:FP}(p::DensePredChol{T})
+        c = p.chol
+        return Cholesky(copy(cholfactors(c)), c.uplo)
+    end
     Base.LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky(p.qr[:R], 'U')
 end
 
@@ -95,13 +109,19 @@ type SparsePredChol{T,M<:SparseMatrixCSC,C} <: GLM.LinPred
 end
 function SparsePredChol{T}(X::SparseMatrixCSC{T})
     chol = cholfact(speye(size(X, 2)))
-    SparsePredChol{eltype(X),typeof(X),typeof(chol)}(X, X', zeros(T, size(X, 2)), zeros(T, size(X, 2)), zeros(T, size(X, 2)), chol, similar(X))
+    return SparsePredChol{eltype(X),typeof(X),typeof(chol)}(X,
+        X',
+        zeros(T, size(X, 2)),
+        zeros(T, size(X, 2)),
+        zeros(T, size(X, 2)),
+        chol,
+        similar(X))
 end
 cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
 
 @eval function delbeta!{T}(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T})
     scr = scale!(p.scratch, wt, p.X)
-    XtWX = p.Xt*scr
+    XtWX = p.Xt * scr
     c = p.chol = $(if VERSION >= v"0.4.0-dev+3307"
         :(cholfact(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L')))
     else
@@ -120,7 +140,7 @@ df_residual(x::LinPredModel) = df_residual(x.pp)
 df_residual(x::@compat(Union{DensePred,SparsePredChol})) = size(x.X, 1) - length(x.beta0)
 
 invchol(x::DensePred) = inv(cholfact!(x))
-invchol(x::SparsePredChol) = cholfact!(x)\eye(size(x.X, 2))
+invchol(x::SparsePredChol) = cholfact!(x) \ eye(size(x.X, 2))
 vcov(x::LinPredModel) = scale!(invchol(x.pp), scale(x,true))
 #vcov(x::DensePredChol) = inv(x.chol)
 #vcov(x::DensePredQR) = copytri!(potri!('U', x.qr[:R]), 'U')
@@ -129,7 +149,7 @@ function cor(x::LinPredModel)
     Σ = vcov(x)
     invstd = similar(Σ, size(Σ, 1))
     for i = 1:size(Σ, 1)
-        invstd[i] = 1/sqrt(Σ[i, i])
+        invstd[i] = 1 / sqrt(Σ[i, i])
     end
     scale!(invstd, scale!(Σ, invstd))
 end
