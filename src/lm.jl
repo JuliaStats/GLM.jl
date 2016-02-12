@@ -30,11 +30,11 @@ function deviance(r::LmResp)
     wts = r.wts
     v = zero(eltype(y)) + zero(eltype(y)) * zero(eltype(wts))
     if isempty(wts)
-        @inbounds @simd for i = 1:length(y)
+        @inbounds @simd for i = eachindex(y,mu)
             v += abs2(y[i] - mu[i])
         end
     else
-        @inbounds @simd for i = 1:length(y)
+        @inbounds @simd for i = eachindex(y,mu,wts)
             v += abs2(y[i] - mu[i])*wts[i]
         end
     end
@@ -49,7 +49,7 @@ function residuals(r::LmResp)
     else
         wts = r.wts
         resid = similar(y)
-        @simd for i = 1:length(r)
+        @simd for i = eachindex(resid,y,mu,wts)
             @inbounds resid[i] = (y[i] - mu[i]) * sqrt(wts[i])
         end
         resid

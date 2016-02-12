@@ -1,5 +1,5 @@
-using GLM, DataFrames, Compat
-glm(y ~ 1, DataFrame(y = float64(bitrand(10))), Binomial())
+using GLM, DataFrames
+glm(y ~ 1, DataFrame(y = float(bitrand(10))), Binomial())
 
 n = 2_500_000; srand(1234321)
 df2 = DataFrame(x1 = rand(Normal(), n),
@@ -12,8 +12,10 @@ beta = unshift!(rand(Normal(),52), 0.5); # "true" parameter values
 ## Create linear predictor and mean response
 eta = mm.m * beta;
 mu = [linkinv(LogitLink(), x) for x in eta]
-y = map(Float64, rand(n) .< mu);        # simulate observed responses
+y = Float64[rand() < μ for μ in mu];        # simulate observed responses
 
 gm6 = glm(mm.m, y, Binomial())
 @time glm(mm.m, y, Binomial());
-# Profile.print()
+#@profile glm(mm.m, y, Binomial());
+#using ProfileView
+#ProfileView.view()
