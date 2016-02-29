@@ -145,5 +145,4 @@ let
     @test_approx_eq(lm(X, y).pp.beta0, ones(2))
     @test_approx_eq(lm(Xf, y).pp.beta0, ones(2))
     @test_approx_eq(lm(X, yf).pp.beta0, ones(2))
-    @test_approx_eq(lm(sparse(X), yf).pp.beta0, ones(2))
 end
