@@ -64,14 +64,14 @@ end
 cholfact(x::LinearModel) = cholfact(x.pp)
 
 function fit{LmRespT<:LmResp,LinPredT<:LinPred, T<:FP}(::Type{LinearModel{LmRespT,LinPredT}},
-    X::@compat(Union{Matrix{T},SparseMatrixCSC{T}}), y::FPVector)
+    X::AbstractMatrix{T}, y::FPVector)
     rr = LmRespT(y)
     pp = LinPredT(X)
     installbeta!(delbeta!(pp, rr.y))
     updatemu!(rr, linpred(pp, 0.0))
     LinearModel(rr, pp)
 end
-function fit(::Type{LinearModel}, X::@compat(Union{Matrix,SparseMatrixCSC}), y::Vector)
+function fit(::Type{LinearModel}, X::AbstractMatrix, y::Vector)
     yy = float(y)
     T = eltype(yy)
     return fit(LinearModel{LmResp{typeof(yy)}, DensePredQR{T}}, float(X), yy)
