@@ -8,8 +8,8 @@ type GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp       # r
     mueta::V                                   # derivative of mu w.r.t. eta
     offset::V                                  # offset added to linear predictor (usually 0)
     var::V                                     # (unweighted) variance at current mu
-    wts::V                                     # prior weights
-    wrkwts::V                                  # working weights
+    wts::StatsBase.WeightVec                   # prior weights
+    wrkwts::StatsBase.WeightVec                # working weights
     wrkresid::V                                # working residuals
     function GlmResp(y::V, d::D, l::L, eta::V, mu::V, off::V, wts::V)
         if isa(d, Binomial)
@@ -25,7 +25,9 @@ type GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp       # r
         length(eta) == length(mu) == length(wts) == n || error("mismatched sizes")
         lo = length(off)
         lo == 0 || lo == n || error("offset must have length $n or length 0")
-        res = new(y,d,l,similar(y),eta,mu,similar(y),off,similar(y),wts,similar(y),similar(y))
+        wt = StatsBase.weights(wts)
+        res = new(y, d, l, similar(y), eta, mu, similar(y), off, similar(y), wt,
+            StatsBase.weights(ones(y)), similar(y))
         updatemu!(res, eta)
         res
     end
@@ -76,7 +78,7 @@ function wrkresp(r::GlmResp)
 end
 
 function wrkwt!(r::GlmResp)
-    wrkwts = r.wrkwts
+    wrkwts = values(r.wrkwts)
     mueta = r.mueta
     var = r.var
     if isempty(r.wts)
@@ -84,7 +86,7 @@ function wrkwt!(r::GlmResp)
             @inbounds wrkwts[i] = abs2(mueta[i])/var[i]
         end
     else
-        wts = r.wts
+        wts = values(r.wts)
         @simd for i = eachindex(var,wrkwts,wts,mueta,var)
             @inbounds wrkwts[i] = wts[i] * abs2(mueta[i])/var[i]
         end
@@ -245,7 +247,7 @@ glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwarg
 ## scale(m) -> estimate, s, of the scale parameter
 ## scale(m,true) -> estimate, s^2, of the squared scale parameter
 function scale(m::AbstractGLM, sqr::Bool=false)
-    wrkwts = m.rr.wrkwts
+    wrkwts = values(m.rr.wrkwts)
     wrkresid = m.rr.wrkresid
 
     if isa(m.rr.d, @compat Union{Binomial, Poisson})
