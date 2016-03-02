@@ -136,4 +136,13 @@ predict(gm13, newd)
 # Issue 118
 @inferred nobs(lm(randn(10, 2), randn(10)))
 
-
+# Issue 84
+let
+    X=[1 1; 2 4; 3 9]
+    Xf=[1 1; 2 4; 3 9.]
+    y = [2, 6, 12]
+    yf = [2, 6, 12.]
+    @test_approx_eq(lm(X, y).pp.beta0, ones(2))
+    @test_approx_eq(lm(Xf, y).pp.beta0, ones(2))
+    @test_approx_eq(lm(X, yf).pp.beta0, ones(2))
+end
