@@ -7,7 +7,7 @@ module GLM
     using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel, logit, logistic
     using Distributions: sqrt2, sqrt2π
 
-    import Base: (\), cholfact, convert, cor, scale, show, size
+    import Base: (\), cholfact, convert, cor, show, size
     import StatsBase: coef, coeftable, confint, deviance, nulldeviance, df, df_residual, loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, xlogy, R2, R², adjR2, adjR²
     export coef, coeftable, confint, deviance, nulldeviance, df, df_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, R2, R², adjR2, adjR²
 

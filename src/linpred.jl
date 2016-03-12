@@ -117,7 +117,7 @@ Base.cholfact!{T}(p::SparsePredChol{T}) = p.chol
 
 invchol(x::DensePred) = inv(cholfact!(x))
 invchol(x::SparsePredChol) = cholfact!(x) \ eye(size(x.X, 2))
-vcov(x::LinPredModel) = scale!(invchol(x.pp), scale(x,true))
+vcov(x::LinPredModel) = scale!(invchol(x.pp), dispersion(x, true))
 
 function cor(x::LinPredModel)
     Σ = vcov(x)

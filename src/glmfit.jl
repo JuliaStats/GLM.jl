@@ -258,9 +258,16 @@ fit{M<:AbstractGLM}(::Type{M},
 
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
-## scale(m) -> estimate, s, of the scale parameter
-## scale(m,true) -> estimate, s^2, of the squared scale parameter
-function scale(m::AbstractGLM, sqr::Bool=false)
+"""
+    dispersion(m::AbstractGLM, sqr::Bool=false)
+
+    Estimated dispersion (or scale) parameter for a model's distribution,
+    generally written σ for linear models and ϕ for generalized linear models.
+    It is by definition equal to 1 for Binomial and Poisson families.
+
+    If `sqr` is `true`, the squared parameter is returned.
+"""
+function dispersion(m::AbstractGLM, sqr::Bool=false)
     wrkwts = m.rr.wrkwts
     wrkresid = m.rr.wrkresid
 

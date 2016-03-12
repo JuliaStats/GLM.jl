@@ -145,9 +145,7 @@ function adjR2(obj::LinearModel)
     1 - (1 - R²(obj))*(n-1)/(n-p)
 end
 
-## scale(m) -> estimate, s, of the scale parameter
-## scale(m,true) -> estimate, s^2, of the squared scale parameter
-function scale(x::LinearModel, sqr::Bool=false)
+function dispersion(x::LinearModel, sqr::Bool=false)
     ssqr = deviance(x.rr)/df_residual(x)
     return sqr ? ssqr : sqrt(ssqr)
 end

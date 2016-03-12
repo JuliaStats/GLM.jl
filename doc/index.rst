@@ -123,9 +123,13 @@ These extractors are defined for ``m`` of type
    confidence intervals on the coefficients.  The confidence level,
    ``level``, defaults to 0.95.
 
-.. function:: scale(m, sqr=false) -> Float64
+.. function:: dispersion(m, sqr=false) -> Float64
 
-   Estimate, ``s``, of the residual scale parameter or its square.
+   Estimated dispersion (or scale) parameter for a model's distribution,
+   generally written σ for linear models and ϕ for generalized linear models.
+   It is by definition equal to 1 for Binomial and Poisson families.
+
+   If ``sqr`` is ``true``, the squared parameter is returned.
 
 .. function:: stderr(m) -> Vector{Float64}
 
