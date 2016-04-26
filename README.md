@@ -27,7 +27,7 @@ the results from R.
 To fit a Generalized Linear Model (GLM), use the function, `glm(formula, data, family, link)`, where,
 - `formula`: uses column symbols from the DataFrame data, for example, if `names(data)=[:Y,:X1,:X2]`, then a valid formula is `Y~X1+X2`
 - `data`: a DataFrame which may contain NA values, any rows with NA values are ignored
-- `family`: chosen from `Binomial()`, `Gamma()`, `Normal()`, or `Poisson()`
+- `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Normal()`, or `Poisson()`
 - `link`: chosen from the list below, for example, `LogitLink()` is a valid link for the `Binomial()` family
 
 An intercept is included in any GLM by default.
@@ -68,7 +68,7 @@ julia> stderr(OLS)
 2-element Array{Float64,1}:
  3.53553
  4.33013
- 
+
 julia> predict(OLS)
 3-element Array{Float64,1}:
  1.83333
@@ -139,7 +139,7 @@ Carb           0.876286  0.0135345  64.7444   3.4e-7
 julia> confint(lm1)
 2x2 Array{Float64,2}:
  -0.0166641  0.0268355
-  0.838708   0.913864 
+  0.838708   0.913864
 ```
 
 A more complex example in `R` is
@@ -233,13 +233,13 @@ NULL                          8    10.5814
 outcome    2   5.4523         6     5.1291
 treatment  2   0.0000         4     5.1291
 
-glm> ## No test: 
+glm> ## No test:
 glm> summary(glm.D93)
 
 Call:
 glm(formula = counts ~ outcome + treatment, family = poisson())
 
-Deviance Residuals: 
+Deviance Residuals:
        1         2         3         4         5         6         7         8  
 -0.67125   0.96272  -0.16965  -0.21999  -0.95552   1.04939   0.84715  -0.09167  
        9  
@@ -253,7 +253,7 @@ outcome3    -2.930e-01  1.927e-01  -1.520   0.1285
 treatment2   3.795e-16  2.000e-01   0.000   1.0000    
 treatment3   3.553e-16  2.000e-01   0.000   1.0000    
 ---
-Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1 
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
 
 (Dispersion parameter for poisson family taken to be 1)
 
@@ -299,6 +299,7 @@ julia> deviance(gm1)
 Typical distributions for use with `glm` and their canonical link
 functions are
 
+    Bernoulli (LogitLink)
      Binomial (LogitLink)
         Gamma (InverseLink)
        Normal (IdentityLink)
@@ -353,4 +354,3 @@ of a ```LinPred``` type use a default step factor of 1.  The value of
 ```linpred``` is the argument to the ```updatemu``` method for
 ```ModResp``` types.  The ```updatemu``` method returns the updated
 deviance.
-
