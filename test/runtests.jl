@@ -32,6 +32,11 @@ test_show(gm2)
 @test_approx_eq deviance(gm2) 458.5174924758994
 @test_approx_eq coef(gm2) [-3.9899786606380734,0.0022644256521549043,0.8040374535155766,-0.6754428594116577,-1.3402038117481079,-1.5514636444657492]
 
+gm2 = fit(GeneralizedLinearModel, admit ~ gre + gpa + rank, df, Bernoulli())
+test_show(gm2)
+@test_approx_eq deviance(gm2) 458.5174924758994
+@test_approx_eq coef(gm2) [-3.9899786606380734,0.0022644256521549043,0.8040374535155766,-0.6754428594116577,-1.3402038117481079,-1.5514636444657492]
+
 gm3 = fit(GeneralizedLinearModel, admit ~ gre + gpa + rank, df, Binomial(), ProbitLink())
 test_show(gm3)
 @test_approx_eq deviance(gm3) 458.4131713833386

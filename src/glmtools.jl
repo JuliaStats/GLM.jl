@@ -45,26 +45,36 @@ linkfun(::SqrtLink, μ) = sqrt(μ)
 linkinv(::SqrtLink, η) = abs2(η)
 mueta(::SqrtLink, η) = 2η
 
+canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()
 canonicallink(::Gamma) = InverseLink()
 canonicallink(::Normal) = IdentityLink()
 canonicallink(::Poisson) = LogLink()
 
 # For the "odd" link functions we evaluate the linear predictor such that mu is closest to zero where the precision is higher
-function glmvar(::Binomial, link::@compat(Union{CauchitLink,InverseLink,LogitLink,ProbitLink}), μ, η)
+function glmvar(::@compat(Union{Bernoulli,Binomial}), link::@compat(Union{CauchitLink,InverseLink,LogitLink,ProbitLink}), μ, η)
     μ = linkinv(link, ifelse(η < 0, η, -η))
     μ * (1 - μ)
 end
-glmvar(::Binomial, ::Link, μ, η) = μ * (1 - μ)
+glmvar(::@compat(Union{Bernoulli,Binomial}), ::Link, μ, η) = μ * (1 - μ)
 glmvar(::Gamma, ::Link, μ, η) = abs2(μ)
 glmvar(::Normal, ::Link, μ, η) = 1
 glmvar(::Poisson, ::Link, μ, η) = μ
 
+mustart(::Bernoulli, y, wt) = (y + oftype(y, 0.5)) / 2
 mustart(::Binomial, y, wt) = (wt * y + oftype(y, 0.5)) / (wt + one(y))
 mustart(::Gamma, y, wt) = y
 mustart(::Normal, y, wt) = y
 mustart(::Poisson, y, wt) = y + oftype(y, 0.1)
 
+function devresid(::Bernoulli, y, μ, wt)
+    if y == 1
+        return -2 * wt * log(μ)
+    elseif y == 0
+        return -2 * wt * log1p(-μ)
+    end
+    throw(ArgumentError("y should be 0 or 1 (got $y)"))
+end
 function devresid(::Binomial, y, μ, wt)
     if y == 1
         return -2 * wt * log(μ)
