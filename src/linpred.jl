@@ -115,15 +115,9 @@ end
 Base.cholfact{T}(p::SparsePredChol{T}) = copy(p.chol)
 Base.cholfact!{T}(p::SparsePredChol{T}) = p.chol
 
-coef(x::LinPred) = x.beta0
-coef(x::LinPredModel) = coef(x.pp)
-
-df_residual(x::LinPredModel) = df_residual(x.pp)
-df_residual(x::@compat(Union{DensePred,SparsePredChol})) = size(x.X, 1) - length(x.beta0)
-
 invchol(x::DensePred) = inv(cholfact!(x))
 invchol(x::SparsePredChol) = cholfact!(x) \ eye(size(x.X, 2))
-vcov(x::LinPredModel) = scale!(invchol(x.pp), scale(x,true))
+vcov(x::LinPredModel) = scale!(invchol(x.pp), dispersion(x, true))
 
 function cor(x::LinPredModel)
     Σ = vcov(x)
@@ -140,41 +134,6 @@ function show(io::IO, obj::LinPredModel)
     println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
 end
 
-## function show(io::IO, obj::GlmMod)
-##     cc = coef(obj)
-##     se = stderr(obj)
-##     zz = cc ./ se
-##     pp = 2.0 * ccdf(Normal(), abs(zz))
-##     @printf("\n%s\n\nCoefficients:\n", obj.fr.formula)
-##     @printf("         Term    Estimate  Std. Error     t value    Pr(>|t|)\n")
-##     N = length(cc)
-##     for i = 1:N
-##         @printf(" %12s%12.5f%12.5f%12.3f%12.3f %-3s\n",
-##                 obj.mm.model_colnames[i],
-##                 cc[i],
-##                 se[i],
-##                 zz[i],
-##                 pp[i],
-##                 p_value_stars(pp[i]))
-##     end
-##     println("---\nSignif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1\n")
-##     @printf("R-squared: %0.4f\n", 0.0) # TODO: obj.r_squared)
-## end
-
-## function p_value_stars(p_value::Float64)
-##     if p_value < 0.001
-##         return "***"
-##     elseif p_value < 0.01
-##         return "**"
-##     elseif p_value < 0.05
-##         return "*"
-##     elseif p_value < 0.1
-##         return "."
-##     else
-##         return " "
-##     end
-## end
-
 ModelFrame(obj::LinPredModel) = obj.fr
 ModelMatrix(obj::LinPredModel) = obj.pp.X
 model_response(obj::LinPredModel) = obj.rr.y
@@ -182,5 +141,24 @@ model_response(obj::LinPredModel) = obj.rr.y
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
 formula(obj::LinPredModel) = ModelFrame(obj).formula
-nobs(obj::LinPredModel) = length(model_response(obj))
 residuals(obj::LinPredModel) = residuals(obj.rr)
+
+"""
+    nobs(obj::LinearModel)
+    nobs(obj::GLM)
+
+For linear and generalized linear models, returns the number of rows, or,
+when prior weights are specified, the sum of weights.
+"""
+function nobs(obj::LinPredModel)
+    if isempty(obj.rr.wts)
+        oftype(sum(one(eltype(obj.rr.wts))), length(obj.rr.y))
+    else
+        sum(obj.rr.wts)
+    end
+end
+
+coef(x::LinPred) = x.beta0
+coef(obj::LinPredModel) = coef(obj.pp)
+
+df_residual(obj::LinPredModel) = nobs(obj) - length(coef(obj))

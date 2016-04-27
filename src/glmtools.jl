@@ -87,3 +87,14 @@ end
 devresid(::Gamma, y, μ, wt) = -2wt * (log(y / μ) - (y - μ) / μ)
 devresid(::Normal, y, μ, wt) = wt * abs2(y - μ)
 devresid(::Poisson, y, μ, wt) = 2wt * (xlogy(y, y / μ) - (y - μ))
+
+# Whether a dispersion parameter has to be estimated for a distribution
+dispersion_parameter(::Union{Bernoulli, Binomial, Poisson}) = false
+dispersion_parameter(::Union{Gamma, Normal, InverseGaussian}) = true
+
+# Log-likelihood for an observation
+loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
+loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(wt, μ), y*wt)
+loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(1/ϕ, μ*ϕ), y)
+loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
+loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)

@@ -114,7 +114,23 @@ function confint(obj::AbstractGLM, level::Real)
 end
 confint(obj::AbstractGLM) = confint(obj, 0.95)
 
-deviance(m::AbstractGLM)  = deviance(m.rr)
+deviance(m::AbstractGLM) = deviance(m.rr)
+
+function loglikelihood(m::AbstractGLM)
+    r = m.rr
+    wts = r.wts
+    y = r.y
+    mu = r.mu
+    ϕ = deviance(m)/sum(wts)
+    d = r.d
+    ll = zero(one(eltype(wts)) * one(loglik_obs(d, y[1], mu[1], wts[1], ϕ)))
+    @inbounds for i in eachindex(y, mu, wts)
+        ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
+    end
+    ll
+end
+
+df(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
 
 function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
               convTol::Real, start)
@@ -242,9 +258,16 @@ fit{M<:AbstractGLM}(::Type{M},
 
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
-## scale(m) -> estimate, s, of the scale parameter
-## scale(m,true) -> estimate, s^2, of the squared scale parameter
-function scale(m::AbstractGLM, sqr::Bool=false)
+"""
+    dispersion(m::AbstractGLM, sqr::Bool=false)
+
+    Estimated dispersion (or scale) parameter for a model's distribution,
+    generally written σ for linear models and ϕ for generalized linear models.
+    It is by definition equal to 1 for Binomial and Poisson families.
+
+    If `sqr` is `true`, the squared parameter is returned.
+"""
+function dispersion(m::AbstractGLM, sqr::Bool=false)
     wrkwts = m.rr.wrkwts
     wrkresid = m.rr.wrkresid
 
