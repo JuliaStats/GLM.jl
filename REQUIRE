@@ -1,5 +1,5 @@
 julia 0.4
 Distributions 0.4.6-
-StatsBase 0.7.1
+StatsBase 0.8.0
 Reexport
 Compat 0.2.12-
