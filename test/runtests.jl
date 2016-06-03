@@ -11,7 +11,7 @@ const glm_datadir = joinpath(dirname(@__FILE__), "..", "data")
 form = DataFrame(Carb=[0.1,0.3,0.5,0.6,0.7,0.9],OptDen=[0.086,0.269,0.446,0.538,0.626,0.782])
 lm1 = fit(LinearModel, OptDen ~ Carb, form)
 test_show(lm1)
-@test_approx_eq coef(lm1) linreg(convert(Array, form[:Carb]), convert(Array, form[:OptDen]))
+@test_approx_eq coef(lm1) collect(linreg(convert(Array, form[:Carb]), convert(Array, form[:OptDen])))
 Σ = [6.136653061224592e-05 -9.464489795918525e-05
     -9.464489795918525e-05 1.831836734693908e-04]
 @test_approx_eq vcov(lm1) Σ
