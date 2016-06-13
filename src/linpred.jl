@@ -79,7 +79,11 @@ end
 
 function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
     scr = scale!(p.scratch, wt, p.X)
-    cholfact!(At_mul_B!(cholfactors(p.chol), scr, p.X), :U)
+    if VERSION < v"0.5.0-dev+4677"
+        cholfact!(At_mul_B!(cholfactors(p.chol), scr, p.X), :U)
+    else
+        cholfact!(Hermitian(At_mul_B!(cholfactors(p.chol), scr, p.X), :U))
+    end
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, scr, r))
     p
 end
