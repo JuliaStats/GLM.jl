@@ -63,7 +63,7 @@ glmvar(::Poisson, ::Link, μ, η) = μ
 
 mustart(::Bernoulli, y, wt) = (y + oftype(y, 0.5)) / 2
 mustart(::Binomial, y, wt) = (wt * y + oftype(y, 0.5)) / (wt + one(y))
-mustart(::Gamma, y, wt) = y
+mustart(::Gamma, y, wt) = y == 0 ? oftype(y, 0.1) : y  # add a test
 mustart(::Normal, y, wt) = y
 mustart(::Poisson, y, wt) = y + oftype(y, 0.1)
 

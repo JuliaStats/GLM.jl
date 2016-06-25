@@ -26,7 +26,7 @@ type GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp       # r
         lo = length(off)
         lo == 0 || lo == n || error("offset must have length $n or length 0")
         res = new(y,d,l,similar(y),eta,mu,similar(y),off,similar(y),wts,similar(y),similar(y))
-        updatemu!(res, eta)
+        updateμ!(res, eta)
         res
     end
 end
@@ -34,62 +34,94 @@ end
 # returns the sum of the squared deviance residuals
 deviance(r::GlmResp) = sum(r.devresid)
 
-function updatemu!{T<:FPVector}(r::GlmResp{T}, linPr::T)
-    y = r.y
-    dist = r.d
-    link = r.l
-    eta = r.eta
-    mu = r.mu
-    muetav = r.mueta
-    offset = r.offset
-    var = r.var
-    wts = r.wts
-    wrkresid = r.wrkresid
-    devresidv = r.devresid
+function wtscale!{T<:FPVector}(devr::T, wkwt::T, wt::T)
+    if !isempty(wt)
+        for i in eachindex(devr, wkwt, wt)
+            wti = wt[i]
+            devr[i] *= wti
+            wkwt[i] *= wti
+        end
+    end
+end
 
+
+function updateμ!{T<:FPVector, D<:Union{Bernoulli, Binomial}, L<:LogitLink}(
+    m::GlmResp{T,D,L}, η::T)
+
+    y, μ, wrkres, wrkwt, dres = m.y, m.mu, m.wrkresid, m.wrkwts, m.devresid
+
+    @inbounds Threads.@threads for i in 1:length(μ)
+        ηi = clamp(η[i], -20.0, 20.0)
+        ei = exp(-ηi)
+        opei = 1 + ei
+        μi = μ[i] = inv(opei)
+        dμdη = wrkwt[i] = ei / abs2(opei)
+        yi = y[i]
+        wrkres[i] = (yi - μi) / dμdη
+        dres[i] = -2 * (yi == 1 ? log(μi) : yi == 0 ? log1p(-μi) :
+            (yi * (log(μi) - log(yi)) + (1 - yi) * (log1p(-μi) - log1p(-yi))))
+    end
+    wtscale!(dres, wrkwt, m.wts)
+end
+
+function updateμ!{T<:FPVector, D<:Poisson, L<:LogLink}(m::GlmResp{T,D,L}, η::T)
+
+    y, μ, wrkres, wrkwt, dres = m.y, m.mu, m.wrkresid, m.wrkwts, m.devresid
+
+    @inbounds Threads.@threads for i in eachindex(η)
+        ηi = η[i]
+        μi = μ[i] = exp(ηi)
+        dμdη = wrkwt[i] = μi
+        yi = y[i]
+        wrkres[i] = (yi - μi) / dμdη
+        dres[i] = 2 * (xlogy(yi, yi / μi) - (yi - μi))
+    end
+    wtscale!(dres, wrkwt, m.wts)
+end
+
+function wrkresp!{T<:FPVector}(v::T, m::GlmResp{T})
+    if isempty(m.offset)
+        return broadcast!(+, v, m.eta, m.wrkresid)
+    end
+    η, offset, wrkresid = m.η, m.offset, m.wrkresid
+    @inbounds @simd for i in eachindex(η)
+        v[i] = wrkresid[i] + η[i] - offset[i]
+    end
+    v
+end
+
+function updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
+    y, d, l, η, μ = r.y, r.d, r.l, r.eta, r.mu
+    @show d, l, typeof(μ), typeof(η)
+    offset, wrkresid = r.offset, r.wrkresid
+    var, devresidv, wrkwts = r.var, r.devresid, r.wrkwts
     if isempty(offset)
-        copy!(eta, linPr)
+        copy!(η, linPr)
     else
-        broadcast!(+, eta, linPr, offset)
+        broadcast!(+, η, linPr, offset)
     end
 
-    @inbounds @simd for i = eachindex(eta,mu,muetav,var,y,wrkresid,devresidv)
-        η = eta[i]
+    @inbounds @simd for i = eachindex(η, μ, var, y, wrkresid, devresidv, wrkwts)
+        ηi = η[i]
 
         # apply the inverse link function generating the mean vector (μ) from the linear predictor (η)
-        μ = mu[i] = linkinv(link, η)
+        μi = μ[i] = linkinv(l, ηi)
 
         # evaluate the mueta vector (derivative of μ w.r.t. η) from the linear predictor (eta)
-        dμdη = muetav[i] = mueta(link, η)
+        dμdη = mueta(l, ηi)
 
-        var[i] = glmvar(dist, link, μ, η)
-        ys = y[i]
-        wrkresid[i] = (ys - μ)/dμdη
-        devresidv[i] = devresid(dist, ys, μ, wts[i])
+        vv = var[i] = glmvar(d, l, μi, ηi)
+        yi = y[i]
+        wrkresid[i] = (yi - μi)/dμdη
+        devresidv[i] = devresid(d, yi, μi, one(eltype(T)))
+        wrkwts[i] = abs2(dμdη)/vv
     end
-    r
+    wtscale!(devresidv, wrkwts, r.wts)
 end
 
 function wrkresp(r::GlmResp)
     tmp = r.eta + r.wrkresid
     isempty(r.offset) ? tmp : broadcast!(-, tmp, tmp, r.offset)
-end
-
-function wrkwt!(r::GlmResp)
-    wrkwts = r.wrkwts
-    mueta = r.mueta
-    var = r.var
-    if isempty(r.wts)
-        @simd for i = eachindex(var,wrkwts,mueta)
-            @inbounds wrkwts[i] = abs2(mueta[i])/var[i]
-        end
-    else
-        wts = r.wts
-        @simd for i = eachindex(var,wrkwts,wts,mueta,var)
-            @inbounds wrkwts[i] = wts[i] * abs2(mueta[i])/var[i]
-        end
-    end
-    wrkwts
 end
 
 abstract AbstractGLM <: LinPredModel
@@ -104,7 +136,7 @@ function coeftable(mm::AbstractGLM)
     cc = coef(mm)
     se = stderr(mm)
     zz = cc ./ se
-    CoefTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
+    CoefTable(hcat(cc, se, zz, ccdf(Chisq(1), abs2(zz))),
               ["Estimate","Std.Error","z value", "Pr(>|z|)"],
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
@@ -137,18 +169,25 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
     m.fit && return m
     maxIter >= 1 || error("maxIter must be positive")
     0 < minStepFac < 1 || error("minStepFac must be in (0, 1)")
-
+@show minStepFac
+@show convTol
+@show start
     cvg, p, r = false, m.pp, m.rr
     lp = r.mu
     if start != nothing
         copy!(p.beta0, start)
         fill!(p.delbeta, 0)
         linpred!(lp, p, 0)
-        updatemu!(r, lp)
+        updateμ!(r, lp)
     else
-        delbeta!(p, wrkresp(r), wrkwt!(r))
+        updateμ!(r, r.eta)
+        @show wrkresp(r)
+        @show r.wrkwts
+        delbeta!(p, wrkresp(r), r.wrkwts)
+@show p.delbeta
         linpred!(lp, p)
-        updatemu!(r, lp)
+@show lp
+        updateμ!(r, lp)
         installbeta!(p)
     end
     devold = deviance(m)
@@ -156,10 +195,11 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         f = 1.0
         local dev
         try
-            delbeta!(p, r.wrkresid, wrkwt!(r))
+            delbeta!(p, r.wrkresid, r.wrkwts)
             linpred!(lp, p)
-            updatemu!(r, lp)
+            updateμ!(r, lp)
             dev = deviance(m)
+            @show dev
         catch e
             isa(e, DomainError) ? (dev = Inf) : rethrow(e)
         end
@@ -167,7 +207,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
             f /= 2.
             f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
             try
-                updatemu!(r, linpred(p, f))
+                updateμ!(r, linpred(p, f))
                 dev = deviance(m)
             catch e
                 isa(e, DomainError) ? (dev = Inf) : rethrow(e)
@@ -200,7 +240,7 @@ function initialeta!(dist::UnivariateDistribution, link::Link,
         eta[i] = linkfun(link, μ)
     end
     if !isempty(off)
-        @inbounds @simd for i = eachindex(eta,off)
+        @inbounds @simd for i = eachindex(eta, off)
             eta[i] -= off[i]
         end
     end
@@ -216,7 +256,7 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
     isa(wts, @compat Void) || copy!(r.wts, wts)
     isa(offset, @compat Void) || copy!(r.offset, offset)
     initialeta!(r.d, r.l, r.eta, r.y, r.wts, r.offset)
-    updatemu!(r, r.eta)
+    updateμ!(r, r.eta)
     fill!(m.pp.beta0, 0)
     m.fit = false
     if dofit
@@ -261,11 +301,11 @@ glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwarg
 """
     dispersion(m::AbstractGLM, sqr::Bool=false)
 
-    Estimated dispersion (or scale) parameter for a model's distribution,
-    generally written σ for linear models and ϕ for generalized linear models.
-    It is by definition equal to 1 for Binomial and Poisson families.
+Estimated dispersion (or scale) parameter for a model's distribution,
+generally written σ for linear models and ϕ for generalized linear models.
+It is by definition equal to 1 for Binomial and Poisson families.
 
-    If `sqr` is `true`, the squared parameter is returned.
+If `sqr` is `true`, the squared parameter is returned.
 """
 function dispersion(m::AbstractGLM, sqr::Bool=false)
     wrkwts = m.rr.wrkwts

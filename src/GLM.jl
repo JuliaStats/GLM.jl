@@ -5,6 +5,7 @@ module GLM
     using Base.LinAlg.BLAS: gemm!, gemv!
     using Base.LinAlg: QRCompactWY, Cholesky
     using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel, logit, logistic
+    using StatsFuns: xlogx, xlogy
     using Distributions: sqrt2, sqrt2π
 
     import Base: (\), cholfact, convert, cor, show, size
@@ -52,7 +53,7 @@ module GLM
         mustart,        # derive starting values for the mu vector
         nobs,           # total number of observations
         predict,        # make predictions
-        updatemu!,      # update the response type from the linear predictor
+        updateμ!,      # update the response type from the linear predictor
         wrkresp         # working response
 
     typealias FP AbstractFloat
