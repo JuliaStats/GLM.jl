@@ -16,13 +16,13 @@ end
 convert{V<:FPVector}(::Type{LmResp{V}}, y::V) =
     LmResp{V}(zeros(y), similar(y, 0), similar(y, 0), y)
 
-function updatemu!{V<:FPVector}(r::LmResp{V}, linPr::V)
+function updateμ!{V<:FPVector}(r::LmResp{V}, linPr::V)
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copy!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
     deviance(r)
 end
-updatemu!{V<:FPVector}(r::LmResp{V}, linPr) = updatemu!(r, convert(V, vec(linPr)))
+updateμ!{V<:FPVector}(r::LmResp{V}, linPr) = updateμ!(r, convert(V, vec(linPr)))
 
 function deviance(r::LmResp)
     y = r.y
@@ -105,7 +105,7 @@ function fit{LmRespT<:LmResp,LinPredT<:LinPred, T<:FP}(::Type{LinearModel{LmResp
     rr = LmRespT(y)
     pp = LinPredT(X)
     installbeta!(delbeta!(pp, rr.y))
-    updatemu!(rr, linpred(pp, 0.0))
+    updateμ!(rr, linpred(pp, 0.0))
     LinearModel(rr, pp)
 end
 function fit(::Type{LinearModel}, X::AbstractMatrix, y::Vector)
