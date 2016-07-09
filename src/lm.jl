@@ -136,13 +136,13 @@ nulldeviance(obj::LinearModel) = nulldeviance(obj.rr)
 loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
 nullloglikelihood(obj::LinearModel) = nullloglikelihood(obj.rr)
 
-R2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
+r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
 
-function adjR2(obj::LinearModel)
+function adjr2(obj::LinearModel)
     n = nobs(obj)
     # df() includes the dispersion parameter
     p = df(obj) - 1
-    1 - (1 - R²(obj))*(n-1)/(n-p)
+    1 - (1 - r²(obj))*(n-1)/(n-p)
 end
 
 function dispersion(x::LinearModel, sqr::Bool=false)
