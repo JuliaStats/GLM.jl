@@ -1,12 +1,13 @@
 # Linear models (lm's) and generalized linear models (glm's) in Julia
 
-[![Build Status](https://travis-ci.org/JuliaStats/GLM.jl.svg?branch=master)](https://travis-ci.org/JuliaStats/GLM.jl)
-[![GLM](http://pkg.julialang.org/badges/GLM_0.3.svg)](http://pkg.julialang.org/?pkg=GLM&ver=0.3)
-[![GLM](http://pkg.julialang.org/badges/GLM_0.4.svg)](http://pkg.julialang.org/?pkg=GLM&ver=0.4)
+[![Travis](https://travis-ci.org/JuliaStats/GLM.jl.svg?branch=master)](https://travis-ci.org/JuliaStats/GLM.jl)
+[![GLM](http://pkg.julialang.org/badges/GLM_0.4.svg)](http://pkg.julialang.org/?pkg=GLM)
+[![GLM](http://pkg.julialang.org/badges/GLM_0.5.svg)](http://pkg.julialang.org/?pkg=GLM)
 
 ## Older versions
 
-This documentation applies to the current version of GLM.jl, which requires Julia 0.3 or later. You may also be interested in the documentation for [GLM.jl 0.2.5](https://github.com/JuliaStats/GLM.jl/tree/v0.2.5), the last release for Julia 0.2.
+This documentation applies to the current version of GLM.jl, which requires Julia 0.4 or later.
+You may also be interested in the documentation for [GLM.jl 0.2.5](https://github.com/JuliaStats/GLM.jl/tree/v0.2.5), the last release for Julia 0.2, or [GLM.jl 0.4.8](https://github.com/JuliaStats/GLM.jl/tree/v0.4.8), the last release for Julia 0.3.
 
 ## Installation
 
@@ -14,13 +15,9 @@ This documentation applies to the current version of GLM.jl, which requires Juli
 Pkg.add("GLM")
 ```
 
-will install this package.
+will install this package and its dependencies, which includes the [Distributions package](https://github.com/JuliaStats/Distributions.jl).
 
-The `GLM` package also depends on the `DataFrames`, `Distributions`
-and `NumericExtensions` packages.
-
-The `RDatasets` package is useful for fitting models to compare with
-the results from R.
+The [RDatasets package](https://github.com/johnmyleswhite/RDatasets.jl) is useful for fitting models on standard R datasets to compare the results with those from R.
 
 ## Fitting GLM models
 
@@ -48,7 +45,7 @@ Many of the methods provided by this package have names similar to those in [R](
 
 Ordinary Least Squares Regression:
 ```julia
-julia> data=DataFrame(X=[1,2,3],Y=[2,4,7])
+julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
 3x2 DataFrame
 |-------|---|---|
 | Row # | X | Y |
@@ -56,7 +53,7 @@ julia> data=DataFrame(X=[1,2,3],Y=[2,4,7])
 | 2     | 2 | 4 |
 | 3     | 3 | 7 |
 
-julia> OLS = glm(Y~X,data,Normal(),IdentityLink())
+julia> OLS = glm(Y ~ X, data, Normal(), IdentityLink())
 DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
 
 Coefficients:
@@ -79,7 +76,7 @@ julia> predict(OLS)
 
 Probit Regression:
 ```julia
-julia> data=DataFrame(X=[1,2,3],Y=[1,0,1])
+julia> data = DataFrame(X=[1,2,3], Y=[1,0,1])
 3x2 DataFrame
 |-------|---|---|
 | Row # | X | Y |
@@ -87,7 +84,7 @@ julia> data=DataFrame(X=[1,2,3],Y=[1,0,1])
 | 2     | 2 | 0 |
 | 3     | 3 | 1 |
 
-julia> Probit = glm(Y~X,data,Binomial(),ProbitLink())
+julia> Probit = glm(Y ~ X, data, Binomial(), ProbitLink())
 DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
 
 Coefficients:
@@ -104,8 +101,8 @@ julia> vcov(Probit)
 
 ## Other examples
 
-An example of a simple linear model in `R` is
-```s
+An example of a simple linear model in R is
+```r
 > coef(summary(lm(optden ~ carb, Formaldehyde)))
                Estimate  Std. Error    t value     Pr(>|t|)
 (Intercept) 0.005085714 0.007833679  0.6492115 5.515953e-01
@@ -116,7 +113,7 @@ The corresponding model with the `GLM` package is
 ```julia
 julia> using GLM, RDatasets
 
-julia> form = dataset("datasets","Formaldehyde")
+julia> form = dataset("datasets", "Formaldehyde")
 6x2 DataFrame
 |-------|------|--------|
 | Row # | Carb | OptDen |
@@ -142,8 +139,8 @@ julia> confint(lm1)
   0.838708   0.913864
 ```
 
-A more complex example in `R` is
-```s
+A more complex example in R is
+```r
 > coef(summary(lm(sr ~ pop15 + pop75 + dpi + ddpi, LifeCycleSavings)))
                  Estimate   Std. Error    t value     Pr(>|t|)
 (Intercept) 28.5660865407 7.3545161062  3.8841558 0.0003338249
@@ -196,7 +193,7 @@ works similarly to the R `glm` function except that the `family`
 argument is replaced by a `Distribution` type and, optionally, a `Link` type.
 The first example from `?glm` in R is
 
-```s
+```r
 glm> ## Dobson (1990) Page 93: Randomized Controlled Trial :
 glm> counts <- c(18,17,15,20,10,20,25,13,12)
 
