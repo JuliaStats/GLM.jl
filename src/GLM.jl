@@ -1,3 +1,5 @@
+__precompile__()
+
 module GLM
     using Reexport, Compat
     @reexport using Distributions
