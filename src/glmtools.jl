@@ -94,7 +94,7 @@ dispersion_parameter(::Union{Gamma, Normal, InverseGaussian}) = true
 
 # Log-likelihood for an observation
 loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
-loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(wt, μ), y*wt)
+loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), Int(y*wt))
 loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(1/ϕ, μ*ϕ), y)
 loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
 loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
