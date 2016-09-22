@@ -213,8 +213,8 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
     r = m.rr
     V = typeof(r.y)
     r.y = copy!(r.y, y)
-    isa(wts, @compat Void) || copy!(r.wts, wts)
-    isa(offset, @compat Void) || copy!(r.offset, offset)
+    isa(wts, Void) || copy!(r.wts, wts)
+    isa(offset, Void) || copy!(r.offset, offset)
     initialeta!(r.d, r.l, r.eta, r.y, r.wts, r.offset)
     updatemu!(r, r.eta)
     fill!(m.pp.beta0, 0)
@@ -227,7 +227,7 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
 end
 
 function fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
-    X::@compat(Union{Matrix{T},SparseMatrixCSC{T}}), y::V,
+    X::Union{Matrix{T},SparseMatrixCSC{T}}, y::V,
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
     dofit::Bool = true,
@@ -250,7 +250,7 @@ function fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
 end
 
 fit{M<:AbstractGLM}(::Type{M},
-    X::@compat(Union{Matrix,SparseMatrixCSC}),
+    X::Union{Matrix,SparseMatrixCSC},
     y::AbstractVector,
     d::UnivariateDistribution,
     l::Link=canonicallink(d); kwargs...) =
@@ -271,7 +271,7 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
     wrkwts = m.rr.wrkwts
     wrkresid = m.rr.wrkresid
 
-    if isa(m.rr.d, @compat Union{Binomial, Poisson})
+    if isa(m.rr.d, Union{Binomial, Poisson})
         return one(eltype(wrkwts))
     end
 

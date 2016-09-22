@@ -1,7 +1,7 @@
 __precompile__()
 
 module GLM
-    using Reexport, Compat
+    using Reexport
     @reexport using Distributions
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!

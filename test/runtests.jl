@@ -1,4 +1,4 @@
-using Base.Test, Compat, StatsFuns, DataFrames, GLM
+using Base.Test, StatsFuns, DataFrames, GLM
 
 function test_show(x)
     io = IOBuffer()
@@ -221,13 +221,13 @@ gmdense = fit(GeneralizedLinearModel, full(X), y, Binomial())
 ## Prediction for GLMs
 srand(1)
 X = rand(10, 2)
-Y = Vector{Float64}(@compat logistic.(X * [3; -3])) # Julia 0.4 loses type information so Vector{Float64} can be dropped when we don't support 0.4
+Y = Vector{Float64}(logistic.(X * [3; -3])) # Julia 0.4 loses type information so Vector{Float64} can be dropped when we don't support 0.4
 
 gm11 = fit(GeneralizedLinearModel, X, Y, Binomial())
 @test_approx_eq predict(gm11) Y
 
 newX = rand(5, 2)
-newY = Vector{Float64}(@compat logistic.(newX * coef(gm11))) # Julia 0.4 loses type information so Vector{Float64} can be dropped when we don't support 0.4
+newY = Vector{Float64}(logistic.(newX * coef(gm11))) # Julia 0.4 loses type information so Vector{Float64} can be dropped when we don't support 0.4
 @test_approx_eq predict(gm11, newX) newY
 
 off = rand(10)
@@ -237,7 +237,7 @@ newoff = rand(5)
 
 gm12 = fit(GeneralizedLinearModel, X, Y, Binomial(), offset=off)
 @test_throws ArgumentError predict(gm12, newX)
-@test_approx_eq predict(gm12, newX, offset=newoff) @compat(logistic.(newX * coef(gm12) .+ newoff))
+@test_approx_eq predict(gm12, newX, offset=newoff) logistic.(newX * coef(gm12) .+ newoff)
 
 ## Prediction from DataFrames
 d = convert(DataFrame, X)

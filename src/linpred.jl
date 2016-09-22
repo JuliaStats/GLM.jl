@@ -15,7 +15,7 @@ function installbeta!(p::LinPred, f::Real=1.)
     p.beta0
 end
 
-@compat typealias BlasReal Union{Float32,Float64}
+typealias BlasReal Union{Float32,Float64}
 
 type DensePredQR{T<:BlasReal} <: DensePred
     X::Matrix{T}                  # model matrix
