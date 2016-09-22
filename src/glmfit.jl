@@ -104,7 +104,7 @@ function coeftable(mm::AbstractGLM)
     cc = coef(mm)
     se = stderr(mm)
     zz = cc ./ se
-    CoefTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs(zz))),
+    CoefTable(hcat(cc,se,zz,2.0 * ccdf(Normal(), abs.(zz))),
               ["Estimate","Std.Error","z value", "Pr(>|z|)"],
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end

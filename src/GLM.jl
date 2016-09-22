@@ -35,10 +35,6 @@ module GLM
         ProbitLink,
         SqrtLink,
 
-        # Deprecated
-        LmMod,
-        GlmMod,
-
                                         # functions
         canonicallink,  # canonical link function for a distribution
         delbeta!,       # evaluate the increment in the coefficient vector
@@ -72,6 +68,5 @@ module GLM
     include("lm.jl")
     include("glmtools.jl")
     include("glmfit.jl")
-    include("deprecated.jl")
 
 end # module

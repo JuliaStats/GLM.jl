@@ -132,7 +132,7 @@ function cor(x::LinPredModel)
     scale!(invstd, scale!(Σ, invstd))
 end
 
-stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
+stderr(x::LinPredModel) = sqrt.(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
     println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
