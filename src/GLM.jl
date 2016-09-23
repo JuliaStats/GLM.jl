@@ -1,7 +1,7 @@
 __precompile__()
 
 module GLM
-    using Reexport, Compat
+    using Reexport
     @reexport using Distributions
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
@@ -34,10 +34,6 @@ module GLM
         LmResp,
         ProbitLink,
         SqrtLink,
-
-        # Deprecated
-        LmMod,
-        GlmMod,
 
                                         # functions
         canonicallink,  # canonical link function for a distribution
@@ -72,6 +68,5 @@ module GLM
     include("lm.jl")
     include("glmtools.jl")
     include("glmfit.jl")
-    include("deprecated.jl")
 
 end # module

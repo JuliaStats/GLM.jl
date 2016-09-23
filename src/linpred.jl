@@ -15,7 +15,7 @@ function installbeta!(p::LinPred, f::Real=1.)
     p.beta0
 end
 
-@compat typealias BlasReal Union{Float32,Float64}
+typealias BlasReal Union{Float32,Float64}
 
 type DensePredQR{T<:BlasReal} <: DensePred
     X::Matrix{T}                  # model matrix
@@ -132,7 +132,7 @@ function cor(x::LinPredModel)
     scale!(invstd, scale!(Σ, invstd))
 end
 
-stderr(x::LinPredModel) = sqrt(diag(vcov(x)))
+stderr(x::LinPredModel) = sqrt.(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
     println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))

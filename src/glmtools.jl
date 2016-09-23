@@ -52,11 +52,11 @@ canonicallink(::Normal) = IdentityLink()
 canonicallink(::Poisson) = LogLink()
 
 # For the "odd" link functions we evaluate the linear predictor such that mu is closest to zero where the precision is higher
-function glmvar(::@compat(Union{Bernoulli,Binomial}), link::@compat(Union{CauchitLink,InverseLink,LogitLink,ProbitLink}), μ, η)
+function glmvar(::Union{Bernoulli,Binomial}, link::Union{CauchitLink,InverseLink,LogitLink,ProbitLink}, μ, η)
     μ = linkinv(link, ifelse(η < 0, η, -η))
     μ * (1 - μ)
 end
-glmvar(::@compat(Union{Bernoulli,Binomial}), ::Link, μ, η) = μ * (1 - μ)
+glmvar(::Union{Bernoulli,Binomial}, ::Link, μ, η) = μ * (1 - μ)
 glmvar(::Gamma, ::Link, μ, η) = abs2(μ)
 glmvar(::Normal, ::Link, μ, η) = 1
 glmvar(::Poisson, ::Link, μ, η) = μ

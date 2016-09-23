@@ -1,6 +1,5 @@
-julia 0.4
-Distributions 0.4.6-
+julia 0.5
+Distributions 0.10.0
 StatsBase 0.8.3
 StatsFuns 0.3.0
 Reexport
-Compat 0.2.12-

@@ -1,4 +1,4 @@
-using Base.Test, Compat, StatsFuns, DataFrames, GLM
+using Base.Test, StatsFuns, DataFrames, GLM
 
 function test_show(x)
     io = IOBuffer()
@@ -109,7 +109,7 @@ test_show(gm7)
 @test_approx_eq stderr(gm7) [0.157167944259695,0.001886285986164,0.022584069426311,0.023882826190166]
 
 ## Gamma example from McCullagh & Nelder (1989, pp. 300-2)
-clotting = DataFrame(u = log([5,10,15,20,30,40,60,80,100]),
+clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
                      lot1 = [118,58,42,35,27,25,21,19,18])
 gm8 = fit(GeneralizedLinearModel, lot1 ~ u, clotting, Gamma())
 test_show(gm8)
@@ -167,7 +167,7 @@ end
 admit_agr2 = DataFrame(count=[61, 151, 121, 67],
                        admit=[33, 54, 28, 12],
                        rank=PooledDataArray([1, 2, 3, 4]))
-admit_agr2[:p] = admit_agr2[:admit]./admit_agr2[:count]
+admit_agr2[:p] = Array(admit_agr2[:admit]) ./ Array(admit_agr2[:count])
 
 gm15 = fit(GeneralizedLinearModel, p ~ rank, admit_agr2, Binomial(), wts=Vector{Float64}(admit_agr2[:count]))
 test_show(gm15)
@@ -221,13 +221,13 @@ gmdense = fit(GeneralizedLinearModel, full(X), y, Binomial())
 ## Prediction for GLMs
 srand(1)
 X = rand(10, 2)
-Y = Vector{Float64}(@compat logistic.(X * [3; -3])) # Julia 0.4 loses type information so Vector{Float64} can be dropped when we don't support 0.4
+Y = Vector{Float64}(logistic.(X * [3; -3])) # Julia 0.4 loses type information so Vector{Float64} can be dropped when we don't support 0.4
 
 gm11 = fit(GeneralizedLinearModel, X, Y, Binomial())
 @test_approx_eq predict(gm11) Y
 
 newX = rand(5, 2)
-newY = Vector{Float64}(@compat logistic.(newX * coef(gm11))) # Julia 0.4 loses type information so Vector{Float64} can be dropped when we don't support 0.4
+newY = Vector{Float64}(logistic.(newX * coef(gm11))) # Julia 0.4 loses type information so Vector{Float64} can be dropped when we don't support 0.4
 @test_approx_eq predict(gm11, newX) newY
 
 off = rand(10)
@@ -237,7 +237,7 @@ newoff = rand(5)
 
 gm12 = fit(GeneralizedLinearModel, X, Y, Binomial(), offset=off)
 @test_throws ArgumentError predict(gm12, newX)
-@test_approx_eq predict(gm12, newX, offset=newoff) @compat(logistic.(newX * coef(gm12) .+ newoff))
+@test_approx_eq predict(gm12, newX, offset=newoff) logistic.(newX * coef(gm12) .+ newoff)
 
 ## Prediction from DataFrames
 d = convert(DataFrame, X)
