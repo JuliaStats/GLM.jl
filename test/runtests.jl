@@ -167,7 +167,7 @@ end
 admit_agr2 = DataFrame(count=[61, 151, 121, 67],
                        admit=[33, 54, 28, 12],
                        rank=PooledDataArray([1, 2, 3, 4]))
-admit_agr2[:p] = admit_agr2[:admit]./admit_agr2[:count]
+admit_agr2[:p] = Array(admit_agr2[:admit]) ./ Array(admit_agr2[:count])
 
 gm15 = fit(GeneralizedLinearModel, p ~ rank, admit_agr2, Binomial(), wts=Vector{Float64}(admit_agr2[:count]))
 test_show(gm15)
