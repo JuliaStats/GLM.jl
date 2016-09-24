@@ -26,7 +26,7 @@ type GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp       # r
         lo = length(off)
         lo == 0 || lo == n || error("offset must have length $n or length 0")
         res = new(y,d,l,similar(y),eta,mu,similar(y),off,similar(y),wts,similar(y),similar(y))
-        updatemu!(res, eta)
+        updateμ!(res, eta)
         res
     end
 end
@@ -34,7 +34,7 @@ end
 # returns the sum of the squared deviance residuals
 deviance(r::GlmResp) = sum(r.devresid)
 
-function updatemu!{T<:FPVector}(r::GlmResp{T}, linPr::T)
+function updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
     y = r.y
     dist = r.d
     link = r.l
@@ -144,11 +144,11 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         copy!(p.beta0, start)
         fill!(p.delbeta, 0)
         linpred!(lp, p, 0)
-        updatemu!(r, lp)
+        updateμ!(r, lp)
     else
         delbeta!(p, wrkresp(r), wrkwt!(r))
         linpred!(lp, p)
-        updatemu!(r, lp)
+        updateμ!(r, lp)
         installbeta!(p)
     end
     devold = deviance(m)
@@ -158,7 +158,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         try
             delbeta!(p, r.wrkresid, wrkwt!(r))
             linpred!(lp, p)
-            updatemu!(r, lp)
+            updateμ!(r, lp)
             dev = deviance(m)
         catch e
             isa(e, DomainError) ? (dev = Inf) : rethrow(e)
@@ -167,7 +167,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
             f /= 2.
             f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
             try
-                updatemu!(r, linpred(p, f))
+                updateμ!(r, linpred(p, f))
                 dev = deviance(m)
             catch e
                 isa(e, DomainError) ? (dev = Inf) : rethrow(e)
@@ -216,7 +216,7 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
     isa(wts, Void) || copy!(r.wts, wts)
     isa(offset, Void) || copy!(r.offset, offset)
     initialeta!(r.d, r.l, r.eta, r.y, r.wts, r.offset)
-    updatemu!(r, r.eta)
+    updateμ!(r, r.eta)
     fill!(m.pp.beta0, 0)
     m.fit = false
     if dofit
