@@ -12,7 +12,7 @@ type GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp       # r
 end
 
 function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V)
-    if d == Binomial
+    if d == Binomial()
         for yy in y
             0. <= yy <= 1. || throw(ArgumentError("$yy in y is not in [0,1]"))
         end
