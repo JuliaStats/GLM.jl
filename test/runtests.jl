@@ -105,8 +105,8 @@ gm7 = fit(GeneralizedLinearModel, Postwt ~ Prewt + Treat, anorexia, Normal(), Lo
 test_show(gm7)
 @test_approx_eq deviance(gm7) 3265.207242977156
 @test_approx_eq coef(gm7) [3.992326787835955,-0.994452693131178,-0.050698258703974,0.051494029957641]
-@test_approx_eq GLM.dispersion(gm7.model, true) 48.01787789178518
-@test_approx_eq stderr(gm7) [0.157167944259695,0.001886285986164,0.022584069426311,0.023882826190166]
+@test_approx_eq GLM.dispersion(gm7.model, true) 48.017753573192266
+@test_approx_eq_eps stderr(gm7) [0.15716774,0.0018862835,0.02258404,0.023882795] 1e-6
 
 ## Gamma example from McCullagh & Nelder (1989, pp. 300-2)
 clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
@@ -120,8 +120,8 @@ test_show(gm8)
 @test_approx_eq aicc(gm8) 42.78992394955449
 @test_approx_eq bic(gm8) 38.58159768156315
 @test_approx_eq coef(gm8) [-0.01655438172784895,0.01534311491072141]
-@test_approx_eq GLM.dispersion(gm8.model, true) 0.002446059333495581
-@test_approx_eq stderr(gm8) [0.0009275466067257,0.0004149596425600]
+@test_approx_eq_eps GLM.dispersion(gm8.model, true) 0.002446059333495581 1e-6
+@test_approx_eq_eps stderr(gm8) [0.00092754223,0.000414957683] 1e-6
 
 gm9 = fit(GeneralizedLinearModel, lot1 ~ u, clotting, Gamma(), LogLink(), convTol=1e-8)
 test_show(gm9)
@@ -144,9 +144,8 @@ test_show(gm10)
 @test_approx_eq aicc(gm10) 75.23214487456835
 @test_approx_eq bic(gm10) 71.02381860657701
 @test_approx_eq coef(gm10) [99.250446880986,-18.374324929002]
-@test_approx_eq GLM.dispersion(gm10.model, true) 0.1041772704067886
-@test_approx_eq stderr(gm10) [17.864388462865,4.297968703823]
-
+@test_approx_eq_eps GLM.dispersion(gm10.model, true) 0.10417373 1e-6
+@test_approx_eq_eps stderr(gm10) [17.864084,4.297895] 1e-4
 # Logistic regression using aggregated data and weights
 admit_agr = DataFrame(count=[28, 97, 93, 55, 33, 54, 28, 12],
                       admit=repeat([false, true], inner=[4]),

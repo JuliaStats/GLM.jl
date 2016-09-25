@@ -1,96 +1,95 @@
 type GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp       # response in a glm model
     y::V                                       # response
     d::D
-    l::L
     devresid::V                                # (squared) deviance residuals
     eta::V                                     # linear predictor
     mu::V                                      # mean response
     mueta::V                                   # derivative of mu w.r.t. eta
     offset::V                                  # offset added to linear predictor (usually 0)
-    var::V                                     # (unweighted) variance at current mu
     wts::V                                     # prior weights
-    wrkwts::V                                  # working weights
+    wrkwt::V                                   # working weights
     wrkresid::V                                # working residuals
-    function GlmResp(y::V, d::D, l::L, eta::V, mu::V, off::V, wts::V)
-        if isa(d, Binomial)
-            for yy in y
-                0. <= yy <= 1. || error("$yy in y is not in [0,1]")
-            end
-        else
-            for yy in y
-                insupport(d, yy) || error("y must be in the support of d")
-            end
+end
+
+function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V)
+    if d == Binomial
+        for yy in y
+            0. <= yy <= 1. || throw(ArgumentError("$yy in y is not in [0,1]"))
         end
-        n = length(y)
-        length(eta) == length(mu) == length(wts) == n || error("mismatched sizes")
-        lo = length(off)
-        lo == 0 || lo == n || error("offset must have length $n or length 0")
-        res = new(y,d,l,similar(y),eta,mu,similar(y),off,similar(y),wts,similar(y),similar(y))
-        updateμ!(res, eta)
-        res
+    else
+        all(x -> insupport(d, x), y) || throw(ArgumentError("y must be in the support of D"))
     end
+    n = length(y)
+    nη = length(η)
+    nμ = length(μ)
+    length(wts) == nη == nμ == n || throw(DimensionMismatch(
+        "lengths of η, μ, y and wts ($nη, $nμ, $(length(wts)), $n) are not equal"))
+    lo = length(off)
+    lo == 0 || lo == n || error("offset must have length $n or length 0")
+    res = GlmResp{V,D,L}(y, d, similar(y), η, μ, similar(y), off, wts, similar(y), similar(y))
+    updateμ!(res, η)
+    res
 end
 
 # returns the sum of the squared deviance residuals
 deviance(r::GlmResp) = sum(r.devresid)
 
-function updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
-    y = r.y
-    dist = r.d
-    link = r.l
-    eta = r.eta
-    mu = r.mu
-    muetav = r.mueta
-    offset = r.offset
-    var = r.var
-    wts = r.wts
-    wrkresid = r.wrkresid
-    devresidv = r.devresid
+"""
+    wtscale!{T<:FPVector}(devr::T, wkwt::T, wt::T)
 
-    if isempty(offset)
-        copy!(eta, linPr)
-    else
-        broadcast!(+, eta, linPr, offset)
+Scale the deviance residuals, `devr`, and the working weights, `wkwt`, by `wt`,
+if `wt` is nonempty.
+"""
+function wtscale!{T<:FPVector}(devr::T, wkwt::T, wt::T)
+    if !isempty(wt)
+        devr .*= wt
+        wkwt .*= wt
     end
+end
 
-    @inbounds @simd for i = eachindex(eta,mu,muetav,var,y,wrkresid,devresidv)
-        η = eta[i]
+"""
+    updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
+
+Update the mean, working weights and working residuals, in `r` given a value of
+the linear predictor, `linPr`.
+
+This the fallback method.  Specialized methods are defined for various
+distributions and their canonical link functions.
+"""
+function updateμ!{T<:FPVector,D,L}(r::GlmResp{T,D,L}, linPr::T)
+    y, η, μ, μη, wts, wrkwt, wrkres, devres =
+        r.y, r.eta, r.mu, r.mueta, r.wts, r.wrkwt, r.wrkresid, r.devresid
+
+    isempty(r.offset) ? copy!(η, linPr) : broadcast!(+, η, linPr, r.offset)
+    @inbounds @simd for i = eachindex(η, μ, μη, y, wrkres, devres)
+        ηi = η[i]
 
         # apply the inverse link function generating the mean vector (μ) from the linear predictor (η)
-        μ = mu[i] = linkinv(link, η)
+        μi = μ[i] = linkinv(L(), ηi)
 
         # evaluate the mueta vector (derivative of μ w.r.t. η) from the linear predictor (eta)
-        dμdη = muetav[i] = mueta(link, η)
+        dμdη = μη[i] = mueta(L(), ηi)
 
-        var[i] = glmvar(dist, link, μ, η)
-        ys = y[i]
-        wrkresid[i] = (ys - μ)/dμdη
-        devresidv[i] = devresid(dist, ys, μ, wts[i])
+        yi = y[i]
+        wrkres[i] = (yi - μi)/dμdη
+        devres[i] = devresid(r.d, yi, μi, one(yi))
+        wrkwt[i] = abs2(dμdη) / max(eps(), glmvar(r.d, L(), μi, ηi))
     end
+    wtscale!(devres, wrkwt, wts)
     r
 end
 
+"""
+    wrkresp(r::GlmResp)
+
+The working response, `r.eta + r.wrkresid - r.offset`.
+"""
 function wrkresp(r::GlmResp)
-    tmp = r.eta + r.wrkresid
+    tmp = r.eta .+ r.wrkresid
     isempty(r.offset) ? tmp : broadcast!(-, tmp, tmp, r.offset)
 end
 
-function wrkwt!(r::GlmResp)
-    wrkwts = r.wrkwts
-    mueta = r.mueta
-    var = r.var
-    if isempty(r.wts)
-        @simd for i = eachindex(var,wrkwts,mueta)
-            @inbounds wrkwts[i] = abs2(mueta[i])/var[i]
-        end
-    else
-        wts = r.wts
-        @simd for i = eachindex(var,wrkwts,wts,mueta,var)
-            @inbounds wrkwts[i] = wts[i] * abs2(mueta[i])/var[i]
-        end
-    end
-    wrkwts
-end
+wrkwt(r::GlmResp) = r.wrkwt
 
 abstract AbstractGLM <: LinPredModel
 
@@ -135,28 +134,28 @@ df(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) +
 function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
               convTol::Real, start)
     m.fit && return m
-    maxIter >= 1 || error("maxIter must be positive")
-    0 < minStepFac < 1 || error("minStepFac must be in (0, 1)")
+    maxIter >= 1 || throw(ArgumentError("maxIter must be positive"))
+    0 < minStepFac < 1 || throw(ArgumentError("minStepFac must be in (0, 1)"))
 
     cvg, p, r = false, m.pp, m.rr
     lp = r.mu
-    if start != nothing
+    if start == nothing || isempty(start)
+        delbeta!(p, wrkresp(r), wrkwt(r))
+        linpred!(lp, p)
+        updateμ!(r, lp)
+        installbeta!(p)
+    else
         copy!(p.beta0, start)
         fill!(p.delbeta, 0)
         linpred!(lp, p, 0)
         updateμ!(r, lp)
-    else
-        delbeta!(p, wrkresp(r), wrkwt!(r))
-        linpred!(lp, p)
-        updateμ!(r, lp)
-        installbeta!(p)
     end
     devold = deviance(m)
-    for i=1:maxIter
+    for i = 1:maxIter
         f = 1.0
         local dev
         try
-            delbeta!(p, r.wrkresid, wrkwt!(r))
+            delbeta!(p, r.wrkresid, wrkwt(r))
             linpred!(lp, p)
             updateμ!(r, lp)
             dev = deviance(m)
@@ -244,7 +243,7 @@ function fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
     wts = T <: Float64 ? copy(wts) : convert(typeof(y), wts)
     off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
     eta = initialeta!(d, l, similar(y), y, wts, off)
-    rr = GlmResp{typeof(y), typeof(d), typeof(l)}(y, d, l, eta, similar(y), offset, wts)
+    rr = GlmResp(y, d, l, eta, similar(y), offset, wts)
     res = M(rr, cholpred(X), false)
     dofit ? fit!(res; fitargs...) : res
 end
@@ -268,19 +267,14 @@ glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwarg
     If `sqr` is `true`, the squared parameter is returned.
 """
 function dispersion(m::AbstractGLM, sqr::Bool=false)
-    wrkwts = m.rr.wrkwts
-    wrkresid = m.rr.wrkresid
-
-    if isa(m.rr.d, Union{Binomial, Poisson})
-        return one(eltype(wrkwts))
+    r = m.rr
+    if dispersion_parameter(r.d)
+        wrkwt, wrkresid = r.wrkwt, r.wrkresid
+        s = sum(i -> wrkwt[i] * abs2(wrkresid[i]), eachindex(wrkwt, wrkresid)) / df_residual(m)
+        sqr ? s : sqrt(s)
+    else
+        one(eltype(r.mu))
     end
-
-    s = zero(eltype(wrkwts))
-    @inbounds @simd for i = eachindex(wrkwts,wrkresid)
-        s += wrkwts[i]*abs2(wrkresid[i])
-    end
-    s /= df_residual(m)
-    sqr ? s : sqrt(s)
 end
 
 ## Prediction function for GLMs
