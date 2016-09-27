@@ -123,7 +123,7 @@ function loglikelihood(m::AbstractGLM)
     mu = r.mu
     ϕ = deviance(m)/sum(wts)
     d = r.d
-    ll = zero(one(eltype(wts)) * one(loglik_obs(d, y[1], mu[1], wts[1], ϕ)))
+    ll = zero(loglik_obs(d, y[1], mu[1], wts[1], ϕ))
     @inbounds for i in eachindex(y, mu, wts)
         ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
     end
