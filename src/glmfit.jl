@@ -119,7 +119,7 @@ function updateμ!{T,D,L}(r::GlmResp{T,D,L})
         dμdη = mueta(L(), ηi)
         yi = y[i]
         wrkres[i] = (yi - μi)/dμdη
-        dres[i] = devresid(r.d, yi, μi, one(yi))
+        dres[i] = devresid(r.d, yi, μi)
         wrkwt[i] = abs2(dμdη) / max(eps(), glmvar(r.d, L(), μi, ηi))
     end
 end
