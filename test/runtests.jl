@@ -219,7 +219,7 @@ admit_agr2[:p] = admit_agr2[:admit] ./ admit_agr2[:count]
     test_show(gm15)
     @test df(gm15) == 4
     @test nobs(gm15) == 400
-    @test isapprox(deviance(gm15), -2.4424906541753456e-15, atol = 1e-18)
+    @test isapprox(deviance(gm15), -2.4424906541753456e-15, rtol = 1e-7)
     @test isapprox(loglikelihood(gm15), -9.50254433604239)
     @test isapprox(aic(gm15), 27.00508867208478)
     @test isapprox(aicc(gm15), 27.106354494869592)
