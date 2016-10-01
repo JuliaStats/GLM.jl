@@ -214,12 +214,14 @@ admit_agr2 = DataFrame(Any[[61., 151, 121, 67], [33., 54, 28, 12], pool([1, 2, 3
     [:count, :admit, :rank])
 admit_agr2[:p] = admit_agr2[:admit] ./ admit_agr2[:count]
 
+## The model matrix here is singular so tests like the deviance are just round off error
 @testset "Binomial LogitLink aggregated" begin
     gm15 = fit(GeneralizedLinearModel, p ~ rank, admit_agr2, Binomial(), wts=admit_agr2[:count])
     test_show(gm15)
     @test df(gm15) == 4
     @test nobs(gm15) == 400
-    @test isapprox(deviance(gm15), -2.4424906541753456e-15, rtol = 1e-7)
+# The model matrix is singular so the deviance is essentially round-off error
+#    @test isapprox(deviance(gm15), -2.4424906541753456e-15, rtol = 1e-7)
     @test isapprox(loglikelihood(gm15), -9.50254433604239)
     @test isapprox(aic(gm15), 27.00508867208478)
     @test isapprox(aicc(gm15), 27.106354494869592)
