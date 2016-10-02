@@ -1,14 +1,28 @@
-type GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp       # response in a glm model
-    y::V                                       # response
+"""
+    GlmResp
+
+The response vector and various derived vectors in a generalized linear model.
+"""
+immutable GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
+    "`y`: response vector"
+    y::V
     d::D
-    devresid::V                                # (squared) deviance residuals
-    eta::V                                     # linear predictor
-    mu::V                                      # mean response
-    mueta::V                                   # derivative of mu w.r.t. eta
-    offset::V                                  # offset added to linear predictor (usually 0)
-    wts::V                                     # prior weights
-    wrkwt::V                                   # working weights
-    wrkresid::V                                # working residuals
+    "`devresid`: the squared deviance residuals"
+    devresid::V
+    "`eta`: the linear predictor"
+    eta::V
+    "`mu`: mean response"
+    mu::V
+    "`mueta`: the derivative of `mu` w.r.t. `eta`"
+    mueta::V
+    "`offset:` offset added to `Xβ` to form `eta`.  Can be of length 0"
+    offset::V
+    "`wts:` prior case weights.  Can be of length 0."
+    wts::V
+    "`wrkwt`: working case weights for the Iteratively Reweighted Least Squares (IRLS) algorithm"
+    wrkwt::V
+    "`wrkresid`: working residuals for IRLS"
+    wrkresid::V
 end
 
 function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V)
@@ -31,11 +45,6 @@ function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts:
     res
 end
 
-"""
-    deviance(r::GlmResp)
-
-Return the sum of the squared deviance residuals
-"""
 deviance(r::GlmResp) = sum(r.devresid)
 
 """
@@ -125,7 +134,7 @@ function updateμ!{T,D,L}(r::GlmResp{T,D,L})
 end
 
 """
-    wrkresp(r::GlmResp){}
+    wrkresp(r::GlmResp)
 
 The working response, `r.eta + r.wrkresid - r.offset`.
 """
@@ -143,15 +152,6 @@ function wrkresp{T<:FPVector}(v::T, r::GlmResp{T})
     broadcast!(+, v, r.eta, r.wrkresid)
     isempty(r.offset) ? v : broadcast!(-, v, v, r.offset)
 end
-
-"""
-    wrkwt(r::GlmResp)
-
-Return the working weights.
-
-The result is `r.wrkwt`, not a copy of `r.wrkwt`
-"""
-wrkwt(r::GlmResp) = r.wrkwt
 
 abstract AbstractGLM <: LinPredModel
 
@@ -202,7 +202,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
     cvg, p, r = false, m.pp, m.rr
     lp = r.mu
     if start == nothing || isempty(start)
-        delbeta!(p, wrkresp(r), wrkwt(r))
+        delbeta!(p, wrkresp(r), r.wrkwt)
         linpred!(lp, p)
         updateμ!(r, lp)
         installbeta!(p)
@@ -217,7 +217,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         f = 1.0
         local dev
         try
-            delbeta!(p, r.wrkresid, wrkwt(r))
+            delbeta!(p, r.wrkresid, r.wrkwt)
             linpred!(lp, p)
             updateμ!(r, lp)
             dev = deviance(m)
