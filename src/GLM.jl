@@ -52,7 +52,7 @@ module GLM
         mustart,        # derive starting values for the mu vector
         nobs,           # total number of observations
         predict,        # make predictions
-        updatemu!,      # update the response type from the linear predictor
+        updateμ!,      # update the response type from the linear predictor
         wrkresp         # working response
 
     typealias FP AbstractFloat
