@@ -11,9 +11,9 @@ module GLM
     using Distributions: sqrt2, sqrt2π
 
     import Base: (\), cholfact, convert, cor, show, size
-    import StatsBase: coef, coeftable, confint, deviance, nulldeviance, df, df_residual, loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, r2, r², adjr2, adjr²
+    import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual, loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, r2, r², adjr2, adjr²
     import StatsFuns: xlogy
-    export coef, coeftable, confint, deviance, nulldeviance, df, df_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, r2, r², adjr2, adjr²
+    export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, r2, r², adjr2, adjr²
 
     export                              # types
         CauchitLink,

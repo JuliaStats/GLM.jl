@@ -118,7 +118,7 @@ lm(X, y) = fit(LinearModel, X, y)
 lmc(X, y) = fit(LinearModel{DensePredChol}, X, y)
 
 
-df(x::LinearModel) = length(coef(x)) + 1
+dof(x::LinearModel) = length(coef(x)) + 1
 
 """
     deviance(obj::LinearModel)
@@ -140,13 +140,13 @@ r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
 
 function adjr2(obj::LinearModel)
     n = nobs(obj)
-    # df() includes the dispersion parameter
-    p = df(obj) - 1
+    # dof() includes the dispersion parameter
+    p = dof(obj) - 1
     1 - (1 - r²(obj))*(n-1)/(n-p)
 end
 
 function dispersion(x::LinearModel, sqr::Bool=false)
-    ssqr = deviance(x.rr)/df_residual(x)
+    ssqr = deviance(x.rr)/dof_residual(x)
     return sqr ? ssqr : sqrt(ssqr)
 end
 
@@ -154,7 +154,7 @@ function coeftable(mm::LinearModel)
     cc = coef(mm)
     se = stderr(mm)
     tt = cc ./ se
-    CoefTable(hcat(cc,se,tt,ccdf(FDist(1, df_residual(mm)), abs2(tt))),
+    CoefTable(hcat(cc,se,tt,ccdf(FDist(1, dof_residual(mm)), @compat(abs2.(tt)))),
               ["Estimate","Std.Error","t value", "Pr(>|t|)"],
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
@@ -163,6 +163,6 @@ predict(mm::LinearModel, newx::Matrix) =  newx * coef(mm)
 
 function confint(obj::LinearModel, level::Real)
     hcat(coef(obj),coef(obj)) + stderr(obj) *
-    quantile(TDist(df_residual(obj)), (1. - level)/2.) * [1. -1.]
+    quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
 confint(obj::LinearModel) = confint(obj, 0.95)
