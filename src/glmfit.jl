@@ -13,8 +13,6 @@ immutable GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     eta::V
     "`mu`: mean response"
     mu::V
-    "`mueta`: the derivative of `mu` w.r.t. `eta`"
-    mueta::V
     "`offset:` offset added to `Xβ` to form `eta`.  Can be of length 0"
     offset::V
     "`wts:` prior case weights.  Can be of length 0."
@@ -40,7 +38,7 @@ function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts:
         "lengths of η, μ, y and wts ($nη, $nμ, $(length(wts)), $n) are not equal"))
     lo = length(off)
     lo == 0 || lo == n || error("offset must have length $n or length 0")
-    res = GlmResp{V,D,L}(y, d, similar(y), η, μ, similar(y), off, wts, similar(y), similar(y))
+    res = GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y))
     updateμ!(res, η)
     res
 end
