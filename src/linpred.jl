@@ -165,4 +165,4 @@ end
 coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
 
-df_residual(obj::LinPredModel) = nobs(obj) - length(coef(obj))
+dof_residual(obj::LinPredModel) = nobs(obj) - length(coef(obj))
