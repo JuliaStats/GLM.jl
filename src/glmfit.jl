@@ -130,7 +130,7 @@ function loglikelihood(m::AbstractGLM)
     ll
 end
 
-df(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
+dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
 
 function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
               convTol::Real, start)
@@ -279,7 +279,7 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
     @inbounds @simd for i = eachindex(wrkwts,wrkresid)
         s += wrkwts[i]*abs2(wrkresid[i])
     end
-    s /= df_residual(m)
+    s /= dof_residual(m)
     sqr ? s : sqrt(s)
 end
 

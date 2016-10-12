@@ -16,7 +16,7 @@ test_show(lm1)
     -9.464489795918525e-05 1.831836734693908e-04]
 @test_approx_eq vcov(lm1) Σ
 @test_approx_eq cor(lm1.model) diagm(diag(Σ))^(-1/2)*Σ*diagm(diag(Σ))^(-1/2)
-@test df(lm1) == 3
+@test dof(lm1) == 3
 @test_approx_eq deviance(lm1) 0.0002992000000000012
 @test_approx_eq loglikelihood(lm1) 21.204842144047973
 @test_approx_eq nulldeviance(lm1) 0.3138488333333334
@@ -32,7 +32,7 @@ test_show(lm1)
 dobson = DataFrame(Counts=[18.,17,15,20,10,20,25,13,12], Outcome=gl(3,1,9), Treatment=gl(3,3))
 gm1 = fit(GeneralizedLinearModel, Counts ~ Outcome + Treatment, dobson, Poisson())
 test_show(gm1)
-@test df(gm1) == 5
+@test dof(gm1) == 5
 @test_approx_eq deviance(gm1) 5.12914107700115
 @test_approx_eq loglikelihood(gm1) -23.380659200978837
 @test_approx_eq aic(gm1) 56.76131840195767
@@ -47,7 +47,7 @@ admit[:rank] = pool(admit[:rank])
 for distr in (Binomial, Bernoulli)
     gm2 = fit(GeneralizedLinearModel, admit ~ gre + gpa + rank, admit, distr())
     test_show(gm2)
-    @test df(gm2) == 6
+    @test dof(gm2) == 6
     @test_approx_eq deviance(gm2) 458.5174924758994
     @test_approx_eq loglikelihood(gm2) -229.25874623794968
     @test_approx_eq aic(gm2) 470.51749247589936
@@ -58,7 +58,7 @@ end
 
 gm3 = fit(GeneralizedLinearModel, admit ~ gre + gpa + rank, admit, Binomial(), ProbitLink())
 test_show(gm3)
-@test df(gm3) == 6
+@test dof(gm3) == 6
 @test_approx_eq deviance(gm3) 458.4131713833386
 @test_approx_eq loglikelihood(gm3) -229.20658569166932
 @test_approx_eq aic(gm3) 470.41317138333864
@@ -68,7 +68,7 @@ test_show(gm3)
 
 gm4 = fit(GeneralizedLinearModel, admit ~ gre + gpa + rank, admit, Binomial(), CauchitLink())
 test_show(gm4)
-@test df(gm4) == 6
+@test dof(gm4) == 6
 @test_approx_eq deviance(gm4) 459.3401112751141
 @test_approx_eq loglikelihood(gm4) -229.6700556375571
 @test_approx_eq aic(gm4) 471.3401112751142
@@ -77,7 +77,7 @@ test_show(gm4)
 
 gm5 = fit(GeneralizedLinearModel, admit ~ gre + gpa + rank, admit, Binomial(), CloglogLink())
 test_show(gm5)
-@test df(gm5) == 6
+@test dof(gm5) == 6
 @test_approx_eq deviance(gm5) 458.89439629612616
 @test_approx_eq loglikelihood(gm5) -229.44719814806314
 @test_approx_eq aic(gm5) 470.8943962961263
@@ -90,7 +90,7 @@ anorexia[:Treat] = pool(anorexia[:Treat])
 
 gm6 = fit(GeneralizedLinearModel, Postwt ~ Prewt + Treat, anorexia, Normal(), IdentityLink(), offset=convert(Array, anorexia[:Prewt]))
 test_show(gm6)
-@test df(gm6) == 5
+@test dof(gm6) == 5
 @test_approx_eq deviance(gm6) 3311.262619919613
 @test_approx_eq loglikelihood(gm6) -239.9866487711122
 @test_approx_eq aic(gm6) 489.9732975422244
@@ -113,7 +113,7 @@ clotting = DataFrame(u = log([5,10,15,20,30,40,60,80,100]),
                      lot1 = [118,58,42,35,27,25,21,19,18])
 gm8 = fit(GeneralizedLinearModel, lot1 ~ u, clotting, Gamma())
 test_show(gm8)
-@test df(gm8) == 3
+@test dof(gm8) == 3
 @test_approx_eq deviance(gm8) 0.016729715178484157
 @test_approx_eq loglikelihood(gm8) -15.994961974777247
 @test_approx_eq aic(gm8) 37.989923949554495
@@ -125,7 +125,7 @@ test_show(gm8)
 
 gm9 = fit(GeneralizedLinearModel, lot1 ~ u, clotting, Gamma(), LogLink(), convTol=1e-8)
 test_show(gm9)
-@test df(gm9) == 3
+@test dof(gm9) == 3
 @test_approx_eq deviance(gm9) 0.16260829451739
 @test_approx_eq loglikelihood(gm9) -26.24082810384911
 @test_approx_eq aic(gm9) 58.48165620769822
@@ -137,7 +137,7 @@ test_show(gm9)
 
 gm10 = fit(GeneralizedLinearModel, lot1 ~ u, clotting, Gamma(), IdentityLink(), convTol=1e-8)
 test_show(gm10)
-@test df(gm10) == 3
+@test dof(gm10) == 3
 @test_approx_eq deviance(gm10) 0.60845414895344
 @test_approx_eq loglikelihood(gm10) -32.216072437284176
 @test_approx_eq aic(gm10) 70.43214487456835
@@ -153,7 +153,7 @@ admit_agr = DataFrame(count=[28, 97, 93, 55, 33, 54, 28, 12],
                       rank=PooledDataArray(repeat([1, 2, 3, 4], outer=[2])))
 for distr in (Binomial, Bernoulli)
     gm14 = fit(GeneralizedLinearModel, admit ~ rank, admit_agr, distr(), wts=Vector{Float64}(admit_agr[:count]))
-    @test df(gm14) == 4
+    @test dof(gm14) == 4
     @test nobs(gm14) == 400
     @test_approx_eq deviance(gm14) 474.9667184280627
     @test_approx_eq loglikelihood(gm14) -237.48335921403134
@@ -171,7 +171,7 @@ admit_agr2[:p] = admit_agr2[:admit]./admit_agr2[:count]
 
 gm15 = fit(GeneralizedLinearModel, p ~ rank, admit_agr2, Binomial(), wts=Vector{Float64}(admit_agr2[:count]))
 test_show(gm15)
-@test df(gm15) == 4
+@test dof(gm15) == 4
 @test nobs(gm15) == 400
 @test_approx_eq deviance(gm15) -2.4424906541753456e-15
 @test_approx_eq loglikelihood(gm15) -9.50254433604239
@@ -183,7 +183,7 @@ test_show(gm15)
 # Weighted Gamma example (weights are totally made up)
 gm16 = fit(GeneralizedLinearModel, lot1 ~ u, clotting, Gamma(), wts=[1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
 test_show(gm16)
-@test df(gm16) == 3
+@test dof(gm16) == 3
 @test nobs(gm16) == 32.7
 @test_approx_eq deviance(gm16) 0.03933389380881689
 @test_approx_eq loglikelihood(gm16) -43.35907878769152
@@ -196,7 +196,7 @@ test_show(gm16)
 gm17 = fit(GeneralizedLinearModel, Counts ~ Outcome + Treatment, dobson, Poisson(),
            wts=[1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
 test_show(gm17)
-@test df(gm17) == 5
+@test dof(gm17) == 5
 @test_approx_eq deviance(gm17) 17.699857821414266
 @test_approx_eq loglikelihood(gm17) -84.57429468506352
 @test_approx_eq aic(gm17) 179.14858937012704
