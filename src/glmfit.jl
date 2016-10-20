@@ -74,6 +74,20 @@ function updateμ!{T<:FPVector,D,L}(r::GlmResp{T,D,L}, linPr::T)
     r
 end
 
+function updateμ!{T<:FPVector,D<:Gamma}(r::GlmResp{T,D,InverseLink})
+    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
+
+    @inbounds Threads.@threads for i in eachindex(η)
+        ηi = η[i]
+        μi = μ[i] = inv(ηi)
+        wrkwt[i] = abs2(μi)
+        dμdη = -wrkwt[i]
+        yi = y[i]
+        wrkres[i] = (yi - μi) / dμdη
+        dres[i] = -2 * (log(yi / μi) - (yi - μi) / μi)
+    end
+end
+
 function updateμ!{T<:FPVector,D<:Union{Bernoulli,Binomial}}(r::GlmResp{T,D,LogitLink})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
@@ -136,17 +150,14 @@ end
 
 The working response, `r.eta + r.wrkresid - r.offset`.
 """
-function wrkresp(r::GlmResp)
-    tmp = r.eta .+ r.wrkresid
-    isempty(r.offset) ? tmp : broadcast!(-, tmp, tmp, r.offset)
-end
+wrkresp(r::GlmResp) = wrkresp!(similar(r.eta), r)
 
 """
     wrkresp!{T<:FPVector}(v::T, r::GlmResp{T})
 
 Overwrite `v` with the working response of `r`
 """
-function wrkresp{T<:FPVector}(v::T, r::GlmResp{T})
+function wrkresp!{T<:FPVector}(v::T, r::GlmResp{T})
     broadcast!(+, v, r.eta, r.wrkresid)
     isempty(r.offset) ? v : broadcast!(-, v, v, r.offset)
 end
