@@ -56,7 +56,7 @@ function updateμ!{T<:FPVector,D,L}(r::GlmResp{T,D,L}, linPr::T)
     updateμ!(r)
     if !isempty(r.wts)
         map!(*, r.devresid, r.devresid, r.wts)
-	map!(*, r.wrkwt, r.wrkwt, r.wts)
+        map!(*, r.wrkwt, r.wrkwt, r.wts)
     end
     r
 end
