@@ -16,6 +16,11 @@ end
 convert{V<:FPVector}(::Type{LmResp{V}}, y::V) =
     LmResp{V}(zeros(y), similar(y, 0), similar(y, 0), y)
 
+function convert{T<:Real}(::Type{LmResp}, y::AbstractVector{T})
+    yy = float(y)
+    convert(LmResp{typeof(yy)}, yy)
+end
+
 function updateμ!{V<:FPVector}(r::LmResp{V}, linPr::V)
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
@@ -100,23 +105,15 @@ end
 
 cholfact(x::LinearModel) = cholfact(x.pp)
 
-function fit{LmRespT<:LmResp,LinPredT<:LinPred, T<:FP}(::Type{LinearModel{LmRespT,LinPredT}},
-    X::AbstractMatrix{T}, y::FPVector)
-    rr = LmRespT(y)
-    pp = LinPredT(X)
-    installbeta!(delbeta!(pp, rr.y))
-    updateμ!(rr, linpred(pp, 0.0))
-    LinearModel(rr, pp)
+function StatsBase.fit!(obj::LinearModel)
+    installbeta!(delbeta!(obj.pp, obj.rr.y))
+    updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
+    return obj
 end
-function fit(::Type{LinearModel}, X::AbstractMatrix, y::Vector)
-    yy = float(y)
-    T = eltype(yy)
-    return fit(LinearModel{LmResp{typeof(yy)}, DensePredQR{T}}, float(X), yy)
-end
+
+fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector) = fit!(LinearModel(LmResp(y), cholpred(X)))
 
 lm(X, y) = fit(LinearModel, X, y)
-lmc(X, y) = fit(LinearModel{DensePredChol}, X, y)
-
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
