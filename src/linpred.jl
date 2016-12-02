@@ -44,14 +44,18 @@ type DensePredChol{T<:BlasReal,C} <: DensePred
     chol::C
     scratch::Matrix{T}
 end
-DensePredChol{T<:BlasReal}(X::Matrix{T}) =
-    DensePredChol(X,
+function DensePredChol(X::StridedMatrix)
+    F = cholfact!(float(X'X))
+    T = eltype(F)
+    DensePredChol(AbstractMatrix{T}(X),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
-        cholfact!(X'X),
-        similar(X))
-cholpred(X::Matrix) = DensePredChol(X)
+        F,
+        similar(X, T))
+end
+
+cholpred(X::StridedMatrix) = DensePredChol(X)
 
 cholfactors(c::Cholesky) = c.factors
 Base.LinAlg.cholfact!{T<:FP}(p::DensePredChol{T}) = p.chol
@@ -107,6 +111,7 @@ function SparsePredChol{T}(X::SparseMatrixCSC{T})
         chol,
         similar(X))
 end
+
 cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
 
 function delbeta!{T}(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T})

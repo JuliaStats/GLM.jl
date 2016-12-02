@@ -46,8 +46,7 @@ module GLM
         linkinv,        # inverse link mapping eta to mu
         linpred,        # linear predictor
         linpred!,       # update the linear predictor
-        lm,             # linear model (QR factorization)
-        lmc,            # linear model (Cholesky factorization)
+        lm,             # linear model
         mueta,          # derivative of inverse link
         mustart,        # derive starting values for the mu vector
         nobs,           # total number of observations
@@ -56,7 +55,7 @@ module GLM
         wrkresp         # working response
 
     typealias FP AbstractFloat
-    typealias FPVector{T<:FP} DenseArray{T,1}
+    typealias FPVector{T<:FP} AbstractArray{T,1}
 
     abstract ModResp                   # model response
 
