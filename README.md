@@ -34,7 +34,7 @@ An intercept is included in any GLM by default.
 Many of the methods provided by this package have names similar to those in [R](http://www.r-project.org).
 - `coef`: extract the estimates of the coefficients in the model
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
-- `df_residual`: degrees of freedom for residuals, when meaningful
+- `dof_residual`: degrees of freedom for residuals, when meaningful
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
 - `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
 - `stderr`: standard errors of the coefficients
