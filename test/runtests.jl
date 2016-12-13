@@ -321,3 +321,8 @@ end
     @test isapprox(lm(Xf, y).pp.beta0, ones(2))
     @test isapprox(lm(X, yf).pp.beta0, ones(2))
 end
+
+@testset "Issue 153" begin
+    X = [ones(10) randn(10)]
+    Test.@inferred cholfact(DensePredQR{Float64}(X))
+end
