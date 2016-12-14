@@ -160,10 +160,11 @@ end
 getR(x::DensePredChol) = UpperTriangular(x.chol.factors)
 getR(x::DensePredQR) = x.qr[:R]
 
-function predict(mm::LinearModel, newx::Matrix; error::Symbol = :none, level = 0.95)
+predict((::LinearModel, newx::Matrix)) = newx * coef(mm)
+
+function predict(mm::LinearModel, newx::Matrix, interval_type::Symbol, level = 0.95)
     prediction = newx * coef(mm)
-    error == :none && return prediction
-    error == :confint || error("specify error as :none or :confint") #:predint will be implemented
+    interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
     R = getR(mm.pp)
 
     tmp = newx * (R\Diagonal(ones(3,3)))
