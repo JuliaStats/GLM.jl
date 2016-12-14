@@ -160,15 +160,15 @@ end
 getR(x::DensePredChol) = UpperTriangular(x.chol.factors)
 getR(x::DensePredQR) = x.qr[:R]
 
-function predict(mm::LinearModel, newx::Matrix; error::Symbol = :none)
+function predict(mm::LinearModel, newx::Matrix; error::Symbol = :none, level = 0.95)
     prediction = newx * coef(mm)
     error == :none && return prediction
     error == :confint || error("specify error as :none or :confint") #:predint will be implemented
-    R = getR(mod.model.pp)
+    R = getR(mm.pp)
 
     tmp = newx * (R\Diagonal(ones(3,3)))
-    tmp = tmp.^2 * (ones(3,1) * deviance(mod)/dof_residual(mod))
-    tval = quantile(TDist(dof_residual(mod)), 0.025)
+    tmp = tmp.^2 * (ones(3,1) * deviance(mm)/dof_residual(mm))
+    tval = quantile(TDist(dof_residual(mm)), 1. -level/2)
     interval = tval * sqrt(tmp)
 
     hcat(prediction, prediction + interval, prediction - interval)
