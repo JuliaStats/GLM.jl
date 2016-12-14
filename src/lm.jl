@@ -156,7 +156,23 @@ function coeftable(mm::LinearModel)
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
-predict(mm::LinearModel, newx::Matrix) =  newx * coef(mm)
+# Different methods of prediction for the different factorization types
+getR(x::DensePredChol) = UpperTriangular(x.chol.factors)
+getR(x::DensePredQR) = x.qr[:R]
+
+function predict(mm::LinearModel, newx::Matrix; error::Symbol = :none)
+    prediction = newx * coef(mm)
+    error == :none && return prediction
+    error == :confint || error("specify error as :none or :confint") #:predint will be implemented
+    R = getR(mod.model.pp)
+
+    tmp = newx * (R\Diagonal(ones(3,3)))
+    tmp = tmp.^2 * (ones(3,1) * deviance(mod)/dof_residual(mod))
+    tval = quantile(TDist(dof_residual(mod)), 0.025)
+    interval = tval * sqrt(tmp)
+
+    hcat(prediction, prediction + interval, prediction - interval)
+end
 
 function confint(obj::LinearModel, level::Real)
     hcat(coef(obj),coef(obj)) + stderr(obj) *
