@@ -162,12 +162,10 @@ predict(mm::LinearModel, newx::AbstractMatrix) = newx * coef(mm)
 
 function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level = 0.95)
     prediction = newx * coef(mm)
-    #interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
+    interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
 
     R = cholfact!(mm.pp)[:U] #get the R matrix from the QR factorization
-    # get the multipliers for the final interval
     residvar = (ones(3,1) * deviance(mm)/dof_residual(mm))'
-    tval = quantile(TDist(dof_residual(mm)), (1 - level)/2)
 
     function _local(x::StridedVector)
         Ac_ldiv_B!(R,x)
@@ -179,7 +177,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, l
         interval[i] = _local(newx[i,:])[1]
     end
 
-    interval = tval * sqrt(interval)
+    interval = quantile(TDist(dof_residual(mm)), (1 - level)/2) * sqrt(interval)
     prediction, prediction .+ interval, prediction .- interval
 end
 
