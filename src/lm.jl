@@ -157,22 +157,30 @@ function coeftable(mm::LinearModel)
 end
 
 # Different methods of prediction for the different factorization types
-getR(x::DensePredChol) = UpperTriangular(x.chol.factors)
-getR(x::DensePredQR) = x.qr[:R]
 
-predict((::LinearModel, newx::Matrix)) = newx * coef(mm)
+predict(mm::LinearModel, newx::AbstractMatrix) = newx * coef(mm)
 
-function predict(mm::LinearModel, newx::Matrix, interval_type::Symbol, level = 0.95)
+function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level = 0.95)
     prediction = newx * coef(mm)
-    interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
-    R = getR(mm.pp)
+    #interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
 
-    tmp = newx * (R\Diagonal(ones(3,3)))
-    tmp = tmp.^2 * (ones(3,1) * deviance(mm)/dof_residual(mm))
-    tval = quantile(TDist(dof_residual(mm)), 1. -level/2)
-    interval = tval * sqrt(tmp)
+    R = cholfact!(mm.pp)[:U] #get the R matrix from the QR factorization
+    # get the multipliers for the final interval
+    residvar = (ones(3,1) * deviance(mm)/dof_residual(mm))'
+    tval = quantile(TDist(dof_residual(mm)), (1 - level)/2)
 
-    hcat(prediction, prediction + interval, prediction - interval)
+    function _local(x::StridedVector)
+        Ac_ldiv_B!(R,x)
+        residvar * (x⋅x)
+    end
+
+    interval = similar(prediction)
+    for i in 1:length(interval)
+        interval[i] = _local(newx[i,:])[1]
+    end
+
+    interval = tval * sqrt(interval)
+    prediction, prediction .+ interval, prediction .- interval
 end
 
 function confint(obj::LinearModel, level::Real)
