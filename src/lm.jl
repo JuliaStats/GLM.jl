@@ -156,30 +156,20 @@ function coeftable(mm::LinearModel)
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
-# Different methods of prediction for the different factorization types
-
 predict(mm::LinearModel, newx::AbstractMatrix) = newx * coef(mm)
 
 function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level = 0.95)
-    prediction = newx * coef(mm)
+    retmean = newx * coef(mm)
     interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
 
     R = cholfact!(mm.pp)[:U] #get the R matrix from the QR factorization
-    residvar = (ones(3,1) * deviance(mm)/dof_residual(mm))'
+    residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
+    retvariance = (newx/R).^2 * residvar
 
-    function _local(x::StridedVector)
-        Ac_ldiv_B!(R,x)
-        residvar * (x⋅x)
-    end
-
-    interval = similar(prediction)
-    for i in 1:length(interval)
-        interval[i] = _local(newx[i,:])[1]
-    end
-
-    interval = quantile(TDist(dof_residual(mm)), (1 - level)/2) * sqrt(interval)
-    prediction, prediction .+ interval, prediction .- interval
+    interval = quantile(TDist(dof_residual(mm)), (1 - level)/2) * sqrt(retvariance)
+    retmean, retmean .+ interval, retmean .- interval
 end
+
 
 function confint(obj::LinearModel, level::Real)
     hcat(coef(obj),coef(obj)) + stderr(obj) *
