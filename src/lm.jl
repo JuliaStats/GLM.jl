@@ -166,7 +166,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, l
     residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
     retvariance = (newx/R).^2 * residvar
 
-    interval = quantile(TDist(dof_residual(mm)), (1 - level)/2) * sqrt(retvariance)
+    interval = quantile(TDist(dof_residual(mm)), (1 - level)/2) * sqrt.(retvariance)
     retmean, retmean .+ interval, retmean .- interval
 end
 
