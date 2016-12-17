@@ -158,6 +158,18 @@ end
 
 predict(mm::LinearModel, newx::AbstractMatrix) = newx * coef(mm)
 
+"""
+For linear models, specifying `interval_type` will return a 3-tuple with the
+predicted values, the upper and the lower confidence bound. Confidence intervals
+delimit the uncertainty of the estimate of the predicted values, prediction
+intervals delimit the estimated bounds for any new data points from the
+population.
+
+# Arguments
+* `interval_type::Symbol`: one of `:confint` or `:predint`
+* `level=0.95`: the level of the confidence interval
+* `alpha=1-level`: an alternative way of specifying the level of the interval
+"""
 function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol; level = 0.95, alpha = 1 - level)
     retmean = newx * coef(mm)
     interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
