@@ -159,18 +159,14 @@ end
 predict(mm::LinearModel, newx::AbstractMatrix) = newx * coef(mm)
 
 """
-For linear models, specifying `interval_type` will return a 3-tuple with the
-predicted values, the lower and the higher confidence bound. Confidence intervals
-delimit the uncertainty of the estimate of the predicted values, prediction
-intervals delimit the estimated bounds for any new data points from the
-population.
-
-# Arguments
-* `interval_type::Symbol`: one of `:confint` or `:predint`
-* `level=0.95`: the level of the confidence interval
-* `alpha=1-level`: an alternative way of specifying the level of the interval
+    predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level = 0.95)
+    
+Specifying `interval_type` will return a 3-column matrix with the prediction and
+the low and high confidence bounds for a given `level` (0.95 equates alpha = 0.05).
+Valid values of `interval_type` are `:confint` delimiting the  uncertainty of the
+predicted relationship, and `:predint` delimiting estimated bounds for new data points.
 """
-function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol; level = 0.95, alpha = 1 - level)
+function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level = 0.95)
     retmean = newx * coef(mm)
     interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
 
@@ -178,8 +174,8 @@ function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol; l
     residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
     retvariance = (newx/R).^2 * residvar
 
-    interval = quantile(TDist(dof_residual(mm)), alpha/2) * sqrt.(retvariance)
-    retmean, retmean .+ interval, retmean .- interval
+    interval = quantile(TDist(dof_residual(mm)), (1 - level)/2) * sqrt.(retvariance)
+    hcat(retmean, retmean .+ interval, retmean .- interval)
 end
 
 
