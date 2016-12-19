@@ -72,6 +72,15 @@ julia> predict(OLS)
  4.33333
  6.83333
 
+# Prediction with new data and confidence values
+ julia> newX = DataFrame(X=[2,3,4]);
+ julia> predict(OLS, newX, :confint)
+ 3×3 Array{Float64,2}:
+  4.33333  1.33845   7.32821
+  6.83333  2.09801  11.5687
+  9.33333  1.40962  17.257  
+# The columns of the matrix are prediction, lower and upper confidence interval
+
 ```
 
 Probit Regression:
