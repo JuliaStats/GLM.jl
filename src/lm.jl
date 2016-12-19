@@ -159,14 +159,14 @@ end
 predict(mm::LinearModel, newx::AbstractMatrix) = newx * coef(mm)
 
 """
-    predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level = 0.95)
-    
+    predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level::Real = 0.95)
+
 Specifying `interval_type` will return a 3-column matrix with the prediction and
-the low and high confidence bounds for a given `level` (0.95 equates alpha = 0.05).
+the lower and upper confidence bounds for a given `level` (0.95 equates alpha = 0.05).
 Valid values of `interval_type` are `:confint` delimiting the  uncertainty of the
 predicted relationship, and `:predint` delimiting estimated bounds for new data points.
 """
-function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level = 0.95)
+function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level::Real = 0.95)
     retmean = newx * coef(mm)
     interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
 
