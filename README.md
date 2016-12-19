@@ -79,7 +79,7 @@ julia> predict(OLS)
   4.33333  1.33845   7.32821
   6.83333  2.09801  11.5687
   9.33333  1.40962  17.257  
-# The columns of the matrix are prediction, lower and upper confidence interval
+# The columns of the matrix are prediction, 95% lower and upper confidence bounds
 
 ```
 
