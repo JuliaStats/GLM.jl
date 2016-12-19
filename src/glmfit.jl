@@ -239,7 +239,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         end
         devold = dev
     end
-		cvg || throw(ConvergenceException(maxIter))
+    cvg || throw(ConvergenceException(maxIter))
     m.fit = true
     m
 end
