@@ -169,6 +169,7 @@ predicted relationship, and `:predint` delimiting estimated bounds for new data 
 function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level::Real = 0.95)
     retmean = newx * coef(mm)
     interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
+    length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
 
     R = cholfact!(mm.pp)[:U] #get the R matrix from the QR factorization
     residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
