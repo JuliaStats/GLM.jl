@@ -306,6 +306,22 @@ end
 
     newd = convert(DataFrame, newX)
     predict(gm13, newd)
+
+    Ylm = X * [0.8, 1.6] + 0.8randn(10)
+    mm = fit(LinearModel, X, Ylm)
+    pred = predict(mm, newX, :confint)
+
+    @test isapprox(pred[1,2], 0.6122189104014528)
+    @test isapprox(pred[2,2], -0.33530477814532056)
+    @test isapprox(pred[3,2], 1.340413688904295)
+    @test isapprox(pred[4,2], 0.02118806218116165)
+    @test isapprox(pred[5,2], 0.8543142404183606)
+    @test isapprox(pred[1,3], 2.6853964084909836)
+    @test isapprox(pred[2,3], 1.2766396685055916)
+    @test isapprox(pred[3,3], 3.6617479283005894)
+    @test isapprox(pred[4,3], 0.6477623101170038)
+    @test isapprox(pred[5,3], 2.564532433982956)
+    
 end
 
 @testset "Issue 118" begin
