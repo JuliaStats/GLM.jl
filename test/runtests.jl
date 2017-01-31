@@ -321,7 +321,6 @@ end
     @test isapprox(pred[3,3], 3.6617479283005894)
     @test isapprox(pred[4,3], 0.6477623101170038)
     @test isapprox(pred[5,3], 2.564532433982956)
-    
 end
 
 @testset "Issue 118" begin
@@ -341,4 +340,9 @@ end
 @testset "Issue 153" begin
     X = [ones(10) randn(10)]
     Test.@inferred cholfact(DensePredQR{Float64}(X))
+end
+
+@testset "Issue 117" begin
+    data = DataFrame(x = [1,2,3,4], y = [24,34,44,54])
+    @test coef(glm(y ~ x, data, Normal(), IdentityLink())) == [14;10]
 end
