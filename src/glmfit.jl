@@ -233,10 +233,11 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         installbeta!(p, f)
         crit = (devold - dev)/dev
         verbose && println("$i: $dev, $crit")
-        if crit < convTol
+        if crit < convTol || dev == 0
             cvg = true
             break
         end
+        @assert isfinite(crit)
         devold = dev
     end
     cvg || throw(ConvergenceException(maxIter))
