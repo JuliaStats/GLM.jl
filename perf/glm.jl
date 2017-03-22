@@ -1,11 +1,11 @@
 using GLM, DataFrames
-glm(y ~ 1, DataFrame(y = float(bitrand(10))), Binomial())
+glm(@formula(y ~ 1), DataFrame(y = float(bitrand(10))), Binomial())
 
 n = 2_500_000; srand(1234321)
 df2 = DataFrame(x1 = rand(Normal(), n),
                 x2 = rand(Exponential(), n),
                 ss = pool(rand(DiscreteUniform(50), n)));
-mf = ModelFrame(x1 ~ x1 + x2 + ss, df2)
+mf = ModelFrame(@formula(x1 ~ x1 + x2 + ss), df2)
 mm = ModelMatrix(mf)
 beta = unshift!(rand(Normal(),52), 0.5); # "true" parameter values
 

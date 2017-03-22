@@ -6,7 +6,7 @@
 
 ## Older versions
 
-This documentation applies to the current version of GLM.jl, which requires Julia 0.4 or later.
+This documentation applies to the current version of GLM.jl, which requires Julia 0.5 or later.
 You may also be interested in the documentation for [GLM.jl 0.2.5](https://github.com/JuliaStats/GLM.jl/tree/v0.2.5), the last release for Julia 0.2, or [GLM.jl 0.4.8](https://github.com/JuliaStats/GLM.jl/tree/v0.4.8), the last release for Julia 0.3.
 
 ## Installation
@@ -22,7 +22,7 @@ The [RDatasets package](https://github.com/johnmyleswhite/RDatasets.jl) is usefu
 ## Fitting GLM models
 
 To fit a Generalized Linear Model (GLM), use the function, `glm(formula, data, family, link)`, where,
-- `formula`: uses column symbols from the DataFrame data, for example, if `names(data)=[:Y,:X1,:X2]`, then a valid formula is `Y~X1+X2`
+- `formula`: uses column symbols from the DataFrame data, for example, if `names(data)=[:Y,:X1,:X2]`, then a valid formula is `@formula(Y ~ X1 + X2)`
 - `data`: a DataFrame which may contain NA values, any rows with NA values are ignored
 - `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Normal()`, or `Poisson()`
 - `link`: chosen from the list below, for example, `LogitLink()` is a valid link for the `Binomial()` family
@@ -53,7 +53,7 @@ julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
 | 2     | 2 | 4 |
 | 3     | 3 | 7 |
 
-julia> OLS = glm(Y ~ X, data, Normal(), IdentityLink())
+julia> OLS = glm(@formula(Y ~ X), data, Normal(), IdentityLink())
 DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
 
 Coefficients:
@@ -93,7 +93,7 @@ julia> data = DataFrame(X=[1,2,3], Y=[1,0,1])
 | 2     | 2 | 0 |
 | 3     | 3 | 1 |
 
-julia> Probit = glm(Y ~ X, data, Binomial(), ProbitLink())
+julia> Probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
 DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
 
 Coefficients:
@@ -133,7 +133,7 @@ julia> form = dataset("datasets", "Formaldehyde")
 | 5     | 0.7  | 0.626  |
 | 6     | 0.9  | 0.782  |
 
-julia> lm1 = fit(LinearModel, OptDen ~ Carb, form)
+julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
 Formula: OptDen ~ Carb
 
 Coefficients:
@@ -185,7 +185,7 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
 | 49    | Libya          | 8.89  | 43.69 | 2.07  | 123.58  | 16.71 |
 | 50    | Malaysia       | 4.71  | 47.2  | 0.66  | 242.69  | 5.08  |
 
-julia> fm2 = fit(LinearModel, SR ~ Pop15 + Pop75 + DPI + DDPI, LifeCycleSavings)
+julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
 Formula: SR ~ :(+(Pop15,Pop75,DPI,DDPI))
 
 Coefficients:
@@ -287,7 +287,7 @@ julia> dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
 | 8     | 13.0   | 2       | 3         |
 | 9     | 12.0   | 3       | 3         |
 
-julia> gm1 = fit(GeneralizedLinearModel, Counts ~ Outcome + Treatment, dobson, Poisson())
+julia> gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
 Formula: Counts ~ :(+(Outcome,Treatment))
 
 Coefficients:
