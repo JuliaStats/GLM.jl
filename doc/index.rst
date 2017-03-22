@@ -37,7 +37,7 @@ representation that inherits from :class:`LinearModel`.  The abstract
     | 5     | 0.7  | 0.626  |
     | 6     | 0.9  | 0.782  |
 
-    julia> lm1 = lm(OptDen ~ Carb, form)
+    julia> lm1 = lm(@formula(OptDen ~ Carb), form)
     Formula: OptDen ~ Carb
 
     Coefficients:
@@ -59,7 +59,7 @@ representation that inherits from :class:`LinearModel`.  The abstract
     | 8     | 13.0   | 2       | 3         |
     | 9     | 12.0   | 3       | 3         |
 
-    julia> gm1 = glm(counts ~ outcome + treatment, dobson, Poisson())
+    julia> gm1 = glm(@formula(counts ~ outcome + treatment), dobson, Poisson())
     Formula: counts ~ :(+(outcome,treatment))
 
     Coefficients:
