@@ -2,7 +2,7 @@
 function linpred!(out, p::LinPred, f::Real=1.)
     A_mul_B!(out, p.X, f == 0 ? p.beta0 : broadcast!(muladd, p.scratchbeta, f, p.delbeta, p.beta0))
 end
-linpred(p::LinPred, f::Real=1.) = linpred!(Array(eltype(p.X), size(p.X, 1)), p, f)
+linpred(p::LinPred, f::Real=1.) = linpred!(Vector{eltype(p.X)}(size(p.X, 1)), p, f)
 
 ## Install beta0 + f*delbeta as beta0 and zero out delbeta
 function installbeta!(p::LinPred, f::Real=1.)
@@ -15,20 +15,19 @@ function installbeta!(p::LinPred, f::Real=1.)
     p.beta0
 end
 
-typealias BlasReal Union{Float32,Float64}
-
 type DensePredQR{T<:BlasReal} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
     qr::QRCompactWY{T}
-    function DensePredQR(X::Matrix{T}, beta0::Vector{T})
+    @compat function (::Type{DensePredQR{T}}){T}(X::Matrix{T}, beta0::Vector{T})
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
-        new(X, beta0, zeros(T,p), zeros(T,p), qrfact(X))
+        new{T}(X, beta0, zeros(T,p), zeros(T,p), qrfact(X))
     end
 end
+(::Type{DensePredQR})(X::Matrix, beta0::Vector) = DensePredQR{eltype(X)}(X, beta0)
 convert{T}(::Type{DensePredQR{T}}, X::Matrix{T}) = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
 function delbeta!{T<:BlasReal}(p::DensePredQR{T}, r::Vector{T})
