@@ -3,7 +3,7 @@ type LmResp{V<:FPVector} <: ModResp  # response in a linear model
     offset::V                              # offset added to linear predictor (may have length 0)
     wts::V                                 # prior weights (may have length 0)
     y::V                                   # response
-    @compat function (::Type{LmResp{V}}){V}(mu::V, off::V, wts::V, y::V)
+    function (::Type{LmResp{V}}){V}(mu::V, off::V, wts::V, y::V)
         n = length(y)
         length(mu) == n || error("mismatched lengths of mu and y")
         ll = length(off)

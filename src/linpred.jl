@@ -21,7 +21,7 @@ type DensePredQR{T<:BlasReal} <: DensePred
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
     qr::QRCompactWY{T}
-    @compat function (::Type{DensePredQR{T}}){T}(X::Matrix{T}, beta0::Vector{T})
+    function (::Type{DensePredQR{T}}){T}(X::Matrix{T}, beta0::Vector{T})
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
         new{T}(X, beta0, zeros(T,p), zeros(T,p), qrfact(X))
