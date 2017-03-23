@@ -3,14 +3,14 @@ type LmResp{V<:FPVector} <: ModResp  # response in a linear model
     offset::V                              # offset added to linear predictor (may have length 0)
     wts::V                                 # prior weights (may have length 0)
     y::V                                   # response
-    function LmResp(mu::V, off::V, wts::V, y::V)
+    function (::Type{LmResp{V}}){V}(mu::V, off::V, wts::V, y::V)
         n = length(y)
         length(mu) == n || error("mismatched lengths of mu and y")
         ll = length(off)
         ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
         ll = length(wts)
         ll == 0 || ll == n || error("length of wts is $ll, must be $n or 0")
-        new(mu, off, wts, y)
+        new{V}(mu, off, wts, y)
     end
 end
 convert{V<:FPVector}(::Type{LmResp{V}}, y::V) =

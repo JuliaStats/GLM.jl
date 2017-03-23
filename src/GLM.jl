@@ -5,10 +5,11 @@ module GLM
     @reexport using Distributions
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
-    using Base.LinAlg: QRCompactWY, Cholesky
+    using Base.LinAlg: QRCompactWY, Cholesky, BlasReal
     using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel
     using StatsFuns: logit, logistic
     using Distributions: sqrt2, sqrt2π
+    using Compat
 
     import Base: (\), cholfact, convert, cor, show, size
     import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual, loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, r2, r², adjr2, adjr²
@@ -54,14 +55,14 @@ module GLM
         updateμ!,      # update the response type from the linear predictor
         wrkresp         # working response
 
-    typealias FP AbstractFloat
-    typealias FPVector{T<:FP} AbstractArray{T,1}
+    const FP = AbstractFloat
+    @compat const FPVector{T<:FP} = AbstractArray{T,1}
 
-    abstract ModResp                   # model response
+    @compat abstract type ModResp end                         # model response
 
-    abstract LinPred                   # linear predictor in statistical models
-    abstract DensePred <: LinPred      # linear predictor with dense X
-    abstract LinPredModel <: RegressionModel # model based on a linear predictor
+    @compat abstract type LinPred end                         # linear predictor in statistical models
+    @compat abstract type DensePred <: LinPred end            # linear predictor with dense X
+    @compat abstract type LinPredModel <: RegressionModel end # model based on a linear predictor
 
     include("linpred.jl")
     include("lm.jl")

@@ -149,7 +149,7 @@ function wrkresp!{T<:FPVector}(v::T, r::GlmResp{T})
     isempty(r.offset) ? v : broadcast!(-, v, v, r.offset)
 end
 
-abstract AbstractGLM <: LinPredModel
+@compat abstract type AbstractGLM <: LinPredModel end
 
 type GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     rr::G
@@ -344,12 +344,12 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
 end
 
 """
-    predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Array(eltype(newX),0))
+    predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Vector{eltype(newX)}(0))
 
 Form the predicted response of model `mm` from covariate values `newX` and, optionally,
 an offset.
 """
-function predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Array(eltype(newX),0))
+function predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Vector{eltype(newX)}(0))
     eta = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||
