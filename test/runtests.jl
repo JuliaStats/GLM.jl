@@ -321,3 +321,11 @@ end
     @test isapprox(lm(Xf, y).pp.beta0, ones(2))
     @test isapprox(lm(X, yf).pp.beta0, ones(2))
 end
+
+@testset "F test for model comparison" begin
+    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.], Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2])
+    mod = lm(Result~Treatment, d)
+    nullmod = lm(Result~1, d)
+    ft = ftest(mod, nullmod)
+    @test ft.pval == 2.481215056713184e-8
+end

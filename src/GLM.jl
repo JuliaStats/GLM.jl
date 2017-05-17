@@ -68,5 +68,6 @@ module GLM
     include("lm.jl")
     include("glmtools.jl")
     include("glmfit.jl")
+    include("ftest.jl")
 
 end # module
