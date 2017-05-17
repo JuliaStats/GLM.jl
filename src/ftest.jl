@@ -44,38 +44,40 @@ function ftest(mods::LinPredModel...)
     pvals = similar(SSR1s)
     
     for (i, mod1) in enumerate(mods[2:end])
-	    result = ftest(mods[i], mod1)
-	    SSR1s[i] = result.SSR1
-	    SSR2s[i] = result.SSR2
-	    df1s[i] = result.df1
-	    df2s[i] = result.df2
-	    MSR1s[i] = result.MSR1
-	    MSR2s[i] = result.MSR2
-	    fstats[i] = result.fstat
-	    pvals[i] = result.pval
+        result = ftest(mods[i], mod1)
+        SSR1s[i] = result.SSR1
+        SSR2s[i] = result.SSR2
+        df1s[i] = result.df1
+        df2s[i] = result.df2
+        MSR1s[i] = result.MSR1
+        MSR2s[i] = result.MSR2
+        fstats[i] = result.fstat
+        pvals[i] = result.pval
     end
 
-    return CoefTable([SSR1s, SSR2s, df1s, df2s, MSR1s, MSR2s, fstats, pvals], ["Model 1 SSR", "Model 2 SSR", "Model 1 df", "Model 2 df", "Model 1 MSR", "Model 2 MSR", "F statistic", "p-value"], ["Model $(i-1):$i" for i in 2:nmodels])
+    return CoefTable([SSR1s, SSR2s, df1s, df2s, MSR1s, MSR2s, fstats, pvals],
+    ["Model 1 SSR", "Model 2 SSR", "Model 1 df", "Model 2 df", "Model 1 MSR", "Model 2 MSR", "F statistic", "p-value"],
+    ["Model $(i-1):$i" for i in 2:nmodels])
 end
 
 ### Utility functions to show FTestResult and MultiFTestResult
 function show(io::IO, x::FTestResult)
     if get(io, :compact, true)
         lines = [string("Fisher 2-model F test with ", x.df1, " and ", x.df2, " degrees of freedom"), #=string("Model 1: ", formula(x.mod1), " Model 2: ", formula(x.mod2)),=# string("Sums of squared residuals: ", x.SSR1, " and ", x.SSR2), string("F* = ", x.fstat, " p = ", x.pval)]
-	outlen = maximum(length, lines)
-    
-	println(io, RepString("=", outlen))
+        outlen = maximum(length, lines)
+
+        println(io, RepString("=", outlen))
         for line in lines
-	   println(io, line)
-	end
+           println(io, line)
+        end
     else
-	print(io, "p = ", x.pval)
+        print(io, "p = ", x.pval)
     end
 end
 
 function show(io::IO, x::MultiFTestResult)
     for res in x.results
-	show(io, res)
+        show(io, res)
     end
 end
 
