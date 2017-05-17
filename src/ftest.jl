@@ -1,6 +1,4 @@
 type FTestResult
-    mod1::RegressionModel
-    mod2::RegressionModel
     SSR1::Float64 # sum of squared residuals, model 1
     SSR2::Float64 # sum of squared residuals, model 2
     df1::Int # degrees of freedom, model 1 residuals
@@ -15,12 +13,12 @@ type MultiFTestResult
     results::Array{FTestResult, 1}
 end
 
-function ftest(mod1::RegressionModel, mod2::RegressionModel)
-    SSR1 = deviance(mod1.model.rr)
-    SSR2 = deviance(mod2.model.rr)
+function ftest(mod1::LinPredModel, mod2::LinPredModel)
+    SSR1 = deviance(mod1)
+    SSR2 = deviance(mod2)
 
-    nparams1 = length(mod1.model.pp.beta0)
-    nparams2 = length(mod2.model.pp.beta0)
+    nparams1 = dof(mod1)
+    nparams2 = dof(mod2)
 
     df2 = nparams1-nparams2
     df1 = dof_residual(mod1)
@@ -31,23 +29,33 @@ function ftest(mod1::RegressionModel, mod2::RegressionModel)
     fstat = MSR1/MSR2
     pval = ccdf(FDist(df2, df1), fstat)
 
-    return FTestResult(mod1, mod2, SSR1, SSR2, df1, df2, MSR1, MSR2, fstat, pval)
+    return FTestResult(SSR1, SSR2, df1, df2, MSR1, MSR2, fstat, pval)
 end
 
-function ftest(mods::RegressionModel...)
+function ftest(mods::LinPredModel...)
     nmodels = length(mods)
-    results = Array{FTestResult, 1}((nmodels^2)-nmodels)
+    SSR1s = Array{FTestResult, 1}(nmodels-1)
+    SSR2s = similar(SSR1s)
+    df1s = similar(SSR1s)
+    df2s = similar(SSR1s)
+    MSR1s = similar(SSR1s)
+    MSR2s = similar(SSR1s)
+    fstats = similar(SSR1s)
+    pvals = similar(SSR1s)
     
-    idx = 1
-    for (i, mod1) in enumerate(mods)
-	for (j, mod2) in enumerate(mods)
-	    i == j && continue
-	    results[idx] = ftest(mod1, mod2)
-	    idx += 1
-	end
+    for (i, mod1) in enumerate(mods[2:end])
+	    result = ftest(mods[i], mod1)
+	    SSR1s[i] = result.SSR1
+	    SSR2s[i] = result.SSR2
+	    df1s[i] = result.df1
+	    df2s[i] = result.df2
+	    MSR1s[i] = result.MSR1
+	    MSR2s[i] = result.MSR2
+	    fstats[i] = result.fstat
+	    pvals[i] = result.pval
     end
 
-    return MultiFTestResult(results)
+    return CoefTable([SSR1s, SSR2s, df1s, df2s, MSR1s, MSR2s, fstats, pvals], ["Model 1 SSR", "Model 2 SSR", "Model 1 df", "Model 2 df", "Model 1 MSR", "Model 2 MSR", "F statistic", "p-value"], ["Model $(i-1):$i" for i in 2:nmodels])
 end
 
 ### Utility functions to show FTestResult and MultiFTestResult
@@ -71,5 +79,4 @@ function show(io::IO, x::MultiFTestResult)
     end
 end
 
-export ftest
 export show

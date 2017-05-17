@@ -53,7 +53,8 @@ module GLM
         nobs,           # total number of observations
         predict,        # make predictions
         updateμ!,      # update the response type from the linear predictor
-        wrkresp         # working response
+        wrkresp,        # working response
+	ftest		# compare two models with an F test
 
     typealias FP AbstractFloat
     typealias FPVector{T<:FP} DenseArray{T,1}
