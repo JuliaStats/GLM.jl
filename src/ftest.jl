@@ -50,48 +50,6 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     return true
 end
 
-
-"""
-`function ftest(mod1::LinPredModel, mod2::LinPredModel)`
-Test if `mod1` fits significantly better than `mod2`
-
-`function ftest(mod::LinPredModel...)`
-Test if mod[i+1] is significantly better than mod[i]
-
-Note: This function can easily be used to do an ANOVA. ANOVA is nothing more than a test
-to see if one model fits the data better than another.
-
-#Example:
-As usual, we want to compare a result across two or more treatments. In the classic ANOVA
-framework, our null hypothesis is that Result~1 is a perfectly good fit to the data. 
-The alternative for ANOVA is that Result~Treatment is a better fit to the data than Result~1
-``` 
-    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.], Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2])
-    mod = lm(Result~Treatment, d)
-    nullmod = lm(Result~1, d)
-    ft = ftest(mod.model, nullmod.model)
-```
-"""
-function ftest(mod1::LinPredModel, mod2::LinPredModel)
-    @argcheck issubmodel(mod2, mod1) "F test is only valid if model 2 is nested in model 1"
-    SSR1 = deviance(mod1)
-    SSR2 = deviance(mod2)
-
-    nparams1 = dof(mod1)
-    nparams2 = dof(mod2)
-
-    df2 = nparams1-nparams2
-    df1 = Int(dof_residual(mod1))
-
-    MSR1 = (SSR2-SSR1)/df2
-    MSR2 = SSR1/df1
-
-    fstat = MSR1/MSR2
-    pval = ccdf(FDist(df2, df1), fstat)
-
-    return FTestTable(SSR1, SSR2, df1, df2, MSR1, MSR2, fstat, pval)
-end
-
 function ftest(mods::LinPredModel...)
     nmodels = length(mods)
     SSR1s = Array{FTestResult, 1}(nmodels-1)
@@ -116,6 +74,52 @@ function ftest(mods::LinPredModel...)
     end
 
     return FTestTable(SSR1s, SSR2s, df1s, df2s, MSR1s, MSR2s, fstats, pvals)
+end
+
+
+"""
+    `function ftest(mod1::LinPredModel, mod2::LinPredModel)`
+Test if `mod1` fits significantly better than `mod2`
+
+    `function ftest(mod::LinPredModel...)`
+Test if mod[i] fits significantly better than mod[i+1]
+
+Note: This function can easily be used to do an ANOVA. ANOVA is nothing more than a test
+to see if one model fits the data better than another.
+
+# Examples:
+As usual, we want to compare a result across two or more treatments. In the classic ANOVA
+framework, our null hypothesis is that Result~1 is a perfectly good fit to the data. 
+The alternative for ANOVA is that Result~Treatment is a better fit to the data than Result~1
+```jldoctest
+julia> d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.], Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2])
+julia> mod = lm(Result~Treatment, d)
+julia> nullmod = lm(Result~1, d)
+julia> ft = ftest(mod.model, nullmod.model)
+====================================================================
+Fisher 2-model F test with 10 and 1 degrees of freedom
+Sums of squared residuals: 0.12833333333333344 and 3.229166666666667
+F* = 241.62337662337643 p = 2.481215056713184e-8
+```
+"""
+function ftest(mod1::LinPredModel, mod2::LinPredModel)
+    @argcheck issubmodel(mod2, mod1) "F test is only valid if model 2 is nested in model 1"
+    SSR1 = deviance(mod1)
+    SSR2 = deviance(mod2)
+
+    nparams1 = dof(mod1)
+    nparams2 = dof(mod2)
+
+    df2 = nparams1-nparams2
+    df1 = Int(dof_residual(mod1))
+
+    MSR1 = (SSR2-SSR1)/df2
+    MSR2 = SSR1/df1
+
+    fstat = MSR1/MSR2
+    pval = ccdf(FDist(df2, df1), fstat)
+
+    return FTestTable(SSR1, SSR2, df1, df2, MSR1, MSR2, fstat, pval)
 end
 
 ### Utility functions to show FTestResult and MultiFTestResult
