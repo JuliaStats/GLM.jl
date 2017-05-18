@@ -26,7 +26,7 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     
     @inbounds for i in 1:npreds1
         var_in_mod2 = false
-        @inbounds for j in 1:npreds2
+        for j in 1:npreds2
             if view(pred1, :, i) == view(pred2, :, j)
                 var_in_mod2 = true
                 break
