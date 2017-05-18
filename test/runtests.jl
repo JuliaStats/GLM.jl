@@ -323,9 +323,14 @@ end
 end
 
 @testset "F test for model comparison" begin
-    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.], Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2])
+    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.], Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2], Other=[1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1])
     mod = lm(Result~Treatment, d).model
+    othermod = lm(Result~Other, d).model
     nullmod = lm(Result~1, d).model
+    @test GLM.issubmodel(nullmod, mod)
+    @test !GLM.issubmodel(othermod, mod)
+
+    @test_throws ArgumentError ftest(mod, othermod)
     ft = ftest(mod, nullmod)
     @test ft.pval == 2.481215056713184e-8
 end

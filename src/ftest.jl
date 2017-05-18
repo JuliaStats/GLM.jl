@@ -24,10 +24,10 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     # If model 1 has more predictors, it can't possibly be a submodel
     npreds1 > npreds2 && return false 
     
-    for i in 1:npreds1
+    @inbounds for i in 1:npreds1
         var_in_mod2 = false
-        for j in 1:npreds2
-            if pred1[:, i] == pred2[:, j]
+        @inbounds for j in 1:npreds2
+            if view(pred1, :, i) == view(pred2, :, j)
                 var_in_mod2 = true
                 break
             end
