@@ -332,5 +332,5 @@ end
 
     @test_throws ArgumentError ftest(mod, othermod)
     ft = ftest(mod, nullmod)
-    @test ft.pval == 2.481215056713184e-8
+    @test isapprox(ft.pval[1],  2.481215056713184e-8)
 end

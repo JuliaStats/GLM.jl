@@ -1,17 +1,26 @@
-type FTestResult
-    SSR1::Float64 # sum of squared residuals, model 1
-    SSR2::Float64 # sum of squared residuals, model 2
-    df1::Int # degrees of freedom, model 1 residuals
-    df2::Int # degrees of freedom, model 2 residuals
-    MSR1::Float64 # mean of squared residuals, model 1
-    MSR2::Float64 # mean of squared residuals, model 2
-    fstat::Float64 # f statistic
-    pval::Float64 # p value
+type FTestTable
+    ntests::Int
+    SSR1::Array{Float64, 1} # sum of squared residuals, model 1
+    SSR2::Array{Float64, 1} # sum of squared residuals, model 2
+    df1::Array{Int, 1} # degrees of freedom, model 1 residuals
+    df2::Array{Int, 1} # degrees of freedom, model 2 residuals
+    MSR1::Array{Float64, 1} # mean of squared residuals, model 1
+    MSR2::Array{Float64, 1} # mean of squared residuals, model 2
+    fstat::Array{Float64, 1} # f statistic
+    pval::Array{Float64, 1} # p value
 end
 
-type MultiFTestResult
-    results::Array{FTestResult, 1}
+function FTestTable(SSR1::Array{Float64, 1}, SSR2::Array{Float64, 1}, df1::Array{Int, 1}, df2::Array{Int, 1}, MSR1::Array{Float64, 1}, MSR2::Array{Float64, 1}, fstat::Array{Float64, 1}, pval::Array{Float64, 1})
+#Note: Is checking args in internal helper functions the desired behavior?
+@argcheck length(SSR1) == length(SSR2) == length(df1) == length(df2) == length(MSR1) == length(MSR2) == length(fstat) == length(pval) "F test values  must all be the same length"
+
+    return FTestTable(length(SSR1), SSR1, SSR2, df1, df2, MSR1, MSR2, fstat, pval)
 end
+
+function FTestTable(SSR1::Float64, SSR2::Float64, df1::Int, df2::Int, MSR1::Float64, MSR2::Float64, fstat::Float64, pval::Float64)
+    return  FTestTable([SSR1], [SSR2], [df1], [df2], [MSR1], [MSR2], [fstat], [pval])
+end
+
 
 function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     mod1.rr.y != mod2.rr.y && return false # Response variables must be equal
@@ -51,7 +60,7 @@ function ftest(mod1::LinPredModel, mod2::LinPredModel)
     nparams2 = dof(mod2)
 
     df2 = nparams1-nparams2
-    df1 = dof_residual(mod1)
+    df1 = Int(dof_residual(mod1))
 
     MSR1 = (SSR2-SSR1)/df2
     MSR2 = SSR1/df1
@@ -59,7 +68,7 @@ function ftest(mod1::LinPredModel, mod2::LinPredModel)
     fstat = MSR1/MSR2
     pval = ccdf(FDist(df2, df1), fstat)
 
-    return FTestResult(SSR1, SSR2, df1, df2, MSR1, MSR2, fstat, pval)
+    return FTestTable(SSR1, SSR2, df1, df2, MSR1, MSR2, fstat, pval)
 end
 
 function ftest(mods::LinPredModel...)
@@ -85,29 +94,25 @@ function ftest(mods::LinPredModel...)
         pvals[i] = result.pval
     end
 
-    return CoefTable([SSR1s, SSR2s, df1s, df2s, MSR1s, MSR2s, fstats, pvals],
-    ["Model 1 SSR", "Model 2 SSR", "Model 1 df", "Model 2 df", "Model 1 MSR", "Model 2 MSR", "F statistic", "p-value"],
-    ["Model $(i-1):$i" for i in 2:nmodels])
+    return FTestTable(SSR1s, SSR2s, df1s, df2s, MSR1s, MSR2s, fstats, pvals)
 end
 
 ### Utility functions to show FTestResult and MultiFTestResult
-function show(io::IO, x::FTestResult)
+function show(io::IO, x::FTestTable)
     if get(io, :compact, true)
-        lines = [string("Fisher 2-model F test with ", x.df1, " and ", x.df2, " degrees of freedom"), #=string("Model 1: ", formula(x.mod1), " Model 2: ", formula(x.mod2)),=# string("Sums of squared residuals: ", x.SSR1, " and ", x.SSR2), string("F* = ", x.fstat, " p = ", x.pval)]
-        outlen = maximum(length, lines)
+        for i in 1:x.ntests
+	    lines = [string("Fisher 2-model F test with ", x.df1[i], " and ", x.df2[i], " degrees of freedom"), string("Sums of squared residuals: ", x.SSR1[i], " and ", x.SSR2[i]), string("F* = ", x.fstat[i], " p = ", x.pval[i])]
+	    outlen = maximum(length, lines)
 
-        println(io, RepString("=", outlen))
-        for line in lines
-           println(io, line)
-        end
+	    println(io, RepString("=", outlen))
+	    for line in lines
+                println(io, line)
+            end
+	end
     else
-        print(io, "p = ", x.pval)
-    end
-end
-
-function show(io::IO, x::MultiFTestResult)
-    for res in x.results
-        show(io, res)
+	for i in 1:x.ntests
+            print(io, "p = ", x.pval)
+	end
     end
 end
 
