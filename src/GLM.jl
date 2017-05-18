@@ -7,7 +7,7 @@ module GLM
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
     using Base.LinAlg: QRCompactWY, Cholesky
-    using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel
+    using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel, PValue
     using StatsFuns: logit, logistic
     using Distributions: sqrt2, sqrt2π
 

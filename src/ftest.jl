@@ -50,37 +50,7 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     return true
 end
 
-function ftest(mods::LinPredModel...)
-    nmodels = length(mods)
-    SSR1s = Array{Float64, 1}(nmodels-1)
-    SSR2s = similar(SSR1s)
-    df1s = similar(SSR1s, Int)
-    df2s = similar(SSR1s, Int)
-    MSR1s = similar(SSR1s)
-    MSR2s = similar(SSR1s)
-    fstats = similar(SSR1s)
-    pvals = similar(SSR1s)
-    
-    for (i, mod1) in enumerate(mods[2:end])
-        result = ftest(mods[i], mod1)
-        SSR1s[i] = result.SSR1[1]
-        SSR2s[i] = result.SSR2[1]
-        df1s[i] = result.df1[1]
-        df2s[i] = result.df2[1]
-        MSR1s[i] = result.MSR1[1]
-        MSR2s[i] = result.MSR2[1]
-        fstats[i] = result.fstat[1]
-        pvals[i] = result.pval[1]
-    end
-
-    return FTestTable(SSR1s, SSR2s, df1s, df2s, MSR1s, MSR2s, fstats, pvals)
-end
-
-
 """
-    `function ftest(mod1::LinPredModel, mod2::LinPredModel)`
-Test if `mod1` fits significantly better than `mod2`
-
     `function ftest(mod::LinPredModel...)`
 Test if mod[i] fits significantly better than mod[i+1]
 
@@ -102,22 +72,26 @@ Sums of squared residuals: 0.12833333333333344 and 3.229166666666667
 F* = 241.62337662337643 p = 2.481215056713184e-8
 ```
 """
-function ftest(mod1::LinPredModel, mod2::LinPredModel)
-    @argcheck issubmodel(mod2, mod1) "F test is only valid if model 2 is nested in model 1"
-    SSR1 = deviance(mod1)
-    SSR2 = deviance(mod2)
+function ftest(mods::LinPredModel...)
+    nmodels = length(mods)
+    for i in 2:nmodels
+        @argcheck issubmodel(mods[i], mods[i-1]) "F test is only valid if model 2 is nested in model 1"
+    end
 
-    nparams1 = dof(mod1)
-    nparams2 = dof(mod2)
+    SSR1 = [deviance(mods[i]) for i in 1:nmodels-1]
+    SSR2 = [deviance(mods[i]) for i in 2:nmodels]
+
+    nparams1 = [dof(mods[i]) for i in 1:nmodels-1]
+    nparams2 = [dof(mods[i]) for i in 2:nmodels]
 
     df2 = nparams1-nparams2
-    df1 = Int(dof_residual(mod1))
+    df1 = [Int(dof_residual(mods[i])) for i in 1:nmodels-1]
 
-    MSR1 = (SSR2-SSR1)/df2
-    MSR2 = SSR1/df1
+    MSR1 = (SSR2-SSR1)./df2
+    MSR2 = SSR1./df1
 
-    fstat = MSR1/MSR2
-    pval = ccdf(FDist(df2, df1), fstat)
+    fstat = MSR1./MSR2
+    pval = ccdf.(FDist.(df2, df1), fstat)
 
     return FTestTable(SSR1, SSR2, df1, df2, MSR1, MSR2, fstat, pval)
 end
@@ -125,19 +99,31 @@ end
 ### Utility functions to show FTestResult and MultiFTestResult
 function show(io::IO, x::FTestTable)
     if get(io, :compact, true)
-        for i in 1:x.ntests
-	    lines = [string("Fisher 2-model F test with ", x.df1[i], " and ", x.df2[i], " degrees of freedom"), string("Sums of squared residuals: ", x.SSR1[i], " and ", x.SSR2[i]), string("F* = ", x.fstat[i], " p = ", x.pval[i])]
-	    outlen = maximum(length, lines)
+#=        if x.ntests == 1
+            lines = [string("Fisher 2-model F test with ", x.df1[1], " and ", x.df2[1], " degrees of freedom"), string("Sums of squared residuals: ", round(x.SSR1[1], 6), " and ", round(x.SSR2[1], 6)), string("F* = ", round(x.fstat[1], 6), " p = ", PValue(x.pval[1]))]
+            outlen = maximum(length, lines)
 
-	    println(io, RepString("=", outlen))
-	    for line in lines
+            println(io, RepString("=", outlen))
+            for line in lines
                 println(io, line)
             end
-	end
+        else=#
+	    nequals = 86
+            println(io, "Fisher 2-model F tests (between ajdacent pairs of models)")
+            print(io, "\n")
+            println(io, RepString("=", nequals))
+            println(io, "Comparison\tDF1\tDF2\tSSR1\t\tSSR2\t\tF*\t\tp(>F)")
+            println(io, RepString("-", nequals))
+            for i in 1:x.ntests
+                println(io, i, ":", i+1, "\t\t", x.df1[i], "\t", x.df2[i], "\t", round(x.SSR1[i], 6), "\t", round(x.SSR2[i], 6), "\t", round(x.fstat[i], 6), "\t", PValue(x.pval[i]))
+            end
+            println(io, RepString("=", nequals))
+#        end
+        
     else
-	for i in 1:x.ntests
+        for i in 1:x.ntests
             print(io, "p = ", x.pval)
-	end
+        end
     end
 end
 
