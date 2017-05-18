@@ -333,4 +333,9 @@ end
     @test_throws ArgumentError ftest(mod, othermod)
     ft = ftest(mod, nullmod)
     @test isapprox(ft.pval[1],  2.481215056713184e-8)
+    
+    bigmod = lm(Result~Treatment+Other, d).model
+    ft2 = ftest(bigmod, mod, nullmod)
+    @test isapprox(ft2.pval[2],  2.481215056713184e-8)
+    @test isapprox(ft2.pval[1], 0.17903437900958952)
 end

@@ -52,10 +52,10 @@ end
 
 function ftest(mods::LinPredModel...)
     nmodels = length(mods)
-    SSR1s = Array{FTestResult, 1}(nmodels-1)
+    SSR1s = Array{Float64, 1}(nmodels-1)
     SSR2s = similar(SSR1s)
-    df1s = similar(SSR1s)
-    df2s = similar(SSR1s)
+    df1s = similar(SSR1s, Int)
+    df2s = similar(SSR1s, Int)
     MSR1s = similar(SSR1s)
     MSR2s = similar(SSR1s)
     fstats = similar(SSR1s)
@@ -63,14 +63,14 @@ function ftest(mods::LinPredModel...)
     
     for (i, mod1) in enumerate(mods[2:end])
         result = ftest(mods[i], mod1)
-        SSR1s[i] = result.SSR1
-        SSR2s[i] = result.SSR2
-        df1s[i] = result.df1
-        df2s[i] = result.df2
-        MSR1s[i] = result.MSR1
-        MSR2s[i] = result.MSR2
-        fstats[i] = result.fstat
-        pvals[i] = result.pval
+        SSR1s[i] = result.SSR1[1]
+        SSR2s[i] = result.SSR2[1]
+        df1s[i] = result.df1[1]
+        df2s[i] = result.df2[1]
+        MSR1s[i] = result.MSR1[1]
+        MSR2s[i] = result.MSR2[1]
+        fstats[i] = result.fstat[1]
+        pvals[i] = result.pval[1]
     end
 
     return FTestTable(SSR1s, SSR2s, df1s, df2s, MSR1s, MSR2s, fstats, pvals)
