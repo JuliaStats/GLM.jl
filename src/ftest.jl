@@ -17,17 +17,17 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     mod1.rr.y != mod2.rr.y && return false # Response variables must be equal
 
     # Now, test that all predictor variables are equal
-    mod1_pred = mod1.pp.X
-    mod1_npreds = size(mod1_pred, 2)
-    mod2_pred = mod2.pp.X
-    mod2_npreds = size(mod1_pred, 2)
+    pred1 = mod1.pp.X
+    npreds1 = size(pred1, 2)
+    pred2 = mod2.pp.X
+    npreds2 = size(pred1, 2)
     # If model 1 has more predictors, it can't possibly be a submodel
-    mod1_npreds > mod2_npreds && return false 
+    npreds1 > npreds2 && return false 
     
-    for i in 1:mod1_npreds
+    for i in 1:npreds1
         var_in_mod2 = false
-        for j in 1:mod2_npreds
-            if mod1_pred[:, i] == mod2_pred[:, j]
+        for j in 1:npreds2
+            if pred1[:, i] == pred2[:, j]
                 var_in_mod2 = true
                 break
             end
