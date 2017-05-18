@@ -13,7 +13,35 @@ type MultiFTestResult
     results::Array{FTestResult, 1}
 end
 
+function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
+    mod1.rr.y != mod2.rr.y && return false # Response variables must be equal
+
+    #Now, test that all predictor variables are equal
+    mod1_pred = mod1.pp.X
+    mod1_npreds = size(mod1_pred, 2)
+    mod2_pred = mod2.pp.X
+    mod2_npreds = size(mod1_pred, 2)
+    mod1_npreds > mod2_npreds && return false #If model 1 has more predictors, it can't possibly be a submodel
+    
+    for i in 1:mod1_npreds
+        var_in_mod2 = false
+        for j in 1:mod2_npreds
+            if mod1_pred[:, i] == mod2_pred[:, j]
+                var_in_mod2 = true
+                break
+            end
+        end
+        if !var_in_mod2
+            return false # We have found a predictor variable in model 1 that is not in model 2
+        end
+    end
+
+    return true
+end
+
+
 function ftest(mod1::LinPredModel, mod2::LinPredModel)
+    @argcheck issubmodel(mod2, mod1) "F test is only valid if model 2 is nested in model 1"
     SSR1 = deviance(mod1)
     SSR2 = deviance(mod2)
 

@@ -324,8 +324,8 @@ end
 
 @testset "F test for model comparison" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.], Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2])
-    mod = lm(Result~Treatment, d)
-    nullmod = lm(Result~1, d)
+    mod = lm(Result~Treatment, d).model
+    nullmod = lm(Result~1, d).model
     ft = ftest(mod, nullmod)
     @test ft.pval == 2.481215056713184e-8
 end
