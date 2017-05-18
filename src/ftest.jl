@@ -21,7 +21,7 @@ function FTestTable(SSR1::Float64, SSR2::Float64, df1::Int, df2::Int, MSR1::Floa
     return  FTestTable([SSR1], [SSR2], [df1], [df2], [MSR1], [MSR2], [fstat], [pval])
 end
 
-
+"""A helper function to determine if mod1 is nested in mod2"""
 function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     mod1.rr.y != mod2.rr.y && return false # Response variables must be equal
 
@@ -51,6 +51,27 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
 end
 
 
+"""
+`function ftest(mod1::LinPredModel, mod2::LinPredModel)`
+Test if `mod1` fits significantly better than `mod2`
+
+`function ftest(mod::LinPredModel...)`
+Test if mod[i+1] is significantly better than mod[i]
+
+Note: This function can easily be used to do an ANOVA. ANOVA is nothing more than a test
+to see if one model fits the data better than another.
+
+#Example:
+As usual, we want to compare a result across two or more treatments. In the classic ANOVA
+framework, our null hypothesis is that Result~1 is a perfectly good fit to the data. 
+The alternative for ANOVA is that Result~Treatment is a better fit to the data than Result~1
+``` 
+    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.], Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2])
+    mod = lm(Result~Treatment, d)
+    nullmod = lm(Result~1, d)
+    ft = ftest(mod.model, nullmod.model)
+```
+"""
 function ftest(mod1::LinPredModel, mod2::LinPredModel)
     @argcheck issubmodel(mod2, mod1) "F test is only valid if model 2 is nested in model 1"
     SSR1 = deviance(mod1)
