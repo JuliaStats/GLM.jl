@@ -191,20 +191,20 @@ end
 
 # Logistic regression using aggregated data and weights
 admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
-	      admit = repeat([false, true], inner=[4]),
-	      rank = pool(repeat([1, 2, 3, 4], outer=[2])))
+              admit = repeat([false, true], inner=[4]),
+              rank = pool(repeat([1, 2, 3, 4], outer=[2])))
 
 @testset "Aggregated Binomial LogitLink" begin
     for distr in (Binomial, Bernoulli)
-	gm14 = fit(GeneralizedLinearModel, admit ~ rank, admit_agr, distr(), wts=Array(admit_agr[:count]))
-	@test dof(gm14) == 4
+        gm14 = fit(GeneralizedLinearModel, admit ~ rank, admit_agr, distr(), wts=Array(admit_agr[:count]))
+        @test dof(gm14) == 4
         @test nobs(gm14) == 400
-	@test isapprox(deviance(gm14), 474.9667184280627)
+        @test isapprox(deviance(gm14), 474.9667184280627)
         @test isapprox(loglikelihood(gm14), -237.48335921403134)
-	@test isapprox(aic(gm14), 482.96671842822883)
-	@test isapprox(aicc(gm14), 483.0679842510136)
-	@test isapprox(bic(gm14), 498.9325766164946)
-	@test isapprox(coef(gm14),
+        @test isapprox(aic(gm14), 482.96671842822883)
+        @test isapprox(aicc(gm14), 483.0679842510136)
+        @test isapprox(bic(gm14), 498.9325766164946)
+        @test isapprox(coef(gm14),
         [0.164303051291, -0.7500299832, -1.36469792994, -1.68672866457], atol=1e-5)
     end
 end
