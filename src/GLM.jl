@@ -1,7 +1,6 @@
 __precompile__()
 
 module GLM
-    using ArgCheck
     using Reexport
     @reexport using Distributions
     using Base.LinAlg.LAPACK: potrf!, potrs!
