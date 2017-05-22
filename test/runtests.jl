@@ -331,11 +331,15 @@ nullmod = lm(@formula(Result~1), d).model
 @test !GLM.issubmodel(othermod, mod)
 
 @test_throws ArgumentError ftest(mod, othermod)
+
 ft = ftest(mod, nullmod)
 @test isapprox(ft.cols[end][2],  2.481215056713184e-8)
+# Test output
+@test sprint(show, ftest(mod, nullmod)) == "         Residual DOF ΔResidual DOF DOF Δdof      SSR    ΔSSR           R²       ΔR²      F*      p(>F)\nModel 1          10.0           NaN 3.0  NaN 0.128333     NaN     0.960258       NaN     NaN        NaN\nModel 2          11.0           1.0 2.0 -1.0  3.22917 3.10083 -2.22045e-16 -0.960258 241.623 2.48122e-8\n"
     
-    bigmod = lm(Result~Treatment+Other, d).model
-    ft2 = ftest(bigmod, mod, nullmod)
-    @test isapprox(ft2.cols[end][3],  2.481215056713184e-8)
-    @test isapprox(ft2.cols[end][2], 0.17903437900958952)
+bigmod = lm(Result~Treatment+Other, d).model
+ft2 = ftest(bigmod, mod, nullmod)
+@test isapprox(ft2.cols[end][3],  2.481215056713184e-8)
+@test isapprox(ft2.cols[end][2], 0.17903437900958952)
+@test sprint(show, ftest(bigmod, mod, nullmod)) == "         Residual DOF ΔResidual DOF DOF Δdof      SSR    ΔSSR           R²        ΔR²      F*      p(>F)\nModel 1           9.0           NaN 4.0  NaN 0.103833     NaN     0.967845        NaN     NaN        NaN\nModel 2          10.0           1.0 3.0 -1.0 0.128333  0.0245     0.960258 -0.0075871  2.1236   0.179034\nModel 3          11.0           1.0 2.0 -1.0  3.22917 3.10083 -2.22045e-16  -0.960258 241.623 2.48122e-8\n"
 end
