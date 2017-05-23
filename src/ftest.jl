@@ -30,32 +30,39 @@ end
 """
     ftest(mod::LinPredModel...)
 
-For each sequential pair of linear predictors in `mod`, perform an F-test to determine if the first one fits significantly better than the second
+For each sequential pair of linear predictors in `mod`, perform an F-test to determine if 
+the first one fits significantly better than the second.
 
-Note: This function can easily be used to do an ANOVA. ANOVA is nothing more than a test
-to see if one model fits the data better than another.
+A table is returned containing residual degrees-of-freedom, difference in residual DOF
+from the last model, degrees of freedom, difference in DOF from the last model, sum of
+squared residuals, difference in SSR from the last model, R², difference in R² from the
+last model, and F statistic and p-value for the comparison between the two models.
+
+Note: This function can be used to do an ANOVA, by testing the relative fit of two models
+to the data
 
 # Examples:
-As usual, we want to compare a result across two or more treatments. In the classic ANOVA
-framework, our null hypothesis is that Result~1 is a perfectly good fit to the data. 
-The alternative for ANOVA is that Result~Treatment is a better fit to the data than Result~1
+Suppose we want to compare the effects of two or more treatments on some result. Because
+this is an ANOVA, our null hypothesis is that Result~1 fits the data as well as
+Result~Treatment. 
 ```jldoctest
-julia> d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.], Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2]);
-julia> mod = lm(@formula(Result~Treatment), d);
+julia> dat = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
+                     Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2]);
+julia> mod = lm(@formula(Result~Treatment), dat        );
 julia> nullmod = lm(@formula(Result~1), d);
 julia> ft = ftest(mod.model, nullmod.model)
-         Residual DOF ΔResidual DOF DOF Δdof      SSR    ΔSSR           R²       ΔR²      F*      p(>F)
-Model 1          10.0           NaN 3.0  NaN 0.128333     NaN     0.960258       NaN     NaN        NaN
-Model 2          11.0           1.0 2.0 -1.0  3.22917 3.10083 -2.22045e-16 -0.960258 241.623 2.48122e-8
+         Residual DOF DOF ΔDOF      SSR    ΔSSR           R²       ΔR²      F*      p(>F)
+Model 1          10.0 3.0  NaN 0.128333     NaN     0.960258       NaN     NaN        NaN
+Model 2          11.0 2.0 -1.0  3.22917 3.10083 -2.22045e-16 -0.960258 241.623 2.48122e-8
 
 
 ```
 """
-function ftest(mods::LinPredModel...)
+function ftest(mods::LinearModel...)
     nmodels = length(mods)
     for i in 2:nmodels
         issubmodel(mods[i], mods[i-1]) || 
-        throw(ArgumentError("F test is only valid if model 2 is nested in model 1"))
+        throw(ArgumentError("F test $i is only valid if model $i is nested in model $i-1"))
     end
 
     SSR = collect(deviance.(mods))
@@ -77,16 +84,21 @@ function ftest(mods::LinPredModel...)
     df2 = Float64.(df2)
     prepend!(df2, [NaN])
 
-    Δdf1 = diff(df1)
-    prepend!(Δdf1, [NaN])
-
     R2 = collect(r2.(mods))
-    ΔR2 = diff(R2)
+    ΔR2 = -diff(R2)
     prepend!(ΔR2, [NaN])
 
-    ΔSSR = diff(SSR)
+    ΔSSR = -diff(SSR)
     prepend!(ΔSSR, [NaN])
-    return CoefTable([df1, Δdf1, nparams, -df2, SSR, ΔSSR, R2, ΔR2, fstat, pval],
-                     ["Residual DOF", "ΔResidual DOF", "DOF", "Δdof", "SSR", "ΔSSR", "R²", "ΔR²", "F*", "p(>F)"],
+    return CoefTable([df1, nparams, df2, SSR, ΔSSR, R2, ΔR2, fstat, pval],
+                     ["Res. DOF",
+                     "DOF",
+                     "ΔDOF",
+                     "SSR",
+                     "ΔSSR",
+                     "R²",
+                     "ΔR²",
+                     "F*",
+                     "p(>F)"],
                      ["Model $i" for i in 1:nmodels])
 end
