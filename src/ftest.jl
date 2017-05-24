@@ -28,15 +28,15 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
 end
 
 """
-    ftest(mod::LinPredModel...)
+    ftest(mod::LinearModel...)
 
 For each sequential pair of linear predictors in `mod`, perform an F-test to determine if 
 the first one fits significantly better than the second.
 
-A table is returned containing residual degrees-of-freedom, difference in residual DOF
-from the last model, degrees of freedom, difference in DOF from the last model, sum of
-squared residuals, difference in SSR from the last model, R², difference in R² from the
-last model, and F statistic and p-value for the comparison between the two models.
+A table is returned containing residual degrees-of-freedom (DOF), from the last model, 
+degrees of freedom, difference in DOF from the last model, sum of squared residuals, (SSR)
+difference in SSR from the last model, R², difference in R² from the last model, and F
+statistic and p-value for the comparison between the two models.
 
 Note: This function can be used to do an ANOVA, by testing the relative fit of two models
 to the data
@@ -91,14 +91,7 @@ function ftest(mods::LinearModel...)
     ΔSSR = -diff(SSR)
     prepend!(ΔSSR, [NaN])
     return CoefTable([df1, nparams, df2, SSR, ΔSSR, R2, ΔR2, fstat, pval],
-                     ["Res. DOF",
-                     "DOF",
-                     "ΔDOF",
-                     "SSR",
-                     "ΔSSR",
-                     "R²",
-                     "ΔR²",
-                     "F*",
+                     ["Res. DOF", "DOF", "ΔDOF", "SSR", "ΔSSR", "R²", "ΔR²", "F*",
                      "p(>F)"],
                      ["Model $i" for i in 1:nmodels])
 end
