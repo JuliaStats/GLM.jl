@@ -34,8 +34,8 @@ For each sequential pair of linear predictors in `mod`, perform an F-test to det
 the first one fits significantly better than the second.
 
 A table is returned containing residual degrees of freedom (DOF), degrees of freedom,
-difference in DOF from the preceeding model, sum of squared residuals (SSR), difference in
-SSR from the preceeding model, R², difference in R² from the preceeding model, and F 
+difference in DOF from the preceding model, sum of squared residuals (SSR), difference in
+SSR from the preceding model, R², difference in R² from the preceding model, and F 
 statistic and p-value for the comparison between the two models.
 
 Note: This function can be used to do an ANOVA, by testing the relative fit of two models
