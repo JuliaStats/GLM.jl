@@ -344,7 +344,7 @@ end
         Model 2      11.0 2.0  1.0  3.22917 -3.10083 -2.22045e-16 0.960258 241.623 2.48122e-8
         """
     
-    bigmod = lm(Result~Treatment+Other, d).model
+    bigmod = lm(@formula(Result~Treatment+Other), d).model
     ft2 = ftest(bigmod, mod, nullmod)
     @test isapprox(ft2.cols[end][3],  2.481215056713184e-8)
     @test isapprox(ft2.cols[end][2], 0.17903437900958952)
