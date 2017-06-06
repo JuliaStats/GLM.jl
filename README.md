@@ -1,13 +1,9 @@
 # Linear models (lm's) and generalized linear models (glm's) in Julia
 
 [![Travis](https://travis-ci.org/JuliaStats/GLM.jl.svg?branch=master)](https://travis-ci.org/JuliaStats/GLM.jl)
-[![GLM](http://pkg.julialang.org/badges/GLM_0.4.svg)](http://pkg.julialang.org/?pkg=GLM)
+[![Coverage Status](https://coveralls.io/repos/github/JuliaStats/GLM.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaStats/GLM.jl?branch=master)
 [![GLM](http://pkg.julialang.org/badges/GLM_0.5.svg)](http://pkg.julialang.org/?pkg=GLM)
-
-## Older versions
-
-This documentation applies to the current version of GLM.jl, which requires Julia 0.5 or later.
-You may also be interested in the documentation for [GLM.jl 0.2.5](https://github.com/JuliaStats/GLM.jl/tree/v0.2.5), the last release for Julia 0.2, or [GLM.jl 0.4.8](https://github.com/JuliaStats/GLM.jl/tree/v0.4.8), the last release for Julia 0.3.
+[![GLM](http://pkg.julialang.org/badges/GLM_0.6.svg)](http://pkg.julialang.org/?pkg=GLM)
 
 ## Installation
 
