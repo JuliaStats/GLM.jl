@@ -335,24 +335,24 @@ end
     @test_throws ArgumentError ftest(mod, othermod)
     
     ft = ftest(mod, nullmod)
-    @test isapprox(ft.cols[end][2],  2.481215056713184e-8)
+    @test isapprox(ft.pval[1].v,  2.481215056713184e-8)
     # Test output
     @test sprint(show, ftest(mod, nullmod)) == 
         """
-                 Res. DOF DOF ΔDOF      SSR     ΔSSR           R²      ΔR²      F*      p(>F)
-        Model 1      10.0 3.0  NaN 0.128333      NaN     0.960258      NaN     NaN        NaN
-        Model 2      11.0 2.0  1.0  3.22917 -3.10083 -2.22045e-16 0.960258 241.623 2.48122e-8
+                Res. DOF DOF    ΔDOF    SSR    ΔSSR    R²      ΔR²    F*       p(>F) 
+        Model 1 10.0000  3.0000         0.1283         0.9603                        
+        Model 2 11.0000  2.0000 -1.0000 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7 
         """
     
     bigmod = lm(@formula(Result~Treatment+Other), d).model
     ft2 = ftest(bigmod, mod, nullmod)
-    @test isapprox(ft2.cols[end][3],  2.481215056713184e-8)
-    @test isapprox(ft2.cols[end][2], 0.17903437900958952)
+    @test isapprox(ft2.pval[2].v,  2.481215056713184e-8)
+    @test isapprox(ft2.pval[1].v, 0.17903437900958952)
     @test sprint(show, ftest(bigmod, mod, nullmod)) == 
         """
-                 Res. DOF DOF ΔDOF      SSR     ΔSSR           R²       ΔR²      F*      p(>F)
-        Model 1       9.0 4.0  NaN 0.103833      NaN     0.967845       NaN     NaN        NaN
-        Model 2      10.0 3.0  1.0 0.128333  -0.0245     0.960258 0.0075871  2.1236   0.179034
-        Model 3      11.0 2.0  1.0  3.22917 -3.10083 -2.22045e-16  0.960258 241.623 2.48122e-8
+                Res. DOF DOF    ΔDOF    SSR    ΔSSR    R²      ΔR²    F*       p(>F)  
+        Model 1 9.0000   4.0000         0.1038         0.9678                         
+        Model 2 10.0000  3.0000 -1.0000 0.1283 -0.0245 0.9603  0.0076 2.1236   0.1790 
+        Model 3 11.0000  2.0000 -1.0000 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7  
         """
 end

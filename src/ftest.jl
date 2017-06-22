@@ -1,3 +1,14 @@
+type FTestResult
+    ntests::Int
+    SSR::Array{Float64, 1}
+    nparams::Array{Int, 1}
+    dof_resid::Array{Int, 1}
+    R2::Array{Float64, 1}
+    fstat::Array{Float64, 1}
+    pval::Array{PValue, 1}
+end
+
+#function FTestResult{N}(SSR1::Array{Float64, 1}, fstati
 """A helper function to determine if mod1 is nested in mod2"""
 function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     mod1.rr.y != mod2.rr.y && return false # Response variables must be equal
@@ -76,8 +87,9 @@ function ftest(mods::LinearModel...)
     MSR2 = view(SSR, 1:nmodels-1)./view(df1, 1:nmodels-1)
 
     fstat = MSR1./MSR2
-    pval = ccdf.(FDist.(df2, view(df1, 1:nmodels-1)), fstat)
-
+    pval = PValue.(ccdf.(FDist.(df2, view(df1, 1:nmodels-1)), fstat))
+    return FTestResult(nmodels, SSR, nparams, df1, collect(r2.(mods)), fstat, pval)
+#=
     prepend!(pval, [NaN])
     prepend!(fstat, [NaN])
 
@@ -93,5 +105,40 @@ function ftest(mods::LinearModel...)
     return CoefTable([df1, nparams, df2, SSR, ΔSSR, R2, ΔR2, fstat, pval],
                      ["Res. DOF", "DOF", "ΔDOF", "SSR", "ΔSSR", "R²", "ΔR²", "F*",
                      "p(>F)"],
-                     ["Model $i" for i in 1:nmodels])
+                     ["Model $i" for i in 1:nmodels])=#
 end
+
+function show(io::IO, ftr::FTestResult)
+    ssr = ftr.SSR; nparams = ftr.nparams; dof_resid = ftr.dof_resid
+    R² = ftr.R2; fstat = ftr.fstat; pval = ftr.pval
+
+    Δdof = -diff(dof_resid)
+    Δssr = -diff(ssr)
+    ΔR² = -diff(R²)
+
+    nc = 10
+    nr = ftr.ntests
+    outrows = Array{String, 2}(nr+1, nc)
+    
+    outrows[1, :] = ["", "Res. DOF",  "DOF",  "ΔDOF",  "SSR",  "ΔSSR",  "R²",  "ΔR²",  "F*",  "p(>F)"]
+    outrows[2, :] = ["Model 1", @sprintf("%.4f", dof_resid[1]), @sprintf("%.4f", nparams[1]), " ", @sprintf("%.4f", ssr[1]), " ", @sprintf("%.4f", R²[1]), " ", " ", " "]
+    
+    for i in 2:nr
+        outrows[i+1, :] = ["Model $i", @sprintf("%.4f", dof_resid[i]), @sprintf("%.4f", nparams[i]), @sprintf("%.4f", Δdof[i-1]), @sprintf("%.4f", ssr[i]), @sprintf("%.4f", Δssr[i-1]), @sprintf("%.4f", R²[i]), @sprintf("%.4f", ΔR²[i-1]), @sprintf("%.4f", fstat[i-1]), string(pval[i-1])]
+    end
+    colwidths = length.(outrows)
+    max_colwidths = [maximum(view(colwidths, :, i)) for i in 1:nc]
+
+    for r in 1:nr+1
+        for c in 1:nc
+            cur_cell = outrows[r, c]
+            cur_cell_len = length(cur_cell)
+            
+            print(io, cur_cell)
+            print(io, RepString(" ", max_colwidths[c]-cur_cell_len+1))
+        end
+        print(io, "\n")
+    end
+end
+
+
