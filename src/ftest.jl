@@ -1,42 +1,48 @@
-type FTestResult
-    ntests::Int
-    SSR::Array{Float64, 1}
-    nparams::Array{Int, 1}
-    dof_resid::Array{Int, 1}
-    R2::Array{Float64, 1}
-    fstat::Array{Float64, 1}
-    pval::Array{PValue, 1}
+type FTestResult{N}
+    ssr::NTuple{N, Float64}
+    nparams::NTuple{N, Int}
+    dof_resid::NTuple{N, Int}
+    r2::NTuple{N, Float64}
+    fstat::Tuple{Vararg{Float64}}
+    pval::Tuple{Vararg{PValue}}
 end
 
-#function FTestResult{N}(SSR1::Array{Float64, 1}, fstati
-"""A helper function to determine if mod1 is nested in mod2"""
-function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
-    mod1.rr.y != mod2.rr.y && return false # Response variables must be equal
+ #function FTestResult{N}(SSR1::Array{Float64, 1}, fstati
+                 """A helper function to determine if mod1 is nested in mod2"""
+                 function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
+                 mod1.rr.y != mod2.rr.y && return false # Response variables must be equal
 
-    # Now, test that all predictor variables are equal
-    pred1 = mod1.pp.X
-    npreds1 = size(pred1, 2)
-    pred2 = mod2.pp.X
-    npreds2 = size(pred1, 2)
-    # If model 1 has more predictors, it can't possibly be a submodel
-    npreds1 > npreds2 && return false 
-    
-    @inbounds for i in 1:npreds1
-        var_in_mod2 = false
-        for j in 1:npreds2
-            if view(pred1, :, i) == view(pred2, :, j)
-                var_in_mod2 = true
-                break
-            end
-        end
-        if !var_in_mod2
-            # We have found a predictor variable in model 1 that is not in model 2
-            return false 
-        end
-    end
+ # Now, test that all predictor variables are equal
+                 pred1 = mod1.pp.X
+                 npreds1 = size(pred1, 2)
+                 pred2 = mod2.pp.X
+                 npreds2 = size(pred1, 2)
+ # If model 1 has more predictors, it can't possibly be a submodel
+                 npreds1 > npreds2 && return false 
 
-    return true
-end
+                 @inbounds for i in 1:npreds1
+                 var_in_mod2 = false
+                 for j in 1:npreds2
+                 if view(pred1, :, i) == view(pred2, :, j)
+                 var_in_mod2 = true
+                 break
+                 end
+                 end
+ if !var_in_mod2
+ # We have found a predictor variable in model 1 that is not in model 2
+ return false 
+ end
+ end
+
+ return true
+ end
+
+_diffn{N, T}(t::NTuple{N, T})::NTuple{N, T} =  ntuple(i->t[i]-t[i+1], N-1)
+
+_diff{N, T}(t::NTuple{N, T})::NTuple{N, T} =  ntuple(i->t[i+1]-t[i], N-1)
+
+import Base: ./
+./{N, T1, T2}(t1::NTuple{N, T1}, t2::NTuple{N, T2}) = ntuple(i->t1[i]/t2[i], N)
 
 """
     ftest(mod::LinearModel...)
@@ -76,19 +82,19 @@ function ftest(mods::LinearModel...)
         throw(ArgumentError("F test $i is only valid if model $i is nested in model $i-1"))
     end
 
-    SSR = collect(deviance.(mods))
+    SSR = deviance.(mods)
 
-    nparams = collect(dof.(mods))
+    nparams = dof.(mods)
 
-    df2 = -diff(nparams)
-    df1 = collect(dof_residual.(mods))
+    df2 = _diffn(nparams)
+    df1 = Int.(dof_residual.(mods))
 
-    MSR1 = diff(SSR)./df2
-    MSR2 = view(SSR, 1:nmodels-1)./view(df1, 1:nmodels-1)
+    MSR1 = _diff(SSR)./df2
+    MSR2 = (SSR./df1)[1:nmodels-1]
 
     fstat = MSR1./MSR2
-    pval = PValue.(ccdf.(FDist.(df2, view(df1, 1:nmodels-1)), fstat))
-    return FTestResult(nmodels, SSR, nparams, df1, collect(r2.(mods)), fstat, pval)
+    pval = PValue.(ccdf.(FDist.(df2, df1[1:nmodels-1]), fstat))
+    return FTestResult(SSR, nparams, df1, r2.(mods), fstat, pval)
 #=
     prepend!(pval, [NaN])
     prepend!(fstat, [NaN])
@@ -108,23 +114,28 @@ function ftest(mods::LinearModel...)
                      ["Model $i" for i in 1:nmodels])=#
 end
 
-function show(io::IO, ftr::FTestResult)
-    ssr = ftr.SSR; nparams = ftr.nparams; dof_resid = ftr.dof_resid
-    R² = ftr.R2; fstat = ftr.fstat; pval = ftr.pval
-
-    Δdof = -diff(dof_resid)
-    Δssr = -diff(ssr)
-    ΔR² = -diff(R²)
+function show{N}(io::IO, ftr::FTestResult{N})
+    Δdof = _diffn(ftr.dof_resid)
+    Δssr = _diffn(ftr.ssr)
+    ΔR² = _diffn(ftr.r2)
 
     nc = 10
-    nr = ftr.ntests
+    nr = N
     outrows = Array{String, 2}(nr+1, nc)
     
-    outrows[1, :] = ["", "Res. DOF",  "DOF",  "ΔDOF",  "SSR",  "ΔSSR",  "R²",  "ΔR²",  "F*",  "p(>F)"]
-    outrows[2, :] = ["Model 1", @sprintf("%.4f", dof_resid[1]), @sprintf("%.4f", nparams[1]), " ", @sprintf("%.4f", ssr[1]), " ", @sprintf("%.4f", R²[1]), " ", " ", " "]
+    outrows[1, :] = ["", "Res. DOF",  "DOF",  "ΔDOF",  "SSR",
+                    "ΔSSR",  "R²",  "ΔR²",  "F*",  "p(>F)"]
+    outrows[2, :] = ["Model 1", @sprintf("%.4f", ftr.dof_resid[1]),
+                     @sprintf("%.4f", ftr.nparams[1]), " ", @sprintf("%.4f", ftr.ssr[1]),
+                     " ", @sprintf("%.4f", ftr.r2[1]), " ", " ", " "]
     
     for i in 2:nr
-        outrows[i+1, :] = ["Model $i", @sprintf("%.4f", dof_resid[i]), @sprintf("%.4f", nparams[i]), @sprintf("%.4f", Δdof[i-1]), @sprintf("%.4f", ssr[i]), @sprintf("%.4f", Δssr[i-1]), @sprintf("%.4f", R²[i]), @sprintf("%.4f", ΔR²[i-1]), @sprintf("%.4f", fstat[i-1]), string(pval[i-1])]
+        outrows[i+1, :] = ["Model $i", @sprintf("%.4f", ftr.dof_resid[i]),
+                           @sprintf("%.4f", ftr.nparams[i]), @sprintf("%.4f",
+                           Δdof[i-1]), @sprintf("%.4f", ftr.ssr[i]),
+                           @sprintf("%.4f", Δssr[i-1]), @sprintf("%.4f", ftr.r2[i]),
+                           @sprintf("%.4f", ΔR²[i-1]), @sprintf("%.4f", ftr.fstat[i-1]),
+                           string(ftr.pval[i-1])]
     end
     colwidths = length.(outrows)
     max_colwidths = [maximum(view(colwidths, :, i)) for i in 1:nc]
