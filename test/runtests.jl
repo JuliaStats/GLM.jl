@@ -339,9 +339,9 @@ end
     # Test output
     @test sprint(show, ftest(mod, nullmod)) == 
         """
-                Res. DOF DOF    ΔDOF    SSR    ΔSSR    R²      ΔR²    F*       p(>F) 
-        Model 1 10.0000  3.0000         0.1283         0.9603                        
-        Model 2 11.0000  2.0000 -1.0000 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7 
+                Res. DOF DOF ΔDOF SSR    ΔSSR    R²      ΔR²    F*       p(>F) 
+        Model 1 10       3        0.1283         0.9603                        
+        Model 2 11       2   -1   3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7 
         """
     
     bigmod = lm(@formula(Result~Treatment+Other), d).model
@@ -350,9 +350,9 @@ end
     @test isapprox(ft2.pval[1].v, 0.17903437900958952)
     @test sprint(show, ftest(bigmod, mod, nullmod)) == 
         """
-                Res. DOF DOF    ΔDOF    SSR    ΔSSR    R²      ΔR²    F*       p(>F)  
-        Model 1 9.0000   4.0000         0.1038         0.9678                         
-        Model 2 10.0000  3.0000 -1.0000 0.1283 -0.0245 0.9603  0.0076 2.1236   0.1790 
-        Model 3 11.0000  2.0000 -1.0000 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7  
+                Res. DOF DOF ΔDOF SSR    ΔSSR    R²      ΔR²    F*       p(>F)  
+        Model 1 9        4        0.1038         0.9678                         
+        Model 2 10       3   -1   0.1283 -0.0245 0.9603  0.0076 2.1236   0.1790 
+        Model 3 11       2   -1   3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7  
         """
 end
