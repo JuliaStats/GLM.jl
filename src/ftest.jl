@@ -40,7 +40,7 @@ _diffn{N, T}(t::NTuple{N, T})::NTuple{N, T} =  ntuple(i->t[i]-t[i+1], N-1)
 
 _diff{N, T}(t::NTuple{N, T})::NTuple{N, T} =  ntuple(i->t[i+1]-t[i], N-1)
 
-dividetuple{N, T1, T2}(t1::NTuple{N, T1}, t2::NTuple{N, T2}) = ntuple(i->t1[i]/t2[i], N)
+dividetuples{N}(t1::NTuple{N}, t2::NTuple{N}) = ntuple(i->t1[i]/t2[i], N)
 
 """
     ftest(mod::LinearModel...)
@@ -66,11 +66,9 @@ julia> dat = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
 julia> mod = lm(@formula(Result~Treatment), dat        );
 julia> nullmod = lm(@formula(Result~1), d);
 julia> ft = ftest(mod.model, nullmod.model)
-         Residual DOF DOF ΔDOF      SSR    ΔSSR           R²       ΔR²      F*      p(>F)
-Model 1          10.0 3.0  NaN 0.128333     NaN     0.960258       NaN     NaN        NaN
-Model 2          11.0 2.0 -1.0  3.22917 3.10083 -2.22045e-16 -0.960258 241.623 2.48122e-8
-
-
+        Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F* p(>F)
+Model 1       10   3      0.1283          0.9603                      
+Model 2       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7
 ```
 """
 function ftest(mods::LinearModel...)
@@ -87,10 +85,10 @@ function ftest(mods::LinearModel...)
     df2 = _diffn(nparams)
     df1 = Int.(dof_residual.(mods))
 
-    MSR1 = dividetuple(_diff(SSR), df2)
-    MSR2 = dividetuple(SSR, df1)[1:nmodels-1]
+    MSR1 = dividetuples(_diff(SSR), df2)
+    MSR2 = dividetuples(SSR, df1)[1:nmodels-1]
 
-    fstat = dividetuple(MSR1, MSR2)
+    fstat = dividetuples(MSR1, MSR2)
     pval = PValue.(ccdf.(FDist.(df2, df1[1:nmodels-1]), fstat))
     return FTestResult(SSR, nparams, df1, r2.(mods), fstat, pval)
 end
@@ -104,45 +102,20 @@ function show{N}(io::IO, ftr::FTestResult{N})
     nr = N
     outrows = Matrix{String}(nr+1, nc)
     
-    outrows[1, :] = [
-                     "",
-                     "Res. DOF",
-                     "DOF",
-                     "ΔDOF",
-                     "SSR",
-                     "ΔSSR",
-                     "R²",
-                     "ΔR²",
-                     "F*",
-                     "p(>F)"
-                     ]
+    outrows[1, :] = ["", "Res. DOF", "DOF", "ΔDOF", "SSR", "ΔSSR",
+                     "R²", "ΔR²", "F*", "p(>F)"]
 
-    outrows[2, :] = [
-                    "Model 1",
-                    @sprintf("%.0d", ftr.dof_resid[1]),
-                    @sprintf("%.0d", ftr.dof[1]),
-                    " ",
-                    @sprintf("%.4f", ftr.ssr[1]),
-                    " ",
-                    @sprintf("%.4f", ftr.r2[1]),
-                    " ",
-                    " ",
-                    " "
-                    ]
+    outrows[2, :] = ["Model 1", @sprintf("%.0d", ftr.dof_resid[1]),
+                    @sprintf("%.0d", ftr.dof[1]), " ",
+                    @sprintf("%.4f", ftr.ssr[1]), " ",
+                    @sprintf("%.4f", ftr.r2[1]), " ", " ", " "]
     
     for i in 2:nr
-        outrows[i+1, :] = [
-                           "Model $i",
-                           @sprintf("%.0d", ftr.dof_resid[i]),
-                           @sprintf("%.0d", ftr.dof[i]),
-                           @sprintf("%.0d", Δdof[i-1]),
-                           @sprintf("%.4f", ftr.ssr[i]),
-                           @sprintf("%.4f", Δssr[i-1]),
-                           @sprintf("%.4f", ftr.r2[i]),
-                           @sprintf("%.4f", ΔR²[i-1]),
-                           @sprintf("%.4f", ftr.fstat[i-1]),
-                           string(ftr.pval[i-1])
-                           ]
+        outrows[i+1, :] = ["Model $i", @sprintf("%.0d", ftr.dof_resid[i]),
+                           @sprintf("%.0d", ftr.dof[i]), @sprintf("%.0d", Δdof[i-1]),
+                           @sprintf("%.4f", ftr.ssr[i]), @sprintf("%.4f", Δssr[i-1]),
+                           @sprintf("%.4f", ftr.r2[i]), @sprintf("%.4f", ΔR²[i-1]),
+                           @sprintf("%.4f", ftr.fstat[i-1]), string(ftr.pval[i-1]) ]
     end
     colwidths = length.(outrows)
     max_colwidths = [maximum(view(colwidths, :, i)) for i in 1:nc]
@@ -151,9 +124,14 @@ function show{N}(io::IO, ftr::FTestResult{N})
         for c in 1:nc
             cur_cell = outrows[r, c]
             cur_cell_len = length(cur_cell)
+	    
+	    padding = " "^(max_colwidths[c]-cur_cell_len)
+	    if c > 1 
+	        padding = " "*padding
+	    end
             
+            print(io, padding)
             print(io, cur_cell)
-            print(io, " "^(max_colwidths[c]-cur_cell_len+1))
         end
         print(io, "\n")
     end
