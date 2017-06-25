@@ -106,9 +106,9 @@ function show{N}(io::IO, ftr::FTestResult{N})
                      "R²", "ΔR²", "F*", "p(>F)"]
 
     outrows[2, :] = ["Model 1", @sprintf("%.0d", ftr.dof_resid[1]),
-                    @sprintf("%.0d", ftr.dof[1]), " ",
-                    @sprintf("%.4f", ftr.ssr[1]), " ",
-                    @sprintf("%.4f", ftr.r2[1]), " ", " ", " "]
+                     @sprintf("%.0d", ftr.dof[1]), " ",
+                     @sprintf("%.4f", ftr.ssr[1]), " ",
+                     @sprintf("%.4f", ftr.r2[1]), " ", " ", " "]
     
     for i in 2:nr
         outrows[i+1, :] = ["Model $i", @sprintf("%.0d", ftr.dof_resid[i]),
@@ -124,11 +124,11 @@ function show{N}(io::IO, ftr::FTestResult{N})
         for c in 1:nc
             cur_cell = outrows[r, c]
             cur_cell_len = length(cur_cell)
-	    
-	    padding = " "^(max_colwidths[c]-cur_cell_len)
-	    if c > 1 
-	        padding = " "*padding
-	    end
+            
+            padding = " "^(max_colwidths[c]-cur_cell_len)
+            if c > 1 
+                padding = " "*padding
+            end
             
             print(io, padding)
             print(io, cur_cell)
