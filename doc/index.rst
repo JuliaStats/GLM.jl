@@ -37,7 +37,7 @@ representation that inherits from :class:`LinearModel`.  The abstract
     | 5     | 0.7  | 0.626  |
     | 6     | 0.9  | 0.782  |
 
-    julia> lm1 = lm(OptDen ~ Carb, form)
+    julia> lm1 = lm(@formula(OptDen ~ Carb), form)
     Formula: OptDen ~ Carb
 
     Coefficients:
@@ -59,7 +59,7 @@ representation that inherits from :class:`LinearModel`.  The abstract
     | 8     | 13.0   | 2       | 3         |
     | 9     | 12.0   | 3       | 3         |
 
-    julia> gm1 = glm(counts ~ outcome + treatment, dobson, Poisson())
+    julia> gm1 = glm(@formula(counts ~ outcome + treatment), dobson, Poisson())
     Formula: counts ~ :(+(outcome,treatment))
 
     Coefficients:
@@ -105,23 +105,10 @@ Constructors
 Extractors
 ----------
 
-These extractors are defined for ``m`` of type
-:type:`LinPredModel`.
-
-.. function:: coef(m) -> Vector{Float64}
-
-   Coefficient estimates
-
-.. function:: coeftable(m) -> DataFrame
-
-   A dataframe with the current fixed-effects parameter vector, the
-   standard errors, their ratio and the p-value for the ratio.
-
-.. function:: confint(m[, level]) -> Matrix{Float64}
-
-   A matrix of the lower and upper end-points of the (marginal)
-   confidence intervals on the coefficients.  The confidence level,
-   ``level``, defaults to 0.95.
+These extractors are defined for ``m`` of type :type:`LinPredModel`. Other
+extractors from the StatsBase package and applicable to any ``StatisticalModel``
+object can also be used.
+See `the StatsBase documentation <http://statsbasejl.readthedocs.io/en/latest/statmodels.html>`__.
 
 .. function:: dispersion(m, sqr=false) -> Float64
 
@@ -131,13 +118,6 @@ These extractors are defined for ``m`` of type
 
    If ``sqr`` is ``true``, the squared parameter is returned.
 
-.. function:: stderr(m) -> Vector{Float64}
-
-   Standard errors of the fixed-effects parameters
-
-.. function:: vcov(m) -> Matrix{Float64}
-
-   Estimated variance-covariance matrix of the fixed-effects parameters
 
 Indices and tables
 ==================

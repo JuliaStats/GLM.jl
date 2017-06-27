@@ -3,18 +3,23 @@ type LmResp{V<:FPVector} <: ModResp  # response in a linear model
     offset::V                              # offset added to linear predictor (may have length 0)
     wts::V                                 # prior weights (may have length 0)
     y::V                                   # response
-    function LmResp(mu::V, off::V, wts::V, y::V)
+    function (::Type{LmResp{V}}){V}(mu::V, off::V, wts::V, y::V)
         n = length(y)
         length(mu) == n || error("mismatched lengths of mu and y")
         ll = length(off)
         ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
         ll = length(wts)
         ll == 0 || ll == n || error("length of wts is $ll, must be $n or 0")
-        new(mu, off, wts, y)
+        new{V}(mu, off, wts, y)
     end
 end
 convert{V<:FPVector}(::Type{LmResp{V}}, y::V) =
     LmResp{V}(zeros(y), similar(y, 0), similar(y, 0), y)
+
+function convert{T<:Real}(::Type{LmResp}, y::AbstractVector{T})
+    yy = float(y)
+    convert(LmResp{typeof(yy)}, yy)
+end
 
 function updateμ!{V<:FPVector}(r::LmResp{V}, linPr::V)
     n = length(linPr)
@@ -100,23 +105,15 @@ end
 
 cholfact(x::LinearModel) = cholfact(x.pp)
 
-function fit{LmRespT<:LmResp,LinPredT<:LinPred, T<:FP}(::Type{LinearModel{LmRespT,LinPredT}},
-    X::AbstractMatrix{T}, y::FPVector)
-    rr = LmRespT(y)
-    pp = LinPredT(X)
-    installbeta!(delbeta!(pp, rr.y))
-    updateμ!(rr, linpred(pp, 0.0))
-    LinearModel(rr, pp)
+function StatsBase.fit!(obj::LinearModel)
+    installbeta!(delbeta!(obj.pp, obj.rr.y))
+    updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
+    return obj
 end
-function fit(::Type{LinearModel}, X::AbstractMatrix, y::Vector)
-    yy = float(y)
-    T = eltype(yy)
-    return fit(LinearModel{LmResp{typeof(yy)}, DensePredQR{T}}, float(X), yy)
-end
+
+fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector) = fit!(LinearModel(LmResp(y), cholpred(X)))
 
 lm(X, y) = fit(LinearModel, X, y)
-lmc(X, y) = fit(LinearModel{DensePredChol}, X, y)
-
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
@@ -159,7 +156,29 @@ function coeftable(mm::LinearModel)
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
-predict(mm::LinearModel, newx::Matrix) =  newx * coef(mm)
+predict(mm::LinearModel, newx::AbstractMatrix) = newx * coef(mm)
+
+"""
+    predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level::Real = 0.95)
+
+Specifying `interval_type` will return a 3-column matrix with the prediction and
+the lower and upper confidence bounds for a given `level` (0.95 equates alpha = 0.05).
+Valid values of `interval_type` are `:confint` delimiting the  uncertainty of the
+predicted relationship, and `:predint` delimiting estimated bounds for new data points.
+"""
+function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level::Real = 0.95)
+    retmean = newx * coef(mm)
+    interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
+    length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
+
+    R = cholfact!(mm.pp)[:U] #get the R matrix from the QR factorization
+    residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
+    retvariance = (newx/R).^2 * residvar
+
+    interval = quantile(TDist(dof_residual(mm)), (1 - level)/2) * sqrt.(retvariance)
+    hcat(retmean, retmean .+ interval, retmean .- interval)
+end
+
 
 function confint(obj::LinearModel, level::Real)
     hcat(coef(obj),coef(obj)) + stderr(obj) *

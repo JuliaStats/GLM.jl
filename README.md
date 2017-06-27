@@ -1,13 +1,9 @@
 # Linear models (lm's) and generalized linear models (glm's) in Julia
 
 [![Travis](https://travis-ci.org/JuliaStats/GLM.jl.svg?branch=master)](https://travis-ci.org/JuliaStats/GLM.jl)
-[![GLM](http://pkg.julialang.org/badges/GLM_0.4.svg)](http://pkg.julialang.org/?pkg=GLM)
+[![Coverage Status](https://coveralls.io/repos/github/JuliaStats/GLM.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaStats/GLM.jl?branch=master)
 [![GLM](http://pkg.julialang.org/badges/GLM_0.5.svg)](http://pkg.julialang.org/?pkg=GLM)
-
-## Older versions
-
-This documentation applies to the current version of GLM.jl, which requires Julia 0.4 or later.
-You may also be interested in the documentation for [GLM.jl 0.2.5](https://github.com/JuliaStats/GLM.jl/tree/v0.2.5), the last release for Julia 0.2, or [GLM.jl 0.4.8](https://github.com/JuliaStats/GLM.jl/tree/v0.4.8), the last release for Julia 0.3.
+[![GLM](http://pkg.julialang.org/badges/GLM_0.6.svg)](http://pkg.julialang.org/?pkg=GLM)
 
 ## Installation
 
@@ -22,7 +18,7 @@ The [RDatasets package](https://github.com/johnmyleswhite/RDatasets.jl) is usefu
 ## Fitting GLM models
 
 To fit a Generalized Linear Model (GLM), use the function, `glm(formula, data, family, link)`, where,
-- `formula`: uses column symbols from the DataFrame data, for example, if `names(data)=[:Y,:X1,:X2]`, then a valid formula is `Y~X1+X2`
+- `formula`: uses column symbols from the DataFrame data, for example, if `names(data)=[:Y,:X1,:X2]`, then a valid formula is `@formula(Y ~ X1 + X2)`
 - `data`: a DataFrame which may contain NA values, any rows with NA values are ignored
 - `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Normal()`, or `Poisson()`
 - `link`: chosen from the list below, for example, `LogitLink()` is a valid link for the `Binomial()` family
@@ -34,7 +30,7 @@ An intercept is included in any GLM by default.
 Many of the methods provided by this package have names similar to those in [R](http://www.r-project.org).
 - `coef`: extract the estimates of the coefficients in the model
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
-- `df_residual`: degrees of freedom for residuals, when meaningful
+- `dof_residual`: degrees of freedom for residuals, when meaningful
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
 - `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
 - `stderr`: standard errors of the coefficients
@@ -53,7 +49,7 @@ julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
 | 2     | 2 | 4 |
 | 3     | 3 | 7 |
 
-julia> OLS = glm(Y ~ X, data, Normal(), IdentityLink())
+julia> OLS = glm(@formula(Y ~ X), data, Normal(), IdentityLink())
 DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
 
 Coefficients:
@@ -72,6 +68,15 @@ julia> predict(OLS)
  4.33333
  6.83333
 
+# Prediction with new data and confidence values
+ julia> newX = DataFrame(X=[2,3,4]);
+ julia> predict(OLS, newX, :confint)
+ 3×3 Array{Float64,2}:
+  4.33333  1.33845   7.32821
+  6.83333  2.09801  11.5687
+  9.33333  1.40962  17.257  
+# The columns of the matrix are prediction, 95% lower and upper confidence bounds
+
 ```
 
 Probit Regression:
@@ -84,7 +89,7 @@ julia> data = DataFrame(X=[1,2,3], Y=[1,0,1])
 | 2     | 2 | 0 |
 | 3     | 3 | 1 |
 
-julia> Probit = glm(Y ~ X, data, Binomial(), ProbitLink())
+julia> Probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
 DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
 
 Coefficients:
@@ -124,7 +129,7 @@ julia> form = dataset("datasets", "Formaldehyde")
 | 5     | 0.7  | 0.626  |
 | 6     | 0.9  | 0.782  |
 
-julia> lm1 = fit(LinearModel, OptDen ~ Carb, form)
+julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
 Formula: OptDen ~ Carb
 
 Coefficients:
@@ -176,7 +181,7 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
 | 49    | Libya          | 8.89  | 43.69 | 2.07  | 123.58  | 16.71 |
 | 50    | Malaysia       | 4.71  | 47.2  | 0.66  | 242.69  | 5.08  |
 
-julia> fm2 = fit(LinearModel, SR ~ Pop15 + Pop75 + DPI + DDPI, LifeCycleSavings)
+julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
 Formula: SR ~ :(+(Pop15,Pop75,DPI,DDPI))
 
 Coefficients:
@@ -278,7 +283,7 @@ julia> dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
 | 8     | 13.0   | 2       | 3         |
 | 9     | 12.0   | 3       | 3         |
 
-julia> gm1 = fit(GeneralizedLinearModel, Counts ~ Outcome + Treatment, dobson, Poisson())
+julia> gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
 Formula: Counts ~ :(+(Outcome,Treatment))
 
 Coefficients:
