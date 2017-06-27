@@ -36,9 +36,9 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     return true
 end
 
-_diffn{N, T}(t::NTuple{N, T})::NTuple{N, T} =  ntuple(i->t[i]-t[i+1], N-1)
+_diffn{N, T}(t::NTuple{N, T}) = ntuple(i->t[i]-t[i+1], N-1)
 
-_diff{N, T}(t::NTuple{N, T})::NTuple{N, T} =  ntuple(i->t[i+1]-t[i], N-1)
+_diff{N, T}(t::NTuple{N, T}) = ntuple(i->t[i+1]-t[i], N-1)
 
 dividetuples{N}(t1::NTuple{N}, t2::NTuple{N}) = ntuple(i->t1[i]/t2[i], N)
 
@@ -46,25 +46,29 @@ dividetuples{N}(t1::NTuple{N}, t2::NTuple{N}) = ntuple(i->t1[i]/t2[i], N)
     ftest(mod::LinearModel...)
 
 For each sequential pair of linear predictors in `mod`, perform an F-test to determine if 
-the first one fits significantly better than the second.
+the first one fits significantly better than the next.
 
 A table is returned containing residual degrees of freedom (DOF), degrees of freedom,
 difference in DOF from the preceding model, sum of squared residuals (SSR), difference in
 SSR from the preceding model, R², difference in R² from the preceding model, and F 
 statistic and p-value for the comparison between the two models.
 
-Note: This function can be used to do an ANOVA, by testing the relative fit of two models
+!!! note: This function can be used to do an ANOVA, by testing the relative fit of two models
 to the data
 
-# Examples:
+# Examples
+
 Suppose we want to compare the effects of two or more treatments on some result. Because
 this is an ANOVA, our null hypothesis is that Result~1 fits the data as well as
 Result~Treatment. 
 ```jldoctest
 julia> dat = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                      Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2]);
-julia> mod = lm(@formula(Result~Treatment), dat        );
+
+julia> mod = lm(@formula(Result~Treatment), dat);
+
 julia> nullmod = lm(@formula(Result~1), d);
+
 julia> ft = ftest(mod.model, nullmod.model)
         Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F* p(>F)
 Model 1       10   3      0.1283          0.9603                      
@@ -75,7 +79,7 @@ function ftest(mods::LinearModel...)
     nmodels = length(mods)
     for i in 2:nmodels
         issubmodel(mods[i], mods[i-1]) || 
-        throw(ArgumentError("F test $i is only valid if model $i is nested in model $i-1"))
+        throw(ArgumentError("F test $i is only valid if model $i is nested in model $(i-1)"))
     end
 
     SSR = deviance.(mods)
@@ -136,5 +140,3 @@ function show{N}(io::IO, ftr::FTestResult{N})
         print(io, "\n")
     end
 end
-
-
