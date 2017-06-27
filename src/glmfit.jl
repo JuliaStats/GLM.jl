@@ -46,19 +46,6 @@ end
 deviance(r::GlmResp) = sum(r.devresid)
 
 """
-    wtscale!{T<:FPVector}(devr::T, wkwt::T, wt::T)
-
-Scale the deviance residuals, `devr`, and the working weights, `wkwt`, by `wt`,
-when `wt` is nonempty.
-"""
-function wtscale!{T<:FPVector}(devr::T, wkwt::T, wt::T)
-    if !isempty(wt)
-        devr .*= wt
-        wkwt .*= wt
-    end
-end
-
-"""
     updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
 
 Update the mean, working weights and working residuals, in `r` given a value of
@@ -68,8 +55,8 @@ function updateμ!{T<:FPVector,D,L}(r::GlmResp{T,D,L}, linPr::T)
     isempty(r.offset) ? copy!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
     if !isempty(r.wts)
-        r.devresid .*= r.wts
-        r.wrkwt .*= r.wts
+        map!(*, r.devresid, r.devresid, r.wts)
+        map!(*, r.wrkwt, r.wrkwt, r.wts)
     end
     r
 end
@@ -162,7 +149,7 @@ function wrkresp!{T<:FPVector}(v::T, r::GlmResp{T})
     isempty(r.offset) ? v : broadcast!(-, v, v, r.offset)
 end
 
-abstract AbstractGLM <: LinPredModel
+@compat abstract type AbstractGLM <: LinPredModel end
 
 type GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     rr::G
@@ -246,13 +233,14 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         installbeta!(p, f)
         crit = (devold - dev)/dev
         verbose && println("$i: $dev, $crit")
-        if crit < convTol
+        if crit < convTol || dev == 0
             cvg = true
             break
         end
+        @assert isfinite(crit)
         devold = dev
     end
-    cvg || error("failure to converge in $maxIter iterations")
+    cvg || throw(ConvergenceException(maxIter))
     m.fit = true
     m
 end
@@ -356,12 +344,12 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
 end
 
 """
-    predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Array(eltype(newX),0))
+    predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Vector{eltype(newX)}(0))
 
 Form the predicted response of model `mm` from covariate values `newX` and, optionally,
 an offset.
 """
-function predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Array(eltype(newX),0))
+function predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Vector{eltype(newX)}(0))
     eta = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||

@@ -12,7 +12,7 @@ form = DataFrame(Any[[0.1,0.3,0.5,0.6,0.7,0.9],[0.086,0.269,0.446,0.538,0.626,0.
     [:Carb, :OptDen])
 
 @testset "lm" begin
-    lm1 = fit(LinearModel, OptDen ~ Carb, form)
+    lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
     test_show(lm1)
     @test isapprox(coef(lm1), collect(linreg(form[:Carb], form[:OptDen])))
     Σ = [6.136653061224592e-05 -9.464489795918525e-05
@@ -38,7 +38,7 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     Treatment = pool(repeat(["a","b", "c"], inner = 3)))
 
 @testset "Poisson GLM" begin
-    gm1 = fit(GeneralizedLinearModel, Counts ~ Outcome + Treatment, dobson, Poisson())
+    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
     test_show(gm1)
     @test dof(gm1) == 5
     @test isapprox(deviance(gm1), 5.12914107700115, rtol = 1e-7)
@@ -56,7 +56,7 @@ admit[:rank] = pool(admit[:rank])
 
 @testset "Binomial, Bernoulli, LogitLink" begin
     for distr in (Binomial, Bernoulli)
-        gm2 = fit(GeneralizedLinearModel, admit ~ gre + gpa + rank, admit, distr())
+        gm2 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit, distr())
         test_show(gm2)
         @test dof(gm2) == 6
         @test isapprox(deviance(gm2), 458.5174924758994)
@@ -71,7 +71,7 @@ admit[:rank] = pool(admit[:rank])
 end
 
 @testset "Bernoulli ProbitLink" begin
-    gm3 = fit(GeneralizedLinearModel, admit ~ gre + gpa + rank, admit,
+    gm3 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
         Binomial(), ProbitLink())
     test_show(gm3)
     @test dof(gm3) == 6
@@ -86,7 +86,7 @@ end
 end
 
 @testset "Bernoulli CauchitLink" begin
-    gm4 = fit(GeneralizedLinearModel, admit ~ gre + gpa + rank, admit,
+    gm4 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
         Binomial(), CauchitLink())
     test_show(gm4)
     @test dof(gm4) == 6
@@ -98,7 +98,7 @@ end
 end
 
 @testset "Bernoulli CloglogLink" begin
-    gm5 = fit(GeneralizedLinearModel, admit ~ gre + gpa + rank, admit,
+    gm5 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
         Binomial(), CloglogLink())
     test_show(gm5)
     @test dof(gm5) == 6
@@ -114,7 +114,7 @@ anorexia = readtable(joinpath(glm_datadir, "anorexia.csv.gz"))
 anorexia[:Treat] = pool(anorexia[:Treat])
 
 @testset "Offset" begin
-    gm6 = fit(GeneralizedLinearModel, Postwt ~ Prewt + Treat, anorexia,
+    gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ Prewt + Treat), anorexia,
         Normal(), IdentityLink(), offset=Array(anorexia[:Prewt]))
     test_show(gm6)
     @test dof(gm6) == 5
@@ -131,7 +131,7 @@ anorexia[:Treat] = pool(anorexia[:Treat])
 end
 
 @testset "Normal LogLink offset" begin
-    gm7 = fit(GeneralizedLinearModel, Postwt ~ Prewt + Treat, anorexia,
+    gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ Prewt + Treat), anorexia,
         Normal(), LogLink(), offset=Array(anorexia[:Prewt]), convTol=1e-8)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
@@ -146,7 +146,7 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
                      lot1 = [118,58,42,35,27,25,21,19,18])
 
 @testset "Gamma InverseLink" begin
-    gm8 = fit(GeneralizedLinearModel, lot1 ~ 1 + u, clotting, Gamma())
+    gm8 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma())
     test_show(gm8)
     @test dof(gm8) == 3
     @test isapprox(deviance(gm8), 0.016729715178484157)
@@ -160,7 +160,7 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
 end
 
 @testset "Gamma LogLink" begin
-    gm9 = fit(GeneralizedLinearModel, lot1 ~ 1 + u, clotting, Gamma(), LogLink(),
+    gm9 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(),
         convTol=1e-8)
     test_show(gm9)
     @test dof(gm9) == 3
@@ -175,7 +175,7 @@ end
 end
 
 @testset "Gamma IdentityLink" begin
-    gm10 = fit(GeneralizedLinearModel, lot1 ~ 1 + u, clotting, Gamma(), IdentityLink(),
+    gm10 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(),
         convTol=1e-8)
     test_show(gm10)
     @test dof(gm10) == 3
@@ -196,7 +196,7 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
 
 @testset "Aggregated Binomial LogitLink" begin
     for distr in (Binomial, Bernoulli)
-        gm14 = fit(GeneralizedLinearModel, admit ~ rank, admit_agr, distr(), wts=Array(admit_agr[:count]))
+        gm14 = fit(GeneralizedLinearModel, @formula(admit ~ rank), admit_agr, distr(), wts=Array(admit_agr[:count]))
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
         @test isapprox(deviance(gm14), 474.9667184280627)
@@ -216,7 +216,7 @@ admit_agr2[:p] = admit_agr2[:admit] ./ admit_agr2[:count]
 
 ## The model matrix here is singular so tests like the deviance are just round off error
 @testset "Binomial LogitLink aggregated" begin
-    gm15 = fit(GeneralizedLinearModel, p ~ rank, admit_agr2, Binomial(), wts=admit_agr2[:count])
+    gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial(), wts=admit_agr2[:count])
     test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
@@ -232,7 +232,7 @@ end
 
 # Weighted Gamma example (weights are totally made up)
 @testset "Gamma InverseLink Weights" begin
-    gm16 = fit(GeneralizedLinearModel, lot1 ~ 1 + u, clotting, Gamma(),
+    gm16 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(),
         wts=[1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
     test_show(gm16)
     @test dof(gm16) == 3
@@ -247,7 +247,7 @@ end
 
 # Weighted Poisson example (weights are totally made up)
 @testset "Poisson LogLink Weights" begin
-    gm17 = fit(GeneralizedLinearModel, Counts ~ Outcome + Treatment, dobson, Poisson(),
+    gm17 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson(),
         wts = [1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
     test_show(gm17)
     @test dof(gm17) == 5
@@ -300,12 +300,27 @@ end
     d = convert(DataFrame, X)
     d[:y] = Y
 
-    gm13 = fit(GeneralizedLinearModel, y ~ 0 + x1 + x2, d, Binomial())
+    gm13 = fit(GeneralizedLinearModel, @formula(y ~ 0 + x1 + x2), d, Binomial())
     @test predict(gm13) == predict(gm13, d[[:x1, :x2]])
     @test predict(gm13) == predict(gm13, d)
 
     newd = convert(DataFrame, newX)
     predict(gm13, newd)
+
+    Ylm = X * [0.8, 1.6] + 0.8randn(10)
+    mm = fit(LinearModel, X, Ylm)
+    pred = predict(mm, newX, :confint)
+
+    @test isapprox(pred[1,2], 0.6122189104014528)
+    @test isapprox(pred[2,2], -0.33530477814532056)
+    @test isapprox(pred[3,2], 1.340413688904295)
+    @test isapprox(pred[4,2], 0.02118806218116165)
+    @test isapprox(pred[5,2], 0.8543142404183606)
+    @test isapprox(pred[1,3], 2.6853964084909836)
+    @test isapprox(pred[2,3], 1.2766396685055916)
+    @test isapprox(pred[3,3], 3.6617479283005894)
+    @test isapprox(pred[4,3], 0.6477623101170038)
+    @test isapprox(pred[5,3], 2.564532433982956)
 end
 
 @testset "Issue 118" begin
@@ -320,6 +335,16 @@ end
     @test isapprox(lm(X, y).pp.beta0, ones(2))
     @test isapprox(lm(Xf, y).pp.beta0, ones(2))
     @test isapprox(lm(X, yf).pp.beta0, ones(2))
+end
+
+@testset "Issue 153" begin
+    X = [ones(10) randn(10)]
+    Test.@inferred cholfact(DensePredQR{Float64}(X))
+end
+
+@testset "Issue 117" begin
+    data = DataFrame(x = [1,2,3,4], y = [24,34,44,54])
+    @test coef(glm(@formula(y ~ x), data, Normal(), IdentityLink())) == [14;10]
 end
 
 @testset "F test for model comparison" begin
@@ -353,6 +378,5 @@ end
                 Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F*  p(>F)
         Model 1        9   4      0.1038          0.9678                       
         Model 2       10   3   -1 0.1283 -0.0245  0.9603 0.0076   2.1236 0.1790
-        Model 3       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234  <1e-7
-        """
+        Model 3       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234  <1e-7        """
 end

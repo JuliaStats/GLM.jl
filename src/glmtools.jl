@@ -1,4 +1,4 @@
-abstract Link             # Link types define linkfun!, linkinv!, and mueta!
+@compat abstract type Link end     # Link types define linkfun!, linkinv!, and mueta!
 
 type CauchitLink <: Link end
 type CloglogLink  <: Link end
