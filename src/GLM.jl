@@ -12,7 +12,7 @@ module GLM
     using Compat
 
     import Base: (\), cholfact, convert, cor, show, size
-    import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual, loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, r2, r², adjr2, adjr²
+    import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual, loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, r2, r², adjr2, adjr², PValue
     import StatsFuns: xlogy
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, r2, r², adjr2, adjr²
 
@@ -53,7 +53,8 @@ module GLM
         nobs,           # total number of observations
         predict,        # make predictions
         updateμ!,      # update the response type from the linear predictor
-        wrkresp         # working response
+        wrkresp,        # working response
+        ftest           # compare models with an F test
 
     const FP = AbstractFloat
     @compat const FPVector{T<:FP} = AbstractArray{T,1}
@@ -68,5 +69,6 @@ module GLM
     include("lm.jl")
     include("glmtools.jl")
     include("glmfit.jl")
+    include("ftest.jl")
 
 end # module

@@ -346,3 +346,38 @@ end
     data = DataFrame(x = [1,2,3,4], y = [24,34,44,54])
     @test coef(glm(@formula(y ~ x), data, Normal(), IdentityLink())) == [14;10]
 end
+
+@testset "F test for model comparison" begin
+    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
+                  Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
+                  Other=[1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1])
+    mod = lm(@formula(Result~Treatment), d).model
+    othermod = lm(@formula(Result~Other), d).model
+    nullmod = lm(@formula(Result~1), d).model
+    @test GLM.issubmodel(nullmod, mod)
+    @test !GLM.issubmodel(othermod, mod)
+    
+    @test_throws ArgumentError ftest(mod, othermod)
+    
+    ft = ftest(mod, nullmod)
+    @test isapprox(ft.pval[1].v,  2.481215056713184e-8)
+    # Test output
+    @test sprint(show, ftest(mod, nullmod)) == 
+        """
+                Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F* p(>F)
+        Model 1       10   3      0.1283          0.9603                      
+        Model 2       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7
+        """
+    
+    bigmod = lm(@formula(Result~Treatment+Other), d).model
+    ft2 = ftest(bigmod, mod, nullmod)
+    @test isapprox(ft2.pval[2].v,  2.481215056713184e-8)
+    @test isapprox(ft2.pval[1].v, 0.17903437900958952)
+    @test sprint(show, ftest(bigmod, mod, nullmod)) == 
+        """
+                Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F*  p(>F)
+        Model 1        9   4      0.1038          0.9678                       
+        Model 2       10   3   -1 0.1283 -0.0245  0.9603 0.0076   2.1236 0.1790
+        Model 3       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234  <1e-7
+        """
+end
