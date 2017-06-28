@@ -50,30 +50,31 @@ the first one fits significantly better than the next.
 
 A table is returned containing residual degrees of freedom (DOF), degrees of freedom,
 difference in DOF from the preceding model, sum of squared residuals (SSR), difference in
-SSR from the preceding model, R², difference in R² from the preceding model, and F 
-statistic and p-value for the comparison between the two models.
+SSR from the preceding model, R², difference in R² from the preceding model, and F-statistic
+and p-value for the comparison between the two models.
 
-!!! note: This function can be used to do an ANOVA, by testing the relative fit of two models
-to the data
+!!! note
+    This function can be used to perform an ANOVA by testing the relative fit of two models
+    to the data
 
 # Examples
 
 Suppose we want to compare the effects of two or more treatments on some result. Because
-this is an ANOVA, our null hypothesis is that Result~1 fits the data as well as
-Result~Treatment. 
+this is an ANOVA, our null hypothesis is that `Result~1` fits the data as well as
+`Result~Treatment`.
+ 
 ```jldoctest
 julia> dat = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
-                     Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2]);
+                       Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2]);
 
 julia> mod = lm(@formula(Result~Treatment), dat);
 
-julia> nullmod = lm(@formula(Result~1), d);
+julia> nullmod = lm(@formula(Result~1), dat);
 
 julia> ft = ftest(mod.model, nullmod.model)
         Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F* p(>F)
 Model 1       10   3      0.1283          0.9603                      
 Model 2       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7
-```
 """
 function ftest(mods::LinearModel...)
     nmodels = length(mods)
