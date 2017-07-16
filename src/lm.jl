@@ -3,19 +3,31 @@ type LmResp{V<:FPVector} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
     wts::V                                 # prior weights (may have length 0)
+    fweights::FrequencyWeights
+    pweights::ProbabilityWeights
+    aweights::AnalyticWeights
     y::V                                   # response
-    function (::Type{LmResp{V}}){V}(mu::V, off::V, wts::V, y::V)
+    function (::Type{LmResp{V}}){V}(mu::V, off::V, wts::V, y::V;
+              fweights::FrequencyWeights, pweights::ProbabilityWeights,
+              aweights::AnalyticWeights)
         n = length(y)
         length(mu) == n || error("mismatched lengths of mu and y")
         ll = length(off)
         ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
         ll = length(wts)
         ll == 0 || ll == n || error("length of wts is $ll, must be $n or 0")
-        new{V}(mu, off, wts, y)
+        ll = length(fweights)
+        ll == 0 || ll == n || error("length of fweights is $ll, must be $n or 0")
+        ll = length(pweights)
+        ll == 0 || ll == n || error("length of pweights is $ll, must be $n or 0")
+        ll = length(aweights)
+        ll == 0 || ll == n || error("length of aweights is $ll, must be $n or 0")
+        new{V}(mu, off, wts, y, fweights, pweights, aweights)
     end
 end
 convert{V<:FPVector}(::Type{LmResp{V}}, y::V) =
-    LmResp{V}(zeros(y), similar(y, 0), similar(y, 0), y)
+    LmResp{V}(zeros(y), similar(y, 0), similar(y, 0), y,
+    similar(y, 0), similar(y, 0), similar(y, 0))
 
 function convert{T<:Real}(::Type{LmResp}, y::AbstractVector{T})
     yy = float(y)

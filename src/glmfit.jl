@@ -18,13 +18,19 @@ immutable GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     offset::V
     "`wts:` prior case weights.  Can be of length 0."
     wts::V
+
+    fweights::FrequencyWeights
+    pweights::ProbabilityWeights
+    aweights::AnalyticWeights
+
     "`wrkwt`: working case weights for the Iteratively Reweighted Least Squares (IRLS) algorithm"
     wrkwt::V
     "`wrkresid`: working residuals for IRLS"
     wrkresid::V
 end
 
-function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V)
+function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V,
+    fweights::FrequencyWeights, pweights::ProbabilityWeights, aweights::AnalyticWeights)
     if d == Binomial()
         for yy in y
             0. <= yy <= 1. || throw(ArgumentError("$yy in y is not in [0,1]"))
@@ -39,7 +45,8 @@ function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts:
         "lengths of η, μ, y and wts ($nη, $nμ, $(length(wts)), $n) are not equal"))
     lo = length(off)
     lo == 0 || lo == n || error("offset must have length $n or length 0")
-    res = GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y))
+    res = GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y),
+                         fweights, pweights, aweights)
     updateμ!(res, η)
     res
 end
