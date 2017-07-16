@@ -1,3 +1,4 @@
+# TODO: expand weights to include fweights, pweights, aweights
 """
     GlmResp
 

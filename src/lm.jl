@@ -1,3 +1,4 @@
+# TODO: expand weights to include fweights, pweights, aweights
 type LmResp{V<:FPVector} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)

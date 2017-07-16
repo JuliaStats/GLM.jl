@@ -116,6 +116,8 @@ Base.cholfact!{T}(p::SparsePredChol{T}) = p.chol
 
 invchol(x::DensePred) = inv(cholfact!(x))
 invchol(x::SparsePredChol) = cholfact!(x) \ eye(size(x.X, 2))
+# TODO: support fweights, pweights, and aweights
+# This vcov represents σ^2  X'X
 vcov(x::LinPredModel) = scale!(invchol(x.pp), dispersion(x, true))
 
 function cor(x::LinPredModel)
@@ -153,7 +155,8 @@ function nobs(obj::LinPredModel)
     if isempty(obj.rr.wts)
         oftype(sum(one(eltype(obj.rr.wts))), length(obj.rr.y))
     else
-        sum(obj.rr.wts)
+        sum(obj.rr.wts) # This is the behavior for fweights
+        # TODO: add support for pweights and aweights
     end
 end
 
