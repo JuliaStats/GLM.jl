@@ -45,7 +45,9 @@ function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts:
         "lengths of η, μ, y and wts ($nη, $nμ, $(length(wts)), $n) are not equal"))
     lo = length(off)
     lo == 0 || lo == n || error("offset must have length $n or length 0")
-    res = GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y),
+    res = GlmResp{V,D,L}(y, d, similar(y), η, μ, off,
+                         normalizeWeights(fweights, pweights, aweights),
+                         similar(y), similar(y),
                          fweights, pweights, aweights)
     updateμ!(res, η)
     res

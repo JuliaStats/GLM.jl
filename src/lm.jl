@@ -22,7 +22,8 @@ type LmResp{V<:FPVector} <: ModResp  # response in a linear model
         ll == 0 || ll == n || error("length of pweights is $ll, must be $n or 0")
         ll = length(aweights)
         ll == 0 || ll == n || error("length of aweights is $ll, must be $n or 0")
-        new{V}(mu, off, wts, y, fweights, pweights, aweights)
+        new{V}(mu, off, normalizeWeights(fweights, pweights, aweights), y,
+               fweights, pweights, aweights)
     end
 end
 convert{V<:FPVector}(::Type{LmResp{V}}, y::V) =
