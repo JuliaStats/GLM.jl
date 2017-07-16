@@ -152,10 +152,10 @@ For linear and generalized linear models, returns the number of rows, or,
 when prior weights are specified, the sum of weights.
 """
 function nobs(obj::LinPredModel)
-    if isempty(obj.rr.wts)
+    if (length(obj.rr.fweights) == 0)
         oftype(sum(one(eltype(obj.rr.wts))), length(obj.rr.y))
     else
-        sum(obj.rr.wts) # This is the behavior for fweights
+        sum(obj.rr.fweights) # This is the behavior for fweights
         # TODO: add support for pweights and aweights
     end
 end
