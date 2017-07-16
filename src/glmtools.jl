@@ -102,5 +102,16 @@ loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 # TODO: combine fweights, pweights, aweights
 function normalizeWeights(fweights::FrequencyWeights, pweights::ProbabilityWeights,
                           aweights::AnalyticWeights)
-
+    nf = length(fweights)
+    np = length(pweights)
+    na = length(aweights)
+    if (nf != 0 & np == 0 & na == 0)
+        return fweights |> collect
+    else if (nf == 0 & np != 0 & na == 0)
+        return pweights |> collect
+    else if (nf == 0 & np == 0 & na != 0)
+        return aweights |> collect
+    else (nf != 0 & np != 0 & na == 0)
+        return (fweights .* pweights) |> collect
+    end
 end
