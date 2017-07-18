@@ -14,8 +14,12 @@ linkinv(::CauchitLink, η) = oftype(η, 0.5) + atan(η) / pi
 mueta(::CauchitLink, η) = one(η) / (pi * (one(η) + abs2(η)))
 
 linkfun(::CloglogLink, μ) = log(-log1p(-μ))
-linkinv(::CloglogLink, η) = -expm1(-exp(η))
-mueta(::CloglogLink, η) = exp(η) * exp(-exp(η))
+function linkinv(::CloglogLink, η::T) where {T<:AbstractFloat}
+    clamp(-expm1(-exp(η)), eps(T), one(T) - eps(T))
+end
+function mueta(::CloglogLink, η::T) where {T<:AbstractFloat}
+    max(eps(T), exp(η) * exp(-exp(η)))
+end
 
 linkfun(::IdentityLink, μ) = μ
 linkinv(::IdentityLink, η) = η
