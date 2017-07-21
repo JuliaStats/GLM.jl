@@ -59,12 +59,21 @@ cholpred(X::StridedMatrix) = DensePredChol(X)
 cholfactors(c::Cholesky) = c.factors
 Base.LinAlg.cholfact!{T<:FP}(p::DensePredChol{T}) = p.chol
 
-Base.LinAlg.cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,typeof(p.X)}(copy(p.qr[:R]), 'U')
-function Base.LinAlg.cholfact{T<:FP}(p::DensePredChol{T})
-    c = p.chol
-    return Cholesky(copy(cholfactors(c)), c.uplo)
+if VERSION < v"0.7.0-DEV.393"
+    Base.LinAlg.cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,typeof(p.X)}(copy(p.qr[:R]), 'U')
+    function Base.LinAlg.cholfact{T<:FP}(p::DensePredChol{T})
+        c = p.chol
+        return Cholesky(copy(cholfactors(c)), c.uplo)
+    end
+    Base.LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky{T,typeof(p.X)}(p.qr[:R], 'U')
+else
+    Base.LinAlg.cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,typeof(p.X)}(copy(p.qr[:R]), 'U', 0)
+    function Base.LinAlg.cholfact{T<:FP}(p::DensePredChol{T})
+        c = p.chol
+        return Cholesky(copy(cholfactors(c)), c.uplo, c.info)
+    end
+    Base.LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky{T,typeof(p.X)}(p.qr[:R], 'U', 0)
 end
-Base.LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky{T,typeof(p.X)}(p.qr[:R], 'U')
 
 function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, p.X, r))
