@@ -107,6 +107,18 @@ end
     @test isapprox(aic(gm5), 470.8943962961263)
     @test isapprox(aicc(gm5), 471.1081367541415)
     @test isapprox(bic(gm5), 494.8431835787742)
+
+    # When data is almost separated, the calculations are prone to underflow which can cause
+    # NaN in wrkwt and/or wrkres. The example here used to fail but works with the "clamping"
+    # introduced in #187
+    @testset "separated data" begin
+        n   = 100
+        rng = MersenneTwister(123)
+
+        X = [ones(n) randn(rng, n)]
+        y = StatsFuns.logistic.(X*ones(2) + 1/10*randn(rng, n)) .> 1/2
+        @test coeftable(glm(X, y, Binomial(), CloglogLink())).cols[4][2].v < 0.05
+    end
 end
 
 ## Example with offsets from Venables & Ripley (2002, p.189)
