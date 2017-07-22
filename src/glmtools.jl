@@ -1,36 +1,32 @@
 @compat abstract type Link end     # Link types define linkfun!, linkinv!, and mueta!
 
-type CauchitLink <: Link end
+type CauchitLink  <: Link end
 type CloglogLink  <: Link end
 type IdentityLink <: Link end
 type InverseLink  <: Link end
-type LogitLink <: Link end
-type LogLink <: Link end
-type ProbitLink <: Link end
-type SqrtLink <: Link end
+type LogitLink    <: Link end
+type LogLink      <: Link end
+type ProbitLink   <: Link end
+type SqrtLink     <: Link end
 
-linkfun(::CauchitLink, μ) = tan(pi * (μ - oftype(μ, 0.5)))
-linkinv(::CauchitLink, η) = oftype(η, 0.5) + atan(η) / pi
-mueta(::CauchitLink, η) = one(η) / (pi * (one(η) + abs2(η)))
+linkfun(::CauchitLink, μ) = tan(pi * (μ - oftype(μ, 1/2)))
+linkinv(::CauchitLink, η) = (oftype(η, 1/2) + atan(η) / pi, false)
+mueta(  ::CauchitLink, η) = one(η) / (pi * (one(η) + abs2(η)))
 
 linkfun(::CloglogLink, μ) = log(-log1p(-μ))
-function linkinv{T<:Real}(::CloglogLink, η::T)
-    clamp(-expm1(-exp(η)), eps(T), one(T) - eps(T))
-end
-function mueta{T<:Real}(::CloglogLink, η::T)
-    max(eps(T), exp(η) * exp(-exp(η)))
-end
+linkinv(::CloglogLink, η) = η < 0 ? (-expm1(-exp(η)), false) : (exp(-exp(η)), true)
+mueta(  ::CloglogLink, η) = exp(η) * exp(-exp(η))
 
 linkfun(::IdentityLink, μ) = μ
-linkinv(::IdentityLink, η) = η
-mueta(::IdentityLink, η) = 1
+linkinv(::IdentityLink, η) = (η, false)
+mueta(  ::IdentityLink, η) = 1
 
 linkfun(::InverseLink, μ) = inv(μ)
-linkinv(::InverseLink, η) = inv(η)
-mueta(::InverseLink, η) = -inv(abs2(η))
+linkinv(::InverseLink, η) = (inv(η), false)
+mueta(  ::InverseLink, η) = -inv(abs2(η))
 
 linkfun(::LogitLink, μ) = logit(μ)
-linkinv(::LogitLink, η) = logistic(η)
+linkinv(::LogitLink, η) = (logistic(-abs(η)), η > 0)
 function mueta(::LogitLink, η)
     e = exp(-abs(η))
     f = one(η) + e
@@ -38,38 +34,33 @@ function mueta(::LogitLink, η)
 end
 
 linkfun(::LogLink, μ) = log(μ)
-linkinv(::LogLink, η) = exp(η)
-mueta(::LogLink, η) = exp(η)
+linkinv(::LogLink, η) = (exp(η), false)
+mueta(  ::LogLink, η) = exp(η)
 
 linkfun(::ProbitLink, μ) = -sqrt2 * erfcinv(2μ)
-linkinv(::ProbitLink, η) = erfc(-η / sqrt2) / 2
-mueta(::ProbitLink, η) = exp(-abs2(η) / 2) / sqrt2π
+linkinv(::ProbitLink, η) = (erfc(abs(η) / sqrt2) / 2, η > 0)
+mueta(  ::ProbitLink, η) = exp(-abs2(η) / 2) / sqrt2π
 
 linkfun(::SqrtLink, μ) = sqrt(μ)
-linkinv(::SqrtLink, η) = abs2(η)
-mueta(::SqrtLink, η) = 2η
+linkinv(::SqrtLink, η) = (abs2(η), false)
+mueta(  ::SqrtLink, η) = 2η
 
 canonicallink(::Bernoulli) = LogitLink()
-canonicallink(::Binomial) = LogitLink()
-canonicallink(::Gamma) = InverseLink()
-canonicallink(::Normal) = IdentityLink()
-canonicallink(::Poisson) = LogLink()
+canonicallink(::Binomial)  = LogitLink()
+canonicallink(::Gamma)     = InverseLink()
+canonicallink(::Normal)    = IdentityLink()
+canonicallink(::Poisson)   = LogLink()
 
-# For the "odd" link functions we evaluate the linear predictor such that mu is closest to zero where the precision is higher
-function glmvar(::Union{Bernoulli,Binomial}, link::Union{CauchitLink,InverseLink,LogitLink,ProbitLink}, μ, η)
-    μ = linkinv(link, ifelse(η < 0, η, -η))
-    μ * (1 - μ)
-end
-glmvar(::Union{Bernoulli,Binomial}, ::Link, μ, η) = μ * (1 - μ)
-glmvar(::Gamma, ::Link, μ, η) = abs2(μ)
-glmvar(::Normal, ::Link, μ, η) = 1
-glmvar(::Poisson, ::Link, μ, η) = μ
+glmvar(::Union{Bernoulli,Binomial}, ::Link, μ) = μ * (1 - μ)
+glmvar(::Gamma,                     ::Link, μ) = abs2(μ)
+glmvar(::Normal,                    ::Link, μ) = 1
+glmvar(::Poisson,                   ::Link, μ) = μ
 
 mustart(::Bernoulli, y, wt) = (y + oftype(y, 0.5)) / 2
-mustart(::Binomial, y, wt) = (wt * y + oftype(y, 0.5)) / (wt + one(y))
-mustart(::Gamma, y, wt) = y == 0 ? oftype(y, 0.1) : y
-mustart(::Normal, y, wt) = y
-mustart(::Poisson, y, wt) = y + oftype(y, 0.1)
+mustart(::Binomial , y, wt) = (wt * y + oftype(y, 0.5)) / (wt + one(y))
+mustart(::Gamma    , y, wt) = y == 0 ? oftype(y, 0.1) : y
+mustart(::Normal   , y, wt) = y
+mustart(::Poisson  , y, wt) = y + oftype(y, 0.1)
 
 function devresid(::Bernoulli, y, μ)
     if y == 1
@@ -88,17 +79,17 @@ function devresid(::Binomial, y, μ)
         return 2 * (y * (log(y) - log(μ)) + (1 - y)*(log1p(-y) - log1p(-μ)))
     end
 end
-devresid(::Gamma, y, μ) = -2 * (log(y / μ) - (y - μ) / μ)
-devresid(::Normal, y, μ) = abs2(y - μ)
+devresid(::Gamma  , y, μ) = -2 * (log(y / μ) - (y - μ) / μ)
+devresid(::Normal , y, μ) = abs2(y - μ)
 devresid(::Poisson, y, μ) = 2 * (xlogy(y, y / μ) - (y - μ))
 
 # Whether a dispersion parameter has to be estimated for a distribution
-dispersion_parameter(::Union{Bernoulli, Binomial, Poisson}) = false
+dispersion_parameter(::Union{Bernoulli, Binomial, Poisson})   = false
 dispersion_parameter(::Union{Gamma, Normal, InverseGaussian}) = true
 
 # Log-likelihood for an observation
 loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
-loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), Int(y*wt))
-loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(1/ϕ, μ*ϕ), y)
-loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
-loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
+loglik_obs(::Binomial , y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), Int(y*wt))
+loglik_obs(::Gamma    , y, μ, wt, ϕ) = wt*logpdf(Gamma(1/ϕ, μ*ϕ), y)
+loglik_obs(::Normal   , y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
+loglik_obs(::Poisson  , y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)

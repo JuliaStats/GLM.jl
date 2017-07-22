@@ -368,9 +368,9 @@ end
     nullmod = lm(@formula(Result~1), d).model
     @test GLM.issubmodel(nullmod, mod)
     @test !GLM.issubmodel(othermod, mod)
-    
+
     @test_throws ArgumentError ftest(mod, othermod)
-    
+
     ft = ftest(mod, nullmod)
     @test isapprox(ft.pval[1].v,  2.481215056713184e-8)
     # Test output
@@ -380,7 +380,7 @@ end
         Model 1       10   3      0.1283          0.9603                      
         Model 2       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7
         """
-    
+
     bigmod = lm(@formula(Result~Treatment+Other), d).model
     ft2 = ftest(bigmod, mod, nullmod)
     @test isapprox(ft2.pval[2].v,  2.481215056713184e-8)

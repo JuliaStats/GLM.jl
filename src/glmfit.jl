@@ -79,15 +79,17 @@ function updateμ!{T<:FPVector,D<:Union{Bernoulli,Binomial}}(r::GlmResp{T,D,Logi
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds Threads.@threads for i in eachindex(μ)
-        ηi = clamp(η[i], -20.0, 20.0)
-        ei = exp(-ηi)
-        opei = 1 + ei
-        μi = μ[i] = inv(opei)
-        dμdη = wrkwt[i] = ei / abs2(opei)
-        yi = y[i]
-        wrkres[i] = (yi - μi) / dμdη
-        dres[i] = -2 * (yi == 1 ? log(μi) : yi == 0 ? log1p(-μi) :
-            (yi * (log(μi) - log(yi)) + (1 - yi) * (log1p(-μi) - log1p(-yi))))
+        ηi        = η[i]
+        ei, c     = exp(abs(ηi)), ηi > 0
+        opei      = 1 + ei
+        μi        = inv(opei)
+        μ[i]      = c ? 1 - μi : μi
+        dμdη      = ei / opei / opei
+        wrkwt[i]  = isnan(dμdη) ? zero(dμdη) : dμdη
+        yi        = y[i]
+        wrkresi   = (c ? (yi - 1 + μi) : (yi - μi)) / dμdη
+        wrkres[i] = isnan(wrkresi) ? zero(wrkresi) : wrkresi
+        dres[i]   = devresid(r.d, yi, c ? 1 - μi : μi)
     end
 end
 
@@ -122,13 +124,16 @@ function updateμ!{T,D,L}(r::GlmResp{T,D,L})
     @inbounds @simd for i = eachindex(y, η, μ, wrkres, wrkwt, dres)
         ηi = η[i]
         # apply the inverse link function generating the mean vector (μ) from the linear predictor (η)
-        μi = μ[i] = linkinv(L(), ηi)
+        μi, c = linkinv(L(), ηi)
+        μ[i]  = c ? 1 - μi : μi
         # evaluate the mueta vector (derivative of μ w.r.t. η) from the linear predictor (eta)
-        dμdη = mueta(L(), ηi)
-        yi = y[i]
-        wrkres[i] = (yi - μi)/dμdη
-        dres[i] = devresid(r.d, yi, μi)
-        wrkwt[i] = abs2(dμdη) / max(eps(), glmvar(r.d, L(), μi, ηi))
+        dμdη      = mueta(L(), ηi)
+        yi        = y[i]
+        wrkresi   = (c ? (yi - 1 + μi) : (yi - μi))/dμdη
+        wrkres[i] = isnan(wrkresi) ? zero(wrkresi) : wrkresi
+        dres[i]   = devresid(r.d, yi, c ? 1 - μi : μi)
+        wrkwti    = abs2(dμdη) / glmvar(r.d, L(), μi)
+        wrkwt[i]  = isnan(wrkwti) ? zero(wrkwti) : wrkwti
     end
 end
 
@@ -208,7 +213,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         linpred!(lp, p, 0)
         updateμ!(r, lp)
     end
-    devold = deviance(m)
+    devold  = deviance(m)
     for i = 1:maxIter
         f = 1.0
         local dev
@@ -231,13 +236,12 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
             end
         end
         installbeta!(p, f)
-        crit = (devold - dev)/dev
-        verbose && println("$i: $dev, $crit")
-        if crit < convTol || dev == 0
+        verbose && println("$i: $dev, $(devold - dev), $(devold/dev - 1)")
+        if devold - dev < max(1, devold)*convTol || dev == 0
             cvg = true
             break
         end
-        @assert isfinite(crit)
+        @assert isfinite(dev)
         devold = dev
     end
     cvg || throw(ConvergenceException(maxIter))
@@ -350,13 +354,13 @@ Form the predicted response of model `mm` from covariate values `newX` and, opti
 an offset.
 """
 function predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Vector{eltype(newX)}(0))
-    eta = newX * coef(mm)
+    η = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||
             throw(ArgumentError("fit with offset, so `offset` kw arg must be an offset of length `size(newX, 1)`"))
-        broadcast!(+, eta, eta, offset)
+        broadcast!(+, η, η, offset)
     else
         length(offset) > 0 && throw(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
     end
-    mu = [linkinv(Link(mm), x) for x in eta]
+    μ = [((μi, c) = linkinv(Link(mm), x); c ? 1 - μi : μi) for x in η]
 end
