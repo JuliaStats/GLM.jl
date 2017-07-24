@@ -314,6 +314,43 @@ fit{M<:AbstractGLM}(::Type{M},
     l::Link=canonicallink(d); kwargs...) =
     fit(M, float(X), float(y), d, l; kwargs...)
 
+"""
+    glm(X, y, family, link; wts, offset, dofit)
+
+Fits the generalized linear model, specified by the symbolic description of the
+model along with the family of distribution and a link function.
+
+#### Arguments:
+* `X::Matrix`: The formula which is the symbolic representation of the model to fit.
+Uses column symbols from the DataFrame data, for example, if names(data)
+=[:Y,:X1,:X2], then a valid formula is Y~X1+X2.
+* `y::AbstractVector`: Response vector.
+* `family::UnivariateDistribution`: Specifies the choice of variance, can be `Bernoulli()`, `Binomial()`, `Gamma()`, `Normal()` or `Poisson()`.
+* `link::Link=canonicallink(d)`: This function provides the link function for example, LogitLink() is a valid link for the Binomial() family.
+* `dofit::Bool=true`: Indicates whether to fit the model or not.
+* `wts::V=fill!(similar(y), one(eltype(y)))`: Weights (inverse dispersion).
+* `offset::V=similar(y, 0)`: An additional term added to the linear predictor.
+
+#### Examples:
+```
+julia> data=DataFrame(X=[1,2,3],Y=[2,4,7])
+3×2 DataFrames.DataFrame
+│ Row │ X │ Y │
+┝━━━━━┿━━━┿━━━┥
+│ 1   │ 1 │ 2 │
+│ 2   │ 2 │ 4 │
+│ 3   │ 3 │ 7 │
+
+julia> OLS = glm(Y~X,data,Normal(),IdentityLink())
+DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
+
+Coefficients:
+              Estimate Std.Error  z value Pr(>|z|)
+(Intercept)  -0.666667   0.62361 -1.06904   0.2850
+X                  2.5  0.288675  8.66025   <1e-17
+```
+
+"""
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
 GLM.Link(mm::AbstractGLM) = mm.l
