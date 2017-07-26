@@ -11,7 +11,7 @@ beta = unshift!(rand(Normal(),52), 0.5); # "true" parameter values
 
 ## Create linear predictor and mean response
 eta = mm.m * beta;
-mu = [linkinv(LogitLink(), x) for x in eta]
+mu = [inv(1 + exp(-x)) for x in eta]
 y = Float64[rand() < μ for μ in mu];        # simulate observed responses
 
 gm6 = glm(mm.m, y, Binomial())
