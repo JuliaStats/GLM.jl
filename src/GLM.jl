@@ -6,6 +6,7 @@ module GLM
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
     using Base.LinAlg: QRCompactWY, Cholesky
+    using StatsFuns: logit, logistic, xlogy
     using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel
     using Distributions: sqrt2, sqrt2π
     using Compat
@@ -27,6 +28,7 @@ module GLM
         InverseLink,
         LinearModel,
         Link,
+        Link01,
         LinPred,
         LinPredModel,
         LogitLink,
