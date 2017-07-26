@@ -1,5 +1,5 @@
 using GLM, DataFrames
-glm(@formula(y ~ 1), DataFrame(y = float(bitrand(10))), Binomial())
+glm(@formula(y ~ 1), DataFrame(y = float.(bitrand(10))), Binomial())
 
 n = 2_500_000; srand(1234321)
 df2 = DataFrame(x1 = rand(Normal(), n),
