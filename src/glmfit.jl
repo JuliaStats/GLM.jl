@@ -48,7 +48,7 @@ deviance(r::GlmResp) = sum(r.devresid)
 """
     updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
 
-Update the mean, working weights and working residuals, in `r` given a value of
+Update the mean, working weights and working residuals in `r` given a value of
 the linear predictor, `linPr`.
 """
 function updateμ!{T<:FPVector,D,L}(r::GlmResp{T,D,L}, linPr::T)
@@ -64,7 +64,7 @@ end
 function updateμ!{T<:FPVector,D<:Gamma}(r::GlmResp{T,D,InverseLink})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds Threads.@threads for i in eachindex(η)
+    @inbounds for i in eachindex(η)
         ηi = η[i]
         μi = μ[i] = inv(ηi)
         wrkwt[i] = abs2(μi)
@@ -78,25 +78,26 @@ end
 function updateμ!{T<:FPVector,D<:Union{Bernoulli,Binomial}}(r::GlmResp{T,D,LogitLink})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds Threads.@threads for i in eachindex(μ)
+    @inbounds for i in eachindex(μ)
         ηi        = η[i]
-        ei, c     = exp(abs(ηi)), ηi > 0
-        opei      = 1 + ei
+        c         = ηi > 0
+        ei        = exp(abs(ηi))
+        opei      = xp1(ei)
         μi        = inv(opei)
-        μ[i]      = c ? 1 - μi : μi
-        dμdη      = ei / opei / opei
+        μ[i]      = c ? one(μi) - μi : μi
+        dμdη      = ei / abs2(opei)
         wrkwt[i]  = isnan(dμdη) ? zero(dμdη) : dμdη
         yi        = y[i]
-        wrkresi   = (c ? (yi - 1 + μi) : (yi - μi)) / dμdη
+        wrkresi   = (c ? (yi - one(yi) + μi) : (yi - μi)) / dμdη
         wrkres[i] = isnan(wrkresi) ? zero(wrkresi) : wrkresi
-        dres[i]   = devresid(r.d, yi, c ? 1 - μi : μi)
+        dres[i]   = devresid(r.d, yi, μ[i])
     end
 end
 
 function updateμ!{T<:FPVector,D<:Poisson}(r::GlmResp{T,D,LogLink})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds Threads.@threads for i in eachindex(η)
+    @inbounds for i in eachindex(η)
         ηi = η[i]
         μi = μ[i] = exp(ηi)
         dμdη = wrkwt[i] = μi
@@ -109,7 +110,7 @@ end
 function updateμ!{T<:FPVector,D<:Normal}(r::GlmResp{T,D,IdentityLink})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds Threads.@threads for i in eachindex(η)
+    @inbounds for i in eachindex(η)
         μi = μ[i] = η[i]
         wrkwt[i] = 1
         yi = y[i]
@@ -118,21 +119,38 @@ function updateμ!{T<:FPVector,D<:Normal}(r::GlmResp{T,D,IdentityLink})
     end
 end
 
+# Special case where linkinvcomplement is assumed to be defined
+function updateμ!{T<:FPVector,D<:Union{Bernoulli,Binomial},L<:Link01}(r::GlmResp{T,D,L})
+    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
+
+    l = L()
+    @inbounds for i = eachindex(η)
+        ηi        = η[i]
+        μi, c     = linkinvcomplement(l, ηi)
+        μ[i]      = c ? one(μi) - μi : μi
+        dμdη      = mueta(l, ηi)
+        yi        = y[i]
+        wrkresi   = (yi - μ[i])/dμdη
+        wrkres[i] = isnan(wrkresi) ? zero(wrkresi) : wrkresi
+        dres[i]   = devresid(r.d, yi, μ[i])
+        wrkwti    = abs2(dμdη) / (μi * (1 - μi))
+        wrkwt[i]  = isnan(wrkwti) ? zero(wrkwti) : wrkwti
+    end
+end
+
 function updateμ!{T,D,L}(r::GlmResp{T,D,L})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds @simd for i = eachindex(y, η, μ, wrkres, wrkwt, dres)
-        ηi = η[i]
-        # apply the inverse link function generating the mean vector (μ) from the linear predictor (η)
-        μi, c = linkinv(L(), ηi)
-        μ[i]  = c ? 1 - μi : μi
-        # evaluate the mueta vector (derivative of μ w.r.t. η) from the linear predictor (eta)
-        dμdη      = mueta(L(), ηi)
+    l = L()
+    @inbounds for i = eachindex(y, η, μ, wrkres, wrkwt, dres)
+        ηi        = η[i]
+        μ[i] = μi = linkinv(l, ηi)
+        dμdη      = mueta(l, ηi)
         yi        = y[i]
-        wrkresi   = (c ? (yi - 1 + μi) : (yi - μi))/dμdη
+        wrkresi   = (yi - μi)/dμdη
         wrkres[i] = isnan(wrkresi) ? zero(wrkresi) : wrkresi
-        dres[i]   = devresid(r.d, yi, c ? 1 - μi : μi)
-        wrkwti    = abs2(dμdη) / glmvar(r.d, L(), μi)
+        dres[i]   = devresid(r.d, yi, μi)
+        wrkwti    = abs2(dμdη) / glmvar(r.d, μi)
         wrkwt[i]  = isnan(wrkwti) ? zero(wrkwti) : wrkwti
     end
 end
@@ -362,5 +380,5 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Vector{
     else
         length(offset) > 0 && throw(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
     end
-    μ = [((μi, c) = linkinv(Link(mm), x); c ? 1 - μi : μi) for x in η]
+    μ = [linkinv(Link(mm), x) for x in η]
 end
