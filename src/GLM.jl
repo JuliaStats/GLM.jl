@@ -7,13 +7,11 @@ module GLM
     using Base.LinAlg.BLAS: gemm!, gemv!
     using Base.LinAlg: QRCompactWY, Cholesky
     using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel
-    using StatsFuns: logit, logistic
     using Distributions: sqrt2, sqrt2π
     using Compat
 
     import Base: (\), cholfact, convert, cor, show, size
     import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual, loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, r2, r², adjr2, adjr², PValue
-    import StatsFuns: xlogy
     import SpecialFunctions: erfc, erfcinv
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, r2, r², adjr2, adjr²
 
