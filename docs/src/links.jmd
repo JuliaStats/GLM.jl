@@ -1,0 +1,248 @@
+# Numerical considerations when fitting GLMs
+
+Before discussing computational aspects of fitting Generalized Linear Models (GLMs) it is helpful to define the linear model and see which properties are being generalized.
+
+### Properties of linear models
+
+The probability model for a linear model can be written
+\begin{equation}
+\mathcal{Y}\sim\mathcal{N}(\mathbf X \beta, \sigma^2\mathbf I)
+\end{equation}
+where the observed value of the $n$-dimensional random variable, $\mathcal{Y}$, is $\mathbf{y}$, the observed *response vector*, $\mathbf X$ is the $n\times p$ *model matrix*, $\beta$ is a $p$-dimensional coefficient vector, and $\sigma^2$ is the (scalar) dispersion parameter.
+$\mathcal{N}$ denotes the multivariate normal (or Gaussian) distribution.
+
+The individual observations are almost i.i.d. (independent and identically distributed) except that the mean value is determined by the *linear predictor* $\eta=\mathbf X\beta$.
+In fact, the mean value is the linear predictor
+\begin{equation}
+    \mu = \eta = \mathbf X\beta,
+\end{equation}
+a situation that can be described by saying there is an *identity link* between the linear predictor and the mean.
+
+### Generalized linear models
+
+The probability model for a GLM generalizes the linear model in that the distributions of the elements of $\mathcal{Y}$ are modeled as independent observations from a given distribution family, $\mathcal{D}$, and these independent variates differ only in their means.
+Furthermore the mean vector $\mu$ is determined by a linear predictor vector $\eta=\mathbf X\beta$.
+If the family $\mathcal{D}$ has a *dispersion parameter*, usually written $\phi$, it is assumed to be common to all observations.
+
+For many distributions it is not appropriate to set $\mu=\eta$ because the range of possible values of the mean is restricted whereas that of the linear predictor is unrestricted.
+For example the mean of a [Poisson distribution](https://en.wikipedia.org/wiki/Poisson_distribution) must be positive.
+
+To map back and forth from the possibly restricted observation scale to the unrestricted linear predictor scale an invertible scalar *link function*, $g$, is defined and applied component-wise to $\mu$.
+That is, the *link function* is $g:\mu_i\rightarrow\eta_i$ and the inverse link is $g^{-1}:\eta_i\rightarrow\mu_i$.
+
+### Some canonical links
+
+When the distribution $\mathcal{D}$ is in the [exponential family](https://en.wikipedia.org/wiki/Exponential_family) a *canonical link*, can be derived directly from the form of the distribution.
+
+In some ways it is easier to show the code for some of the canonical link functions than to show equations.
+In the implementation in the [GLM package](https://github.com/JuliaStats/GLM.jl) for Julia a `Link` is an immutable object that is used to dispatch methods for the generic functions `linkfun`, `linkinv` and `mueta`.
+
+To use distribution types from the [Distributions package](https://github.com/JuliaStats/Distributions.jl) and the abstract `Link` type, begin with
+```{julia;label=packages}
+using Distributions
+abstract type Link end
+```
+Then the `IdentityLink`, which is the canonical link for the `Normal` distribution, is defined as
+```{julia;label=IdentityLink}
+struct IdentityLink <: Link end
+linkfun(::IdentityLink, μ) = μ
+linkinv(::IdentityLink, η) = η
+mueta(  ::IdentityLink, η) = one(η) # returns an identity element of the same type as η
+canonicallink(::Normal) = IdentityLink()
+```
+and used as
+```{julia;label=simpleuse;term=true}
+linkfun(IdentityLink(), 3.0)
+mueta(IdentityLink(), 3.0)
+```
+Methods for the `mueta` generic return the derivative of the inverse link, $\frac{d\mu}{d\eta}$.
+
+The canonical link for the `Poisson` distribution is `LogLink` and for the `Gamma` distribution `InverseLink`.
+```{julia;label=LogLink}
+struct LogLink <: Link end
+linkfun(::LogLink, μ) = log(μ)
+linkinv(::LogLink, η) = exp(η)
+mueta(  ::LogLink, η) = exp(η)
+canonicallink(::Poisson) = LogLink()
+struct InverseLink <: Link end
+linkfun(::LogLink, μ) = inv(μ)
+linkinv(::LogLink, η) = inv(η)
+mueta(  ::LogLink, η) = -inv(abs2(η))
+canonicallink(::Gamma) = InverseLink()
+```
+The methods for `InverseLink` use the generic functions `inv`, for inverse, and `abs2` for the square.
+(Expressions like `1/μ` and `η^2` could be used instead but methods for the generics `inv` and `abs2` are carefully defined to return appropriate types for different types of numeric arguments.
+The compiler will inline short function definitions like these so there will be no function call overhead in the evaluation.)
+
+Finally, the canonical link for the `Bernoulli` (and also the `Binomial`) distribution is the `LogitLink`.
+For reasons described later we create intermediate abstract types `Link01` for link types where the range of $\mu$ is $0<\mu<1$ and `SymLink01` for link types whose inverse link is the cdf of a symmetric distribution.
+```{julia;label=LogitLink}
+abstract type Link01 <: Link end
+abstract type SymLink01 <: Link01 end
+struct LogitLink <: SymLink01 end
+logit(x) = log(x / 1 - x)       # the logit or log-odds function
+logistic(x) = inv(1 + exp(-x))  # cdf of the standard Logistic distribution
+linkfun(::LogitLink, μ) = logit(μ)
+linkinv(::LogitLink, η) = logistic(η)
+function mueta(  ::LogitLink, η)
+    e   = exp(-η)
+    ep1 = 1 + e
+    (e / ep1) / ep1
+end
+canonicallink(::Union{Bernoulli,Binomial}) = LogitLink()
+```
+
+It should be noted that, in the GLM context, the response for a `Binomial` distribution is the taken to be the *proportion* of successes in a number of trials.
+Hence the mean, $\mu$ is in the range $0<\mu<1$.
+
+## Evaluation of methods for links
+
+The method definitions for `IdentityLink`, `LogLink` and `InverseLink` are straightforward calls to standard arithmetic functions whose evaluation is uncontroversial.
+
+In contrast, the `LogitLink` presents some interesting computational considerations.
+
+As indicated in the comments, the `logistic` function, which is the inverse link function for `LogitLink`, is the cumulative distribution function (cdf) for the standard [logistic distribution]().
+```{julia;label=Logistic;term=true}
+Logistic()
+```
+
+In general, any inverse link for the `Bernoulli` and `Binomial` must correspond to the cdf of a continuous distribution with support $(-\infty,\infty)$ because it is a continous, differentiable and invertible function
+\begin{equation}
+g^{-1}: (-\infty, \infty) \rightarrow (0, 1)
+\end{equation}
+Such a funcion must be monotone.
+Without loss of generality it can be assumed to be monotone increasing and hence it represents such a cdf.
+
+The derivative or `mueta` function is therefore the probability density function for the logistic distribution, which is an "even" function (in the sense that $f(-x) = f(x)$) because the standard logistic distribution is symmetric about zero.
+
+### Avoiding the end-points of the range of $g^{-1}$
+
+The problem in evaluating any inverse link for the `Bernoulli` is that the value $\mu$ must be stictly inside the interval $(0,1)$ for the link to be defined.
+Furthermore, the *variance function*, $\mathcal{V}(\mu) = \mu(1-\mu)$ occurs in the denominator of an expression in the IRLS algorithm described below.
+A naive implementation of the algorithm will fail if the inverse link evaluates to zero or to one.
+
+For very large positive or negative values of $\eta$ the `logistic` function will round to zero or to one but falling outside the interval is not symmetric in $\eta$.
+The value of $\mu$ stays positive for very large negative values of $\eta$ but rounds to one for comparatively small positive $\eta$.
+```{julia;label=logisticunderflow;term=true}
+logistic(-700.0)
+logistic(+38.0)
+```
+
+The problem of being able to evaluate a cdf to a value within the interval $(0,1)$ for a long "tail" to the left but a comparatively short tail to the right is not unique to the logistic distribution.
+It is the reason for defining both the cdf, $F(η)$, and the *complementary cumulative distribution function*, $1 - F(η)$, for a distribution.
+```{julia;label=logisticcdf;term=true}
+cdf(Logistic(), 38.0)
+ccdf(Logistic(), 38.0)  # 1 - F(x) evaluated directly
+cdf(Normal(), 8.5)
+ccdf(Normal(), 8.5)
+```
+
+For the purposes of IRLS the two situations to be avoided are the variance function evaluating to zero or the derivative function evaluating to zero.
+One of the properties of a canonical link is that derivative of the inverse link is the variance function for the distribution.
+For the `LogitLink` the derivative is
+\begin{equation}
+    \frac{d\mu}{d\eta}=\frac{e^{-\eta}}{1+e^{-\eta}}\frac{1}{1+e^{-\eta}}=(1-\mu)\mu=\mathcal{V}(\mu)
+\end{equation}
+
+However, a naive evaluation of the variance function
+```{julia;label=naiveglmvar}
+glmvar(::Bernoulli, μ) = μ * (1 - μ)
+```
+will underflow at values of $η$ where `mueta` evaluates to a positive number.
+```{julia;label=naive;term=true}
+glmvar(Bernoulli(), linkinv(LogitLink(), 38.0))
+mueta(LogitLink(), 38.0)
+```
+
+The `mueta` method for `LogitLink` ends up evaluating $\mu(1-\mu)$ but without evaluating $1-\mu$ directly.
+
+ ## IRLS
+
+The *Iteratively Reweighted Least Squares* (IRLS) algorithm is a simple, effective method of determining the maximum likelihood estimates (mle's) of the coefficients, $\mathbf\beta$, and the dispersion parameter, $\phi$, if $\mathcal{D}$ has such a parameter.
+The iterative step, given the current $\beta$, is to evaluate $\eta=\mathbf{X}\beta$ then $\mu = \mathbf{g}^{-1}(\mathbf{\eta})$ and the Jacobian $\frac{d\mu}{d\eta}$, which is, by definition, diagonal.
+The purpose is to determine an increment, `δ𝛃`, in the linear predictor scale from information on the residuals and the variance of the response on the response scale.
+The *working residuals*, $\mathbf{r}=\left(\frac{d\mu}{d\eta}\right)^{-1}(\mathbf{y}-\mu)$ are the residuals $\mathbf{y}-\mu$ on the response scale transformed back to the linear predictor scale.
+The diagonal matrix of *working weights*, $\mathbf{W}=\left(\frac{d\mu}{d\eta}\right)^2\mathcal{V}^{-1}(\mu)$
+The increment is the weighted least squares solution to
+\begin{equation}
+    \mathbf{X}^\prime\mathbf{W}\mathbf{X} \delta\beta = \mathbf{X}^\prime\mathbf{Wr}
+\end{equation}
+
+For a canonical link the expression for the working weights simplifies to
+\begin{equation}
+\mathbf{W} = \frac{d\mu}{d\eta}
+\end{equation}
+
+An alternative formulation of this algorithm is to use the *working response*, $\eta+\mathbf{r}$ in the weighted least squares problem whose solution is then the new parameter value.
+
+## Other Links for the Bernoulli distribution
+
+There are three other continuous probability distributions from which the cdf is used as an inverse link for `Bernoulli` GLMs.
+
+### The `ProbitLink` from the `Normal()` distribution
+
+The standard normal distribution
+```{julia;label=Normal;term=true}
+Normal()
+```
+generates the `ProbitLink`.
+Its cdf and quantile function are defined in terms of the "complementary error function", `erfc`, and its inverse, `erfcinv`, from the `StatsFuns` package.
+The [relationship](https://en.wikipedia.org/wiki/Error_function#Complementary_error_function) between these functions and the standard normal cdf, $\Phi(x)$ is
+\begin{equation}
+\Phi(x) = \mathrm{erfc}(-x/√2) / 2
+\end{equation}
+The constant `sqrt2` is a special type of Julia object called `Irrational` that adjusts its precision to other arguments in operator expressions.
+```{julia;label=erf}
+using SpecialFunctions: erfc, erfcinv
+Base.@irrational sqrt2     1.4142135623730950488 sqrt(big(2.0))
+Base.@irrational sqrt2π    2.5066282746310005024 sqrt(big(π) * 2.0)
+immutable ProbitLink <: Link01 end
+linkinv(::ProbitLink, η) = erfc(-η / sqrt2) / 2
+linkfun(::ProbitLink, μ) = -sqrt2 * erfcinv(2μ)
+mueta(  ::ProbitLink, η) = exp(-abs2(η) / 2) / sqrt2π
+```
+
+### The `CauchitLink` from the `Cauchy()` distribution
+
+The standard Cauchy distribution
+```{julia;label=Cauchy;term=true}
+Cauchy()
+```
+generates the `CauchitLink`
+```{julia;label=Cauchit}
+immutable CauchitLink <: Link01 end
+linkfun(::CauchitLink, μ) = tan(π * (μ - 1/2))
+linkinv(::CauchitLink, η) = 1/2 + atan(η) / π
+mueta(  ::CauchitLink, η) = inv(π * (abs2(η) + 1))
+```
+
+Both the standard normal and the standard Cauchy distributions are symmetric about 0.
+
+### The `CloglogLink` from the Extreme-Value distribution
+
+The cdf of the standard [Extreme Value Distribution (Type 1)](http://www.itl.nist.gov/div898/handbook/apr/section1/apr163.htm) generates the `complementary log-log link`
+```{julia;label=Cauchit}
+immutable CloglogLink <: Link01 end
+linkfun(::CloglogLink, μ) = log(-log1p(-μ))
+linkinv(::CloglogLink, η) = -expm1(-exp(η))
+mueta(  ::CloglogLink, η) = exp(η) * exp(exp(η))
+```
+This is the only common case of a generating distribution that is not symmetric about 0.
+
+## Implementation of IRLS
+
+The [GLM package](https://github.com/JuliaStats/GLM.jl) defines a templated struct to hold the various vectors to be updated in IRLS.
+```{julia;label=GLMResp}
+const FPVector = Vector{T} where {T<:AbstractFloat}
+struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link}
+    y::V          # response vector
+    d::D
+    devresid::V   # squared deviance residuals
+    η::V          # linear predictor
+    μ::V          # mean response
+    offset::V     # offset added to `Xβ` to form `η`.  Can be of length 0.
+    wts::V        # prior case weights.  Can be of length 0.
+    wrkwt::V      # working case weights for IRLS
+    wrkresid::V   # working residuals for IRLS"
+end
+```

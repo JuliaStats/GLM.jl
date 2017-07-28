@@ -48,7 +48,7 @@ deviance(r::GlmResp) = sum(r.devresid)
 """
     updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
 
-Update the mean, working weights and working residuals, in `r` given a value of
+Update the mean, working weights and working residuals in `r` given a value of
 the linear predictor, `linPr`.
 """
 function updateμ!{T<:FPVector,D,L}(r::GlmResp{T,D,L}, linPr::T)
@@ -64,7 +64,7 @@ end
 function updateμ!{T<:FPVector,D<:Gamma}(r::GlmResp{T,D,InverseLink})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds Threads.@threads for i in eachindex(η)
+    @inbounds for i in eachindex(η)
         ηi = η[i]
         μi = μ[i] = inv(ηi)
         wrkwt[i] = abs2(μi)
@@ -78,23 +78,26 @@ end
 function updateμ!{T<:FPVector,D<:Union{Bernoulli,Binomial}}(r::GlmResp{T,D,LogitLink})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds Threads.@threads for i in eachindex(μ)
-        ηi = clamp(η[i], -20.0, 20.0)
-        ei = exp(-ηi)
-        opei = 1 + ei
-        μi = μ[i] = inv(opei)
-        dμdη = wrkwt[i] = ei / abs2(opei)
-        yi = y[i]
-        wrkres[i] = (yi - μi) / dμdη
-        dres[i] = -2 * (yi == 1 ? log(μi) : yi == 0 ? log1p(-μi) :
-            (yi * (log(μi) - log(yi)) + (1 - yi) * (log1p(-μi) - log1p(-yi))))
+    @inbounds for i in eachindex(μ)
+        ηi        = η[i]
+        c         = ηi > 0
+        ei        = exp(abs(ηi))
+        opei      = xp1(ei)
+        μi        = inv(opei)
+        μ[i]      = c ? one(μi) - μi : μi
+        dμdη      = ei / abs2(opei)
+        wrkwt[i]  = isnan(dμdη) ? zero(dμdη) : dμdη
+        yi        = y[i]
+        wrkresi   = (c ? (yi - one(yi) + μi) : (yi - μi)) / dμdη
+        wrkres[i] = isnan(wrkresi) ? zero(wrkresi) : wrkresi
+        dres[i]   = devresid(r.d, yi, μ[i])
     end
 end
 
 function updateμ!{T<:FPVector,D<:Poisson}(r::GlmResp{T,D,LogLink})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds Threads.@threads for i in eachindex(η)
+    @inbounds for i in eachindex(η)
         ηi = η[i]
         μi = μ[i] = exp(ηi)
         dμdη = wrkwt[i] = μi
@@ -107,7 +110,7 @@ end
 function updateμ!{T<:FPVector,D<:Normal}(r::GlmResp{T,D,IdentityLink})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds Threads.@threads for i in eachindex(η)
+    @inbounds for i in eachindex(η)
         μi = μ[i] = η[i]
         wrkwt[i] = 1
         yi = y[i]
@@ -116,19 +119,39 @@ function updateμ!{T<:FPVector,D<:Normal}(r::GlmResp{T,D,IdentityLink})
     end
 end
 
+# Special case where linkinvcomplement is assumed to be defined
+function updateμ!{T<:FPVector,D<:Union{Bernoulli,Binomial},L<:Link01}(r::GlmResp{T,D,L})
+    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
+
+    l = L()
+    @inbounds for i = eachindex(η)
+        ηi        = η[i]
+        μi, c     = linkinvcomplement(l, ηi)
+        μ[i]      = c ? one(μi) - μi : μi
+        dμdη      = mueta(l, ηi)
+        yi        = y[i]
+        wrkresi   = (yi - μ[i])/dμdη
+        wrkres[i] = isnan(wrkresi) ? zero(wrkresi) : wrkresi
+        dres[i]   = devresid(r.d, yi, μ[i])
+        wrkwti    = abs2(dμdη) / (μi * (1 - μi))
+        wrkwt[i]  = isnan(wrkwti) ? zero(wrkwti) : wrkwti
+    end
+end
+
 function updateμ!{T,D,L}(r::GlmResp{T,D,L})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds @simd for i = eachindex(y, η, μ, wrkres, wrkwt, dres)
-        ηi = η[i]
-        # apply the inverse link function generating the mean vector (μ) from the linear predictor (η)
-        μi = μ[i] = linkinv(L(), ηi)
-        # evaluate the mueta vector (derivative of μ w.r.t. η) from the linear predictor (eta)
-        dμdη = mueta(L(), ηi)
-        yi = y[i]
-        wrkres[i] = (yi - μi)/dμdη
-        dres[i] = devresid(r.d, yi, μi)
-        wrkwt[i] = abs2(dμdη) / max(eps(), glmvar(r.d, L(), μi, ηi))
+    l = L()
+    @inbounds for i = eachindex(y, η, μ, wrkres, wrkwt, dres)
+        ηi        = η[i]
+        μ[i] = μi = linkinv(l, ηi)
+        dμdη      = mueta(l, ηi)
+        yi        = y[i]
+        wrkresi   = (yi - μi)/dμdη
+        wrkres[i] = isnan(wrkresi) ? zero(wrkresi) : wrkresi
+        dres[i]   = devresid(r.d, yi, μi)
+        wrkwti    = abs2(dμdη) / glmvar(r.d, μi)
+        wrkwt[i]  = isnan(wrkwti) ? zero(wrkwti) : wrkwti
     end
 end
 
@@ -208,7 +231,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         linpred!(lp, p, 0)
         updateμ!(r, lp)
     end
-    devold = deviance(m)
+    devold  = deviance(m)
     for i = 1:maxIter
         f = 1.0
         local dev
@@ -231,13 +254,12 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
             end
         end
         installbeta!(p, f)
-        crit = (devold - dev)/dev
-        verbose && println("$i: $dev, $crit")
-        if crit < convTol || dev == 0
+        verbose && println("$i: $dev, $(devold - dev), $(devold/dev - 1)")
+        if devold - dev < max(1, devold)*convTol || dev == 0
             cvg = true
             break
         end
-        @assert isfinite(crit)
+        @assert isfinite(dev)
         devold = dev
     end
     cvg || throw(ConvergenceException(maxIter))
@@ -350,13 +372,13 @@ Form the predicted response of model `mm` from covariate values `newX` and, opti
 an offset.
 """
 function predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Vector{eltype(newX)}(0))
-    eta = newX * coef(mm)
+    η = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||
             throw(ArgumentError("fit with offset, so `offset` kw arg must be an offset of length `size(newX, 1)`"))
-        broadcast!(+, eta, eta, offset)
+        broadcast!(+, η, η, offset)
     else
         length(offset) > 0 && throw(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
     end
-    mu = [linkinv(Link(mm), x) for x in eta]
+    μ = [linkinv(Link(mm), x) for x in η]
 end

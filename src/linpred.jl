@@ -15,7 +15,7 @@ function installbeta!(p::LinPred, f::Real=1.)
     p.beta0
 end
 
-type DensePredQR{T<:BlasReal} <: DensePred
+type DensePredQR{T<:Real} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
@@ -30,12 +30,12 @@ end
 (::Type{DensePredQR})(X::Matrix, beta0::Vector) = DensePredQR{eltype(X)}(X, beta0)
 convert{T}(::Type{DensePredQR{T}}, X::Matrix{T}) = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
-function delbeta!{T<:BlasReal}(p::DensePredQR{T}, r::Vector{T})
+function delbeta!{T<:Real}(p::DensePredQR{T}, r::Vector{T})
     p.delbeta = p.qr\r
     return p
 end
 
-type DensePredChol{T<:BlasReal,C} <: DensePred
+type DensePredChol{T<:Real,C} <: DensePred
     X::Matrix{T}                   # model matrix
     beta0::Vector{T}               # base vector for coefficients
     delbeta::Vector{T}             # coefficient increment
@@ -75,12 +75,12 @@ else
     Base.LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky{T,typeof(p.X)}(p.qr[:R], 'U', 0)
 end
 
-function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
+function delbeta!{T<:Real}(p::DensePredChol{T}, r::Vector{T})
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, p.X, r))
     p
 end
 
-function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
+function delbeta!{T<:Real}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
     scr = scale!(p.scratch, wt, p.X)
     if VERSION < v"0.5.0-dev+4677"
         cholfact!(At_mul_B!(cholfactors(p.chol), scr, p.X), :U)
