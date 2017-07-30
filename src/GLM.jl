@@ -44,6 +44,7 @@ module GLM
         devresid,       # vector of squared deviance residuals
         formula,        # extract the formula from a model
         glm,            # general interface
+        inverselink,    # returns μ, dμ/dη and, when appropriate, μ*(1-μ)
         linkfun,        # link function mapping mu to eta, the linear predictor
         linkinv,        # inverse link mapping eta to mu
         linpred,        # linear predictor
