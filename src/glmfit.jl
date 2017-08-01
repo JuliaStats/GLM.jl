@@ -46,6 +46,18 @@ end
 deviance(r::GlmResp) = sum(r.devresid)
 
 """
+    iscanonical(r::GlmResp{V,D,L})
+
+Returns `true` if `L` is the canonical link for distribution `D`
+"""
+iscanonical(r::GlmResp) = false
+iscanonical{V<:FPVector}(r::GlmResp{V,Bernoulli,LogitLink}) = true
+iscanonical{V<:FPVector}(r::GlmResp{V,Binomial,LogitLink}) = true
+iscanonical{V<:FPVector}(r::GlmResp{V,Gamma,InverseLink}) = true
+iscanonical{V<:FPVector}(r::GlmResp{V,Normal,IdentityLink}) = true
+iscanonical{V<:FPVector}(r::GlmResp{V,Poisson,LogLink}) = true
+
+"""
     updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
 
 Update the mean, working weights and working residuals, in `r` given a value of
@@ -61,74 +73,31 @@ function updateμ!{T<:FPVector,D,L}(r::GlmResp{T,D,L}, linPr::T)
     r
 end
 
-function updateμ!{T<:FPVector,D<:Gamma}(r::GlmResp{T,D,InverseLink})
+function updateμ!{V<:FPVector}(r::GlmResp{V})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds Threads.@threads for i in eachindex(η)
-        ηi = η[i]
-        μi = μ[i] = inv(ηi)
-        wrkwt[i] = abs2(μi)
-        dμdη = -wrkwt[i]
+    l = Link(r)
+    @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
+        μi, dμdη = inverselink(l, η[i])
+        μ[i] = μi
         yi = y[i]
         wrkres[i] = (yi - μi) / dμdη
-        dres[i] = -2 * (log(yi / μi) - (yi - μi) / μi)
-    end
-end
-
-function updateμ!{T<:FPVector,D<:Union{Bernoulli,Binomial}}(r::GlmResp{T,D,LogitLink})
-    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
-
-    @inbounds Threads.@threads for i in eachindex(μ)
-        ηi = clamp(η[i], -20.0, 20.0)
-        ei = exp(-ηi)
-        opei = 1 + ei
-        μi = μ[i] = inv(opei)
-        dμdη = wrkwt[i] = ei / abs2(opei)
-        yi = y[i]
-        wrkres[i] = (yi - μi) / dμdη
-        dres[i] = -2 * (yi == 1 ? log(μi) : yi == 0 ? log1p(-μi) :
-            (yi * (log(μi) - log(yi)) + (1 - yi) * (log1p(-μi) - log1p(-yi))))
-    end
-end
-
-function updateμ!{T<:FPVector,D<:Poisson}(r::GlmResp{T,D,LogLink})
-    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
-
-    @inbounds Threads.@threads for i in eachindex(η)
-        ηi = η[i]
-        μi = μ[i] = exp(ηi)
-        dμdη = wrkwt[i] = μi
-        yi = y[i]
-        wrkres[i] = (yi - μi) / dμdη
-        dres[i] = 2 * (xlogy(yi, yi / μi) - (yi - μi))
-    end
-end
-
-function updateμ!{T<:FPVector,D<:Normal}(r::GlmResp{T,D,IdentityLink})
-    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
-
-    @inbounds Threads.@threads for i in eachindex(η)
-        μi = μ[i] = η[i]
-        wrkwt[i] = 1
-        yi = y[i]
-        wrkresi = wrkres[i] = (yi - μi)
-        dres[i] = abs2(wrkresi)
-    end
-end
-
-function updateμ!{T,D,L}(r::GlmResp{T,D,L})
-    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
-
-    @inbounds @simd for i = eachindex(y, η, μ, wrkres, wrkwt, dres)
-        ηi = η[i]
-        # apply the inverse link function generating the mean vector (μ) from the linear predictor (η)
-        μi = μ[i] = linkinv(L(), ηi)
-        # evaluate the mueta vector (derivative of μ w.r.t. η) from the linear predictor (eta)
-        dμdη = mueta(L(), ηi)
-        yi = y[i]
-        wrkres[i] = (yi - μi)/dμdη
+        wrkwt[i] = iscanonical(r) ? dμdη : abs2(dμdη) / glmvar(r.d, μi)
         dres[i] = devresid(r.d, yi, μi)
-        wrkwt[i] = abs2(dμdη) / max(eps(), glmvar(r.d, L(), μi, ηi))
+    end
+end
+
+function updateμ!{V<:FPVector,D<:Union{Bernoulli,Binomial},L<:Link01}(r::GlmResp{V,D,L})
+    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
+
+    l = Link(r)
+    @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
+        μi, dμdη, μomμ = inverselink(l, η[i])
+        μ[i] = μi
+        yi = y[i]
+        wrkres[i] = (yi - μi) / dμdη
+        wrkwt[i] = iscanonical(r) ? dμdη : abs2(dμdη) / μomμ
+        dres[i] = devresid(r.d, yi, μi)
     end
 end
 
@@ -349,7 +318,8 @@ end
 Form the predicted response of model `mm` from covariate values `newX` and, optionally,
 an offset.
 """
-function predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Vector{eltype(newX)}(0))
+function predict(mm::AbstractGLM, newX::AbstractMatrix;
+                 offset::FPVector=eltype(newX)}[])
     eta = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||
