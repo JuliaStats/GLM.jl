@@ -319,7 +319,7 @@ Form the predicted response of model `mm` from covariate values `newX` and, opti
 an offset.
 """
 function predict(mm::AbstractGLM, newX::AbstractMatrix;
-                 offset::FPVector=eltype(newX)}[])
+                 offset::FPVector=eltype(newX)[])
     eta = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||
