@@ -54,6 +54,7 @@ iscanonical(r::GlmResp) = false
 iscanonical{V<:FPVector}(r::GlmResp{V,Bernoulli,LogitLink}) = true
 iscanonical{V<:FPVector}(r::GlmResp{V,Binomial,LogitLink}) = true
 iscanonical{V<:FPVector}(r::GlmResp{V,Gamma,InverseLink}) = true
+iscanonical{V<:FPVector}(r::GlmResp{V,InverseGaussian,InverseSquareLink}) = true
 iscanonical{V<:FPVector}(r::GlmResp{V,Normal,IdentityLink}) = true
 iscanonical{V<:FPVector}(r::GlmResp{V,Poisson,LogLink}) = true
 

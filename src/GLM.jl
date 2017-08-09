@@ -27,6 +27,7 @@ module GLM
         GlmResp,
         IdentityLink,
         InverseLink,
+        InverseSquareLink,
         LinearModel,
         Link,
         LinPred,

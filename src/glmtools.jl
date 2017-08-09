@@ -44,6 +44,13 @@ The canonical [`Link`](@ref) for [`Distributions.Gamma`](@ref) distribution, def
 type InverseLink  <: Link end
 
 """
+    InverseSquareLink
+
+The canonical [`Link`](@ref) for [`Distributions.InverseGaussian`](@ref) distribution, defined as `η = inv(abs2(μ))`.
+"""
+type InverseSquareLink  <: Link end
+
+"""
     LogitLink
 
 The canonical [`Link01`](@ref) for [`Distributions.Bernoulli`](@ref) and [`Distributions.Binomial`](@ref).
@@ -147,6 +154,14 @@ function inverselink(::InverseLink, η)
     μ, -abs2(μ), oftype(μ, NaN)
 end
 
+linkfun(::InverseSquareLink, μ) = inv(abs2(μ))
+linkinv(::InverseSquareLink, η) = inv(sqrt(η))
+mueta(::InverseSquareLink, η) = -inv(2η*sqrt(η))
+function inverselink(::InverseSquareLink, η)
+    μ = inv(sqrt(η))
+    μ, -μ / (2η), oftype(μ, NaN)
+end
+
 linkfun(::LogitLink, μ) = logit(μ)
 linkinv(::LogitLink, η) = logistic(η)
 function mueta(::LogitLink, η)
@@ -186,17 +201,19 @@ inverselink(::SqrtLink, η) = abs2(η), 2η, oftype(η, NaN)
 canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()
 canonicallink(::Gamma) = InverseLink()
+canonicallink(::InverseGaussian) = InverseSquareLink()
 canonicallink(::Normal) = IdentityLink()
 canonicallink(::Poisson) = LogLink()
 
 glmvar(::Union{Bernoulli,Binomial}, μ) = μ * (1 - μ)
 glmvar(::Gamma, μ) = abs2(μ)
+glmvar(::InverseGaussian, μ) = μ^3
 glmvar(::Normal, μ) = one(μ)
 glmvar(::Poisson, μ) = μ
 
 mustart(::Bernoulli, y, wt) = (y + oftype(y, 1/2)) / 2
 mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1/2)) / (wt + one(y))
-mustart(::Gamma, y, wt) = y == 0 ? oftype(y, 1/10) : y
+mustart(::Union{Gamma, InverseGaussian}, y, wt) = y == 0 ? oftype(y, 1/10) : y
 mustart(::Normal, y, wt) = y
 mustart(::Poisson, y, wt) = y + oftype(y, 1/10)
 
@@ -218,6 +235,7 @@ function devresid(::Binomial, y, μ)
     end
 end
 devresid(::Gamma, y, μ) = -2 * (log(y / μ) - (y - μ) / μ)
+devresid(::InverseGaussian, y, μ) = abs2(y - μ) / (y * abs2(μ))
 devresid(::Normal, y, μ) = abs2(y - μ)
 devresid(::Poisson, y, μ) = 2 * (xlogy(y, y / μ) - (y - μ))
 
@@ -228,6 +246,7 @@ dispersion_parameter(::Union{Gamma, Normal, InverseGaussian}) = true
 # Log-likelihood for an observation
 loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
 loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), Int(y*wt))
-loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(1/ϕ, μ*ϕ), y)
+loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
+loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt*logpdf(InverseGaussian(μ, inv(ϕ)), y)
 loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
 loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)

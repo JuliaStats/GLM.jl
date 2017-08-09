@@ -313,8 +313,8 @@ end
     d[:y] = Y
 
     gm13 = fit(GeneralizedLinearModel, @formula(y ~ 0 + x1 + x2), d, Binomial())
-    @test predict(gm13) == predict(gm13, d[[:x1, :x2]])
-    @test predict(gm13) == predict(gm13, d)
+    @test predict(gm13) ≈ predict(gm13, d[[:x1, :x2]])
+    @test predict(gm13) ≈ predict(gm13, d)
 
     newd = convert(DataFrame, newX)
     predict(gm13, newd)
