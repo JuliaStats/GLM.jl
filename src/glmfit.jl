@@ -26,7 +26,7 @@ end
 function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V)
     if d == Binomial()
         for yy in y
-            0. <= yy <= 1. || throw(ArgumentError("$yy in y is not in [0,1]"))
+            0 ≤ yy ≤ 1 || throw(ArgumentError("$yy in y is not in [0,1]"))
         end
     else
         all(x -> insupport(d, x), y) || throw(ArgumentError("y must be in the support of D"))
@@ -296,11 +296,11 @@ Distributions.Distribution(m::GeneralizedLinearModel) = Distribution(m.rr)
 """
     dispersion(m::AbstractGLM, sqr::Bool=false)
 
-Estimated dispersion (or scale) parameter for a model's distribution,
-generally written σ for linear models and ϕ for generalized linear models.
+Return the estimated dispersion (or scale) parameter for a model's distribution,
+generally written σ² for linear models and ϕ for generalized linear models.
 It is, by definition, equal to 1 for the Bernoulli, Binomial, and Poisson families.
 
-If `sqr` is `true`, the squared parameter is returned.
+If `sqr` is `true`, the squared dispersion parameter is returned.
 """
 function dispersion(m::AbstractGLM, sqr::Bool=false)
     r = m.rr
