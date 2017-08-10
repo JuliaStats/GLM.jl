@@ -5,7 +5,7 @@ os:
 julia:
     - 0.5
     - 0.6
-    - nightly
+#    - nightly   Still a problem with StatsFuns package on nightly
 notifications:
     email: false
 sudo: false
