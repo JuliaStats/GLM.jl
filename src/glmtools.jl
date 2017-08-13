@@ -105,13 +105,15 @@ function normalizeWeights(fweights::FrequencyWeights, pweights::ProbabilityWeigh
     nf = length(fweights)
     np = length(pweights)
     na = length(aweights)
-    if (nf != 0 & np == 0 & na == 0)
+    if (nf != 0 && np == 0 && na == 0)
         return fweights |> collect
-    else if (nf == 0 & np != 0 & na == 0)
+    elseif (nf == 0 && np != 0 && na == 0)
         return pweights |> collect
-    else if (nf == 0 & np == 0 & na != 0)
+    elseif (nf == 0 && np == 0 && na != 0)
         return aweights |> collect
-    else (nf != 0 & np != 0 & na == 0)
+    elseif (nf != 0 && np != 0)
         return (fweights .* pweights) |> collect
+    else
+        return zeros(Float64, 0)
     end
 end
