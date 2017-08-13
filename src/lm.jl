@@ -1,4 +1,5 @@
 # TODO: expand weights to include fweights, pweights, aweights
+# Example LmResp{Array{Float64,1}}(randn(5), randn(5), randn(5), randn(5))
 type LmResp{V<:FPVector} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
@@ -7,7 +8,7 @@ type LmResp{V<:FPVector} <: ModResp  # response in a linear model
     pweights::ProbabilityWeights
     aweights::AnalyticWeights
     y::V                                   # response
-    function (::Type{LmResp{V}}){V}(mu::V, off::V, wts::V, y::V;
+    function (::Type{LmResp{V}}){V}(mu::V, off::V, wts::V, y::V,
               fweights::FrequencyWeights, pweights::ProbabilityWeights,
               aweights::AnalyticWeights)
         n = length(y)
