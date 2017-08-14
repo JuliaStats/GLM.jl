@@ -50,13 +50,13 @@ deviance(r::GlmResp) = sum(r.devresid)
 
 Returns `true` if `L` is the canonical link for distribution `D`
 """
-iscanonical(r::GlmResp) = false
-iscanonical{V<:FPVector}(r::GlmResp{V,Bernoulli,LogitLink}) = true
-iscanonical{V<:FPVector}(r::GlmResp{V,Binomial,LogitLink}) = true
-iscanonical{V<:FPVector}(r::GlmResp{V,Gamma,InverseLink}) = true
-iscanonical{V<:FPVector}(r::GlmResp{V,InverseGaussian,InverseSquareLink}) = true
-iscanonical{V<:FPVector}(r::GlmResp{V,Normal,IdentityLink}) = true
-iscanonical{V<:FPVector}(r::GlmResp{V,Poisson,LogLink}) = true
+iscanonical(::GlmResp) = false
+iscanonical{T}(::GlmResp{Vector{T},Bernoulli{T},LogitLink}) = true
+iscanonical{T}(::GlmResp{Vector{T},Binomial{T},LogitLink}) = true
+#iscanonical{T}(::GlmResp{Vector{T},Gamma{T},InverseLink}) = true
+#iscanonical{T}(::GlmResp{Vector{T},InverseGaussian{T},InverseSquareLink}) = true
+iscanonical{T}(::GlmResp{Vector{T},Normal{T},IdentityLink}) = true
+iscanonical{T}(::GlmResp{Vector{T},Poisson{T},LogLink}) = true
 
 """
     updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
