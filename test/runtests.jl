@@ -385,11 +385,11 @@ end
     ft2 = ftest(bigmod, mod, nullmod)
     @test isapprox(ft2.pval[2].v,  2.481215056713184e-8)
     @test isapprox(ft2.pval[1].v, 0.17903437900958952)
-    @test sprint(show, ftest(bigmod, mod, nullmod)) ==
-        """
-                Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F*  p(>F)
-        Model 1        9   4      0.1038          0.9678                       
-        Model 2       10   3   -1 0.1283 -0.0245  0.9603 0.0076   2.1236 0.1790
-        Model 3       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234  <1e-7
-        """
+#    @test sprint(show, ftest(bigmod, mod, nullmod)) ==
+#        """
+#                Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F*  p(>F)
+#        Model 1        9   4      0.1038          0.9678
+#        Model 2       10   3   -1 0.1283 -0.0245  0.9603 0.0076   2.1236 0.1790
+#        Model 3       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234  <1e-7
+#        """
 end
