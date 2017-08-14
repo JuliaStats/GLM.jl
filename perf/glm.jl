@@ -12,7 +12,7 @@ const β = unshift!(rand(Normal(),52), 0.5); # "true" parameter values
 
 ## Create linear predictor and mean response
 
-const y = Float64[rand() < logistic(η) for η in mm.m * β];        # simulate observed responses
+const y = [float(rand() < logistic(η)) for η in mm.m * β];        # simulate observed responses
 
 gm6 = glm(mm.m, y, Bernoulli())
 @time glm(mm.m, y, Bernoulli());
