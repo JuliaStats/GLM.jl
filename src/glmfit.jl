@@ -3,7 +3,7 @@
 
 The response vector and various derived vectors in a generalized linear model.
 """
-immutable GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
+struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     "`y`: response vector"
     y::V
     d::D
@@ -23,7 +23,7 @@ immutable GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     wrkresid::V
 end
 
-function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V)
+function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVector, D, L}
     if d == Binomial()
         for yy in y
             0 ≤ yy ≤ 1 || throw(ArgumentError("$yy in y is not in [0,1]"))
@@ -55,9 +55,9 @@ of the variance function for `D`.  If they are the same a numerator and denomina
 the expression for the working weights will cancel.
 """
 cancancel(::GlmResp) = false
-cancancel{V,D<:Union{Bernoulli,Binomial}}(::GlmResp{V,D,LogitLink}) = true
-cancancel{V,D<:Normal}(::GlmResp{V,D,IdentityLink}) = true
-cancancel{V,D<:Poisson}(::GlmResp{V,D,LogLink}) = true
+cancancel(::GlmResp{V,D,LogitLink}) where {V,D<:Union{Bernoulli,Binomial}} = true
+cancancel(::GlmResp{V,D,IdentityLink}) where {V,D<:Normal} = true
+cancancel(::GlmResp{V,D,LogLink}) where {V,D<:Poisson} = true
 
 """
     updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
@@ -65,7 +65,7 @@ cancancel{V,D<:Poisson}(::GlmResp{V,D,LogLink}) = true
 Update the mean, working weights and working residuals, in `r` given a value of
 the linear predictor, `linPr`.
 """
-function updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
+function updateμ!(r::GlmResp{T}, linPr::T) where T<:FPVector
     isempty(r.offset) ? copy!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
     if !isempty(r.wts)
@@ -75,7 +75,7 @@ function updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
     r
 end
 
-function updateμ!{V<:FPVector,D,L}(r::GlmResp{V,D,L})
+function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
@@ -88,7 +88,7 @@ function updateμ!{V<:FPVector,D,L}(r::GlmResp{V,D,L})
     end
 end
 
-function updateμ!{V<:FPVector,D<:Union{Bernoulli,Binomial},L<:Link01}(r::GlmResp{V,D,L})
+function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:Union{Bernoulli,Binomial},L<:Link01}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
@@ -113,14 +113,14 @@ wrkresp(r::GlmResp) = wrkresp!(similar(r.eta), r)
 
 Overwrite `v` with the working response of `r`
 """
-function wrkresp!{T<:FPVector}(v::T, r::GlmResp{T})
+function wrkresp!(v::T, r::GlmResp{T}) where T<:FPVector
     broadcast!(+, v, r.eta, r.wrkresid)
     isempty(r.offset) ? v : broadcast!(-, v, v, r.offset)
 end
 
-@compat abstract type AbstractGLM <: LinPredModel end
+abstract type AbstractGLM <: LinPredModel end
 
-type GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
+mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     rr::G
     pp::L
     fit::Bool
@@ -253,13 +253,13 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
     end
 end
 
-function fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
+function fit(::Type{M},
     X::Union{Matrix{T},SparseMatrixCSC{T}}, y::V,
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
     dofit::Bool = true,
     wts::V = ones(y),
-    offset::V = similar(y, 0), fitargs...)
+    offset::V = similar(y, 0), fitargs...) where {M<:AbstractGLM,T<:FP,V<:FPVector}
 
     size(X, 1) == size(y, 1) || throw(DimensionMismatch("number of rows in X and y must match"))
     n = length(y)
@@ -276,20 +276,20 @@ function fit{M<:AbstractGLM,T<:FP,V<:FPVector}(::Type{M},
     dofit ? fit!(res; fitargs...) : res
 end
 
-fit{M<:AbstractGLM}(::Type{M},
-    X::Union{Matrix,SparseMatrixCSC},
-    y::AbstractVector,
-    d::UnivariateDistribution,
-    l::Link=canonicallink(d); kwargs...) =
+fit(::Type{M},
+X::Union{Matrix,SparseMatrixCSC},
+y::AbstractVector,
+d::UnivariateDistribution,
+l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
     fit(M, float(X), float(y), d, l; kwargs...)
 
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
 GLM.Link(mm::AbstractGLM) = mm.l
-GLM.Link{T,D,L}(r::GlmResp{T,D,L}) = L()
+GLM.Link(r::GlmResp{T,D,L}) where {T,D,L} = L()
 GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
 
-Distributions.Distribution{T,D,L}(r::GlmResp{T,D,L}) = D
+Distributions.Distribution(r::GlmResp{T,D,L}) where {T,D,L} = D
 Distributions.Distribution(m::GeneralizedLinearModel) = Distribution(m.rr)
 
 """

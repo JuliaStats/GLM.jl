@@ -4,14 +4,14 @@
 An abstract type whose subtypes determine methods for [`linkfun`](@ref), [`linkinv`](@ref),
 [`mueta`](@ref), and [`inverselink`](@ref).
 """
-@compat abstract type Link end
+abstract type Link end
 
 """
     Link01
 
 An abstract subtype of [`Link`](@ref) which are links defined on (0, 1)
 """
-@compat abstract type Link01 <: Link end
+abstract type Link01 <: Link end
 
 """
     CauchitLink
@@ -19,7 +19,7 @@ An abstract subtype of [`Link`](@ref) which are links defined on (0, 1)
 A [`Link01`](@ref) corresponding to the standard Cauchy distribution,
 [`Distributions.Cauchy`](@ref).
 """
-type CauchitLink <: Link01 end
+mutable struct CauchitLink <: Link01 end
 
 """
     CloglogLink
@@ -27,28 +27,28 @@ type CauchitLink <: Link01 end
 A [`Link01`](@ref) corresponding to the extreme value (or log-Wiebull) distribution.  The
 link is the complementary log-log transformation, `log(1 - log(-μ))`.
 """
-type CloglogLink  <: Link01 end
+mutable struct CloglogLink  <: Link01 end
 
 """
     IdentityLink
 
 The canonical [`Link`](@ref) for the `Normal` distribution, defined as `η = μ`.
 """
-type IdentityLink <: Link end
+mutable struct IdentityLink <: Link end
 
 """
     InverseLink
 
 The canonical [`Link`](@ref) for [`Distributions.Gamma`](@ref) distribution, defined as `η = inv(μ)`.
 """
-type InverseLink  <: Link end
+mutable struct InverseLink  <: Link end
 
 """
     InverseSquareLink
 
 The canonical [`Link`](@ref) for [`Distributions.InverseGaussian`](@ref) distribution, defined as `η = inv(abs2(μ))`.
 """
-type InverseSquareLink  <: Link end
+mutable struct InverseSquareLink  <: Link end
 
 """
     LogitLink
@@ -57,14 +57,14 @@ The canonical [`Link01`](@ref) for [`Distributions.Bernoulli`](@ref) and [`Distr
 The inverse link, [`linkinv`](@ref), is the c.d.f. of the standard logistic distribution,
 [`Distributions.Logistic`](@ref).
 """
-type LogitLink <: Link01 end
+mutable struct LogitLink <: Link01 end
 
 """
     LogLink
 
 The canonical [`Link`](@ref) for [`Distributions.Poisson`](@ref), defined as `η = log(μ)`.
 """
-type LogLink <: Link end
+mutable struct LogLink <: Link end
 
 """
     ProbitLink
@@ -72,14 +72,14 @@ type LogLink <: Link end
 A [`Link01`](@ref) whose [`linkinv`](@ref) is the c.d.f. of the standard normal
 distribution, ()`Distributions.Normal()`).
 """
-type ProbitLink <: Link01 end
+mutable struct ProbitLink <: Link01 end
 
 """
     SqrtLink
 
 A [`Link`](@ref) defined as `η = √μ`
 """
-type SqrtLink <: Link end
+mutable struct SqrtLink <: Link end
 
 """
     linkfun(L::Link, μ)
@@ -174,10 +174,10 @@ function inverselink(::CauchitLink, η)
 end
 
 linkfun(::CloglogLink, μ) = log(-log1p(-μ))
-function linkinv{T<:Real}(::CloglogLink, η::T)
+function linkinv(::CloglogLink, η::T) where T<:Real
     clamp(-expm1(-exp(η)), eps(T), one(T) - eps(T))
 end
-function mueta{T<:Real}(::CloglogLink, η::T)
+function mueta(::CloglogLink, η::T) where T<:Real
     max(eps(T), exp(η) * exp(-exp(η)))
 end
 function inverselink(::CloglogLink, η)
