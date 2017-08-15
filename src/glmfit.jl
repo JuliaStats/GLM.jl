@@ -46,16 +46,18 @@ end
 deviance(r::GlmResp) = sum(r.devresid)
 
 """
-    iscanonical(r::GlmResp{V,D,L})
+    cancancel(r::GlmResp{V,D,L})
 
-Returns `true` if `L` is the canonical link for distribution `D`
+Returns `true` if dμ/dη for link `L` is the variance function for distribution `D`
+
+When `L` is the canonical link for `D` the derivative of the inverse link is a multiple
+of the variance function for `D`.  If they are the same a numerator and denominator term in
+the expression for the working weights will cancel.
 """
-iscanonical(::GlmResp) = false
-iscanonical{V,D<:Union{Bernoulli,Binomial}}(::GlmResp{V,D,LogitLink}) = true
-#iscanonical{T}(::GlmResp{Vector{T},Gamma{T},InverseLink}) = true
-#iscanonical{T}(::GlmResp{Vector{T},InverseGaussian{T},InverseSquareLink}) = true
-iscanonical{V,D<:Normal}(::GlmResp{V, D,IdentityLink}) = true
-iscanonical{V,D<:Poisson}(::GlmResp{V,D,LogLink})      = true
+cancancel(::GlmResp) = false
+cancancel{V,D<:Union{Bernoulli,Binomial}}(::GlmResp{V,D,LogitLink}) = true
+cancancel{V,D<:Normal}(::GlmResp{V,D,IdentityLink}) = true
+cancancel{V,D<:Poisson}(::GlmResp{V,D,LogLink}) = true
 
 """
     updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
@@ -63,7 +65,7 @@ iscanonical{V,D<:Poisson}(::GlmResp{V,D,LogLink})      = true
 Update the mean, working weights and working residuals, in `r` given a value of
 the linear predictor, `linPr`.
 """
-function updateμ!{T<:FPVector,D,L}(r::GlmResp{T,D,L}, linPr::T)
+function updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
     isempty(r.offset) ? copy!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
     if !isempty(r.wts)
@@ -73,16 +75,15 @@ function updateμ!{T<:FPVector,D,L}(r::GlmResp{T,D,L}, linPr::T)
     r
 end
 
-function updateμ!{V<:FPVector}(r::GlmResp{V})
+function updateμ!{V<:FPVector,D,L}(r::GlmResp{V,D,L})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    l = Link(r)
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
-        μi, dμdη = inverselink(l, η[i])
+        μi, dμdη = inverselink(L(), η[i])
         μ[i] = μi
         yi = y[i]
         wrkres[i] = (yi - μi) / dμdη
-        wrkwt[i] = iscanonical(r) ? dμdη : abs2(dμdη) / glmvar(r.d, μi)
+        wrkwt[i] = cancancel(r) ? dμdη : abs2(dμdη) / glmvar(r.d, μi)
         dres[i] = devresid(r.d, yi, μi)
     end
 end
@@ -90,13 +91,12 @@ end
 function updateμ!{V<:FPVector,D<:Union{Bernoulli,Binomial},L<:Link01}(r::GlmResp{V,D,L})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    l = Link(r)
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
-        μi, dμdη, μomμ = inverselink(l, η[i])
+        μi, dμdη, μomμ = inverselink(L(), η[i])
         μ[i] = μi
         yi = y[i]
         wrkres[i] = (yi - μi) / dμdη
-        wrkwt[i] = iscanonical(r) ? dμdη : abs2(dμdη) / μomμ
+        wrkwt[i] = cancancel(r) ? dμdη : abs2(dμdη) / μomμ
         dres[i] = devresid(r.d, yi, μi)
     end
 end
