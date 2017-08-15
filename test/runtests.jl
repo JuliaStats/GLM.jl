@@ -38,7 +38,9 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     Treatment = pool(repeat(["a","b", "c"], inner = 3)))
 
 @testset "Poisson GLM" begin
-    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
+    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment), dobson,
+              Poisson())
+    @test GLM.cancancel(gm1.model.rr)
     test_show(gm1)
     @test dof(gm1) == 5
     @test isapprox(deviance(gm1), 5.12914107700115, rtol = 1e-7)
@@ -56,7 +58,9 @@ admit[:rank] = pool(admit[:rank])
 
 @testset "Binomial, Bernoulli, LogitLink" begin
     for distr in (Binomial, Bernoulli)
-        gm2 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit, distr())
+        gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit,
+                  distr())
+        @test GLM.cancancel(gm2.model.rr)
         test_show(gm2)
         @test dof(gm2) == 6
         @test isapprox(deviance(gm2), 458.5174924758994)
@@ -71,9 +75,10 @@ admit[:rank] = pool(admit[:rank])
 end
 
 @testset "Bernoulli ProbitLink" begin
-    gm3 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
-        Binomial(), ProbitLink())
+    gm3 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit,
+              Binomial(), ProbitLink())
     test_show(gm3)
+    @test !GLM.cancancel(gm3.model.rr)
     @test dof(gm3) == 6
     @test isapprox(deviance(gm3), 458.4131713833386)
     @test isapprox(loglikelihood(gm3), -229.20658569166932)
@@ -87,7 +92,8 @@ end
 
 @testset "Bernoulli CauchitLink" begin
     gm4 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
-        Binomial(), CauchitLink())
+              Binomial(), CauchitLink())
+    @test !GLM.cancancel(gm4.model.rr)
     test_show(gm4)
     @test dof(gm4) == 6
     @test isapprox(deviance(gm4), 459.3401112751141)
@@ -99,7 +105,8 @@ end
 
 @testset "Bernoulli CloglogLink" begin
     gm5 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
-        Binomial(), CloglogLink())
+              Binomial(), CloglogLink())
+    @test !GLM.cancancel(gm5.model.rr)
     test_show(gm5)
     @test dof(gm5) == 6
     @test isapprox(deviance(gm5), 458.89439629612616)
@@ -108,7 +115,7 @@ end
     @test isapprox(aicc(gm5), 471.1081367541415)
     @test isapprox(bic(gm5), 494.8431835787742)
 
-    # When data is almost separated, the calculations are prone to underflow which can cause
+    # When data are almost separated, the calculations are prone to underflow which can cause
     # NaN in wrkwt and/or wrkres. The example here used to fail but works with the "clamping"
     # introduced in #187
     @testset "separated data" begin
@@ -116,7 +123,7 @@ end
         rng = MersenneTwister(123)
 
         X = [ones(n) randn(rng, n)]
-        y = StatsFuns.logistic.(X*ones(2) + 1/10*randn(rng, n)) .> 1/2
+        y = logistic.(X*ones(2) + 1/10*randn(rng, n)) .> 1/2
         @test coeftable(glm(X, y, Binomial(), CloglogLink())).cols[4][2].v < 0.05
     end
 end
@@ -126,8 +133,9 @@ anorexia = readtable(joinpath(glm_datadir, "anorexia.csv.gz"))
 anorexia[:Treat] = pool(anorexia[:Treat])
 
 @testset "Offset" begin
-    gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ Prewt + Treat), anorexia,
-        Normal(), IdentityLink(), offset=Array(anorexia[:Prewt]))
+    gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
+              Normal(), IdentityLink(), offset=Array(anorexia[:Prewt]))
+    @test GLM.cancancel(gm6.model.rr)
     test_show(gm6)
     @test dof(gm6) == 5
     @test isapprox(deviance(gm6), 3311.262619919613)
@@ -143,8 +151,9 @@ anorexia[:Treat] = pool(anorexia[:Treat])
 end
 
 @testset "Normal LogLink offset" begin
-    gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ Prewt + Treat), anorexia,
-        Normal(), LogLink(), offset=Array(anorexia[:Prewt]), convTol=1e-8)
+    gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
+              Normal(), LogLink(), offset=Array(anorexia[:Prewt]), convTol=1e-8)
+    @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
     @test isapprox(coef(gm7),
@@ -157,8 +166,10 @@ end
 clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
                      lot1 = [118,58,42,35,27,25,21,19,18])
 
-@testset "Gamma InverseLink" begin
+@testset "Gamma" begin
     gm8 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma())
+    @test !GLM.cancancel(gm8.model.rr)
+    @test isa(Link(gm8.model), InverseLink)
     test_show(gm8)
     @test dof(gm8) == 3
     @test isapprox(deviance(gm8), 0.016729715178484157)
@@ -171,9 +182,26 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
     @test isapprox(stderr(gm8), [0.00092754223, 0.000414957683], atol=1e-6)
 end
 
+@testset "InverseGaussian" begin
+    gm8a = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, InverseGaussian())
+    @test !GLM.cancancel(gm8a.model.rr)
+    @test isa(Link(gm8a.model), InverseSquareLink)
+    test_show(gm8a)
+    @test dof(gm8a) == 3
+    @test isapprox(deviance(gm8a), 0.006931128347234519)
+    @test isapprox(loglikelihood(gm8a), -27.787426008849867)
+    @test isapprox(aic(gm8a), 61.57485201769973)
+    @test isapprox(aicc(gm8a), 66.37485201769974)
+    @test isapprox(bic(gm8a), 62.16652574970839)
+    @test isapprox(coef(gm8a), [-0.0011079770504295668,0.0007219138982289362])
+    @test isapprox(GLM.dispersion(gm8a.model, true), 0.0011008719709455776, atol=1e-6)
+    @test isapprox(stderr(gm8a), [0.0001675339726910311,9.468485015919463e-5], atol=1e-6)
+end
+
 @testset "Gamma LogLink" begin
     gm9 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(),
-        convTol=1e-8)
+              convTol=1e-8)
+    @test !GLM.cancancel(gm9.model.rr)
     test_show(gm9)
     @test dof(gm9) == 3
     @test isapprox(deviance(gm9), 0.16260829451739)
@@ -188,7 +216,8 @@ end
 
 @testset "Gamma IdentityLink" begin
     gm10 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(),
-        convTol=1e-8)
+               convTol=1e-8)
+    @test !GLM.cancancel(gm10.model.rr)
     test_show(gm10)
     @test dof(gm10) == 3
     @test isapprox(deviance(gm10), 0.60845414895344)
@@ -208,7 +237,8 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
 
 @testset "Aggregated Binomial LogitLink" begin
     for distr in (Binomial, Bernoulli)
-        gm14 = fit(GeneralizedLinearModel, @formula(admit ~ rank), admit_agr, distr(), wts=Array(admit_agr[:count]))
+        gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
+                   wts=Array(admit_agr[:count]))
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
         @test isapprox(deviance(gm14), 474.9667184280627)
@@ -228,7 +258,8 @@ admit_agr2[:p] = admit_agr2[:admit] ./ admit_agr2[:count]
 
 ## The model matrix here is singular so tests like the deviance are just round off error
 @testset "Binomial LogitLink aggregated" begin
-    gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial(), wts=admit_agr2[:count])
+    gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial(),
+               wts=admit_agr2[:count])
     test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
@@ -245,7 +276,7 @@ end
 # Weighted Gamma example (weights are totally made up)
 @testset "Gamma InverseLink Weights" begin
     gm16 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(),
-        wts=[1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
+               wts=[1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
     test_show(gm16)
     @test dof(gm16) == 3
     @test nobs(gm16) == 32.7
