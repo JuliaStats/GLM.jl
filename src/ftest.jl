@@ -60,19 +60,19 @@ and p-value for the comparison between the two models.
 # Examples
 
 Suppose we want to compare the effects of two or more treatments on some result. Because
-this is an ANOVA, our null hypothesis is that `Result~1` fits the data as well as
-`Result~Treatment`.
+this is an ANOVA, our null hypothesis is that `Result ~ 1` fits the data as well as
+`Result ~ 1 + Treatment`.
 
 ```jldoctest
 julia> dat = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                        Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
                        Other=[1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]);
 
-julia> mod = lm(@formula(Result~Treatment), dat);
+julia> mod = lm(@formula(Result ~ 1 + Treatment), dat);
 
-julia> nullmod = lm(@formula(Result~1), dat);
+julia> nullmod = lm(@formula(Result ~ 1), dat);
 
-julia> bigmod = lm(@formula(Result~1 + Treatment + Other), dat);
+julia> bigmod = lm(@formula(Result ~ 1 + Treatment + Other), dat);
 
 julia> ft = ftest(mod.model, nullmod.model)
         Res. DOF DOF ΔDOF    SSR    ΔSSR     R²    ΔR²       F* p(>F)
