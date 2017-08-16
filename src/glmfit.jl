@@ -26,7 +26,7 @@ end
 function GlmResp{V<:FPVector, D, L}(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V)
     if d == Binomial()
         for yy in y
-            0. <= yy <= 1. || throw(ArgumentError("$yy in y is not in [0,1]"))
+            0 ≤ yy ≤ 1 || throw(ArgumentError("$yy in y is not in [0,1]"))
         end
     else
         all(x -> insupport(d, x), y) || throw(ArgumentError("y must be in the support of D"))
@@ -46,12 +46,26 @@ end
 deviance(r::GlmResp) = sum(r.devresid)
 
 """
+    cancancel(r::GlmResp{V,D,L})
+
+Returns `true` if dμ/dη for link `L` is the variance function for distribution `D`
+
+When `L` is the canonical link for `D` the derivative of the inverse link is a multiple
+of the variance function for `D`.  If they are the same a numerator and denominator term in
+the expression for the working weights will cancel.
+"""
+cancancel(::GlmResp) = false
+cancancel{V,D<:Union{Bernoulli,Binomial}}(::GlmResp{V,D,LogitLink}) = true
+cancancel{V,D<:Normal}(::GlmResp{V,D,IdentityLink}) = true
+cancancel{V,D<:Poisson}(::GlmResp{V,D,LogLink}) = true
+
+"""
     updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
 
 Update the mean, working weights and working residuals, in `r` given a value of
 the linear predictor, `linPr`.
 """
-function updateμ!{T<:FPVector,D,L}(r::GlmResp{T,D,L}, linPr::T)
+function updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
     isempty(r.offset) ? copy!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
     if !isempty(r.wts)
@@ -61,74 +75,29 @@ function updateμ!{T<:FPVector,D,L}(r::GlmResp{T,D,L}, linPr::T)
     r
 end
 
-function updateμ!{T<:FPVector,D<:Gamma}(r::GlmResp{T,D,InverseLink})
+function updateμ!{V<:FPVector,D,L}(r::GlmResp{V,D,L})
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
-    @inbounds Threads.@threads for i in eachindex(η)
-        ηi = η[i]
-        μi = μ[i] = inv(ηi)
-        wrkwt[i] = abs2(μi)
-        dμdη = -wrkwt[i]
+    @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
+        μi, dμdη = inverselink(L(), η[i])
+        μ[i] = μi
         yi = y[i]
         wrkres[i] = (yi - μi) / dμdη
-        dres[i] = -2 * (log(yi / μi) - (yi - μi) / μi)
-    end
-end
-
-function updateμ!{T<:FPVector,D<:Union{Bernoulli,Binomial}}(r::GlmResp{T,D,LogitLink})
-    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
-
-    @inbounds Threads.@threads for i in eachindex(μ)
-        ηi = clamp(η[i], -20.0, 20.0)
-        ei = exp(-ηi)
-        opei = 1 + ei
-        μi = μ[i] = inv(opei)
-        dμdη = wrkwt[i] = ei / abs2(opei)
-        yi = y[i]
-        wrkres[i] = (yi - μi) / dμdη
-        dres[i] = -2 * (yi == 1 ? log(μi) : yi == 0 ? log1p(-μi) :
-            (yi * (log(μi) - log(yi)) + (1 - yi) * (log1p(-μi) - log1p(-yi))))
-    end
-end
-
-function updateμ!{T<:FPVector,D<:Poisson}(r::GlmResp{T,D,LogLink})
-    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
-
-    @inbounds Threads.@threads for i in eachindex(η)
-        ηi = η[i]
-        μi = μ[i] = exp(ηi)
-        dμdη = wrkwt[i] = μi
-        yi = y[i]
-        wrkres[i] = (yi - μi) / dμdη
-        dres[i] = 2 * (xlogy(yi, yi / μi) - (yi - μi))
-    end
-end
-
-function updateμ!{T<:FPVector,D<:Normal}(r::GlmResp{T,D,IdentityLink})
-    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
-
-    @inbounds Threads.@threads for i in eachindex(η)
-        μi = μ[i] = η[i]
-        wrkwt[i] = 1
-        yi = y[i]
-        wrkresi = wrkres[i] = (yi - μi)
-        dres[i] = abs2(wrkresi)
-    end
-end
-
-function updateμ!{T,D,L}(r::GlmResp{T,D,L})
-    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
-
-    @inbounds @simd for i = eachindex(y, η, μ, wrkres, wrkwt, dres)
-        ηi = η[i]
-        # apply the inverse link function generating the mean vector (μ) from the linear predictor (η)
-        μi = μ[i] = linkinv(L(), ηi)
-        # evaluate the mueta vector (derivative of μ w.r.t. η) from the linear predictor (eta)
-        dμdη = mueta(L(), ηi)
-        yi = y[i]
-        wrkres[i] = (yi - μi)/dμdη
+        wrkwt[i] = cancancel(r) ? dμdη : abs2(dμdη) / glmvar(r.d, μi)
         dres[i] = devresid(r.d, yi, μi)
-        wrkwt[i] = abs2(dμdη) / max(eps(), glmvar(r.d, L(), μi, ηi))
+    end
+end
+
+function updateμ!{V<:FPVector,D<:Union{Bernoulli,Binomial},L<:Link01}(r::GlmResp{V,D,L})
+    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
+
+    @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
+        μi, dμdη, μomμ = inverselink(L(), η[i])
+        μ[i] = μi
+        yi = y[i]
+        wrkres[i] = (yi - μi) / dμdη
+        wrkwt[i] = cancancel(r) ? dμdη : abs2(dμdη) / μomμ
+        dres[i] = devresid(r.d, yi, μi)
     end
 end
 
@@ -326,11 +295,11 @@ Distributions.Distribution(m::GeneralizedLinearModel) = Distribution(m.rr)
 """
     dispersion(m::AbstractGLM, sqr::Bool=false)
 
-Estimated dispersion (or scale) parameter for a model's distribution,
-generally written σ for linear models and ϕ for generalized linear models.
+Return the estimated dispersion (or scale) parameter for a model's distribution,
+generally written σ² for linear models and ϕ for generalized linear models.
 It is, by definition, equal to 1 for the Bernoulli, Binomial, and Poisson families.
 
-If `sqr` is `true`, the squared parameter is returned.
+If `sqr` is `true`, the squared dispersion parameter is returned.
 """
 function dispersion(m::AbstractGLM, sqr::Bool=false)
     r = m.rr
@@ -349,7 +318,8 @@ end
 Form the predicted response of model `mm` from covariate values `newX` and, optionally,
 an offset.
 """
-function predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Vector{eltype(newX)}(0))
+function predict(mm::AbstractGLM, newX::AbstractMatrix;
+                 offset::FPVector=eltype(newX)[])
     eta = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||

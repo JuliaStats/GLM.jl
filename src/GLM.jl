@@ -27,6 +27,7 @@ module GLM
         GlmResp,
         IdentityLink,
         InverseLink,
+        InverseSquareLink,
         LinearModel,
         Link,
         LinPred,
@@ -44,16 +45,20 @@ module GLM
         devresid,       # vector of squared deviance residuals
         formula,        # extract the formula from a model
         glm,            # general interface
+        glmvar,         # the variance function
+        inverselink,    # returns μ, dμ/dη and, when appropriate, μ*(1-μ)
         linkfun,        # link function mapping mu to eta, the linear predictor
         linkinv,        # inverse link mapping eta to mu
         linpred,        # linear predictor
-        linpred!,       # update the linear predictor
+        linpred!,       # update the linear predictor in place
         lm,             # linear model
+        logistic,
+        logit,
         mueta,          # derivative of inverse link
         mustart,        # derive starting values for the mu vector
         nobs,           # total number of observations
         predict,        # make predictions
-        updateμ!,      # update the response type from the linear predictor
+        updateμ!,       # update the response type from the linear predictor
         wrkresp,        # working response
         ftest           # compare models with an F test
 

@@ -17,7 +17,7 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     pred2 = mod2.pp.X
     npreds2 = size(pred1, 2)
     # If model 1 has more predictors, it can't possibly be a submodel
-    npreds1 > npreds2 && return false 
+    npreds1 > npreds2 && return false
 
     @inbounds for i in 1:npreds1
         var_in_mod2 = false
@@ -29,7 +29,7 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
         end
 
         if !var_in_mod2 # We have found a predictor variable in model 1 that is not in model 2
-            return false 
+            return false
         end
     end
 
@@ -45,7 +45,7 @@ dividetuples{N}(t1::NTuple{N}, t2::NTuple{N}) = ntuple(i->t1[i]/t2[i], N)
 """
     ftest(mod::LinearModel...)
 
-For each sequential pair of linear predictors in `mod`, perform an F-test to determine if 
+For each sequential pair of linear predictors in `mod`, perform an F-test to determine if
 the first one fits significantly better than the next.
 
 A table is returned containing residual degrees of freedom (DOF), degrees of freedom,
@@ -60,26 +60,37 @@ and p-value for the comparison between the two models.
 # Examples
 
 Suppose we want to compare the effects of two or more treatments on some result. Because
-this is an ANOVA, our null hypothesis is that `Result~1` fits the data as well as
-`Result~Treatment`.
- 
+this is an ANOVA, our null hypothesis is that `Result ~ 1` fits the data as well as
+`Result ~ 1 + Treatment`.
+
 ```jldoctest
 julia> dat = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
-                       Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2]);
+                       Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
+                       Other=[1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]);
 
-julia> mod = lm(@formula(Result~Treatment), dat);
+julia> mod = lm(@formula(Result ~ 1 + Treatment), dat);
 
-julia> nullmod = lm(@formula(Result~1), dat);
+julia> nullmod = lm(@formula(Result ~ 1), dat);
+
+julia> bigmod = lm(@formula(Result ~ 1 + Treatment + Other), dat);
 
 julia> ft = ftest(mod.model, nullmod.model)
-        Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F* p(>F)
-Model 1       10   3      0.1283          0.9603                      
-Model 2       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7
+        Res. DOF DOF ΔDOF    SSR    ΔSSR     R²    ΔR²       F* p(>F)
+Model 1       10   3      0.1283         0.9603
+Model 2       11   2   -1 3.2292 -3.1008 0.0000 0.9603 241.6234 <1e-7
+
+
+julia> ftest(bigmod.model, mod.model, nullmod.model)
+        Res. DOF DOF ΔDOF    SSR    ΔSSR     R²    ΔR²       F*  p(>F)
+Model 1        9   4      0.1038         0.9678
+Model 2       10   3   -1 0.1283 -0.0245 0.9603 0.0076   2.1236 0.1790
+Model 3       11   2   -1 3.2292 -3.1008 0.0000 0.9603 241.6234  <1e-7
+```
 """
 function ftest(mods::LinearModel...)
     nmodels = length(mods)
     for i in 2:nmodels
-        issubmodel(mods[i], mods[i-1]) || 
+        issubmodel(mods[i], mods[i-1]) ||
         throw(ArgumentError("F test $i is only valid if model $i is nested in model $(i-1)"))
     end
 
@@ -106,7 +117,7 @@ function show{N}(io::IO, ftr::FTestResult{N})
     nc = 10
     nr = N
     outrows = Matrix{String}(nr+1, nc)
-    
+
     outrows[1, :] = ["", "Res. DOF", "DOF", "ΔDOF", "SSR", "ΔSSR",
                      "R²", "ΔR²", "F*", "p(>F)"]
 
@@ -114,7 +125,7 @@ function show{N}(io::IO, ftr::FTestResult{N})
                      @sprintf("%.0d", ftr.dof[1]), " ",
                      @sprintf("%.4f", ftr.ssr[1]), " ",
                      @sprintf("%.4f", ftr.r2[1]), " ", " ", " "]
-    
+
     for i in 2:nr
         outrows[i+1, :] = ["Model $i", @sprintf("%.0d", ftr.dof_resid[i]),
                            @sprintf("%.0d", ftr.dof[i]), @sprintf("%.0d", Δdof[i-1]),
@@ -129,12 +140,12 @@ function show{N}(io::IO, ftr::FTestResult{N})
         for c in 1:nc
             cur_cell = outrows[r, c]
             cur_cell_len = length(cur_cell)
-            
+
             padding = " "^(max_colwidths[c]-cur_cell_len)
-            if c > 1 
+            if c > 1
                 padding = " "*padding
             end
-            
+
             print(io, padding)
             print(io, cur_cell)
         end
