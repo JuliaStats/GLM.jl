@@ -1,4 +1,4 @@
-type FTestResult{N}
+mutable struct FTestResult{N}
     ssr::NTuple{N, Float64}
     dof::NTuple{N, Int}
     dof_resid::NTuple{N, Int}
@@ -36,11 +36,11 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     return true
 end
 
-_diffn{N, T}(t::NTuple{N, T}) = ntuple(i->t[i]-t[i+1], N-1)
+_diffn(t::NTuple{N, T}) where {N, T} = ntuple(i->t[i]-t[i+1], N-1)
 
-_diff{N, T}(t::NTuple{N, T}) = ntuple(i->t[i+1]-t[i], N-1)
+_diff(t::NTuple{N, T}) where {N, T} = ntuple(i->t[i+1]-t[i], N-1)
 
-dividetuples{N}(t1::NTuple{N}, t2::NTuple{N}) = ntuple(i->t1[i]/t2[i], N)
+dividetuples(t1::NTuple{N}, t2::NTuple{N}) where {N} = ntuple(i->t1[i]/t2[i], N)
 
 """
     ftest(mod::LinearModel...)
@@ -109,7 +109,7 @@ function ftest(mods::LinearModel...)
     return FTestResult(SSR, nparams, df1, r2.(mods), fstat, pval)
 end
 
-function show{N}(io::IO, ftr::FTestResult{N})
+function show(io::IO, ftr::FTestResult{N}) where N
     Δdof = _diffn(ftr.dof_resid)
     Δssr = _diffn(ftr.ssr)
     ΔR² = _diffn(ftr.r2)

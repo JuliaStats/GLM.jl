@@ -15,27 +15,27 @@ function installbeta!(p::LinPred, f::Real=1.)
     p.beta0
 end
 
-type DensePredQR{T<:BlasReal} <: DensePred
+mutable struct DensePredQR{T<:BlasReal} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
     qr::QRCompactWY{T}
-    function (::Type{DensePredQR{T}}){T}(X::Matrix{T}, beta0::Vector{T})
+    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}) where T
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
         new{T}(X, beta0, zeros(T,p), zeros(T,p), qrfact(X))
     end
 end
-(::Type{DensePredQR})(X::Matrix, beta0::Vector) = DensePredQR{eltype(X)}(X, beta0)
-convert{T}(::Type{DensePredQR{T}}, X::Matrix{T}) = DensePredQR{T}(X, zeros(T, size(X, 2)))
+DensePredQR(X::Matrix, beta0::Vector) = DensePredQR{eltype(X)}(X, beta0)
+convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
-function delbeta!{T<:BlasReal}(p::DensePredQR{T}, r::Vector{T})
+function delbeta!(p::DensePredQR{T}, r::Vector{T}) where T<:BlasReal
     p.delbeta = p.qr\r
     return p
 end
 
-type DensePredChol{T<:BlasReal,C} <: DensePred
+mutable struct DensePredChol{T<:BlasReal,C} <: DensePred
     X::Matrix{T}                   # model matrix
     beta0::Vector{T}               # base vector for coefficients
     delbeta::Vector{T}             # coefficient increment
@@ -57,41 +57,37 @@ end
 cholpred(X::StridedMatrix) = DensePredChol(X)
 
 cholfactors(c::Cholesky) = c.factors
-Base.LinAlg.cholfact!{T<:FP}(p::DensePredChol{T}) = p.chol
+Base.LinAlg.cholfact!(p::DensePredChol{T}) where {T<:FP} = p.chol
 
 if VERSION < v"0.7.0-DEV.393"
-    Base.LinAlg.cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,typeof(p.X)}(copy(p.qr[:R]), 'U')
-    function Base.LinAlg.cholfact{T<:FP}(p::DensePredChol{T})
+    Base.LinAlg.cholfact(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(copy(p.qr[:R]), 'U')
+    function Base.LinAlg.cholfact(p::DensePredChol{T}) where T<:FP
         c = p.chol
         return Cholesky(copy(cholfactors(c)), c.uplo)
     end
-    Base.LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky{T,typeof(p.X)}(p.qr[:R], 'U')
+    Base.LinAlg.cholfact!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr[:R], 'U')
 else
-    Base.LinAlg.cholfact{T<:FP}(p::DensePredQR{T}) = Cholesky{T,typeof(p.X)}(copy(p.qr[:R]), 'U', 0)
-    function Base.LinAlg.cholfact{T<:FP}(p::DensePredChol{T})
+    Base.LinAlg.cholfact(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(copy(p.qr[:R]), 'U', 0)
+    function Base.LinAlg.cholfact(p::DensePredChol{T}) where T<:FP
         c = p.chol
         return Cholesky(copy(cholfactors(c)), c.uplo, c.info)
     end
-    Base.LinAlg.cholfact!{T<:FP}(p::DensePredQR{T}) = Cholesky{T,typeof(p.X)}(p.qr[:R], 'U', 0)
+    Base.LinAlg.cholfact!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr[:R], 'U', 0)
 end
 
-function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T})
+function delbeta!(p::DensePredChol{T}, r::Vector{T}) where T<:BlasReal
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, p.X, r))
     p
 end
 
-function delbeta!{T<:BlasReal}(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T})
+function delbeta!(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     scr = scale!(p.scratch, wt, p.X)
-    if VERSION < v"0.5.0-dev+4677"
-        cholfact!(At_mul_B!(cholfactors(p.chol), scr, p.X), :U)
-    else
-        cholfact!(Hermitian(At_mul_B!(cholfactors(p.chol), scr, p.X), :U))
-    end
+    cholfact!(Hermitian(At_mul_B!(cholfactors(p.chol), scr, p.X), :U))
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, scr, r))
     p
 end
 
-type SparsePredChol{T,M<:SparseMatrixCSC,C} <: GLM.LinPred
+mutable struct SparsePredChol{T,M<:SparseMatrixCSC,C} <: GLM.LinPred
     X::M                           # model matrix
     Xt::M                          # X'
     beta0::Vector{T}               # base vector for coefficients
@@ -100,7 +96,7 @@ type SparsePredChol{T,M<:SparseMatrixCSC,C} <: GLM.LinPred
     chol::C
     scratch::M
 end
-function SparsePredChol{T}(X::SparseMatrixCSC{T})
+function SparsePredChol(X::SparseMatrixCSC{T}) where T
     chol = cholfact(speye(size(X, 2)))
     return SparsePredChol{eltype(X),typeof(X),typeof(chol)}(X,
         X',
@@ -113,15 +109,15 @@ end
 
 cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
 
-function delbeta!{T}(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T})
+function delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where T
     scr = scale!(p.scratch, wt, p.X)
     XtWX = p.Xt*scr
     c = p.chol = cholfact(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c\Ac_mul_B!(p.delbeta, scr, r)
 end
 
-Base.cholfact{T}(p::SparsePredChol{T}) = copy(p.chol)
-Base.cholfact!{T}(p::SparsePredChol{T}) = p.chol
+Base.cholfact(p::SparsePredChol{T}) where {T} = copy(p.chol)
+Base.cholfact!(p::SparsePredChol{T}) where {T} = p.chol
 
 invchol(x::DensePred) = inv(cholfact!(x))
 invchol(x::SparsePredChol) = cholfact!(x) \ eye(size(x.X, 2))

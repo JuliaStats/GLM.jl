@@ -63,13 +63,13 @@ module GLM
         ftest           # compare models with an F test
 
     const FP = AbstractFloat
-    @compat const FPVector{T<:FP} = AbstractArray{T,1}
+    const FPVector{T<:FP} = AbstractArray{T,1}
 
-    @compat abstract type ModResp end                         # model response
+    abstract type ModResp end                         # model response
 
-    @compat abstract type LinPred end                         # linear predictor in statistical models
-    @compat abstract type DensePred <: LinPred end            # linear predictor with dense X
-    @compat abstract type LinPredModel <: RegressionModel end # model based on a linear predictor
+    abstract type LinPred end                         # linear predictor in statistical models
+    abstract type DensePred <: LinPred end            # linear predictor with dense X
+    abstract type LinPredModel <: RegressionModel end # model based on a linear predictor
 
     include("linpred.jl")
     include("lm.jl")

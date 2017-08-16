@@ -1,9 +1,9 @@
-type LmResp{V<:FPVector} <: ModResp  # response in a linear model
+mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
     wts::V                                 # prior weights (may have length 0)
     y::V                                   # response
-    function (::Type{LmResp{V}}){V}(mu::V, off::V, wts::V, y::V)
+    function LmResp{V}(mu::V, off::V, wts::V, y::V) where V
         n = length(y)
         length(mu) == n || error("mismatched lengths of mu and y")
         ll = length(off)
@@ -13,21 +13,21 @@ type LmResp{V<:FPVector} <: ModResp  # response in a linear model
         new{V}(mu, off, wts, y)
     end
 end
-convert{V<:FPVector}(::Type{LmResp{V}}, y::V) =
+convert(::Type{LmResp{V}}, y::V) where {V<:FPVector} =
     LmResp{V}(zeros(y), similar(y, 0), similar(y, 0), y)
 
-function convert{T<:Real}(::Type{LmResp}, y::AbstractVector{T})
+function convert(::Type{LmResp}, y::AbstractVector{T}) where T<:Real
     yy = float(y)
     convert(LmResp{typeof(yy)}, yy)
 end
 
-function updateμ!{V<:FPVector}(r::LmResp{V}, linPr::V)
+function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copy!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
     deviance(r)
 end
-updateμ!{V<:FPVector}(r::LmResp{V}, linPr) = updateμ!(r, convert(V, vec(linPr)))
+updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
 
 function deviance(r::LmResp)
     y = r.y
@@ -98,7 +98,7 @@ function residuals(r::LmResp)
     end
 end
 
-type LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
+mutable struct LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
     rr::L
     pp::T
 end
