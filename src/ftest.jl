@@ -22,7 +22,7 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     @inbounds for i in 1:npreds1
         var_in_mod2 = false
         for j in 1:npreds2
-            if view(pred1, :, i) == view(pred2, :, j)
+            if isapprox(view(pred1, :, i), view(pred2, :, j), atol=1e-10)
                 var_in_mod2 = true
                 break
             end
