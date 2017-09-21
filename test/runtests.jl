@@ -453,5 +453,5 @@ end
     Xc2 = RL\X
     mod2 = lm(Xc2, Yc)
     @test GLM.issubmodel(mod1, mod2)
-    @test !GLM.issubmodel(mod1, mod2, atol=1e-16)
+    @test GLM.issubmodel(mod1, mod2, atol=0)
 end
