@@ -8,7 +8,7 @@ mutable struct FTestResult{N}
 end
 
 """A helper function to determine if mod1 is nested in mod2"""
-function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
+function issubmodel(mod1::LinPredModel, mod2::LinPredModel; atol=1e-10::Real)
     mod1.rr.y != mod2.rr.y && return false # Response variables must be equal
 
     # Now, test that all predictor variables are equal
@@ -43,7 +43,7 @@ _diff(t::NTuple{N, T}) where {N, T} = ntuple(i->t[i+1]-t[i], N-1)
 dividetuples(t1::NTuple{N}, t2::NTuple{N}) where {N} = ntuple(i->t1[i]/t2[i], N)
 
 """
-    ftest(mod::LinearModel...)
+    ftest(mod::LinearModel...; atol=1e-10::Real)
 
 For each sequential pair of linear predictors in `mod`, perform an F-test to determine if
 the first one fits significantly better than the next.
@@ -56,6 +56,9 @@ and p-value for the comparison between the two models.
 !!! note
     This function can be used to perform an ANOVA by testing the relative fit of two models
     to the data
+
+Optional keyword argument `atol` controls the numerical tolerence when testing whether
+the models are nested.
 
 # Examples
 
@@ -87,10 +90,10 @@ Model 2       10   3   -1 0.1283 -0.0245 0.9603 0.0076   2.1236 0.1790
 Model 3       11   2   -1 3.2292 -3.1008 0.0000 0.9603 241.6234  <1e-7
 ```
 """
-function ftest(mods::LinearModel...)
+function ftest(mods::LinearModel...; atol=1e-10::Real)
     nmodels = length(mods)
     for i in 2:nmodels
-        issubmodel(mods[i], mods[i-1]) ||
+        issubmodel(mods[i], mods[i-1], atol=atol) ||
         throw(ArgumentError("F test $i is only valid if model $i is nested in model $(i-1)"))
     end
 
