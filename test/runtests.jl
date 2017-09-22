@@ -397,8 +397,11 @@ end
     mod = lm(@formula(Result~Treatment), d).model
     othermod = lm(@formula(Result~Other), d).model
     nullmod = lm(@formula(Result~1), d).model
+    bothmod = lm(@formula(Result~Other+Treatment), d).model
     @test GLM.issubmodel(nullmod, mod)
     @test !GLM.issubmodel(othermod, mod)
+    @test GLM.issubmodel(mod, bothmod)
+    @test GLM.issubmodel(othermod, bothmod)
 
     @test_throws ArgumentError ftest(mod, othermod)
 

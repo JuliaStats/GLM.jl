@@ -15,7 +15,7 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel)
     pred1 = mod1.pp.X
     npreds1 = size(pred1, 2)
     pred2 = mod2.pp.X
-    npreds2 = size(pred1, 2)
+    npreds2 = size(pred2, 2)
     # If model 1 has more predictors, it can't possibly be a submodel
     npreds1 > npreds2 && return false
 
