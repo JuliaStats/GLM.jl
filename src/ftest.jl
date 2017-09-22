@@ -8,32 +8,20 @@ mutable struct FTestResult{N}
 end
 
 """A helper function to determine if mod1 is nested in mod2"""
-function issubmodel(mod1::LinPredModel, mod2::LinPredModel; atol=1e-10::Real)
+function issubmodel(mod1::LinPredModel, mod2::LinPredModel; atol=0::Real)
     mod1.rr.y != mod2.rr.y && return false # Response variables must be equal
 
-    # Now, test that all predictor variables are equal
+    # Test that models are nested
     pred1 = mod1.pp.X
     npreds1 = size(pred1, 2)
     pred2 = mod2.pp.X
     npreds2 = size(pred2, 2)
     # If model 1 has more predictors, it can't possibly be a submodel
     npreds1 > npreds2 && return false
-
-    @inbounds for i in 1:npreds1
-        var_in_mod2 = false
-        for j in 1:npreds2
-            if isapprox(view(pred1, :, i), view(pred2, :, j), atol=atol)
-                var_in_mod2 = true
-                break
-            end
-        end
-
-        if !var_in_mod2 # We have found a predictor variable in model 1 that is not in model 2
-            return false
-        end
-    end
-
-    return true
+    # Test min norm pred2*B - pred1 ≈ 0
+    rtol = Base.rtoldefault(typeof(pred1[1,1]))
+    nresp = size(pred2, 1)
+    return vecnorm(view(qrfact(pred2)[:Q]'pred1, npreds2 + 1:nresp, :)) <= max(atol, rtol*vecnorm(pred1))
 end
 
 _diffn(t::NTuple{N, T}) where {N, T} = ntuple(i->t[i]-t[i+1], N-1)
@@ -43,7 +31,7 @@ _diff(t::NTuple{N, T}) where {N, T} = ntuple(i->t[i+1]-t[i], N-1)
 dividetuples(t1::NTuple{N}, t2::NTuple{N}) where {N} = ntuple(i->t1[i]/t2[i], N)
 
 """
-    ftest(mod::LinearModel...; atol=1e-10::Real)
+    ftest(mod::LinearModel...; atol=0::Real)
 
 For each sequential pair of linear predictors in `mod`, perform an F-test to determine if
 the first one fits significantly better than the next.
@@ -57,7 +45,7 @@ and p-value for the comparison between the two models.
     This function can be used to perform an ANOVA by testing the relative fit of two models
     to the data
 
-Optional keyword argument `atol` controls the numerical tolerence when testing whether
+Optional keyword argument `atol` controls the numerical tolerance when testing whether
 the models are nested.
 
 # Examples

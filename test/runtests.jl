@@ -401,9 +401,14 @@ end
     @test GLM.issubmodel(nullmod, mod)
     @test !GLM.issubmodel(othermod, mod)
     @test GLM.issubmodel(mod, bothmod)
+    @test !GLM.issubmodel(bothmod, mod)
     @test GLM.issubmodel(othermod, bothmod)
 
     @test_throws ArgumentError ftest(mod, othermod)
+
+    d[:Sum] = d[:Treatment] + d[:Other]
+    summod = lm(@formula(Result~Sum), d).model
+    @test GLM.issubmodel(summod, bothmod)
 
     ft = ftest(mod, nullmod)
     @test isapprox(ft.pval[1].v,  2.481215056713184e-8)
@@ -456,5 +461,4 @@ end
     Xc2 = RL\X
     mod2 = lm(Xc2, Yc)
     @test GLM.issubmodel(mod1, mod2)
-    @test GLM.issubmodel(mod1, mod2, atol=0)
 end
