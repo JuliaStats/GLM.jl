@@ -78,7 +78,7 @@ Model 2       10   3   -1 0.1283 -0.0245 0.9603 0.0076   2.1236 0.1790
 Model 3       11   2   -1 3.2292 -3.1008 0.0000 0.9603 241.6234  <1e-7
 ```
 """
-function ftest(mods::LinearModel...; atol=1e-10::Real)
+function ftest(mods::LinearModel...; atol=0::Real)
     nmodels = length(mods)
     for i in 2:nmodels
         issubmodel(mods[i], mods[i-1], atol=atol) ||
