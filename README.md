@@ -59,8 +59,8 @@ X                  2.5  0.288675  8.66025   <1e-17
 
 julia> stderr(OLS)
 2-element Array{Float64,1}:
- 3.53553
- 4.33013
+ 0.62361
+ 0.288675
 
 julia> predict(OLS)
 3-element Array{Float64,1}:
