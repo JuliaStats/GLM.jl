@@ -151,7 +151,7 @@ function coeftable(mm::LinearModel)
     cc = coef(mm)
     se = stderr(mm)
     tt = cc ./ se
-    CoefTable(hcat(cc,se,tt,ccdf(FDist(1, dof_residual(mm)), abs2.(tt))),
+    CoefTable(hcat(cc,se,tt,ccdf.(FDist(1, dof_residual(mm)), abs2.(tt))),
               ["Estimate","Std.Error","t value", "Pr(>|t|)"],
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
