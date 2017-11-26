@@ -1,4 +1,5 @@
-using Base.Test, StatsFuns, DataFrames, GLM
+using CategoricalArrays, Compat, CSV, DataFrames, GLM, StatsBase
+using Compat.Test
 
 function test_show(x)
     io = IOBuffer()
@@ -28,18 +29,18 @@ form = DataFrame(Any[[0.1,0.3,0.5,0.6,0.7,0.9],[0.086,0.269,0.446,0.538,0.626,0.
     @test isapprox(r²(lm1), 0.9990466748057584)
     @test adjr²(lm1) == adjr2(lm1)
     @test isapprox(adjr²(lm1), 0.998808343507198)
-    @test isapprox(aic(lm1), -36.409684288095946)
-    @test isapprox(aicc(lm1), -24.409684288095946)
-    @test isapprox(bic(lm1), -37.03440588041178)
+    @test isapprox(StatsBase.aic(lm1), -36.409684288095946)
+    @test isapprox(StatsBase.aicc(lm1), -24.409684288095946)
+    @test isapprox(StatsBase.bic(lm1), -37.03440588041178)
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
-    Outcome = pool(repeat(["A", "B", "C"], outer = 3)),
-    Treatment = pool(repeat(["a","b", "c"], inner = 3)))
+    Outcome = categorical(repeat(string.('A':'C'), outer = 3)),
+    Treatment = categorical(repeat(string.('a':'c'), inner = 3)))
 
 @testset "Poisson GLM" begin
-    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment), dobson,
-              Poisson())
+    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
+              dobson, Poisson())
     @test GLM.cancancel(gm1.model.rr)
     test_show(gm1)
     @test dof(gm1) == 5
@@ -53,8 +54,8 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
 end
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
-admit = readtable(joinpath(glm_datadir, "admit.csv.gz"))
-admit[:rank] = pool(admit[:rank])
+admit = CSV.read(joinpath(glm_datadir, "admit.csv"))
+admit[:rank] = categorical(admit[:rank])
 
 @testset "Binomial, Bernoulli, LogitLink" begin
     for distr in (Binomial, Bernoulli)
@@ -69,8 +70,8 @@ admit[:rank] = pool(admit[:rank])
         @test isapprox(aicc(gm2), 470.7312329339146)
         @test isapprox(bic(gm2), 494.4662797585473)
         @test isapprox(coef(gm2),
-            [-3.9899786606380734, 0.0022644256521549043, 0.8040374535155766,
-            -0.6754428594116577, -1.3402038117481079,-1.5514636444657492])
+            [-5.3301824723861895, 0.002264425652154903, 0.8040374535155792,
+            1.3402038117481077, -0.2112598327176416, 0.6647609523364503])
     end
 end
 
@@ -86,8 +87,8 @@ end
     @test isapprox(aicc(gm3), 470.6269118413539)
     @test isapprox(bic(gm3), 494.36195866598655)
     @test isapprox(coef(gm3),
-        [-2.3867922998680786, 0.0013755394922972369, 0.47772908362647015,
-        -0.4154125854823675, -0.8121458010130356, -0.9359047862425298])
+        [-3.1989381008811115, 0.0013755394922972367, 0.4777290836264695,
+        0.8121458010130354, -0.12375898522949427, 0.39673321553066787])
 end
 
 @testset "Bernoulli CauchitLink" begin
@@ -129,8 +130,7 @@ end
 end
 
 ## Example with offsets from Venables & Ripley (2002, p.189)
-anorexia = readtable(joinpath(glm_datadir, "anorexia.csv.gz"))
-anorexia[:Treat] = pool(anorexia[:Treat])
+anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"))
 
 @testset "Offset" begin
     gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
@@ -144,10 +144,10 @@ anorexia[:Treat] = pool(anorexia[:Treat])
     @test isapprox(aicc(gm6), 490.8823884513153)
     @test isapprox(bic(gm6), 501.35662813730465)
     @test isapprox(coef(gm6),
-        [49.7711090149846,-0.5655388496391,-4.0970655280729,4.5630626529188])
+        [45.674043486911685, -0.5655388496390964, 4.097065528072901, 8.660128180991693])
     @test isapprox(GLM.dispersion(gm6.model, true), 48.6950385282296)
     @test isapprox(stderr(gm6),
-        [13.3909581420259, 0.1611823618518, 1.8934926069669, 2.1333359226431])
+        [13.21670540145523, 0.16118236185182783, 1.893492606966926, 2.1931494116430517])
 end
 
 @testset "Normal LogLink offset" begin
@@ -157,9 +157,11 @@ end
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
     @test isapprox(coef(gm7),
-        [3.992326787835955, -0.994452693131178, -0.050698258703974, 0.051494029957641])
+        [3.9416285291318798, -0.9944526931311773, 0.050698258703983666, 0.1021922886616272])
     @test isapprox(GLM.dispersion(gm7.model, true), 48.017753573192266)
-    @test isapprox(stderr(gm7), [0.15716774, 0.0018862835, 0.02258404, 0.023882795], atol=1e-6)
+    @test isapprox(stderr(gm7), 
+        [0.1554026019351794, 0.0018862835443589627, 0.022584040191142126, 0.025187228659634627],
+        atol=1e-6)
 end
 
 ## Gamma example from McCullagh & Nelder (1989, pp. 300-2)
@@ -233,7 +235,7 @@ end
 # Logistic regression using aggregated data and weights
 admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
                       admit = repeat([false, true], inner=[4]),
-                      rank = pool(repeat([1, 2, 3, 4], outer=[2])))
+                      rank = categorical(repeat(1:4, outer=2)))
 
 @testset "Aggregated Binomial LogitLink" begin
     for distr in (Binomial, Bernoulli)
@@ -252,7 +254,7 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
 end
 
 # Logistic regression using aggregated data with proportions of successes and weights
-admit_agr2 = DataFrame(Any[[61., 151, 121, 67], [33., 54, 28, 12], pool([1, 2, 3, 4])],
+admit_agr2 = DataFrame(Any[[61., 151, 121, 67], [33., 54, 28, 12], categorical(1:4)],
     [:count, :admit, :rank])
 admit_agr2[:p] = admit_agr2[:admit] ./ admit_agr2[:count]
 
