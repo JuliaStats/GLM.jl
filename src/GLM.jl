@@ -1,31 +1,41 @@
 __precompile__()
 
 module GLM
-    using Reexport
-    @reexport using Distributions
+    using Distributions
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
     using Base.LinAlg: QRCompactWY, Cholesky, BlasReal
     using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel
     using StatsFuns: logit, logistic
+    using StatsModels: @formula, Formula, ModelFrame, ModelMatrix
     using Distributions: sqrt2, sqrt2π
     using Compat
 
     import Base: (\), cholfact, convert, cor, show, size
-    import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual, loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict, fit, model_response, r2, r², adjr2, adjr², PValue
+    import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
+                      loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict,
+                      fit, model_response, r2, r², adjr2, adjr², PValue
     import StatsFuns: xlogy
     import SpecialFunctions: erfc, erfcinv
-    export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual, loglikelihood, nobs, stderr, vcov, residuals, predict, fit, fit!, model_response, r2, r², adjr2, adjr²
+    export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
+           loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict, 
+           fit, fit!, model_response, r2, r², adjr2, adjr²
 
     export                              # types
+        @formula,
+        Bernoulli,
+        Binomial,
         CauchitLink,
         CloglogLink,
         DensePred,
         DensePredQR,
         DensePredChol,
+        Gamma,
+        Gaussian,
         GeneralizedLinearModel,
         GlmResp,
         IdentityLink,
+        InverseGaussian,
         InverseLink,
         InverseSquareLink,
         LinearModel,
@@ -35,6 +45,8 @@ module GLM
         LogitLink,
         LogLink,
         LmResp,
+        Normal,
+        Poisson,
         ProbitLink,
         SqrtLink,
 
