@@ -1,10 +1,7 @@
 using CategoricalArrays, Compat, CSV, DataFrames, GLM, StatsBase
 using Compat.Test
 
-function test_show(x)
-    io = IOBuffer()
-    show(io, x)
-end
+test_show(x) = show(IOBuffer(), x)
 
 const glm_datadir = joinpath(dirname(@__FILE__), "..", "data")
 
@@ -29,9 +26,9 @@ form = DataFrame(Any[[0.1,0.3,0.5,0.6,0.7,0.9],[0.086,0.269,0.446,0.538,0.626,0.
     @test isapprox(r²(lm1), 0.9990466748057584)
     @test adjr²(lm1) == adjr2(lm1)
     @test isapprox(adjr²(lm1), 0.998808343507198)
-    @test isapprox(StatsBase.aic(lm1), -36.409684288095946)
-    @test isapprox(StatsBase.aicc(lm1), -24.409684288095946)
-    @test isapprox(StatsBase.bic(lm1), -37.03440588041178)
+    @test isapprox(aic(lm1), -36.409684288095946)
+    @test isapprox(aicc(lm1), -24.409684288095946)
+    @test isapprox(bic(lm1), -37.03440588041178)
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
