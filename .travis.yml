@@ -1,16 +1,23 @@
 language: julia
+
 os:
-    - linux
-    - osx
+  - linux
+  - osx
+
 julia:
-    - 0.6
-    - nightly
+  - 0.6
+  - nightly
+
 notifications:
-    email: false
-sudo: false
-# script:
-#     - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-#     - julia -e 'Pkg.clone(pwd()); Pkg.build("GLM")'
-#     - julia -e 'Pkg.test("GLM", coverage=true)'
+  email: false
+
+matrix:
+  allow_failures:
+  - julia: nightly
+
+script:
+  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
+  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("GLM"); Pkg.test("GLM", coverage=true)'
+
 after_success:
-    - julia -e 'cd(Pkg.dir("GLM")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder())'
+  - julia -e 'cd(Pkg.dir("GLM")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder())'
