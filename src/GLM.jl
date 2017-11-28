@@ -1,13 +1,13 @@
 __precompile__()
 
 module GLM
-    using Distributions
+    using Distributions, Reexport
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
     using Base.LinAlg: QRCompactWY, Cholesky, BlasReal
     using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel
     using StatsFuns: logit, logistic
-    using StatsModels: @formula, Formula, ModelFrame, ModelMatrix
+    @reexport using StatsModels
     using Distributions: sqrt2, sqrt2π
     using Compat
 
@@ -22,7 +22,6 @@ module GLM
            fit, fit!, model_response, r2, r², adjr2, adjr²
 
     export                              # types
-        @formula,
         Bernoulli,
         Binomial,
         CauchitLink,
