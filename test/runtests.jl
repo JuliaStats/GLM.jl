@@ -386,7 +386,7 @@ end
 
 @testset "Issue 117" begin
     data = DataFrame(x = [1,2,3,4], y = [24,34,44,54])
-    @test coef(glm(@formula(y ~ x), data, Normal(), IdentityLink())) == [14;10]
+    @test isapprox(coef(glm(@formula(y ~ x), data, Normal(), IdentityLink())), [14., 10])
 end
 
 @testset "F test for model comparison" begin
