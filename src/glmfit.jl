@@ -54,6 +54,8 @@ When `L` is the canonical link for `D` the derivative of the inverse link is a m
 of the variance function for `D`.  If they are the same a numerator and denominator term in
 the expression for the working weights will cancel.
 """
+function cancancel end
+
 cancancel(::GlmResp) = false
 cancancel(::GlmResp{V,D,LogitLink}) where {V,D<:Union{Bernoulli,Binomial}} = true
 cancancel(::GlmResp{V,D,IdentityLink}) where {V,D<:Normal} = true
@@ -65,6 +67,8 @@ cancancel(::GlmResp{V,D,LogLink}) where {V,D<:Poisson} = true
 Update the mean, working weights and working residuals, in `r` given a value of
 the linear predictor, `linPr`.
 """
+function updateμ! end
+
 function updateμ!(r::GlmResp{T}, linPr::T) where T<:FPVector
     isempty(r.offset) ? copy!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)

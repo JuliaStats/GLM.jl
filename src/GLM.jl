@@ -76,8 +76,18 @@ module GLM
     const FP = AbstractFloat
     const FPVector{T<:FP} = AbstractArray{T,1}
 
+"""
+    ModResp
+
+Abstract type representing a model response vector
+"""
     abstract type ModResp end                         # model response
 
+"""
+    LinPred
+
+Abstract type representing a linear predictor
+"""
     abstract type LinPred end                         # linear predictor in statistical models
     abstract type DensePred <: LinPred end            # linear predictor with dense X
     abstract type LinPredModel <: RegressionModel end # model based on a linear predictor

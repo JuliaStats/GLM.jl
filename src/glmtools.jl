@@ -331,6 +331,8 @@ julia> showcompact(devresid(Bernoulli(), 0, 0.25))  # -2log1p(-μ) = -2log(1-μ)
 0.575364
 ```
 """
+function devresid end
+
 function devresid(::Bernoulli, y, μ)
     if y == 1
         return -2 * log(μ)

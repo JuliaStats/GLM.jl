@@ -1,10 +1,27 @@
-## Return the linear predictor vector
+"""
+    linpred!(out, p::LinPred, f::Real=1.0)
+
+Overwrite `out` with the linear predictor from `p` with factor `f`
+
+The effective coefficient vector, `p.scratchbeta`, is evaluated as `p.beta0 .+ f * p.delbeta`,
+and `out` is updated to `p.X * p.scratchbeta`
+"""
 function linpred!(out, p::LinPred, f::Real=1.)
-    A_mul_B!(out, p.X, f == 0 ? p.beta0 : broadcast!(muladd, p.scratchbeta, f, p.delbeta, p.beta0))
+    A_mul_B!(out, p.X, iszero(f) ? p.beta0 : broadcast!(muladd, p.scratchbeta, f, p.delbeta, p.beta0))
 end
+
+"""
+    linpred(p::LinPred, f::Read=1.0)
+
+Return the linear predictor `p.X * (p.beta0 .+ f * p.delbeta)`
+"""
 linpred(p::LinPred, f::Real=1.) = linpred!(Vector{eltype(p.X)}(size(p.X, 1)), p, f)
 
-## Install beta0 + f*delbeta as beta0 and zero out delbeta
+"""
+    installbeta!(p::LinPred, f::Real=1.0)
+
+Install `pbeta0 .+= f * p.delbeta` and zero out `p.delbeta`.  Return the updated `p.beta0`.
+"""
 function installbeta!(p::LinPred, f::Real=1.)
     beta0 = p.beta0
     delbeta = p.delbeta
@@ -15,6 +32,19 @@ function installbeta!(p::LinPred, f::Real=1.)
     p.beta0
 end
 
+"""
+    DensePredQR
+
+A `LinPred` type with a dense, unpivoted QR decomposition of `X`
+
+# Members
+
+- `X`: Model matrix of size `n` × `p` with `n ≥ p`.  Should be full column rank.
+- `beta0`: base coefficient vector of length `p`
+- `delbeta`: increment to coefficient vector, also of length `p`
+- `scratchbeta`: scratch vector of length `p`, used in [`linpred!`](@ref) method
+- `qr`: a `QRCompactWY` object created from `X`, with optional row weights.
+"""
 mutable struct DensePredQR{T<:BlasReal} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
@@ -30,11 +60,32 @@ end
 DensePredQR(X::Matrix, beta0::Vector) = DensePredQR{eltype(X)}(X, beta0)
 convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
+"""
+    delbeta!(p::LinPred, r::Vector)
+
+Evaluate and return `p.delbeta` the increment to the coefficient vector from residual `r`
+"""
+function delbeta! end
+
 function delbeta!(p::DensePredQR{T}, r::Vector{T}) where T<:BlasReal
     p.delbeta = p.qr\r
     return p
 end
 
+"""
+    DensePredChol{T}
+
+A `LinPred` type with a dense, unpivoted QR decomposition of `X`
+
+# Members
+
+- `X`: model matrix of size `n` × `p` with `n ≥ p`.  Should be full column rank.
+- `beta0`: base coefficient vector of length `p`
+- `delbeta`: increment to coefficient vector, also of length `p`
+- `scratchbeta`: scratch vector of length `p`, used in [`linpred!`](@ref) method
+- `chol`: a `Base.LinAlg.Cholesky` object created from `X'X`, with optional row weights.
+- `scratch`: a Matrix{T} of the same size as `X'X`
+"""
 mutable struct DensePredChol{T<:BlasReal,C} <: DensePred
     X::Matrix{T}                   # model matrix
     beta0::Vector{T}               # base vector for coefficients

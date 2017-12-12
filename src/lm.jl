@@ -1,3 +1,17 @@
+"""
+    LmResp
+
+Encapsulates the response for a linear model
+
+# Members
+
+- `mu`: current value of the mean response vector or fitted value
+- `offset`: optional offset added to the linear predictor to form `mu`
+- `wts`: optional vector of prior weights
+- `y`: observed response vector
+
+Either or both `offset` and `wts` may be of length 0
+"""
 mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
@@ -98,6 +112,16 @@ function residuals(r::LmResp)
     end
 end
 
+"""
+    LinearModel
+
+A combination of a [`LmResp`](@ref) and a [`LinPred`](@ref)
+
+# Members
+
+- `rr`: a `LmResp` object
+- `pp`: a `LinPred` object
+"""
 mutable struct LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
     rr::L
     pp::T
