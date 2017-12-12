@@ -138,13 +138,13 @@ function show(io::IO, obj::LinPredModel)
     println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
 end
 
-ModelFrame(obj::LinPredModel) = obj.fr
-ModelMatrix(obj::LinPredModel) = obj.pp.X
+modelframe(obj::LinPredModel) = obj.fr
+modelmatrix(obj::LinPredModel) = obj.pp.X
 model_response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
-formula(obj::LinPredModel) = ModelFrame(obj).formula
+formula(obj::LinPredModel) = modelframe(obj).formula
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 """
