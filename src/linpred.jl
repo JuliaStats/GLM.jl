@@ -29,7 +29,7 @@ function installbeta!(p::LinPred, f::Real=1.)
         beta0[i] += delbeta[i]*f
         delbeta[i] = 0
     end
-    p.beta0
+    beta0
 end
 
 """
@@ -75,7 +75,7 @@ end
 """
     DensePredChol{T}
 
-A `LinPred` type with a dense, unpivoted QR decomposition of `X`
+A `LinPred` type with a dense Cholesky factorization of `X'X`
 
 # Members
 
@@ -83,8 +83,9 @@ A `LinPred` type with a dense, unpivoted QR decomposition of `X`
 - `beta0`: base coefficient vector of length `p`
 - `delbeta`: increment to coefficient vector, also of length `p`
 - `scratchbeta`: scratch vector of length `p`, used in [`linpred!`](@ref) method
-- `chol`: a `Base.LinAlg.Cholesky` object created from `X'X`, with optional row weights.
-- `scratch`: a Matrix{T} of the same size as `X'X`
+- `chol`: a `Base.LinAlg.Cholesky` object created from `X'X`, possibly using row weights.
+- `scratchm1`: scratch Matrix{T} of the same size as `X`
+- `scratchm2`: scratch Matrix{T} os the same size as `X'X`
 """
 mutable struct DensePredChol{T<:BlasReal,C} <: DensePred
     X::Matrix{T}                   # model matrix
@@ -92,22 +93,25 @@ mutable struct DensePredChol{T<:BlasReal,C} <: DensePred
     delbeta::Vector{T}             # coefficient increment
     scratchbeta::Vector{T}
     chol::C
-    scratch::Matrix{T}
+    scratchm1::Matrix{T}
+    scratchm2::Matrix{T}
 end
-function DensePredChol(X::StridedMatrix)
-    F = cholfact!(float(X'X))
+function DensePredChol(X::StridedMatrix, pivot::Bool)
+    F = Hermitian(float(X'X))
     T = eltype(F)
+    F = pivot ? cholfact!(F, Val{true}, tol = -one(T)) : cholfact!(F)
     DensePredChol(AbstractMatrix{T}(X),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
         F,
-        similar(X, T))
+        similar(X, T),
+        similar(cholfactors(F)))
 end
 
-cholpred(X::StridedMatrix) = DensePredChol(X)
+cholpred(X::StridedMatrix, pivot::Bool=true) = DensePredChol(X, pivot)
 
-cholfactors(c::Cholesky) = c.factors
+cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 Base.LinAlg.cholfact!(p::DensePredChol{T}) where {T<:FP} = p.chol
 
 if VERSION < v"0.7.0-DEV.393"
@@ -131,10 +135,19 @@ function delbeta!(p::DensePredChol{T}, r::Vector{T}) where T<:BlasReal
     p
 end
 
-function delbeta!(p::DensePredChol{T}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
-    scr = scale!(p.scratch, wt, p.X)
+function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+    scr = scale!(p.scratchm1, wt, p.X)
     cholfact!(Hermitian(At_mul_B!(cholfactors(p.chol), scr, p.X), :U))
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, scr, r))
+    p
+end
+
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+    cf = cholfactors(p.chol)
+    piv = p.chol.piv
+    cf .= Ac_mul_B!(p.scratchm2, scale!(p.scratchm1, wt, p.X), p.X)[piv, piv]
+    cholfact!(Hermitian(cf, Symbol(p.chol.uplo)))
+    A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, p.scratchm1, r))
     p
 end
 

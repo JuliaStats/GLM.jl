@@ -1,5 +1,7 @@
-using CategoricalArrays, Compat, CSV, DataFrames, GLM, StatsBase
+using CategoricalArrays, Compat, CSV, DataFrames, StatsBase
 using Compat.Test
+using Revise   # for debugging
+using GLM
 
 test_show(x) = show(IOBuffer(), x)
 
@@ -29,6 +31,8 @@ form = DataFrame(Any[[0.1,0.3,0.5,0.6,0.7,0.9],[0.086,0.269,0.446,0.538,0.626,0.
     @test isapprox(aic(lm1), -36.409684288095946)
     @test isapprox(aicc(lm1), -24.409684288095946)
     @test isapprox(bic(lm1), -37.03440588041178)
+    lm2 = fit(LinearModel, hcat(ones(6), 10form[:Carb]), form[:OptDen], true)
+    @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],

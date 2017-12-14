@@ -135,7 +135,8 @@ function StatsBase.fit!(obj::LinearModel)
     return obj
 end
 
-fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector) = fit!(LinearModel(LmResp(y), cholpred(X)))
+fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector, pivot::Bool=false) = 
+    fit!(LinearModel(LmResp(y), cholpred(X, pivot)))
 
 lm(X, y) = fit(LinearModel, X, y)
 

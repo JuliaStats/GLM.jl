@@ -4,7 +4,7 @@ module GLM
     using Distributions, Reexport
     using Base.LinAlg.LAPACK: potrf!, potrs!
     using Base.LinAlg.BLAS: gemm!, gemv!
-    using Base.LinAlg: QRCompactWY, Cholesky, BlasReal
+    using Base.LinAlg: QRCompactWY, Cholesky, CholeskyPivoted, BlasReal
     using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel
     using StatsFuns: logit, logistic
     @reexport using StatsModels
