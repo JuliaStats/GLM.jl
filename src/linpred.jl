@@ -130,8 +130,25 @@ else
     Base.LinAlg.cholfact!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr[:R], 'U', 0)
 end
 
-function delbeta!(p::DensePredChol{T}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where T<:BlasReal
     A_ldiv_B!(p.chol, At_mul_B!(p.delbeta, p.X, r))
+    p
+end
+
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}) where T<:BlasReal
+    ch = p.chol
+    delbeta = Ac_mul_B!(p.delbeta, p.X, r)
+    rnk = rank(ch)
+    if rnk == length(delbeta)
+        A_ldiv_B!(ch, delbeta)
+    else
+        permute!(delbeta, ch.piv)
+        for k=(rnk+1):length(delbeta)
+            delbeta[k] = -zero(T)
+        end
+        LAPACK.potrs!(ch.uplo, view(ch.factors, 1:rnk, 1:rnk), view(delbeta, 1:rnk))
+        ipermute!(delbeta, ch.piv)
+    end
     p
 end
 

@@ -122,7 +122,7 @@ A combination of a [`LmResp`](@ref) and a [`LinPred`](@ref)
 - `rr`: a `LmResp` object
 - `pp`: a `LinPred` object
 """
-mutable struct LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
+struct LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
     rr::L
     pp::T
 end
@@ -135,10 +135,12 @@ function StatsBase.fit!(obj::LinearModel)
     return obj
 end
 
-fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector, pivot::Bool=false) = 
-    fit!(LinearModel(LmResp(y), cholpred(X, pivot)))
+function fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector,
+             allowrankdeficient::Bool=false)
+    fit!(LinearModel(LmResp(y), cholpred(X, allowrankdeficient)))
+end
 
-lm(X, y) = fit(LinearModel, X, y)
+lm(X, y, allowrankdeficient::Bool=false) = fit(LinearModel, X, y, allowrankdeficient)
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
