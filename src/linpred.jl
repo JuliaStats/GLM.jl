@@ -201,6 +201,20 @@ Base.cholfact(p::SparsePredChol{T}) where {T} = copy(p.chol)
 Base.cholfact!(p::SparsePredChol{T}) where {T} = p.chol
 
 invchol(x::DensePred) = inv(cholfact!(x))
+function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
+    ch = x.chol
+    rnk = rank(ch)
+    p = length(x.delbeta)
+    rnk == p && return inv(ch)
+    fac = ch.factors
+    res = fill(convert(T, NaN), size(fac))
+    for j in 1:rnk, i in 1:rnk
+        res[i, j] = fac[i, j]
+    end
+    copytri!(LAPACK.potri!(ch.uplo, view(res, 1:rnk, 1:rnk)), ch.uplo, true)
+    ipiv = invperm(ch.piv)
+    res[ipiv, ipiv]
+end
 invchol(x::SparsePredChol) = cholfact!(x) \ eye(size(x.X, 2))
 vcov(x::LinPredModel) = scale!(invchol(x.pp), dispersion(x, true))
 

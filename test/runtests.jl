@@ -1,6 +1,5 @@
 using CategoricalArrays, Compat, CSV, DataFrames, StatsBase
 using Compat.Test
-using Revise   # for debugging
 using GLM
 
 test_show(x) = show(IOBuffer(), x)
