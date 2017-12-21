@@ -54,8 +54,6 @@ When `L` is the canonical link for `D` the derivative of the inverse link is a m
 of the variance function for `D`.  If they are the same a numerator and denominator term in
 the expression for the working weights will cancel.
 """
-function cancancel end
-
 cancancel(::GlmResp) = false
 cancancel(::GlmResp{V,D,LogitLink}) where {V,D<:Union{Bernoulli,Binomial}} = true
 cancancel(::GlmResp{V,D,IdentityLink}) where {V,D<:Normal} = true

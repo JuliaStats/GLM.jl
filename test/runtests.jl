@@ -37,8 +37,8 @@ end
 @testset "rankdeficient" begin
     # an example of rank deficiency caused by a missing cell in a table
     dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
-               categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
-               [:G, :H])
+                     categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
+                     [:G, :H])
     X = ModelMatrix(ModelFrame(Formula(nothing, :(1+G*H)), dfrm)).m
     y = X * (1:size(X, 2)) + 0.1 * randn(MersenneTwister(1234321), size(X, 1))
     inds = deleteat!(collect(1:length(y)), 7:8)
@@ -49,6 +49,9 @@ end
     @test_throws LinAlg.PosDefException m2 = fit(LinearModel, Xmissingcell, ymissingcell)
     m2p = fit(LinearModel, Xmissingcell, ymissingcell, true)
     @test isapprox(deviance(m2p), 0.2859221258731563)
+    @test isapprox(coef(m2p), [0.9178241203127236, 9.089883493902754, 3.01742566831296,
+                   4.108734932819495, 4.995249696954908, 6.075962907632594, 0.0, 8.038151489191618,
+                   8.848886704358202, 2.8697881579099085, 11.15107375630744, 11.8392578374927])
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
