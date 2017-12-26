@@ -140,6 +140,13 @@ function fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector,
     fit!(LinearModel(LmResp(y), cholpred(X, allowrankdeficient)))
 end
 
+"""
+    lm(X, y, allowrankdeficient::Bool=false)
+
+An alias for `fit(LinearModel, X, y, allowrankdeficient)`
+
+The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a `DataFrame`.
+"""
 lm(X, y, allowrankdeficient::Bool=false) = fit(LinearModel, X, y, allowrankdeficient)
 
 dof(x::LinearModel) = length(coef(x)) + 1
