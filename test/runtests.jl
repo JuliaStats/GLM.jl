@@ -1,12 +1,13 @@
-using CategoricalArrays, Compat, CSV, DataFrames, GLM, StatsBase
+using CategoricalArrays, Compat, CSV, DataFrames, StatsBase
 using Compat.Test
+using GLM
 
 test_show(x) = show(IOBuffer(), x)
 
 const glm_datadir = joinpath(dirname(@__FILE__), "..", "data")
 
 ## Formaldehyde data from the R Datasets package
-form = DataFrame(Any[[0.1,0.3,0.5,0.6,0.7,0.9],[0.086,0.269,0.446,0.538,0.626,0.782]],
+form = DataFrame([[0.1,0.3,0.5,0.6,0.7,0.9],[0.086,0.269,0.446,0.538,0.626,0.782]],
     [:Carb, :OptDen])
 
 @testset "lm" begin
@@ -29,6 +30,32 @@ form = DataFrame(Any[[0.1,0.3,0.5,0.6,0.7,0.9],[0.086,0.269,0.446,0.538,0.626,0.
     @test isapprox(aic(lm1), -36.409684288095946)
     @test isapprox(aicc(lm1), -24.409684288095946)
     @test isapprox(bic(lm1), -37.03440588041178)
+    lm2 = fit(LinearModel, hcat(ones(6), 10form[:Carb]), form[:OptDen], true)
+    @test isa(lm2.pp.chol, LinAlg.CholeskyPivoted)
+    @test lm2.pp.chol.piv == [2, 1]
+    @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
+end
+
+@testset "rankdeficient" begin
+    # an example of rank deficiency caused by a missing cell in a table
+    dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
+                     categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
+                     [:G, :H])
+    X = ModelMatrix(ModelFrame(Formula(nothing, :(1+G*H)), dfrm)).m
+    y = X * (1:size(X, 2)) + 0.1 * randn(MersenneTwister(1234321), size(X, 1))
+    inds = deleteat!(collect(1:length(y)), 7:8)
+    m1 = fit(LinearModel, X, y)
+    @test isapprox(deviance(m1), 0.28856700971719657)
+    Xmissingcell = X[inds, :]
+    ymissingcell = y[inds]
+    @test_throws LinAlg.PosDefException m2 = fit(LinearModel, Xmissingcell, ymissingcell)
+    m2p = fit(LinearModel, Xmissingcell, ymissingcell, true)
+    @test isa(m2p.pp.chol, LinAlg.CholeskyPivoted)
+    @test rank(m2p.pp.chol) == 11
+    @test isapprox(deviance(m2p), 0.2859221258731563)
+    @test isapprox(coef(m2p), [0.9178241203127236, 9.089883493902754, 3.01742566831296,
+                   4.108734932819495, 4.995249696954908, 6.075962907632594, 0.0, 8.038151489191618,
+                   8.848886704358202, 2.8697881579099085, 11.15107375630744, 11.8392578374927])
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],

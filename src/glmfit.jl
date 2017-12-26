@@ -65,6 +65,8 @@ cancancel(::GlmResp{V,D,LogLink}) where {V,D<:Poisson} = true
 Update the mean, working weights and working residuals, in `r` given a value of
 the linear predictor, `linPr`.
 """
+function updateμ! end
+
 function updateμ!(r::GlmResp{T}, linPr::T) where T<:FPVector
     isempty(r.offset) ? copy!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)

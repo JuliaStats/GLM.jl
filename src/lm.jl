@@ -1,3 +1,17 @@
+"""
+    LmResp
+
+Encapsulates the response for a linear model
+
+# Members
+
+- `mu`: current value of the mean response vector or fitted value
+- `offset`: optional offset added to the linear predictor to form `mu`
+- `wts`: optional vector of prior weights
+- `y`: observed response vector
+
+Either or both `offset` and `wts` may be of length 0
+"""
 mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
@@ -98,7 +112,17 @@ function residuals(r::LmResp)
     end
 end
 
-mutable struct LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
+"""
+    LinearModel
+
+A combination of a [`LmResp`](@ref) and a [`LinPred`](@ref)
+
+# Members
+
+- `rr`: a `LmResp` object
+- `pp`: a `LinPred` object
+"""
+struct LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
     rr::L
     pp::T
 end
@@ -111,9 +135,19 @@ function StatsBase.fit!(obj::LinearModel)
     return obj
 end
 
-fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector) = fit!(LinearModel(LmResp(y), cholpred(X)))
+function fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector,
+             allowrankdeficient::Bool=false)
+    fit!(LinearModel(LmResp(y), cholpred(X, allowrankdeficient)))
+end
 
-lm(X, y) = fit(LinearModel, X, y)
+"""
+    lm(X, y, allowrankdeficient::Bool=false)
+
+An alias for `fit(LinearModel, X, y, allowrankdeficient)`
+
+The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a `DataFrame`.
+"""
+lm(X, y, allowrankdeficient::Bool=false) = fit(LinearModel, X, y, allowrankdeficient)
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
