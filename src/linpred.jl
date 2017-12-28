@@ -109,7 +109,7 @@ function DensePredChol(X::StridedMatrix, pivot::Bool)
         similar(cholfactors(F)))
 end
 
-cholpred(X::StridedMatrix, pivot::Bool=true) = DensePredChol(X, pivot)
+cholpred(X::StridedMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 Base.LinAlg.cholfact!(p::DensePredChol{T}) where {T<:FP} = p.chol
