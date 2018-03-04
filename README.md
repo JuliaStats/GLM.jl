@@ -42,20 +42,22 @@ Many of the methods provided by this package have names similar to those in [R](
 Ordinary Least Squares Regression:
 ```julia
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
-3x2 DataFrame
-|-------|---|---|
-| Row # | X | Y |
-| 1     | 1 | 2 |
-| 2     | 2 | 4 |
-| 3     | 3 | 7 |
+3×2 DataFrames.DataFrame
+│ Row │ X │ Y │
+├─────┼───┼───┤
+│ 1   │ 1 │ 2 │
+│ 2   │ 2 │ 4 │
+│ 3   │ 3 │ 7 │
 
-julia> OLS = glm(@formula(Y ~ X), data, Normal(), IdentityLink())
-DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
+julia> OLS = lm(@formula(Y ~ X), data)
+StatsModels.DataFrameRegressionModel{GLM.LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+Formula: Y ~ 1 + X
 
 Coefficients:
-              Estimate Std.Error  z value Pr(>|z|)
-(Intercept)  -0.666667   0.62361 -1.06904   0.2850
-X                  2.5  0.288675  8.66025   <1e-17
+              Estimate Std.Error  t value Pr(>|t|)
+(Intercept)  -0.666667   0.62361 -1.06904   0.4788
+X                  2.5  0.288675  8.66025   0.0732
 
 julia> stderr(OLS)
 2-element Array{Float64,1}:
@@ -69,8 +71,9 @@ julia> predict(OLS)
  6.83333
 
 # Prediction with new data and confidence values
- julia> newX = DataFrame(X=[2,3,4]);
- julia> predict(OLS, newX, :confint)
+ julia> newX = DataFrame(intercept=1, X=[2,3,4]);
+ 
+ julia> predict(OLS, Matrix(newX), :confint)
  3×3 Array{Float64,2}:
   4.33333  1.33845   7.32821
   6.83333  2.09801  11.5687
@@ -82,20 +85,22 @@ julia> predict(OLS)
 Probit Regression:
 ```julia
 julia> data = DataFrame(X=[1,2,3], Y=[1,0,1])
-3x2 DataFrame
-|-------|---|---|
-| Row # | X | Y |
-| 1     | 1 | 1 |
-| 2     | 2 | 0 |
-| 3     | 3 | 1 |
+3×2 DataFrames.DataFrame
+│ Row │ X │ Y │
+├─────┼───┼───┤
+│ 1   │ 1 │ 1 │
+│ 2   │ 2 │ 0 │
+│ 3   │ 3 │ 1 │
 
 julia> Probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
-DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
+StatsModels.DataFrameRegressionModel{GLM.GeneralizedLinearModel{GLM.GlmResp{Array{Float64,1},Distributions.Binomial{Float64},GLM.ProbitLink},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+Formula: Y ~ 1 + X
 
 Coefficients:
-                Estimate Std.Error     z value Pr(>|z|)
-(Intercept)     0.430727   1.98019    0.217518   0.8278
-X            2.37745e-17   0.91665 2.59362e-17   1.0000
+                 Estimate Std.Error      z value Pr(>|z|)
+(Intercept)      0.430727   1.98019     0.217518   0.8278
+X            -3.64399e-19   0.91665 -3.97534e-19   1.0000
 
 julia> vcov(Probit)
 2x2 Array{Float64,2}:
