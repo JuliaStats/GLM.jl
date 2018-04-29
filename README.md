@@ -84,6 +84,31 @@ julia> predict(OLS)
 
 ```
 
+You can estimate the same model by directly passing a matrix containing explanatory
+variables and a vector containing explained variable to `lm`.
+In such a case you will lose variable names though:
+```julia
+julia> X = [fill(1, 3) data[:X]]
+3×2 Array{Int64,2}:
+ 1  1
+ 1  2
+ 1  3
+
+julia> y = data[:Y]
+3-element Array{Int64,1}:
+ 2
+ 4
+ 7
+
+julia> lm(X, y)
+GLM.LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}}:
+
+Coefficients:
+      Estimate Std.Error  t value Pr(>|t|)
+x1   -0.666667   0.62361 -1.06904   0.4788
+x2         2.5  0.288675  8.66025   0.0732
+```
+
 Probit Regression:
 ```julia
 julia> data = DataFrame(X=[1,2,3], Y=[1,0,1])
