@@ -278,21 +278,21 @@ Number of Fisher Scoring iterations: 4
 ```
 In Julia this becomes
 ```julia
-julia> dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
+julia> dobson = DataFrame(Counts = [18,17,15,20,10,20,25,13,12],
                           Outcome = categorical(repeat(1:3, outer=3)),
                           Treatment = categorical(repeat(1:3, inner=3)))
 9x3 DataFrame
 |-------|--------|---------|-----------|
 | Row # | Counts | Outcome | Treatment |
-| 1     | 18.0   | 1       | 1         |
-| 2     | 17.0   | 2       | 1         |
-| 3     | 15.0   | 3       | 1         |
-| 4     | 20.0   | 1       | 2         |
-| 5     | 10.0   | 2       | 2         |
-| 6     | 20.0   | 3       | 2         |
-| 7     | 25.0   | 1       | 3         |
-| 8     | 13.0   | 2       | 3         |
-| 9     | 12.0   | 3       | 3         |
+| 1     | 18     | 1       | 1         |
+| 2     | 17     | 2       | 1         |
+| 3     | 15     | 3       | 1         |
+| 4     | 20     | 1       | 2         |
+| 5     | 10     | 2       | 2         |
+| 6     | 20     | 3       | 2         |
+| 7     | 25     | 1       | 3         |
+| 8     | 13     | 2       | 3         |
+| 9     | 12     | 3       | 3         |
 
 julia> gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
 StatsModels.DataFrameRegressionModel{GLM.GeneralizedLinearModel{GLM.GlmResp{Array{Float64,1},Distributions.Poisson{Float64},GLM.LogLink},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
