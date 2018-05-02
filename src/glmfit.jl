@@ -163,7 +163,7 @@ dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) 
 function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
               convTol::Real, start)
 
-    # Return early if model has the fit set.
+    # Return early if model has the fit flag set
     m.fit && return m
 
     # Check arguments
@@ -174,7 +174,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
     cvg, p, r = false, m.pp, m.rr
     lp = r.mu
 
-    # Initialize β, μ, and deviance
+    # Initialize β, μ, and compute deviance
     if start == nothing || isempty(start)
         # Compute beta update based on default response value
         # if no starting values have been passed
