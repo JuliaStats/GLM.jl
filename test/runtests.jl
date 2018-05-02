@@ -416,6 +416,13 @@ end
     @test isapprox(coef(glm(@formula(y ~ x), data, Normal(), IdentityLink())), [14., 10])
 end
 
+@testset "Issue 224" begin
+    srand(1009)
+    # Make X slightly ill conditioned to aplify rounding errors
+    X, y = qr(randn(100, 5))[1]*Diagonal(logspace(-2,2,5))*qr(randn(5,5))[1]', randn(100)
+    @test coef(GLM.glm(X, y, GLM.Normal(), GLM.IdentityLink())) ≈ coef(lm(X, y))
+end
+
 @testset "F test for model comparison" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
@@ -479,7 +486,7 @@ end
          0.0  3.0  0.0    0.0      0.0    0.0    0.0    0.0      0.0      0.0    0.0      7.0]
     # Cholesky
     RL = cholfact(V)[:L]
-    Yc = RL\Y 
+    Yc = RL\Y
     # Fit 1 (intercept)
     Xc1 = RL\X[:,[1]]
     mod1 = lm(Xc1, Yc)
