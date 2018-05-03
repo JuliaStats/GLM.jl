@@ -33,7 +33,7 @@ Many of the methods provided by this package have names similar to those in [R](
 - `dof_residual`: degrees of freedom for residuals, when meaningful
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
 - `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
-- `stderr`: standard errors of the coefficients
+- `stderror`: standard errors of the coefficients
 - `vcov`: estimated variance-covariance matrix of the coefficient estimates
 - `predict` : obtain predicted values of the dependent variable from the fitted model
 
@@ -57,7 +57,7 @@ Coefficients:
 (Intercept)  -0.666667   0.62361 -1.06904   0.2850
 X                  2.5  0.288675  8.66025   <1e-17
 
-julia> stderr(OLS)
+julia> stderror(OLS)
 2-element Array{Float64,1}:
  0.62361
  0.288675
