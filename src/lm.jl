@@ -183,7 +183,7 @@ end
 
 function coeftable(mm::LinearModel)
     cc = coef(mm)
-    se = stderr(mm)
+    se = stderror(mm)
     tt = cc ./ se
     CoefTable(hcat(cc,se,tt,ccdf.(FDist(1, dof_residual(mm)), abs2.(tt))),
               ["Estimate","Std.Error","t value", "Pr(>|t|)"],
@@ -215,7 +215,7 @@ end
 
 
 function confint(obj::LinearModel, level::Real)
-    hcat(coef(obj),coef(obj)) + stderr(obj) *
+    hcat(coef(obj),coef(obj)) + stderror(obj) *
     quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
 confint(obj::LinearModel) = confint(obj, 0.95)

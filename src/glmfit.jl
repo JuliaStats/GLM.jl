@@ -130,7 +130,7 @@ end
 
 function coeftable(mm::AbstractGLM)
     cc = coef(mm)
-    se = stderr(mm)
+    se = stderror(mm)
     zz = cc ./ se
     CoefTable(hcat(cc,se,zz,2.0 * ccdf.(Normal(), abs.(zz))),
               ["Estimate","Std.Error","z value", "Pr(>|z|)"],
@@ -138,7 +138,7 @@ function coeftable(mm::AbstractGLM)
 end
 
 function confint(obj::AbstractGLM, level::Real)
-    hcat(coef(obj),coef(obj)) + stderr(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
+    hcat(coef(obj),coef(obj)) + stderror(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
 end
 confint(obj::AbstractGLM) = confint(obj, 0.95)
 
