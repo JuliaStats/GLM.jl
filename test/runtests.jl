@@ -495,3 +495,7 @@ end
     X, y = qr(randn(100, 5))[1]*Diagonal(logspace(-2,2,5))*qr(randn(5,5))[1]', randn(100)
     @test coef(GLM.glm(X, y, GLM.Normal(), GLM.IdentityLink())) ≈ coef(lm(X, y))
 end
+
+@testset "Issue #228" begin
+    @test_throws ArgumentError glm(randn(10, 2), rand(1:10, 10), Binomial(10))
+end
