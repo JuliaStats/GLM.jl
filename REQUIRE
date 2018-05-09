@@ -3,5 +3,5 @@ Compat 0.33.0
 Distributions 0.10.0
 StatsBase 0.22.0
 StatsFuns 0.3.0
-StatsModels 0.2.0 0.2.4
+StatsModels 0.2.0
 SpecialFunctions 0.1.0
