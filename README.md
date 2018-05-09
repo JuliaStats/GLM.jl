@@ -40,21 +40,25 @@ Many of the methods provided by this package have names similar to those in [R](
 
 Ordinary Least Squares Regression:
 ```julia
-julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
-3x2 DataFrame
-|-------|---|---|
-| Row # | X | Y |
-| 1     | 1 | 2 |
-| 2     | 2 | 4 |
-| 3     | 3 | 7 |
+julia> using GLM, DataFrames
 
-julia> OLS = glm(@formula(Y ~ X), data, Normal(), IdentityLink())
-DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
+julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
+3×2 DataFrame
+│ Row │ X │ Y │
+├─────┼───┼───┤
+│ 1   │ 1 │ 2 │
+│ 2   │ 2 │ 4 │
+│ 3   │ 3 │ 7 │
+
+julia> OLS = lm(@formula(Y ~ X), data)
+StatsModels.DataFrameRegressionModel{GLM.LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+Formula: Y ~ 1 + X
 
 Coefficients:
-              Estimate Std.Error  z value Pr(>|z|)
-(Intercept)  -0.666667   0.62361 -1.06904   0.2850
-X                  2.5  0.288675  8.66025   <1e-17
+              Estimate Std.Error  t value Pr(>|t|)
+(Intercept)  -0.666667   0.62361 -1.06904   0.4788
+X                  2.5  0.288675  8.66025   0.0732
 
 julia> stderror(OLS)
 2-element Array{Float64,1}:
@@ -68,8 +72,9 @@ julia> predict(OLS)
  6.83333
 
 # Prediction with new data and confidence values
- julia> newX = DataFrame(X=[2,3,4]);
- julia> predict(OLS, newX, :confint)
+ julia> newX = DataFrame(intercept=1, X=[2,3,4]);
+ 
+ julia> predict(OLS, Matrix(newX), :confint)
  3×3 Array{Float64,2}:
   4.33333  1.33845   7.32821
   6.83333  2.09801  11.5687
@@ -78,23 +83,50 @@ julia> predict(OLS)
 
 ```
 
+You can estimate the same model by directly passing a matrix containing explanatory
+variables and a vector containing explained variable to `lm`.
+In such a case you will lose variable names though:
+```julia
+julia> X = [fill(1, 3) data[:X]]
+3×2 Array{Int64,2}:
+ 1  1
+ 1  2
+ 1  3
+
+julia> y = data[:Y]
+3-element Array{Int64,1}:
+ 2
+ 4
+ 7
+
+julia> lm(X, y)
+GLM.LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}}:
+
+Coefficients:
+      Estimate Std.Error  t value Pr(>|t|)
+x1   -0.666667   0.62361 -1.06904   0.4788
+x2         2.5  0.288675  8.66025   0.0732
+```
+
 Probit Regression:
 ```julia
 julia> data = DataFrame(X=[1,2,3], Y=[1,0,1])
-3x2 DataFrame
-|-------|---|---|
-| Row # | X | Y |
-| 1     | 1 | 1 |
-| 2     | 2 | 0 |
-| 3     | 3 | 1 |
+3×2 DataFrame
+│ Row │ X │ Y │
+├─────┼───┼───┤
+│ 1   │ 1 │ 1 │
+│ 2   │ 2 │ 0 │
+│ 3   │ 3 │ 1 │
 
 julia> Probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
-DataFrameRegressionModel{GeneralizedLinearModel,Float64}:
+StatsModels.DataFrameRegressionModel{GLM.GeneralizedLinearModel{GLM.GlmResp{Array{Float64,1},Distributions.Binomial{Float64},GLM.ProbitLink},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+Formula: Y ~ 1 + X
 
 Coefficients:
-                Estimate Std.Error     z value Pr(>|z|)
-(Intercept)     0.430727   1.98019    0.217518   0.8278
-X            2.37745e-17   0.91665 2.59362e-17   1.0000
+                 Estimate Std.Error      z value Pr(>|z|)
+(Intercept)      0.430727   1.98019     0.217518   0.8278
+X            -3.64399e-19   0.91665 -3.97534e-19   1.0000
 
 julia> vcov(Probit)
 2x2 Array{Float64,2}:
@@ -129,12 +161,14 @@ julia> form = dataset("datasets", "Formaldehyde")
 | 6     | 0.9  | 0.782  |
 
 julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
-Formula: OptDen ~ Carb
+StatsModels.DataFrameRegressionModel{GLM.LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+Formula: OptDen ~ 1 + Carb
 
 Coefficients:
                Estimate  Std.Error  t value Pr(>|t|)
 (Intercept)  0.00508571 0.00783368 0.649211   0.5516
-Carb           0.876286  0.0135345  64.7444   3.4e-7
+Carb           0.876286  0.0135345  64.7444    <1e-6
 
 
 julia> confint(lm1)
@@ -181,11 +215,13 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
 | 50    | Malaysia       | 4.71  | 47.2  | 0.66  | 242.69  | 5.08  |
 
 julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
-Formula: SR ~ :(+(Pop15,Pop75,DPI,DDPI))
+StatsModels.DataFrameRegressionModel{GLM.LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+Formula: SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
 
 Coefficients:
                  Estimate   Std.Error   t value Pr(>|t|)
-(Intercept)       28.5661     7.35452   3.88416  0.00033
+(Intercept)       28.5661     7.35452   3.88416   0.0003
 Pop15           -0.461193    0.144642  -3.18851   0.0026
 Pop75             -1.6915      1.0836    -1.561   0.1255
 DPI          -0.000336902 0.000931107 -0.361829   0.7192
@@ -266,35 +302,37 @@ Number of Fisher Scoring iterations: 4
 ```
 In Julia this becomes
 ```julia
-julia> dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
-                          Outcome = gl(3,1,9),
-                          Treatment = gl(3,3))
+julia> dobson = DataFrame(Counts = [18,17,15,20,10,20,25,13,12],
+                          Outcome = categorical(repeat(1:3, outer=3)),
+                          Treatment = categorical(repeat(1:3, inner=3)))
 9x3 DataFrame
 |-------|--------|---------|-----------|
 | Row # | Counts | Outcome | Treatment |
-| 1     | 18.0   | 1       | 1         |
-| 2     | 17.0   | 2       | 1         |
-| 3     | 15.0   | 3       | 1         |
-| 4     | 20.0   | 1       | 2         |
-| 5     | 10.0   | 2       | 2         |
-| 6     | 20.0   | 3       | 2         |
-| 7     | 25.0   | 1       | 3         |
-| 8     | 13.0   | 2       | 3         |
-| 9     | 12.0   | 3       | 3         |
+| 1     | 18     | 1       | 1         |
+| 2     | 17     | 2       | 1         |
+| 3     | 15     | 3       | 1         |
+| 4     | 20     | 1       | 2         |
+| 5     | 10     | 2       | 2         |
+| 6     | 20     | 3       | 2         |
+| 7     | 25     | 1       | 3         |
+| 8     | 13     | 2       | 3         |
+| 9     | 12     | 3       | 3         |
 
 julia> gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
-Formula: Counts ~ :(+(Outcome,Treatment))
+StatsModels.DataFrameRegressionModel{GLM.GeneralizedLinearModel{GLM.GlmResp{Array{Float64,1},Distributions.Poisson{Float64},GLM.LogLink},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+Formula: Counts ~ 1 + Outcome + Treatment
 
 Coefficients:
-                   Estimate Std.Error      z value Pr(>|z|)
-(Intercept)         3.04452  0.170899      17.8148  < eps()
-Outcome - 2       -0.454255  0.202171     -2.24689   0.0246
-Outcome - 3       -0.292987  0.192742      -1.5201   0.1285
-Treatment - 2   5.36273e-16       0.2  2.68137e-15      1.0
-Treatment - 3  -5.07534e-17       0.2 -2.53767e-16      1.0
+                 Estimate Std.Error     z value Pr(>|z|)
+(Intercept)       3.04452  0.170899     17.8148   <1e-70
+Outcome: 2      -0.454255  0.202171    -2.24689   0.0246
+Outcome: 3      -0.292987  0.192742     -1.5201   0.1285
+Treatment: 2  4.61065e-16       0.2 2.30532e-15   1.0000
+Treatment: 3  3.44687e-17       0.2 1.72344e-16   1.0000
 
 julia> deviance(gm1)
-5.129141077001149
+5.129141077001145
 ```
 
 Typical distributions for use with `glm` and their canonical link
