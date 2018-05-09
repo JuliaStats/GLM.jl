@@ -24,23 +24,38 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
 end
 
 function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVector, D, L}
-    if d == Binomial()
-        for yy in y
-            0 ≤ yy ≤ 1 || throw(ArgumentError("$yy in y is not in [0,1]"))
-        end
-    else
-        all(x -> insupport(d, x), y) || throw(ArgumentError("y must be in the support of D"))
-    end
-    n = length(y)
+    n  = length(y)
     nη = length(η)
     nμ = length(μ)
-    length(wts) == nη == nμ == n || throw(DimensionMismatch(
-        "lengths of η, μ, y and wts ($nη, $nμ, $(length(wts)), $n) are not equal"))
+    lw = length(wts)
     lo = length(off)
-    lo == 0 || lo == n || error("offset must have length $n or length 0")
-    res = GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y))
-    updateμ!(res, η)
-    res
+
+    # Check y values
+    checky(y, d)
+
+    # Lengths of y, η, and η all need to be n
+    if !(nη == nμ == n)
+        throw(DimensionMismatch("lengths of η, μ, and y ($nη, $nμ, $n) are not equal"))
+    end
+
+    # Lengths of wts and off can be either n or 0
+    if lw != 0 && lw != n
+        throw(DimensionMismatch("wts must have length $n or length 0 but was $lw"))
+    end
+    if lo != 0 && lo != n
+        throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
+    end
+
+    return GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y))
+end
+
+function GlmResp(y::V, d::D, l::L, off::V, wts::V) where {V<:FPVector,D,L}
+    η   = similar(y)
+    μ   = similar(y)
+    r   = GlmResp(y, d, l, η, μ, off, wts)
+    initialeta!(r.eta, d, l, y, wts, off)
+    updateμ!(r, r.eta)
+    return r
 end
 
 deviance(r::GlmResp) = sum(r.devresid)
@@ -145,15 +160,22 @@ confint(obj::AbstractGLM) = confint(obj, 0.95)
 deviance(m::AbstractGLM) = deviance(m.rr)
 
 function loglikelihood(m::AbstractGLM)
-    r = m.rr
+    r   = m.rr
     wts = r.wts
-    y = r.y
-    mu = r.mu
-    ϕ = deviance(m)/sum(wts)
-    d = r.d
-    ll = zero(loglik_obs(d, y[1], mu[1], wts[1], ϕ))
-    @inbounds for i in eachindex(y, mu, wts)
-        ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
+    y   = r.y
+    mu  = r.mu
+    d   = r.d
+    ll  = zero(eltype(mu))
+    if length(wts) == length(y)
+        ϕ = deviance(m)/sum(wts)
+        @inbounds for i in eachindex(y, mu, wts)
+            ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
+        end
+    else
+        ϕ = deviance(m)/length(y)
+        @inbounds for i in eachindex(y, mu)
+            ll += loglik_obs(d, y[i], mu[i], 1, ϕ)
+        end
     end
     ll
 end
@@ -240,22 +262,6 @@ StatsBase.fit!(m::AbstractGLM; verbose::Bool=false, maxIter::Integer=30,
               minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing) =
     _fit!(m, verbose, maxIter, minStepFac, convTol, start)
 
-function initialeta!(dist::UnivariateDistribution, link::Link,
-                     eta::AbstractVector, y::AbstractVector, wts::AbstractVector,
-                     off::AbstractVector)
-    length(eta) == length(y) == length(wts) || throw(DimensionMismatch("argument lengths do not match"))
-    @inbounds @simd for i = eachindex(y, eta, wts)
-        μ = mustart(dist, y[i], wts[i])
-        eta[i] = linkfun(link, μ)
-    end
-    if !isempty(off)
-        @inbounds @simd for i = eachindex(eta,off)
-            eta[i] -= off[i]
-        end
-    end
-    eta
-end
-
 function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::Bool=true,
                         verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
                         start=nothing)
@@ -264,7 +270,7 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
     r.y = copy!(r.y, y)
     isa(wts, Void) || copy!(r.wts, wts)
     isa(offset, Void) || copy!(r.offset, offset)
-    initialeta!(r.d, r.l, r.eta, r.y, r.wts, r.offset)
+    initialeta!(r.eta, r.d, r.l, r.y, r.wts, r.offset)
     updateμ!(r, r.eta)
     fill!(m.pp.beta0, 0)
     m.fit = false
@@ -276,26 +282,23 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
 end
 
 function fit(::Type{M},
-    X::Union{Matrix{T},SparseMatrixCSC{T}}, y::V,
+    X::Union{Matrix{T},SparseMatrixCSC{T}},
+    y::V,
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
     dofit::Bool = true,
-    wts::V = ones(y),
-    offset::V = similar(y, 0), fitargs...) where {M<:AbstractGLM,T<:FP,V<:FPVector}
+    wts::V      = similar(y, 0),
+    offset::V   = similar(y, 0),
+    fitargs...) where {M<:AbstractGLM,T<:FP,V<:FPVector}
 
-    size(X, 1) == size(y, 1) || throw(DimensionMismatch("number of rows in X and y must match"))
-    n = length(y)
-    length(wts) == n || throw(DimensionMismatch("length(wts) does not match length(y)"))
-    if length(offset) != n && length(offset) != 0
-        throw(DimensionMismatch("length(offset) does not match length(y)"))
+    # Check that X and y have the same number of observations
+    if size(X, 1) != size(y, 1)
+        throw(DimensionMismatch("number of rows in X and y must match"))
     end
 
-    wts = T <: Float64 ? copy(wts) : convert(typeof(y), wts)
-    off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
-    eta = initialeta!(d, l, similar(y), y, wts, off)
-    rr = GlmResp(y, d, l, eta, similar(y), offset, wts)
+    rr = GlmResp(y, d, l, offset, wts)
     res = M(rr, cholpred(X), false)
-    dofit ? fit!(res; fitargs...) : res
+    return dofit ? fit!(res; fitargs...) : res
 end
 
 fit(::Type{M},
@@ -352,3 +355,56 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
     end
     mu = [linkinv(Link(mm), x) for x in eta]
 end
+
+# A helper function to choose default values for eta
+function initialeta!(eta::AbstractVector,
+                    dist::UnivariateDistribution,
+                    link::Link,
+                    y::AbstractVector,
+                    wts::AbstractVector,
+                    off::AbstractVector)
+
+
+    n  = length(y)
+    lw = length(wts)
+    lo = length(off)
+
+    if length(wts) == n
+        @inbounds @simd for i = eachindex(y, eta, wts)
+            μ      = mustart(dist, y[i], wts[i])
+            eta[i] = linkfun(link, μ)
+        end
+    elseif lw == 0
+        @inbounds @simd for i = eachindex(y, eta, wts)
+            μ      = mustart(dist, y[i], 1)
+            eta[i] = linkfun(link, μ)
+        end
+    else
+        throw(ArgumentError("length of wts must be either $n or 0 but was $lw"))
+    end
+
+    if lo == n
+        @inbounds @simd for i = eachindex(eta, off)
+            eta[i] -= off[i]
+        end
+    elseif lo != 0
+        throw(ArgumentError("length of off must be either $n or 0 but was $lo"))
+    end
+
+    return eta
+end
+
+# Helper function to check that the values of y are in the allowed domain
+function checky(y, d::Distribution)
+    if any(x -> !insupport(d, x), y)
+        throw(ArgumentError("y must be in the support of D"))
+    end
+    return nothing
+end
+function checky(y, d::Binomial)
+    for yy in y
+        0 ≤ yy ≤ 1 || throw(ArgumentError("$yy in y is not in [0,1]"))
+    end
+    return nothing
+end
+
