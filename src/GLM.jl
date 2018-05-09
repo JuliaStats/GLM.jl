@@ -13,12 +13,12 @@ module GLM
 
     import Base: (\), cholfact, convert, cor, show, size
     import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
-                      loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict,
+                      loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
                       fit, model_response, r2, r², adjr2, adjr², PValue
     import StatsFuns: xlogy
     import SpecialFunctions: erfc, erfcinv
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
-           loglikelihood, nullloglikelihood, nobs, stderr, vcov, residuals, predict, 
+           loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
            fit, fit!, model_response, r2, r², adjr2, adjr²
 
     export                              # types

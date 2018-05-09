@@ -41,7 +41,8 @@ end
     dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
                      categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
                      [:G, :H])
-    X = ModelMatrix(ModelFrame(Formula(nothing, :(1+G*H)), dfrm)).m
+    f = @eval(@formula($nothing ~ 1+G*H))
+    X = ModelMatrix(ModelFrame(f, dfrm)).m
     y = X * (1:size(X, 2)) + 0.1 * randn(MersenneTwister(1234321), size(X, 1))
     inds = deleteat!(collect(1:length(y)), 7:8)
     m1 = fit(LinearModel, X, y)
@@ -158,7 +159,7 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"))
 
 @testset "Offset" begin
     gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), IdentityLink(), offset=Array(anorexia[:Prewt]))
+              Normal(), IdentityLink(), offset=Array{Float64}(anorexia[:Prewt]))
     @test GLM.cancancel(gm6.model.rr)
     test_show(gm6)
     @test dof(gm6) == 5
@@ -170,20 +171,20 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"))
     @test isapprox(coef(gm6),
         [45.674043486911685, -0.5655388496390964, 4.097065528072901, 8.660128180991693])
     @test isapprox(GLM.dispersion(gm6.model, true), 48.6950385282296)
-    @test isapprox(stderr(gm6),
+    @test isapprox(stderror(gm6),
         [13.21670540145523, 0.16118236185182783, 1.893492606966926, 2.1931494116430517])
 end
 
 @testset "Normal LogLink offset" begin
     gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), LogLink(), offset=Array(anorexia[:Prewt]), convTol=1e-8)
+              Normal(), LogLink(), offset=Array{Float64}(anorexia[:Prewt]), convTol=1e-8)
     @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
     @test isapprox(coef(gm7),
         [3.9416285291318798, -0.9944526931311773, 0.050698258703983666, 0.1021922886616272])
     @test isapprox(GLM.dispersion(gm7.model, true), 48.017753573192266)
-    @test isapprox(stderr(gm7), 
+    @test isapprox(stderror(gm7),
         [0.1554026019351794, 0.0018862835443589627, 0.022584040191142126, 0.025187228659634627],
         atol=1e-6)
 end
@@ -205,7 +206,7 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
     @test isapprox(bic(gm8), 38.58159768156315)
     @test isapprox(coef(gm8), [-0.01655438172784895,0.01534311491072141])
     @test isapprox(GLM.dispersion(gm8.model, true), 0.002446059333495581, atol=1e-6)
-    @test isapprox(stderr(gm8), [0.00092754223, 0.000414957683], atol=1e-6)
+    @test isapprox(stderror(gm8), [0.00092754223, 0.000414957683], atol=1e-6)
 end
 
 @testset "InverseGaussian" begin
@@ -221,7 +222,7 @@ end
     @test isapprox(bic(gm8a), 62.16652574970839)
     @test isapprox(coef(gm8a), [-0.0011079770504295668,0.0007219138982289362])
     @test isapprox(GLM.dispersion(gm8a.model, true), 0.0011008719709455776, atol=1e-6)
-    @test isapprox(stderr(gm8a), [0.0001675339726910311,9.468485015919463e-5], atol=1e-6)
+    @test isapprox(stderror(gm8a), [0.0001675339726910311,9.468485015919463e-5], atol=1e-6)
 end
 
 @testset "Gamma LogLink" begin
@@ -237,7 +238,7 @@ end
     @test isapprox(bic(gm9), 59.07332993970688)
     @test isapprox(coef(gm9), [5.50322528458221, -0.60191617825971])
     @test isapprox(GLM.dispersion(gm9.model, true), 0.02435442293561081)
-    @test isapprox(stderr(gm9), [0.19030107482720, 0.05530784660144])
+    @test isapprox(stderror(gm9), [0.19030107482720, 0.05530784660144])
 end
 
 @testset "Gamma IdentityLink" begin
@@ -253,7 +254,7 @@ end
     @test isapprox(bic(gm10), 71.02381860657701)
     @test isapprox(coef(gm10), [99.250446880986, -18.374324929002])
     @test isapprox(GLM.dispersion(gm10.model, true), 0.10417373, atol=1e-6)
-    @test isapprox(stderr(gm10), [17.864084, 4.297895], atol=1e-4)
+    @test isapprox(stderror(gm10), [17.864084, 4.297895], atol=1e-4)
 end
 
 # Logistic regression using aggregated data and weights
@@ -392,30 +393,6 @@ end
     @test isapprox(pred[5,3], 2.564532433982956)
 end
 
-@testset "Issue 118" begin
-    @inferred nobs(lm(randn(10, 2), randn(10)))
-end
-
-@testset "Issue 84" begin
-    X = [1 1; 2 4; 3 9]
-    Xf = [1 1; 2 4; 3 9.]
-    y = [2, 6, 12]
-    yf = [2, 6, 12.]
-    @test isapprox(lm(X, y).pp.beta0, ones(2))
-    @test isapprox(lm(Xf, y).pp.beta0, ones(2))
-    @test isapprox(lm(X, yf).pp.beta0, ones(2))
-end
-
-@testset "Issue 153" begin
-    X = [ones(10) randn(10)]
-    Test.@inferred cholfact(DensePredQR{Float64}(X))
-end
-
-@testset "Issue 117" begin
-    data = DataFrame(x = [1,2,3,4], y = [24,34,44,54])
-    @test isapprox(coef(glm(@formula(y ~ x), data, Normal(), IdentityLink())), [14., 10])
-end
-
 @testset "F test for model comparison" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
@@ -479,7 +456,7 @@ end
          0.0  3.0  0.0    0.0      0.0    0.0    0.0    0.0      0.0      0.0    0.0      7.0]
     # Cholesky
     RL = cholfact(V)[:L]
-    Yc = RL\Y 
+    Yc = RL\Y
     # Fit 1 (intercept)
     Xc1 = RL\X[:,[1]]
     mod1 = lm(Xc1, Yc)
@@ -487,4 +464,39 @@ end
     Xc2 = RL\X
     mod2 = lm(Xc2, Yc)
     @test GLM.issubmodel(mod1, mod2)
+end
+
+@testset "Issue 84" begin
+    X = [1 1; 2 4; 3 9]
+    Xf = [1 1; 2 4; 3 9.]
+    y = [2, 6, 12]
+    yf = [2, 6, 12.]
+    @test isapprox(lm(X, y).pp.beta0, ones(2))
+    @test isapprox(lm(Xf, y).pp.beta0, ones(2))
+    @test isapprox(lm(X, yf).pp.beta0, ones(2))
+end
+
+@testset "Issue 117" begin
+    data = DataFrame(x = [1,2,3,4], y = [24,34,44,54])
+    @test isapprox(coef(glm(@formula(y ~ x), data, Normal(), IdentityLink())), [14., 10])
+end
+
+@testset "Issue 118" begin
+    @inferred nobs(lm(randn(10, 2), randn(10)))
+end
+
+@testset "Issue 153" begin
+    X = [ones(10) randn(10)]
+    Test.@inferred cholfact(DensePredQR{Float64}(X))
+end
+
+@testset "Issue 224" begin
+    srand(1009)
+    # Make X slightly ill conditioned to amplify rounding errors
+    X, y = qr(randn(100, 5))[1]*Diagonal(logspace(-2,2,5))*qr(randn(5,5))[1]', randn(100)
+    @test coef(GLM.glm(X, y, GLM.Normal(), GLM.IdentityLink())) ≈ coef(lm(X, y))
+end
+
+@testset "Issue #228" begin
+    @test_throws ArgumentError glm(randn(10, 2), rand(1:10, 10), Binomial(10))
 end
