@@ -1,9 +1,8 @@
 # Linear models (lm's) and generalized linear models (glm's) in Julia
 
-[![Travis](https://travis-ci.org/JuliaStats/GLM.jl.svg?branch=master)](https://travis-ci.org/JuliaStats/GLM.jl)
-[![Coverage Status](https://coveralls.io/repos/github/JuliaStats/GLM.jl/badge.svg?branch=master)](https://coveralls.io/github/JuliaStats/GLM.jl?branch=master)
-[![GLM](http://pkg.julialang.org/badges/GLM_0.5.svg)](http://pkg.julialang.org/?pkg=GLM)
-[![GLM](http://pkg.julialang.org/badges/GLM_0.6.svg)](http://pkg.julialang.org/?pkg=GLM)
+| **Documentation** | **Release status** | **Master status** | Coverage |
+|:-----------------:|:------------------:|:-----------------:|:--------:|
+| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url] | [![][pkg-0.6-img]][pkg-0.6-url] | [![][travis-img]][travis-url] | [![][coveralls-img]][coveralls-url] |
 
 ## Installation
 
@@ -347,7 +346,7 @@ A ```ModResp``` type must provide methods for the ```wtres``` and
 ```sqrtxwts``` generics.  Their values are the arguments to the
 ```updatebeta``` methods of the ```LinPred``` types.  The
 ```Float64``` value returned by ```updatedelta``` is the value of the
-convergence criterion.  
+convergence criterion.
 
 Similarly, ```LinPred``` types must provide a method for the
 ```linpred``` generic.  In general ```linpred``` takes an instance of
@@ -356,3 +355,19 @@ of a ```LinPred``` type use a default step factor of 1.  The value of
 ```linpred``` is the argument to the ```updatemu``` method for
 ```ModResp``` types.  The ```updatemu``` method returns the updated
 deviance.
+
+[docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
+[docs-latest-url]: https://JuliaStats.github.io/GLM.jl/latest
+
+[docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
+[docs-stable-url]: https://JuliaStats.github.io/GLM.jl/stable
+
+[travis-img]: https://travis-ci.org/JuliaStats/GLM.jl.svg?branch=master
+[travis-url]: https://travis-ci.org/JuliaStats/GLM.jl
+
+[coveralls-img]: https://coveralls.io/repos/github/JuliaStats/GLM.jl/badge.svg?branch=master
+[coveralls-url]: https://coveralls.io/github/JuliaStats/GLM.jl?branch=master
+
+[pkg-0.6-img]: http://pkg.julialang.org/badges/GLM_0.6.svg
+[pkg-0.6-url]: http://pkg.julialang.org/?pkg=GLM
+
