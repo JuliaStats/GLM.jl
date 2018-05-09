@@ -392,30 +392,6 @@ end
     @test isapprox(pred[5,3], 2.564532433982956)
 end
 
-@testset "Issue 118" begin
-    @inferred nobs(lm(randn(10, 2), randn(10)))
-end
-
-@testset "Issue 84" begin
-    X = [1 1; 2 4; 3 9]
-    Xf = [1 1; 2 4; 3 9.]
-    y = [2, 6, 12]
-    yf = [2, 6, 12.]
-    @test isapprox(lm(X, y).pp.beta0, ones(2))
-    @test isapprox(lm(Xf, y).pp.beta0, ones(2))
-    @test isapprox(lm(X, yf).pp.beta0, ones(2))
-end
-
-@testset "Issue 153" begin
-    X = [ones(10) randn(10)]
-    Test.@inferred cholfact(DensePredQR{Float64}(X))
-end
-
-@testset "Issue 117" begin
-    data = DataFrame(x = [1,2,3,4], y = [24,34,44,54])
-    @test isapprox(coef(glm(@formula(y ~ x), data, Normal(), IdentityLink())), [14., 10])
-end
-
 @testset "F test for model comparison" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
@@ -479,7 +455,7 @@ end
          0.0  3.0  0.0    0.0      0.0    0.0    0.0    0.0      0.0      0.0    0.0      7.0]
     # Cholesky
     RL = cholfact(V)[:L]
-    Yc = RL\Y 
+    Yc = RL\Y
     # Fit 1 (intercept)
     Xc1 = RL\X[:,[1]]
     mod1 = lm(Xc1, Yc)
@@ -487,4 +463,35 @@ end
     Xc2 = RL\X
     mod2 = lm(Xc2, Yc)
     @test GLM.issubmodel(mod1, mod2)
+end
+
+@testset "Issue 84" begin
+    X = [1 1; 2 4; 3 9]
+    Xf = [1 1; 2 4; 3 9.]
+    y = [2, 6, 12]
+    yf = [2, 6, 12.]
+    @test isapprox(lm(X, y).pp.beta0, ones(2))
+    @test isapprox(lm(Xf, y).pp.beta0, ones(2))
+    @test isapprox(lm(X, yf).pp.beta0, ones(2))
+end
+
+@testset "Issue 117" begin
+    data = DataFrame(x = [1,2,3,4], y = [24,34,44,54])
+    @test isapprox(coef(glm(@formula(y ~ x), data, Normal(), IdentityLink())), [14., 10])
+end
+
+@testset "Issue 118" begin
+    @inferred nobs(lm(randn(10, 2), randn(10)))
+end
+
+@testset "Issue 153" begin
+    X = [ones(10) randn(10)]
+    Test.@inferred cholfact(DensePredQR{Float64}(X))
+end
+
+@testset "Issue 224" begin
+    srand(1009)
+    # Make X slightly ill conditioned to amplify rounding errors
+    X, y = qr(randn(100, 5))[1]*Diagonal(logspace(-2,2,5))*qr(randn(5,5))[1]', randn(100)
+    @test coef(GLM.glm(X, y, GLM.Normal(), GLM.IdentityLink())) ≈ coef(lm(X, y))
 end

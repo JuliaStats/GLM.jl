@@ -162,27 +162,40 @@ dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) 
 
 function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
               convTol::Real, start)
+
+    # Return early if model has the fit flag set
     m.fit && return m
-    maxIter >= 1 || throw(ArgumentError("maxIter must be positive"))
+
+    # Check arguments
+    maxIter >= 1       || throw(ArgumentError("maxIter must be positive"))
     0 < minStepFac < 1 || throw(ArgumentError("minStepFac must be in (0, 1)"))
 
+    # Extract fields and set convergence flag
     cvg, p, r = false, m.pp, m.rr
     lp = r.mu
+
+    # Initialize β, μ, and compute deviance
     if start == nothing || isempty(start)
+        # Compute beta update based on default response value
+        # if no starting values have been passed
         delbeta!(p, wrkresp(r), r.wrkwt)
         linpred!(lp, p)
         updateμ!(r, lp)
         installbeta!(p)
     else
+        # otherwise copy starting values for β
         copy!(p.beta0, start)
         fill!(p.delbeta, 0)
         linpred!(lp, p, 0)
         updateμ!(r, lp)
     end
     devold = deviance(m)
+
     for i = 1:maxIter
-        f = 1.0
+        f = 1.0 # line search factor
         local dev
+
+        # Compute the change to β, update μ and compute deviance
         try
             delbeta!(p, r.wrkresid, r.wrkwt)
             linpred!(lp, p)
@@ -191,8 +204,13 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         catch e
             isa(e, DomainError) ? (dev = Inf) : rethrow(e)
         end
-        while dev > devold
-            f /= 2.
+
+        # Line search
+        ## If the deviance isn't declining then half the step size
+        ## The convTol*dev term is to avoid failure when deviance
+        ## is unchanged except for rouding errors.
+        while dev > devold + convTol*dev
+            f /= 2
             f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
             try
                 updateμ!(r, linpred(p, f))
@@ -202,6 +220,8 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
             end
         end
         installbeta!(p, f)
+
+        # Test for convergence
         crit = (devold - dev)/dev
         verbose && println("$i: $dev, $crit")
         if crit < convTol || dev == 0
