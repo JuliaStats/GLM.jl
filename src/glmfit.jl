@@ -141,6 +141,12 @@ function confint(obj::AbstractGLM, level::Real)
     hcat(coef(obj),coef(obj)) + stderr(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
 end
 confint(obj::AbstractGLM) = confint(obj, 0.95)
+fit(::Type{M},
+X::Union{Matrix,SparseMatrixCSC},
+y::AbstractVector,
+d::UnivariateDistribution,
+l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
+    fit(M, float(X), float(y), d, l; kwargs...)
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
@@ -167,7 +173,13 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
     0 < minStepFac < 1 || throw(ArgumentError("minStepFac must be in (0, 1)"))
 
     cvg, p, r = false, m.pp, m.rr
+    println("= m.pp is LinPred =")
+    println(m.pp)
+    println("= m.rr is GlmResp =")
+    println(m.rr)
     lp = r.mu
+    println("= initial r.mu =")
+    println(r.mu)
     if start == nothing || isempty(start)
         delbeta!(p, wrkresp(r), r.wrkwt)
         linpred!(lp, p)
@@ -272,9 +284,23 @@ function fit(::Type{M},
 
     wts = T <: Float64 ? copy(wts) : convert(typeof(y), wts)
     off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
+    println("= Simlar y = ")
+    println(similar(y))
+    println("= y = ")
+    println(y)
+    println("= wts = ")
+    println(wts)
+    println("= off = ")
+    println(off)
     eta = initialeta!(d, l, similar(y), y, wts, off)
+    println("= ETA after initialization = ")
+    println(eta)
     rr = GlmResp(y, d, l, eta, similar(y), offset, wts)
+    println("= rr = ")
+    println(rr)
     res = M(rr, cholpred(X), false)
+    println("= res BEFORE =")
+    println(res)
     dofit ? fit!(res; fitargs...) : res
 end
 
@@ -285,7 +311,7 @@ d::UnivariateDistribution,
 l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
     fit(M, float(X), float(y), d, l; kwargs...)
 
-glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
+glm(F, D, args...; kwargs...) = fit(GeneralizedLinearModel, F, D, args...; kwargs...)
 
 GLM.Link(mm::AbstractGLM) = mm.l
 GLM.Link(r::GlmResp{T,D,L}) where {T,D,L} = L()
