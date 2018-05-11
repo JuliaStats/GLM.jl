@@ -2,6 +2,9 @@
 
 ```@meta
 DocTestSetup = quote
+    if Pkg.installed("RDatasets") isa Void
+        Pkg.add("RDatasets")
+    end
     using CategoricalArrays, DataFrames, Distributions, GLM, RDatasets
 end
 ```
