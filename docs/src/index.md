@@ -370,10 +370,6 @@ deviance.
 
 ## API
 
-```@docs
-GLM.fit
-```
-
 ### Types defined in the package
 
 ```@docs
