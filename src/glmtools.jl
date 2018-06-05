@@ -374,7 +374,12 @@ end
 devresid(::Gamma, y, μ) = -2 * (log(y / μ) - (y - μ) / μ)
 devresid(::InverseGaussian, y, μ) = abs2(y - μ) / (y * abs2(μ))
 # TODO: change 1.0 to θ
-devresid(::NegativeBinomial, y, μ) = 2 * (xlogy(y, y / μ) - (y + 1.0) * log(y +1.0) + (μ + 1.0) * log(μ + 1.0))
+function devresid(::NegativeBinomial, y, μ)
+    if μ == 0.0
+        throw(ArgumentError("μ = 0.0 when computing deviance for NegativeBinomial"))
+    end
+    return 2 * (xlogy(y, y / μ) - (y + 1.0) * log(y +1.0) + (μ + 1.0) * log(μ + 1.0))
+end
 devresid(::Normal, y, μ) = abs2(y - μ)
 devresid(::Poisson, y, μ) = 2 * (xlogy(y, y / μ) - (y - μ))
 

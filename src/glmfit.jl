@@ -207,12 +207,6 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
     if start == nothing || isempty(start)
         # Compute beta update based on default response value
         # if no starting values have been passed
-        # delbeta! does the following
-        #  1. compute X^T W X
-        #  2. compute a cholesky factorization of X^T W X, store in p.chol
-        #  3. compute (X^T W X)^{-1} X^T W * wrkresp
-        #     where wrkresp = eta + wrkresid - offset
-        #     so wrkresp looks like z = (X theta - )
         delbeta!(p, wrkresp(r), r.wrkwt)
         linpred!(lp, p)
         updateμ!(r, lp)
@@ -225,6 +219,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         updateμ!(r, lp)
     end
     devold = deviance(m)
+    println("devold = ", devold)
 
     for i = 1:maxIter
         f = 1.0 # line search factor
@@ -236,6 +231,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
             linpred!(lp, p)
             updateμ!(r, lp)
             dev = deviance(m)
+            println("local dev = ", dev)
         catch e
             isa(e, DomainError) ? (dev = Inf) : rethrow(e)
         end
@@ -250,6 +246,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
             try
                 updateμ!(r, linpred(p, f))
                 dev = deviance(m)
+                println("dev during backtracking = ", dev)
             catch e
                 isa(e, DomainError) ? (dev = Inf) : rethrow(e)
             end
