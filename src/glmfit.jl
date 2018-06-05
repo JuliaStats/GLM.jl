@@ -71,6 +71,7 @@ the expression for the working weights will cancel.
 """
 cancancel(::GlmResp) = false
 cancancel(::GlmResp{V,D,LogitLink}) where {V,D<:Union{Bernoulli,Binomial}} = true
+cancancel(::GlmResp{V,D,NegativeBinomialLink}) where {V,D<:NegativeBinomial} = true
 cancancel(::GlmResp{V,D,IdentityLink}) where {V,D<:Normal} = true
 cancancel(::GlmResp{V,D,LogLink}) where {V,D<:Poisson} = true
 
@@ -200,18 +201,18 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
 
     # Extract fields and set convergence flag
     cvg, p, r = false, m.pp, m.rr
-    println("= m.pp is LinPred =")
-    println(m.pp)
-    println("= m.rr is GlmResp =")
-    println(m.rr)
     lp = r.mu
-    println("= initial r.mu =")
-    println(r.mu)
 
     # Initialize β, μ, and compute deviance
     if start == nothing || isempty(start)
         # Compute beta update based on default response value
         # if no starting values have been passed
+        # delbeta! does the following
+        #  1. compute X^T W X
+        #  2. compute a cholesky factorization of X^T W X, store in p.chol
+        #  3. compute (X^T W X)^{-1} X^T W * wrkresp
+        #     where wrkresp = eta + wrkresid - offset
+        #     so wrkresp looks like z = (X theta - )
         delbeta!(p, wrkresp(r), r.wrkwt)
         linpred!(lp, p)
         updateμ!(r, lp)
@@ -308,25 +309,8 @@ function fit(::Type{M},
         throw(DimensionMismatch("number of rows in X and y must match"))
     end
 
-    wts = T <: Float64 ? copy(wts) : convert(typeof(y), wts)
-    off = T <: Float64 ? copy(offset) : convert(Vector{T}, offset)
-    println("= Simlar y = ")
-    println(similar(y))
-    println("= y = ")
-    println(y)
-    println("= wts = ")
-    println(wts)
-    println("= off = ")
-    println(off)
-    eta = initialeta!(d, l, similar(y), y, wts, off)
-    println("= ETA after initialization = ")
-    println(eta)
     rr = GlmResp(y, d, l, offset, wts)
-    println("= rr = ")
-    println(rr)
     res = M(rr, cholpred(X), false)
-    println("= res BEFORE =")
-    println(res)
     return dofit ? fit!(res; fitargs...) : res
 end
 
@@ -436,4 +420,3 @@ function checky(y, d::Binomial)
     end
     return nothing
 end
-
