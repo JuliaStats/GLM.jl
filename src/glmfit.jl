@@ -171,12 +171,6 @@ function confint(obj::AbstractGLM, level::Real)
     hcat(coef(obj),coef(obj)) + stderror(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
 end
 confint(obj::AbstractGLM) = confint(obj, 0.95)
-fit(::Type{M},
-X::Union{Matrix,SparseMatrixCSC},
-y::AbstractVector,
-d::UnivariateDistribution,
-l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
-    fit(M, float(X), float(y), d, l; kwargs...)
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 

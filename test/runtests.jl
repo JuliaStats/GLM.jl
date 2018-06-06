@@ -44,7 +44,6 @@ end
                      [:G, :H])
     f = @eval(@formula($nothing ~ 1+G*H))
     X = ModelMatrix(ModelFrame(f, dfrm)).m
-
     y = X * (1:size(X, 2)) + 0.1 * randn(MersenneTwister(1234321), size(X, 1))
     inds = deleteat!(collect(1:length(y)), 7:8)
     m1 = fit(LinearModel, X, y)
