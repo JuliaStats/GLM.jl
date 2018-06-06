@@ -253,7 +253,6 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         ## The convTol*dev term is to avoid failure when deviance
         ## is unchanged except for rouding errors.
         while dev > devold + convTol*dev
-            println("[dev, devold,convTol*dev] = ", dev, " ", devold, " ", convTol*dev)
             f /= 2
             f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
             try
@@ -317,6 +316,7 @@ function fit(::Type{M},
     if size(X, 1) != size(y, 1)
         throw(DimensionMismatch("number of rows in X and y must match"))
     end
+
     rr = GlmResp(y, d, l, offset, wts)
     res = M(rr, cholpred(X), false)
     return dofit ? fit!(res; fitargs...) : res

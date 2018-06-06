@@ -43,7 +43,7 @@ end
                      categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
                      [:G, :H])
     f = @eval(@formula($nothing ~ 1+G*H))
-    X = ModelMatrix(ModelFrame(f, dfrm)).m# mustart = y + (y==0)/6 is used in glm.nb package
+    X = ModelMatrix(ModelFrame(f, dfrm)).m
 
     y = X * (1:size(X, 2)) + 0.1 * randn(MersenneTwister(1234321), size(X, 1))
     inds = deleteat!(collect(1:length(y)), 7:8)
@@ -66,7 +66,7 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     Treatment = categorical(repeat(string.('a':'c'), inner = 3)))
 
 @testset "Poisson GLM" begin
-    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),# mustart = y + (y==0)/6 is used in glm.nb package
+    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
 
               dobson, Poisson())
     @test GLM.cancancel(gm1.model.rr)
@@ -130,8 +130,7 @@ end
     @test isapprox(aic(gm4), 471.3401112751142)
     @test isapprox(aicc(gm4), 471.5538517331295)
     @test isapprox(bic(gm4), 495.28889855776214)
-end# mustart = y + (y==0)/6 is used in glm.nb package
-
+end
 
 @testset "Bernoulli CloglogLink" begin
     gm5 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,

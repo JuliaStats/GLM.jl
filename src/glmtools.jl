@@ -70,7 +70,7 @@ mutable struct LogLink <: Link end
     NegativeBinomialLink
 
 The canonical [`Link`](@ref) for [`Distributions.NegativeBinomial`](@ref) distribution, defined as `η = log(μ/(μ+θ))`.
-θ has to be fixed for the distribution to belong to the exponential family
+The shape parameter θ has to be fixed for the distribution to belong to the exponential family
 """
 mutable struct NegativeBinomialLink  <: Link
     θ::Float64
@@ -240,13 +240,12 @@ function inverselink(::LogLink, η)
     μ, μ, oftype(μ, NaN)
 end
 
-linkfun(l::NegativeBinomialLink, μ) = log(μ/(μ+l.θ))
-linkinv(l::NegativeBinomialLink, η) = e^η * l.θ / (1.0-e^η)
-mueta(l::NegativeBinomialLink, η) = e^η * l.θ / (1.0-e^η)
-function inverselink(l::NegativeBinomialLink, η)
-    θ = l.θ
-    μ = e^η * θ / (1-e^η)
-    deriv = μ * (1.0 + μ/θ)
+linkfun(nbl::NegativeBinomialLink, μ) = log(μ / (μ + nbl.θ))
+linkinv(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1.0-e^η)
+mueta(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1.0-e^η)
+function inverselink(nbl::NegativeBinomialLink, η)
+    μ = e^η * nbl.θ / (1-e^η)
+    deriv = μ * (1.0 + μ / nbl.θ)
     μ, deriv, oftype(μ, NaN)
 end
 
@@ -268,7 +267,7 @@ canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()
 canonicallink(::Gamma) = InverseLink()
 canonicallink(::InverseGaussian) = InverseSquareLink()
-canonicallink(::Normal) = IdentityLink()must
+canonicallink(::Normal) = IdentityLink()
 canonicallink(::Poisson) = LogLink()
 canonicallink(d::NegativeBinomial) = NegativeBinomialLink(d.r)
 

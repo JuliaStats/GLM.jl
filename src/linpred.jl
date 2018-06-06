@@ -215,7 +215,7 @@ function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
     ipiv = invperm(ch.piv)
     res[ipiv, ipiv]
 end
-invchol(x::SparsePredChol) = cholfact!(x) \ eye(printlnsize(x.X, 2))
+invchol(x::SparsePredChol) = cholfact!(x) \ eye(size(x.X, 2))
 vcov(x::LinPredModel) = scale!(invchol(x.pp), dispersion(x, true))
 
 function cor(x::LinPredModel)
