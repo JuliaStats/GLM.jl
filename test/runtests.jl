@@ -1,6 +1,7 @@
-using CategoricalArrays, Compat, CSV, DataFrames, StatsBase
+using CategoricalArrays, Compat, CSV, DataFrames, StatsBase, RDatasets
 using Compat.Test
 using GLM
+
 
 test_show(x) = show(IOBuffer(), x)
 
@@ -42,7 +43,8 @@ end
                      categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
                      [:G, :H])
     f = @eval(@formula($nothing ~ 1+G*H))
-    X = ModelMatrix(ModelFrame(f, dfrm)).m
+    X = ModelMatrix(ModelFrame(f, dfrm)).m# mustart = y + (y==0)/6 is used in glm.nb package
+
     y = X * (1:size(X, 2)) + 0.1 * randn(MersenneTwister(1234321), size(X, 1))
     inds = deleteat!(collect(1:length(y)), 7:8)
     m1 = fit(LinearModel, X, y)
@@ -64,7 +66,8 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     Treatment = categorical(repeat(string.('a':'c'), inner = 3)))
 
 @testset "Poisson GLM" begin
-    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
+    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),# mustart = y + (y==0)/6 is used in glm.nb package
+
               dobson, Poisson())
     @test GLM.cancancel(gm1.model.rr)
     test_show(gm1)
@@ -127,7 +130,8 @@ end
     @test isapprox(aic(gm4), 471.3401112751142)
     @test isapprox(aicc(gm4), 471.5538517331295)
     @test isapprox(bic(gm4), 495.28889855776214)
-end
+end# mustart = y + (y==0)/6 is used in glm.nb package
+
 
 @testset "Bernoulli CloglogLink" begin
     gm5 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
@@ -328,6 +332,13 @@ end
     @test isapprox(bic(gm17), 186.5854647596431)
     @test isapprox(coef(gm17), [3.1218557035404793, -0.5270435906931427,-0.40300384148562746,
                            -0.017850203824417415,-0.03507851122782909])
+end
+
+# Dataset discussed in Section 7.4 of "Modern Applied Statistics with S"
+@testset "NegativeBinomial LogLink" begin
+    quine = dataset("MASS", "quine")
+    nbmodel = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
+    @test isapprox(deviance(nbmodel), 239.1111, atol=1e-4)
 end
 
 @testset "Sparse GLM" begin
