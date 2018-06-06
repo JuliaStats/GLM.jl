@@ -253,6 +253,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         ## The convTol*dev term is to avoid failure when deviance
         ## is unchanged except for rouding errors.
         while dev > devold + convTol*dev
+            println("[dev, devold,convTol*dev] = ", dev, " ", devold, " ", convTol*dev)
             f /= 2
             f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
             try

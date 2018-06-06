@@ -329,7 +329,7 @@ mustart(::Bernoulli, y, wt) = (y + oftype(y, 1/2)) / 2
 mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1/2)) / (wt + one(y))
 mustart(::Union{Gamma, InverseGaussian}, y, wt) = y == 0 ? oftype(y, 1/10) : y
 # mustart = y + (y==0)/6 is used in glm.nb package
-mustart(::NegativeBinomial, y, wt) = y == 0 ? y + 1/6 : y
+mustart(::NegativeBinomial, y, wt) = y == 0 ? y + oftype(y, 1/6) : y
 mustart(::Normal, y, wt) = y
 mustart(::Poisson, y, wt) = y + oftype(y, 1/10)
 
@@ -381,7 +381,7 @@ function devresid(d::NegativeBinomial, y, μ)
     if μ == 0.0
         throw(ArgumentError("μ = 0.0 when computing deviance for NegativeBinomial"))
     end
-    return 2 * (xlogy(y, y / μ) - (y + θ) * log(y + θ) + (μ + θ) * log(μ + θ))
+    return 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
 end
 devresid(::Normal, y, μ) = abs2(y - μ)
 devresid(::Poisson, y, μ) = 2 * (xlogy(y, y / μ) - (y - μ))
