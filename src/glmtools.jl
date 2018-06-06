@@ -70,8 +70,11 @@ mutable struct LogLink <: Link end
     NegativeBinomialLink
 
 The canonical [`Link`](@ref) for [`Distributions.NegativeBinomial`](@ref) distribution, defined as `η = log(μ/(μ+θ))`.
+θ has to be fixed for the distribution to belong to the exponential family
 """
-mutable struct NegativeBinomialLink  <: Link end
+mutable struct NegativeBinomialLink  <: Link
+    θ::Float64
+end
 
 """
     ProbitLink
@@ -237,14 +240,13 @@ function inverselink(::LogLink, η)
     μ, μ, oftype(μ, NaN)
 end
 
-# TODO: add θ as a default parameter to linkfun, define a new link type
-#       ParameterizedLink? in addition to Link and Link01
-linkfun(::NegativeBinomialLink, μ) = log(μ/(μ+1.0))
-linkinv(::NegativeBinomialLink, η) = e^η * 1.0 / (1-e^η)
-mueta(::NegativeBinomialLink, η) = e^η * 1.0 / (1-e^η)
-function inverselink(::NegativeBinomialLink, η)
-    μ = e^η * 1.0 / (1-e^η)
-    deriv = μ * (1.0 + μ/1.0)
+linkfun(l::NegativeBinomialLink, μ) = log(μ/(μ+l.θ))
+linkinv(l::NegativeBinomialLink, η) = e^η * l.θ / (1.0-e^η)
+mueta(l::NegativeBinomialLink, η) = e^η * l.θ / (1.0-e^η)
+function inverselink(l::NegativeBinomialLink, η)
+    θ = l.θ
+    μ = e^η * θ / (1-e^η)
+    deriv = μ * (1.0 + μ/θ)
     μ, deriv, oftype(μ, NaN)
 end
 
@@ -266,9 +268,9 @@ canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()
 canonicallink(::Gamma) = InverseLink()
 canonicallink(::InverseGaussian) = InverseSquareLink()
-canonicallink(::Normal) = IdentityLink()
+canonicallink(::Normal) = IdentityLink()must
 canonicallink(::Poisson) = LogLink()
-canonicallink(::NegativeBinomial) = NegativeBinomialLink()
+canonicallink(d::NegativeBinomial) = NegativeBinomialLink(d.r)
 
 """
     glmvar(D::Distribution, μ)
@@ -296,7 +298,7 @@ function glmvar end
 glmvar(::Union{Bernoulli,Binomial}, μ) = μ * (1 - μ)
 glmvar(::Gamma, μ) = abs2(μ)
 glmvar(::InverseGaussian, μ) = μ^3
-glmvar(::NegativeBinomial, μ) = μ(1.0 + μ/1.0) # TODO: change the last 1.0 to θ
+glmvar(d::NegativeBinomial, μ) = μ * (1.0 + μ/d.r)
 glmvar(::Normal, μ) = one(μ)
 glmvar(::Poisson, μ) = μ
 
@@ -326,7 +328,8 @@ function mustart end
 mustart(::Bernoulli, y, wt) = (y + oftype(y, 1/2)) / 2
 mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1/2)) / (wt + one(y))
 mustart(::Union{Gamma, InverseGaussian}, y, wt) = y == 0 ? oftype(y, 1/10) : y
-mustart(::NegativeBinomial, y, wt) = y # TODO: are these good starting values?
+# mustart = y + (y==0)/6 is used in glm.nb package
+mustart(::NegativeBinomial, y, wt) = y == 0 ? y + 1/6 : y
 mustart(::Normal, y, wt) = y
 mustart(::Poisson, y, wt) = y + oftype(y, 1/10)
 
@@ -373,12 +376,12 @@ function devresid(::Binomial, y, μ)
 end
 devresid(::Gamma, y, μ) = -2 * (log(y / μ) - (y - μ) / μ)
 devresid(::InverseGaussian, y, μ) = abs2(y - μ) / (y * abs2(μ))
-# TODO: change 1.0 to θ
-function devresid(::NegativeBinomial, y, μ)
+function devresid(d::NegativeBinomial, y, μ)
+    θ = d.r
     if μ == 0.0
         throw(ArgumentError("μ = 0.0 when computing deviance for NegativeBinomial"))
     end
-    return 2 * (xlogy(y, y / μ) - (y + 1.0) * log(y +1.0) + (μ + 1.0) * log(μ + 1.0))
+    return 2 * (xlogy(y, y / μ) - (y + θ) * log(y + θ) + (μ + θ) * log(μ + θ))
 end
 devresid(::Normal, y, μ) = abs2(y - μ)
 devresid(::Poisson, y, μ) = 2 * (xlogy(y, y / μ) - (y - μ))

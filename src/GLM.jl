@@ -45,6 +45,7 @@ module GLM
         LogLink,
         LmResp,
         NegativeBinomial,
+        NegativeBinomialLink,
         Normal,
         Poisson,
         ProbitLink,

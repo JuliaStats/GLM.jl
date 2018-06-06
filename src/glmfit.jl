@@ -119,6 +119,20 @@ function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:Union{Bernoulli,Bino
     end
 end
 
+function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:NegativeBinomial,L<:NegativeBinomialLink}
+    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
+
+    @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
+        θ = r.d.r # the shape parameter of the negative binomial distribution
+        μi, dμdη, μomμ = inverselink(L(θ), η[i])
+        μ[i] = μi
+        yi = y[i]
+        wrkres[i] = (yi - μi) / dμdη
+        wrkwt[i] = cancancel(r) ? dμdη : abs2(dμdη) / μomμ
+        dres[i] = devresid(r.d, yi, μi)
+    end
+end
+
 """
     wrkresp(r::GlmResp)
 
@@ -219,7 +233,6 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         updateμ!(r, lp)
     end
     devold = deviance(m)
-    println("devold = ", devold)
 
     for i = 1:maxIter
         f = 1.0 # line search factor
@@ -231,7 +244,6 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
             linpred!(lp, p)
             updateμ!(r, lp)
             dev = deviance(m)
-            println("local dev = ", dev)
         catch e
             isa(e, DomainError) ? (dev = Inf) : rethrow(e)
         end
@@ -246,7 +258,6 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
             try
                 updateμ!(r, linpred(p, f))
                 dev = deviance(m)
-                println("dev during backtracking = ", dev)
             catch e
                 isa(e, DomainError) ? (dev = Inf) : rethrow(e)
             end
@@ -305,7 +316,6 @@ function fit(::Type{M},
     if size(X, 1) != size(y, 1)
         throw(DimensionMismatch("number of rows in X and y must match"))
     end
-
     rr = GlmResp(y, d, l, offset, wts)
     res = M(rr, cholpred(X), false)
     return dofit ? fit!(res; fitargs...) : res
@@ -322,6 +332,7 @@ glm(F, D, args...; kwargs...) = fit(GeneralizedLinearModel, F, D, args...; kwarg
 
 GLM.Link(mm::AbstractGLM) = mm.l
 GLM.Link(r::GlmResp{T,D,L}) where {T,D,L} = L()
+GLM.Link(r::GlmResp{T,D,L}) where {T,D<:NegativeBinomial,L<:NegativeBinomialLink} = L(r.d.r)
 GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
 
 Distributions.Distribution(r::GlmResp{T,D,L}) where {T,D,L} = D
