@@ -2,7 +2,8 @@ using Distributions, Documenter, GLM
 
 makedocs(
     format = :html,
-    sitename = "GLM"
+    sitename = "GLM",
+    modules = [GLM]
 )
 
 deploydocs(

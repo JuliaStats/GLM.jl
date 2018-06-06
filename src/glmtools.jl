@@ -17,7 +17,7 @@ abstract type Link01 <: Link end
     CauchitLink
 
 A [`Link01`](@ref) corresponding to the standard Cauchy distribution,
-[`Distributions.Cauchy`](@ref).
+[`Distributions.Cauchy`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Cauchy).
 """
 mutable struct CauchitLink <: Link01 end
 
@@ -39,30 +39,30 @@ mutable struct IdentityLink <: Link end
 """
     InverseLink
 
-The canonical [`Link`](@ref) for [`Distributions.Gamma`](@ref) distribution, defined as `η = inv(μ)`.
+The canonical [`Link`](@ref) for [`Distributions.Gamma`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Gamma) distribution, defined as `η = inv(μ)`.
 """
 mutable struct InverseLink  <: Link end
 
 """
     InverseSquareLink
 
-The canonical [`Link`](@ref) for [`Distributions.InverseGaussian`](@ref) distribution, defined as `η = inv(abs2(μ))`.
+The canonical [`Link`](@ref) for [`Distributions.InverseGaussian`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.InverseGaussian) distribution, defined as `η = inv(abs2(μ))`.
 """
 mutable struct InverseSquareLink  <: Link end
 
 """
     LogitLink
 
-The canonical [`Link01`](@ref) for [`Distributions.Bernoulli`](@ref) and [`Distributions.Binomial`](@ref).
+The canonical [`Link01`](@ref) for [`Distributions.Bernoulli`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Bernoulli) and [`Distributions.Binomial`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Binomial).
 The inverse link, [`linkinv`](@ref), is the c.d.f. of the standard logistic distribution,
-[`Distributions.Logistic`](@ref).
+[`Distributions.Logistic`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Logistic).
 """
 mutable struct LogitLink <: Link01 end
 
 """
     LogLink
 
-The canonical [`Link`](@ref) for [`Distributions.Poisson`](@ref), defined as `η = log(μ)`.
+The canonical [`Link`](@ref) for [`Distributions.Poisson`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Poisson), defined as `η = log(μ)`.
 """
 mutable struct LogLink <: Link end
 
@@ -80,7 +80,7 @@ end
     ProbitLink
 
 A [`Link01`](@ref) whose [`linkinv`](@ref) is the c.d.f. of the standard normal
-distribution, ()`Distributions.Normal()`).
+distribution, [`Distributions.Normal()`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Normal).
 """
 mutable struct ProbitLink <: Link01 end
 
