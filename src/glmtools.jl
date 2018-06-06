@@ -328,7 +328,6 @@ function mustart end
 mustart(::Bernoulli, y, wt) = (y + oftype(y, 1/2)) / 2
 mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1/2)) / (wt + one(y))
 mustart(::Union{Gamma, InverseGaussian}, y, wt) = y == 0 ? oftype(y, 1/10) : y
-# mustart = y + (y==0)/6 is used in glm.nb package
 mustart(::NegativeBinomial, y, wt) = y == 0 ? y + oftype(y, 1/6) : y
 mustart(::Normal, y, wt) = y
 mustart(::Poisson, y, wt) = y + oftype(y, 1/10)
@@ -422,3 +421,5 @@ loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
 loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt*logpdf(InverseGaussian(μ, inv(ϕ)), y)
 loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
 loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
+# μ = θp/(1-p) ==> p = μ/(μ+θ)
+loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, μ/(μ+d.r)), y)
