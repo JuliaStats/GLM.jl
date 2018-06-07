@@ -332,11 +332,18 @@ end
                            -0.017850203824417415,-0.03507851122782909])
 end
 
-# Dataset discussed in Section 7.4 of "Modern Applied Statistics with S"
+# "quine" dataset discussed in Section 7.4 of "Modern Applied Statistics with S"
+quine = dataset("MASS", "quine")
 @testset "NegativeBinomial LogLink" begin
-    quine = dataset("MASS", "quine")
-    nbmodel = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
-    @test isapprox(deviance(nbmodel), 239.1111, atol=1e-4)
+    nbmodel1 = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
+    @test !GLM.cancancel(nbmodel1.model.rr)
+    @test isapprox(deviance(nbmodel1), 239.1111, atol=1e-4)
+end
+
+@testset "NegativeBinomial NegativeBinomialLink" begin
+    # the default/canonical link is NegativeBinomialLink
+    nbmodel2 = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0))
+    @test GLM.cancancel(nbmodel2.model.rr)
 end
 
 @testset "Sparse GLM" begin
