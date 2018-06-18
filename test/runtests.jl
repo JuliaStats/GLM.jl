@@ -335,15 +335,35 @@ end
 # "quine" dataset discussed in Section 7.4 of "Modern Applied Statistics with S"
 quine = dataset("MASS", "quine")
 @testset "NegativeBinomial LogLink" begin
-    nbmodel1 = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
-    @test !GLM.cancancel(nbmodel1.model.rr)
-    @test isapprox(deviance(nbmodel1), 239.1111, atol=1e-4)
+    gm18 = fit(GeneralizedLinearModel, @formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
+    @test !GLM.cancancel(gm18.model.rr)
+    test_show(gm18)
+    @test dof(gm18) == 8
+    @test isapprox(deviance(gm18), 239.11105911824325, rtol = 1e-7)
+    @test isapprox(loglikelihood(gm18), -553.2596040803376, rtol = 1e-7)
+    @test isapprox(aic(gm18), 1122.5192081606751)
+    @test isapprox(aicc(gm18), 1123.570303051186)
+    @test isapprox(bic(gm18), 1146.3880611343418)
+    @test isapprox(coef(gm18)[1:7],
+        [2.886448718885344, -0.5675149923412003, 0.08707706381784373,
+        -0.44507646428307207, 0.09279987988262384, 0.35948527963485755, 0.29676767190444386])
 end
 
 @testset "NegativeBinomial NegativeBinomialLink" begin
     # the default/canonical link is NegativeBinomialLink
-    nbmodel2 = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0))
-    @test GLM.cancancel(nbmodel2.model.rr)
+    gm19 = fit(GeneralizedLinearModel, @formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0))
+    @test GLM.cancancel(gm19.model.rr)
+    test_show(gm19)
+    @test dof(gm19) == 8
+    @test isapprox(deviance(gm19), 239.68562048977307, rtol = 1e-7)
+    @test isapprox(loglikelihood(gm19), -553.5468847661017, rtol = 1e-7)
+    @test isapprox(aic(gm19), 1123.0937695322034)
+    @test isapprox(aicc(gm19), 1124.1448644227144)
+    @test isapprox(bic(gm19), 1146.96262250587)
+    @test isapprox(coef(gm19)[1:7],
+        [-0.12737182842213654, -0.055871700989224705, 0.01561618806384601,
+        -0.041113722732799125, 0.024042387142113462, 0.04400234618798099, 0.035765875508382027, 
+])
 end
 
 @testset "Sparse GLM" begin
