@@ -1,10 +1,3 @@
-mutable struct NegBinRegressionModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
-    rr::G
-    pp::L
-    fit::Bool
-    θ::Real
-end
-
 function mleForθ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
                  maxIter = 30, convTol = 1.e-6)
     function firstDeriv(θ::Real)
