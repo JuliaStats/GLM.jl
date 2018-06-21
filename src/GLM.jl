@@ -69,6 +69,7 @@ module GLM
         logit,
         mueta,          # derivative of inverse link
         mustart,        # derive starting values for the mu vector
+        negbin,         # interface to fitting genative binomial regression
         nobs,           # total number of observations
         predict,        # make predictions
         updateμ!,       # update the response type from the linear predictor
@@ -99,5 +100,6 @@ module GLM
     include("glmtools.jl")
     include("glmfit.jl")
     include("ftest.jl")
+    include("negbinfit.jl")
 
 end # module

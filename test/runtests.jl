@@ -334,7 +334,7 @@ end
 
 # "quine" dataset discussed in Section 7.4 of "Modern Applied Statistics with S"
 quine = dataset("MASS", "quine")
-@testset "NegativeBinomial LogLink" begin
+@testset "NegativeBinomial LogLink Fixed θ" begin
     gm18 = fit(GeneralizedLinearModel, @formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
     @test !GLM.cancancel(gm18.model.rr)
     test_show(gm18)
@@ -349,7 +349,7 @@ quine = dataset("MASS", "quine")
         -0.44507646428307207, 0.09279987988262384, 0.35948527963485755, 0.29676767190444386])
 end
 
-@testset "NegativeBinomial NegativeBinomialLink" begin
+@testset "NegativeBinomial NegativeBinomialLink Fixed θ" begin
     # the default/canonical link is NegativeBinomialLink
     gm19 = fit(GeneralizedLinearModel, @formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0))
     @test GLM.cancancel(gm19.model.rr)
@@ -362,8 +362,37 @@ end
     @test isapprox(bic(gm19), 1146.96262250587)
     @test isapprox(coef(gm19)[1:7],
         [-0.12737182842213654, -0.055871700989224705, 0.01561618806384601,
-        -0.041113722732799125, 0.024042387142113462, 0.04400234618798099, 0.035765875508382027, 
+        -0.041113722732799125, 0.024042387142113462, 0.04400234618798099, 0.035765875508382027,
 ])
+end
+
+@testset "NegativeBinomial LogLink, θ to be estimated" begin
+    gm20 = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink())
+    test_show(gm20)
+    @test dof(gm20) == 8
+    @test isapprox(deviance(gm20), 167.9518430624193, rtol = 1e-7)
+    @test isapprox(loglikelihood(gm20), -546.57550938017, rtol = 1e-7)
+    @test isapprox(aic(gm20), 1109.15101876034)
+    @test isapprox(aicc(gm20), 1110.202113650851)
+    @test isapprox(bic(gm20), 1133.0198717340068)
+    @test isapprox(coef(gm20)[1:7],
+        [2.894527697811509, -0.5693411448715979, 0.08238813087070128, -0.4484636623590206,
+         0.08805060372902418, 0.3569553124412582, 0.2921383118842893])
+end
+
+@testset "NegativeBinomial NegativeBinomialLink, θ to be estimated" begin
+    # the default/canonical link is NegativeBinomialLink
+    gm21 = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine)
+    test_show(gm21)
+    @test dof(gm21) == 8
+    @test isapprox(deviance(gm21), 168.0465485656672, rtol = 1e-7)
+    @test isapprox(loglikelihood(gm21), -546.8048603957335, rtol = 1e-7)
+    @test isapprox(aic(gm21), 1109.609720791467)
+    @test isapprox(aicc(gm21), 1110.660815681978)
+    @test isapprox(bic(gm21), 1133.4785737651337)
+    @test isapprox(coef(gm21)[1:7],
+        [-0.08288628676491684, -0.03697387258037785, 0.010284124099280421, -0.027411445371127288,
+         0.01582155341041012, 0.029074956147127032, 0.023628812427424876])
 end
 
 @testset "Sparse GLM" begin
