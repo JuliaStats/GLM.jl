@@ -55,12 +55,8 @@ function negbin(F, D, args...; kwargs...)
         throw(ArgumentError("length of wts must be either $ly or 0 but was $lw"))
     end
 
-    println("Max iterations = ", maxIter)
-    println("convergence tolerance = ", convTol)
-    println("weights = ", wts)
-
     θ = mleForθ(y, μ, wts)
-    d = sqrt(2 * max(1, deviance(regModel))); println("d = ", d)
+    d = sqrt(2 * max(1, deviance(regModel))); 
     δ = 1
     lm = loglikelihood(regModel)
     lm0 = lm + 2 * d
