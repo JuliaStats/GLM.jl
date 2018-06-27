@@ -66,7 +66,6 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
 
 @testset "Poisson GLM" begin
     gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
-
               dobson, Poisson())
     @test GLM.cancancel(gm1.model.rr)
     test_show(gm1)
