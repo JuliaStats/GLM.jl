@@ -297,7 +297,7 @@ function glmvar end
 glmvar(::Union{Bernoulli,Binomial}, μ) = μ * (1 - μ)
 glmvar(::Gamma, μ) = abs2(μ)
 glmvar(::InverseGaussian, μ) = μ^3
-glmvar(d::NegativeBinomial, μ) = μ * (1.0 + μ/d.r)
+glmvar(d::NegativeBinomial, μ) = μ * (1 + μ/d.r)
 glmvar(::Normal, μ) = one(μ)
 glmvar(::Poisson, μ) = μ
 
