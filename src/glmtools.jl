@@ -241,11 +241,11 @@ function inverselink(::LogLink, η)
 end
 
 linkfun(nbl::NegativeBinomialLink, μ) = log(μ / (μ + nbl.θ))
-linkinv(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1.0-e^η)
-mueta(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1.0-e^η)
+linkinv(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1-e^η)
+mueta(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1-e^η)
 function inverselink(nbl::NegativeBinomialLink, η)
     μ = e^η * nbl.θ / (1-e^η)
-    deriv = μ * (1.0 + μ / nbl.θ)
+    deriv = μ * (1 + μ / nbl.θ)
     μ, deriv, oftype(μ, NaN)
 end
 
@@ -376,10 +376,7 @@ devresid(::Gamma, y, μ) = -2 * (log(y / μ) - (y - μ) / μ)
 devresid(::InverseGaussian, y, μ) = abs2(y - μ) / (y * abs2(μ))
 function devresid(d::NegativeBinomial, y, μ)
     θ = d.r
-    if μ == 0.0
-        throw(ArgumentError("μ = 0.0 when computing deviance for NegativeBinomial"))
-    end
-    return 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
+    return μ == 0.0 ? NaN : 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
 end
 devresid(::Normal, y, μ) = abs2(y - μ)
 devresid(::Poisson, y, μ) = 2 * (xlogy(y, y / μ) - (y - μ))
@@ -427,5 +424,6 @@ loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 # Hence, I decided to write down the loglik function more explicitly
 function loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ)
     θ = d.r
-    wt * (lgamma(θ + y) - lgamma(θ) - lgamma(y + 1) + θ * log(θ) + y * log(μ + (y == 0)) - (θ + y) * log(θ + μ))
+    wt * (lgamma(θ + y) - lgamma(θ) - lgamma(y + 1) + θ * log(θ) + y * log(μ + (y == 0))
+          - (θ + y) * log(θ + μ))
 end
