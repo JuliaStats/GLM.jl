@@ -128,7 +128,7 @@ function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:NegativeBinomial,L<:
         μ[i] = μi
         yi = y[i]
         wrkres[i] = (yi - μi) / dμdη
-        wrkwt[i] = cancancel(r) ? dμdη : abs2(dμdη) / μomμ
+        wrkwt[i] = dμdη
         dres[i] = devresid(r.d, yi, μi)
     end
 end

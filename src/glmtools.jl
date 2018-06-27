@@ -70,7 +70,7 @@ mutable struct LogLink <: Link end
     NegativeBinomialLink
 
 The canonical [`Link`](@ref) for [`Distributions.NegativeBinomial`](@ref) distribution, defined as `η = log(μ/(μ+θ))`.
-The shape parameter θ has to be fixed for the distribution to belong to the exponential family
+The shape parameter θ has to be fixed for the distribution to belong to the exponential family.
 """
 mutable struct NegativeBinomialLink  <: Link
     θ::Float64
