@@ -16,7 +16,7 @@ function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
     for t = 1:maxIter
         θ = abs(θ)
         δ = firstDeriv(θ) / secondDeriv(θ)
-        if (abs(δ) <= convTol)
+        if abs(δ) <= convTol
             converged = true
             break
         end
@@ -31,7 +31,7 @@ function negbin(F, D, args...; initialθ::Real=Inf, maxIter::Integer=30, convTol
     convTol > 0  || throw(ArgumentError("convTol must be positive"))
     initialθ > 0 || throw(ArgumentError("initialθ must be positive"))
 
-    # fit a Poisson if the user does not specify an initial θ
+    # fit a Poisson regression model if the user does not specify an initial θ
     regModel = isinf(initialθ) ? glm(F, D, Poisson(), args...; maxIter=maxIter, convTol=convTol, verbose=verbose, kwargs...) :
                                  glm(F, D, NegativeBinomial(initialθ), args...; maxIter=maxIter, convTol=convTol, verbose=verbose, kwargs...)
 
@@ -51,7 +51,7 @@ function negbin(F, D, args...; initialθ::Real=Inf, maxIter::Integer=30, convTol
 
     converged = false
     for i = 1:maxIter
-        if (abs(ll0 - ll)/d + abs(δ) <= convTol)
+        if abs(ll0 - ll)/d + abs(δ) <= convTol
             converged = true
             break
         end
