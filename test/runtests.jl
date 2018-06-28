@@ -2,7 +2,6 @@ using CategoricalArrays, Compat, CSV, DataFrames, StatsBase, RDatasets
 using Compat.Test
 using GLM
 
-
 test_show(x) = show(IOBuffer(), x)
 
 const glm_datadir = joinpath(dirname(@__FILE__), "..", "data")
