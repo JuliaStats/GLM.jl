@@ -362,9 +362,9 @@ functions are
            Bernoulli (LogitLink)
             Binomial (LogitLink)
                Gamma (InverseLink)
+    NegativeBinomial (LogLink)
               Normal (IdentityLink)
              Poisson (LogLink)
-    NegativeBinomial (LogLink)
 
 Currently the available Link types are
 
