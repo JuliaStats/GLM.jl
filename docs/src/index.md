@@ -114,7 +114,7 @@ X            -3.64399e-19   0.91665 -3.97534e-19   1.0000
 
 ```
 
-### Negative Binomial Regression
+### Negative Binomial Regression:
 ```jldoctest
 julia> using GLM, RDatasets
 
@@ -359,11 +359,12 @@ julia> deviance(gm1)
 Typical distributions for use with `glm` and their canonical link
 functions are
 
-    Bernoulli (LogitLink)
-     Binomial (LogitLink)
-        Gamma (InverseLink)
-       Normal (IdentityLink)
-      Poisson (LogLink)
+           Bernoulli (LogitLink)
+            Binomial (LogitLink)
+               Gamma (InverseLink)
+              Normal (IdentityLink)
+             Poisson (LogLink)
+    NegativeBinomial (LogLink)
 
 Currently the available Link types are
 
@@ -373,8 +374,12 @@ Currently the available Link types are
     InverseLink
     LogitLink
     LogLink
+    NegativeBinomialLink
     ProbitLink
     SqrtLink
+
+Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
+in practice one typically uses `LogLink`.
 
 ## Separation of response object and predictor object
 
