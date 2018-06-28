@@ -377,7 +377,7 @@ devresid(::InverseGaussian, y, μ) = abs2(y - μ) / (y * abs2(μ))
 function devresid(d::NegativeBinomial, y, μ)
     θ = d.r
     v = 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
-    return μ = 0 ? oftype(v, NaN) : v
+    return μ == 0 ? oftype(v, NaN) : v
 end
 devresid(::Normal, y, μ) = abs2(y - μ)
 devresid(::Poisson, y, μ) = 2 * (xlogy(y, y / μ) - (y - μ))
