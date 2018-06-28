@@ -417,13 +417,9 @@ loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
 loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt*logpdf(InverseGaussian(μ, inv(ϕ)), y)
 loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
 loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
-# in principle, μ = θp/(1-p) ==> p = μ/(μ+θ), and thus we should have been able
-# to do following
-# loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, μ/(μ+d.r)), y)
-# however, that does not give the correct answer compared to that of R's `glm.nb`
-# Hence, I decided to write down the loglik function more explicitly
-function loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ)
-    θ = d.r
-    wt * (lgamma(θ + y) - lgamma(θ) - lgamma(y + 1) + θ * log(θ) + y * log(μ + (y == 0))
-          - (θ + y) * log(θ + μ))
-end
+# We use the following parameterization for the Negative Binomial distribution:
+#    (Γ(θ+y) / (Γ(θ) * y!)) * μ^y * θ^θ / (μ+θ)^{θ+y}
+# The parameterization of NegativeBinomial(r=θ, p) in Distribution.jl is
+#    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
+# Hence, p = θ/(μ+θ)
+loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
