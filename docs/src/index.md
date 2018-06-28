@@ -24,9 +24,12 @@ The [RDatasets package](https://github.com/johnmyleswhite/RDatasets.jl) is usefu
 To fit a Generalized Linear Model (GLM), use the function, `glm(formula, data, family, link)`, where,
 - `formula`: uses column symbols from the DataFrame data, for example, if `names(data)=[:Y,:X1,:X2]`, then a valid formula is `@formula(Y ~ X1 + X2)`
 - `data`: a DataFrame which may contain NA values, any rows with NA values are ignored
-- `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Normal()`, `Poisson()`, or
-  `NegativeBinomial(r"$\theta$")`
+- `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Normal()`, `Poisson()`, or `NegativeBinomial(&theta;)`
 - `link`: chosen from the list below, for example, `LogitLink()` is a valid link for the `Binomial()` family
+The `NegativeBinomial` distribution belongs to the exponential family only if &theta; is
+fixed, thus &theta; has to be provided if we use `glm` with `NegativeBinomial` family. 
+If one would like to also estimate &theta;, then `negbin(formula, data, link)` should be
+used instead.
 
 An intercept is included in any GLM by default.
 
