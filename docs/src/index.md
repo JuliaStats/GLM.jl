@@ -479,6 +479,7 @@ InverseLink
 InverseSquareLink
 LogitLink
 LogLink
+NegativeBinomialLink
 ProbitLink
 SqrtLink
 linkfun
