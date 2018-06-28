@@ -376,7 +376,8 @@ devresid(::Gamma, y, μ) = -2 * (log(y / μ) - (y - μ) / μ)
 devresid(::InverseGaussian, y, μ) = abs2(y - μ) / (y * abs2(μ))
 function devresid(d::NegativeBinomial, y, μ)
     θ = d.r
-    return μ == 0.0 ? NaN : 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
+    v = 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
+    return μ = 0 ? oftype(v, NaN) : v
 end
 devresid(::Normal, y, μ) = abs2(y - μ)
 devresid(::Poisson, y, μ) = 2 * (xlogy(y, y / μ) - (y - μ))
@@ -419,7 +420,7 @@ loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
 loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 # We use the following parameterization for the Negative Binomial distribution:
 #    (Γ(θ+y) / (Γ(θ) * y!)) * μ^y * θ^θ / (μ+θ)^{θ+y}
-# The parameterization of NegativeBinomial(r=θ, p) in Distribution.jl is
+# The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
 #    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
 # Hence, p = θ/(μ+θ)
 loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)

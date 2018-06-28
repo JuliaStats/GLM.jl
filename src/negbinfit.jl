@@ -1,5 +1,5 @@
 function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
-                   maxIter = 30, convTol = 1.e-6)
+                   maxIter=30, convTol=1.e-6)
     function first_derivative(θ::Real)
         tmp(yi, μi) = (yi+θ)/(μi+θ) + log(μi+θ) - 1 - log(θ) - digamma(θ+yi) + digamma(θ)
         unit_weights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
@@ -70,12 +70,12 @@ function negbin(F, D, args...;
             converged = true
             break
         end
-        verbose && println("[ Alternating iteration ", i, ", θ = ", θ, "]")
+        verbose && println("[ Alternating iteration ", i, ", θ = ", θ, " ]")
         regmodel = glm(F, D, NegativeBinomial(θ), args...;
                        maxIter=maxIter, convTol=convTol, verbose=verbose, kwargs...)
         μ = regmodel.model.rr.mu
         prevθ = θ
-        θ = mle_for_θ(y, μ, wts; maxIter = maxIter, convTol = convTol)
+        θ = mle_for_θ(y, μ, wts; maxIter=maxIter, convTol=convTol)
         δ = prevθ - θ
         ll0 = ll
         ll = loglikelihood(regmodel)
