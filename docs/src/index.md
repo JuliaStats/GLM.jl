@@ -362,6 +362,7 @@ functions are
            Bernoulli (LogitLink)
             Binomial (LogitLink)
                Gamma (InverseLink)
+     InverseGaussian (InverseSquareLink)
     NegativeBinomial (LogLink)
               Normal (IdentityLink)
              Poisson (LogLink)
@@ -372,6 +373,7 @@ Currently the available Link types are
     CloglogLink
     IdentityLink
     InverseLink
+    InverseSquareLink
     LogitLink
     LogLink
     NegativeBinomialLink

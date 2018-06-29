@@ -267,9 +267,9 @@ canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()
 canonicallink(::Gamma) = InverseLink()
 canonicallink(::InverseGaussian) = InverseSquareLink()
+canonicallink(d::NegativeBinomial) = NegativeBinomialLink(d.r)
 canonicallink(::Normal) = IdentityLink()
 canonicallink(::Poisson) = LogLink()
-canonicallink(d::NegativeBinomial) = NegativeBinomialLink(d.r)
 
 """
     glmvar(D::Distribution, μ)
