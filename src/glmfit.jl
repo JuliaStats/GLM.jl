@@ -71,6 +71,7 @@ the expression for the working weights will cancel.
 """
 cancancel(::GlmResp) = false
 cancancel(::GlmResp{V,D,LogitLink}) where {V,D<:Union{Bernoulli,Binomial}} = true
+cancancel(::GlmResp{V,D,NegativeBinomialLink}) where {V,D<:NegativeBinomial} = true
 cancancel(::GlmResp{V,D,IdentityLink}) where {V,D<:Normal} = true
 cancancel(::GlmResp{V,D,LogLink}) where {V,D<:Poisson} = true
 
@@ -114,6 +115,20 @@ function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:Union{Bernoulli,Bino
         yi = y[i]
         wrkres[i] = (yi - μi) / dμdη
         wrkwt[i] = cancancel(r) ? dμdη : abs2(dμdη) / μomμ
+        dres[i] = devresid(r.d, yi, μi)
+    end
+end
+
+function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:NegativeBinomial,L<:NegativeBinomialLink}
+    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
+
+    @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
+        θ = r.d.r # the shape parameter of the negative binomial distribution
+        μi, dμdη, μomμ = inverselink(L(θ), η[i])
+        μ[i] = μi
+        yi = y[i]
+        wrkres[i] = (yi - μi) / dμdη
+        wrkwt[i] = dμdη
         dres[i] = devresid(r.d, yi, μi)
     end
 end
@@ -308,10 +323,11 @@ d::UnivariateDistribution,
 l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
     fit(M, float(X), float(y), d, l; kwargs...)
 
-glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
+glm(F, D, args...; kwargs...) = fit(GeneralizedLinearModel, F, D, args...; kwargs...)
 
 GLM.Link(mm::AbstractGLM) = mm.l
 GLM.Link(r::GlmResp{T,D,L}) where {T,D,L} = L()
+GLM.Link(r::GlmResp{T,D,L}) where {T,D<:NegativeBinomial,L<:NegativeBinomialLink} = L(r.d.r)
 GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
 
 Distributions.Distribution(r::GlmResp{T,D,L}) where {T,D,L} = D

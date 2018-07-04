@@ -24,8 +24,13 @@ The [RDatasets package](https://github.com/johnmyleswhite/RDatasets.jl) is usefu
 To fit a Generalized Linear Model (GLM), use the function, `glm(formula, data, family, link)`, where,
 - `formula`: uses column symbols from the DataFrame data, for example, if `names(data)=[:Y,:X1,:X2]`, then a valid formula is `@formula(Y ~ X1 + X2)`
 - `data`: a DataFrame which may contain NA values, any rows with NA values are ignored
-- `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Normal()`, or `Poisson()`
+- `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Normal()`, `Poisson()`, or `NegativeBinomial(θ)`
 - `link`: chosen from the list below, for example, `LogitLink()` is a valid link for the `Binomial()` family
+
+The `NegativeBinomial` distribution belongs to the exponential family only if θ (the shape
+parameter) is fixed, thus θ has to be provided if we use `glm` with `NegativeBinomial` family. 
+If one would like to also estimate θ, then `negbin(formula, data, link)` should be
+used instead.
 
 An intercept is included in any GLM by default.
 
@@ -109,6 +114,46 @@ X            -3.64399e-19   0.91665 -3.97534e-19   1.0000
 
 ```
 
+### Negative Binomial Regression:
+```jldoctest
+julia> using GLM, RDatasets
+
+julia> quine = dataset("MASS", "quine")
+
+julia> nbrmodel = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
+StatsModels.DataFrameRegressionModel{GLM.GeneralizedLinearModel{GLM.GlmResp{Array{Float64,1},Distributions.NegativeBinomial{Float64},GLM.LogLink},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+Coefficients:
+              Estimate Std.Error  z value Pr(>|z|)
+(Intercept)    2.88645  0.227144  12.7076   <1e-36
+Eth: N       -0.567515  0.152449 -3.72265   0.0002
+Sex: M       0.0870771  0.159025 0.547568   0.5840
+Age: F1      -0.445076  0.239087 -1.86157   0.0627
+Age: F2      0.0927999  0.234502 0.395731   0.6923
+Age: F3       0.359485  0.246586  1.45785   0.1449
+Lrn: SL       0.296768  0.185934  1.59609   0.1105
+
+julia> nbrmodel = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink())
+StatsModels.DataFrameRegressionModel{GLM.GeneralizedLinearModel{GLM.GlmResp{Array{Float64,1},Distributions.NegativeBinomial{Float64},GLM.LogLink},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+Coefficients:
+              Estimate Std.Error  z value Pr(>|z|)
+(Intercept)    2.89453  0.227415   12.728   <1e-36
+Eth: N       -0.569341  0.152656 -3.72957   0.0002
+Sex: M       0.0823881  0.159209 0.517485   0.6048
+Age: F1      -0.448464  0.238687 -1.87888   0.0603
+Age: F2      0.0880506  0.235149 0.374445   0.7081
+Age: F3       0.356955  0.247228  1.44383   0.1488
+Lrn: SL       0.292138   0.18565  1.57359   0.1156
+
+julia> println("Estimated theta = ", nbrmodel.model.rr.d.r)
+Estimated theta = 1.2748930396601978
+
+```
 
 ## Other examples
 
@@ -314,11 +359,13 @@ julia> deviance(gm1)
 Typical distributions for use with `glm` and their canonical link
 functions are
 
-    Bernoulli (LogitLink)
-     Binomial (LogitLink)
-        Gamma (InverseLink)
-       Normal (IdentityLink)
-      Poisson (LogLink)
+           Bernoulli (LogitLink)
+            Binomial (LogitLink)
+               Gamma (InverseLink)
+     InverseGaussian (InverseSquareLink)
+    NegativeBinomial (LogLink)
+              Normal (IdentityLink)
+             Poisson (LogLink)
 
 Currently the available Link types are
 
@@ -326,10 +373,15 @@ Currently the available Link types are
     CloglogLink
     IdentityLink
     InverseLink
+    InverseSquareLink
     LogitLink
     LogLink
+    NegativeBinomialLink
     ProbitLink
     SqrtLink
+
+Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
+in practice one typically uses `LogLink`.
 
 ## Separation of response object and predictor object
 
@@ -429,6 +481,7 @@ InverseLink
 InverseSquareLink
 LogitLink
 LogLink
+NegativeBinomialLink
 ProbitLink
 SqrtLink
 linkfun

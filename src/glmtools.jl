@@ -67,6 +67,16 @@ The canonical [`Link`](@ref) for [`Distributions.Poisson`](https://juliastats.gi
 mutable struct LogLink <: Link end
 
 """
+    NegativeBinomialLink
+
+The canonical [`Link`](@ref) for [`Distributions.NegativeBinomial`](@ref) distribution, defined as `η = log(μ/(μ+θ))`.
+The shape parameter θ has to be fixed for the distribution to belong to the exponential family.
+"""
+mutable struct NegativeBinomialLink  <: Link
+    θ::Float64
+end
+
+"""
     ProbitLink
 
 A [`Link01`](@ref) whose [`linkinv`](@ref) is the c.d.f. of the standard normal
@@ -230,6 +240,15 @@ function inverselink(::LogLink, η)
     μ, μ, oftype(μ, NaN)
 end
 
+linkfun(nbl::NegativeBinomialLink, μ) = log(μ / (μ + nbl.θ))
+linkinv(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1-e^η)
+mueta(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1-e^η)
+function inverselink(nbl::NegativeBinomialLink, η)
+    μ = e^η * nbl.θ / (1-e^η)
+    deriv = μ * (1 + μ / nbl.θ)
+    μ, deriv, oftype(μ, NaN)
+end
+
 linkfun(::ProbitLink, μ) = -sqrt2 * erfcinv(2μ)
 linkinv(::ProbitLink, η) = erfc(-η / sqrt2) / 2
 mueta(::ProbitLink, η) = exp(-abs2(η) / 2) / sqrt2π
@@ -248,6 +267,7 @@ canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()
 canonicallink(::Gamma) = InverseLink()
 canonicallink(::InverseGaussian) = InverseSquareLink()
+canonicallink(d::NegativeBinomial) = NegativeBinomialLink(d.r)
 canonicallink(::Normal) = IdentityLink()
 canonicallink(::Poisson) = LogLink()
 
@@ -277,6 +297,7 @@ function glmvar end
 glmvar(::Union{Bernoulli,Binomial}, μ) = μ * (1 - μ)
 glmvar(::Gamma, μ) = abs2(μ)
 glmvar(::InverseGaussian, μ) = μ^3
+glmvar(d::NegativeBinomial, μ) = μ * (1 + μ/d.r)
 glmvar(::Normal, μ) = one(μ)
 glmvar(::Poisson, μ) = μ
 
@@ -306,6 +327,7 @@ function mustart end
 mustart(::Bernoulli, y, wt) = (y + oftype(y, 1/2)) / 2
 mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1/2)) / (wt + one(y))
 mustart(::Union{Gamma, InverseGaussian}, y, wt) = y == 0 ? oftype(y, 1/10) : y
+mustart(::NegativeBinomial, y, wt) = y == 0 ? y + oftype(y, 1/6) : y
 mustart(::Normal, y, wt) = y
 mustart(::Poisson, y, wt) = y + oftype(y, 1/10)
 
@@ -352,6 +374,11 @@ function devresid(::Binomial, y, μ)
 end
 devresid(::Gamma, y, μ) = -2 * (log(y / μ) - (y - μ) / μ)
 devresid(::InverseGaussian, y, μ) = abs2(y - μ) / (y * abs2(μ))
+function devresid(d::NegativeBinomial, y, μ)
+    θ = d.r
+    v = 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
+    return μ == 0 ? oftype(v, NaN) : v
+end
 devresid(::Normal, y, μ) = abs2(y - μ)
 devresid(::Poisson, y, μ) = 2 * (xlogy(y, y / μ) - (y - μ))
 
@@ -391,3 +418,9 @@ loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
 loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt*logpdf(InverseGaussian(μ, inv(ϕ)), y)
 loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
 loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
+# We use the following parameterization for the Negative Binomial distribution:
+#    (Γ(θ+y) / (Γ(θ) * y!)) * μ^y * θ^θ / (μ+θ)^{θ+y}
+# The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
+#    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
+# Hence, p = θ/(μ+θ)
+loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
