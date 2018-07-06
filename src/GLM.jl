@@ -1,17 +1,19 @@
 __precompile__()
 
 module GLM
-    using Distributions, Reexport
-    using Base.LinAlg.LAPACK: potrf!, potrs!
-    using Base.LinAlg.BLAS: gemm!, gemv!
-    using Base.LinAlg: copytri!, QRCompactWY, Cholesky, CholeskyPivoted, BlasReal
-    using StatsBase: StatsBase, CoefTable, StatisticalModel, RegressionModel
+    using Distributions, LinearAlgebra, Printf, Reexport, SparseArrays, Statistics, StatsBase, StatsFuns
+    using LinearAlgebra.LAPACK: potrf!, potrs!
+    using LinearAlgebra.BLAS: gemm!, gemv!
+    using LinearAlgebra: copytri!, QRCompactWY, Cholesky, CholeskyPivoted, BlasReal
+    using Printf.@sprintf
+    using StatsBase: CoefTable, StatisticalModel, RegressionModel
     using StatsFuns: logit, logistic
     @reexport using StatsModels
     using Distributions: sqrt2, sqrt2π
-    using Compat
 
-    import Base: (\), cholfact, convert, cor, show, size
+    import Base: (\), convert, show, size
+    import LinearAlgebra: cholesky, cholesky!
+    import Statistics: cor
     import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
                       loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
                       fit, model_response, r2, r², adjr2, adjr², PValue
