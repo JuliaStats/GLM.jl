@@ -2,10 +2,8 @@ __precompile__()
 
 module GLM
     using Distributions, LinearAlgebra, Printf, Reexport, SparseArrays, Statistics, StatsBase, StatsFuns
-    using LinearAlgebra.LAPACK: potrf!, potrs!
-    using LinearAlgebra.BLAS: gemm!, gemv!
     using LinearAlgebra: copytri!, QRCompactWY, Cholesky, CholeskyPivoted, BlasReal
-    using Printf.@sprintf
+    using Printf: @sprintf
     using StatsBase: CoefTable, StatisticalModel, RegressionModel
     using StatsFuns: logit, logistic
     @reexport using StatsModels
