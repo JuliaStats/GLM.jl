@@ -326,10 +326,19 @@ function mustart end
 
 mustart(::Bernoulli, y, wt) = (y + oftype(y, 1/2)) / 2
 mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1/2)) / (wt + one(y))
-mustart(::Union{Gamma, InverseGaussian}, y, wt) = y == 0 ? oftype(y, 1/10) : y
-mustart(::NegativeBinomial, y, wt) = y == 0 ? y + oftype(y, 1/6) : y
+function mustart(::Union{Gamma, InverseGaussian}, y, wt)
+    fy = float(y)
+    iszero(y) ? oftype(y, 1/10) : fy
+end
+function mustart(::NegativeBinomial, y, wt)
+    fy = float(y)
+    iszero(y) ? fy + oftype(fy, 1/6) : fy
+end
 mustart(::Normal, y, wt) = y
-mustart(::Poisson, y, wt) = y + oftype(y, 1/10)
+function mustart(::Poisson, y, wt)
+    fy = float(y)
+    fy + oftype(fy, 1/10)
+end
 
 """
     devresid(D, y, μ)

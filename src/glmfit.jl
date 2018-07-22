@@ -84,7 +84,7 @@ the linear predictor, `linPr`.
 function updateμ! end
 
 function updateμ!(r::GlmResp{T}, linPr::T) where T<:FPVector
-    isempty(r.offset) ? copy!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
+    isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
     if !isempty(r.wts)
         map!(*, r.devresid, r.devresid, r.wts)
@@ -385,13 +385,13 @@ function initialeta!(eta::AbstractVector,
     lw = length(wts)
     lo = length(off)
 
-    if length(wts) == n
+    if lw == n
         @inbounds @simd for i = eachindex(y, eta, wts)
             μ      = mustart(dist, y[i], wts[i])
             eta[i] = linkfun(link, μ)
         end
     elseif lw == 0
-        @inbounds @simd for i = eachindex(y, eta, wts)
+        @inbounds @simd for i = eachindex(y, eta)
             μ      = mustart(dist, y[i], 1)
             eta[i] = linkfun(link, μ)
         end

@@ -99,7 +99,7 @@ end
 function DensePredChol(X::StridedMatrix, pivot::Bool)
     F = Hermitian(float(X'X))
     T = eltype(F)
-    F = pivot ? cholesky!(F, Val{true}, tol = -one(T)) : cholesky!(F)
+    F = pivot ? cholesky!(F, Val(true), tol = -one(T), check = false) : cholesky!(F)
     DensePredChol(AbstractMatrix{T}(X),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
@@ -128,23 +128,23 @@ end
 
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}) where T<:BlasReal
     ch = p.chol
-    delbeta = Ac_mul_B!(p.delbeta, p.X, r)
+    delbeta = mul!(p.delbeta, adjoint(p.X), r)
     rnk = rank(ch)
     if rnk == length(delbeta)
-        A_ldiv_B!(ch, delbeta)
+        ldiv!(ch, delbeta)
     else
         permute!(delbeta, ch.piv)
         for k=(rnk+1):length(delbeta)
             delbeta[k] = -zero(T)
         end
         LAPACK.potrs!(ch.uplo, view(ch.factors, 1:rnk, 1:rnk), view(delbeta, 1:rnk))
-        ipermute!(delbeta, ch.piv)
+        invpermute!(delbeta, ch.piv)
     end
     p
 end
 
 function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
-    scr = LinearAlgebra.scale!(p.scratchm1, wt, p.X)
+    scr = mul!(p.scratchm1, Diagonal(wt), p.X)
     cholesky!(Hermitian(mul!(cholfactors(p.chol), transpose(scr), p.X), :U))
     ldiv!(p.chol, mul!(p.delbeta, transpose(scr), r))
     p
@@ -153,7 +153,7 @@ end
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     cf = cholfactors(p.chol)
     piv = p.chol.piv
-    cf .= Ac_mul_B!(p.scratchm2, LinearAlgebra.scale!(p.scratchm1, wt, p.X), p.X)[piv, piv]
+    cf .= mul!(p.scratchm2, adjoint(LinearAlgebra.lmul!(p.scratchm1, Diagonal(wt), p.X)), p.X)[piv, piv]
     cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.scratchm1), r))
     p
@@ -182,10 +182,10 @@ end
 cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
 
 function delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where T
-    scr = LinearAlgebra.scale!(p.scratch, wt, p.X)
+    scr = lmul!(p.scratch, Diagonal(wt), p.X)
     XtWX = p.Xt*scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
-    p.delbeta = c\Ac_mul_B!(p.delbeta, scr, r)
+    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
 
 LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)
@@ -211,11 +211,8 @@ vcov(x::LinPredModel) = rmul!(invchol(x.pp), dispersion(x, true))
 
 function cor(x::LinPredModel)
     Σ = vcov(x)
-    invstd = similar(Σ, size(Σ, 1))
-    for i = eachindex(invstd)
-        invstd[i] = 1 / sqrt(Σ[i, i])
-    end
-    LinearAlgebra.scale!(invstd, LinearAlgebra.scale!(Σ, invstd))
+    invstd = inv.(sqrt.(diag(Σ)))
+    lmul!(Diagonal(invstd), rmul!(Σ, Diagonal(invstd)))
 end
 
 stderror(x::LinPredModel) = sqrt.(diag(vcov(x)))

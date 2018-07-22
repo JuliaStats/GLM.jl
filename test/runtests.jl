@@ -1,4 +1,4 @@
-using CategoricalArrays, Compat, CSV, DataFrames, LinearAlgebra, Random, RDatasets, Statistics, StatsBase, Test
+using CategoricalArrays, CSV, DataFrames, LinearAlgebra, Random, RDatasets, Statistics, StatsBase, Test
 using GLM
 
 test_show(x) = show(IOBuffer(), x)
@@ -9,14 +9,23 @@ const glm_datadir = joinpath(dirname(@__FILE__), "..", "data")
 form = DataFrame([[0.1,0.3,0.5,0.6,0.7,0.9],[0.086,0.269,0.446,0.538,0.626,0.782]],
     [:Carb, :OptDen])
 
+function simplemm(x::AbstractVecOrMat)
+    n = size(x, 2)
+    mat = fill(one(float(eltype(x))), length(x), n + 1)
+    copyto!(view(mat, :, 2:(n + 1)), x)
+    mat
+end
+
+linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
+
 @testset "lm" begin
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
     test_show(lm1)
-    @test isapprox(coef(lm1), collect(linreg(form[:Carb], form[:OptDen])))
+    @test isapprox(coef(lm1), linreg(form[:Carb], form[:OptDen]))
     Σ = [6.136653061224592e-05 -9.464489795918525e-05
         -9.464489795918525e-05 1.831836734693908e-04]
     @test isapprox(vcov(lm1), Σ)
-    @test isapprox(cor(lm1.model), diagm(diag(Σ))^(-1/2)*Σ*diagm(diag(Σ))^(-1/2))
+    @test isapprox(cor(lm1.model), Diagonal(diag(Σ))^(-1/2)*Σ*Diagonal(diag(Σ))^(-1/2))
     @test dof(lm1) == 3
     @test isapprox(deviance(lm1), 0.0002992000000000012)
     @test isapprox(loglikelihood(lm1), 21.204842144047973)
