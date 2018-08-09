@@ -16,7 +16,7 @@ module GLM
                       loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
                       fit, model_response, r2, r², adjr2, adjr², PValue
     import StatsFuns: xlogy
-    import SpecialFunctions: erfc, erfcinv
+    import SpecialFunctions: erfc, erfcinv, digamma, trigamma
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
            fit, fit!, model_response, r2, r², adjr2, adjr²

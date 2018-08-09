@@ -194,7 +194,7 @@ function inverselink(::CloglogLink, η)
     expη = exp(η)
     μ = -expm1(-expη)
     omμ = exp(-expη)   # the complement, 1 - μ
-    μ, max(realmin(μ), expη * omμ), max(realmin(μ), μ * omμ)
+    μ, max(floatmin(μ), expη * omμ), max(floatmin(μ), μ * omμ)
 end
 
 linkfun(::IdentityLink, μ) = μ

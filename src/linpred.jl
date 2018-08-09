@@ -54,7 +54,7 @@ mutable struct DensePredQR{T<:BlasReal} <: DensePred
     function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}) where T
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
-        new{T}(X, beta0, zeros(T,p), zeros(T,p), qrfact(X))
+        new{T}(X, beta0, zeros(T,p), zeros(T,p), qr(X))
     end
 end
 DensePredQR(X::Matrix, beta0::Vector) = DensePredQR{eltype(X)}(X, beta0)
@@ -114,12 +114,12 @@ cholpred(X::StridedMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
 
-cholesky(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(copy(p.qr[:R]), 'U', 0)
+cholesky(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(copy(p.qr.R), 'U', 0)
 function cholesky(p::DensePredChol{T}) where T<:FP
     c = p.chol
     Cholesky(copy(cholfactors(c)), c.uplo, c.info)
 end
-cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr[:R], 'U', 0)
+cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U', 0)
 
 function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where T<:BlasReal
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.X), r))
@@ -182,7 +182,7 @@ end
 cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
 
 function delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where T
-    scr = lmul!(p.scratch, Diagonal(wt), p.X)
+    scr = mul!(p.scratch, Diagonal(wt), p.X)
     XtWX = p.Xt*scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
@@ -206,7 +206,7 @@ function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
     ipiv = invperm(ch.piv)
     res[ipiv, ipiv]
 end
-invchol(x::SparsePredChol) = cholesky!(x) \ eye(size(x.X, 2))
+invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
 vcov(x::LinPredModel) = rmul!(invchol(x.pp), dispersion(x, true))
 
 function cor(x::LinPredModel)

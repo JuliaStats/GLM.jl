@@ -21,7 +21,7 @@ function issubmodel(mod1::LinPredModel, mod2::LinPredModel; atol=0::Real)
     # Test min norm pred2*B - pred1 ≈ 0
     rtol = Base.rtoldefault(typeof(pred1[1,1]))
     nresp = size(pred2, 1)
-    return vecnorm(view(qrfact(pred2)[:Q]'pred1, npreds2 + 1:nresp, :)) <= max(atol, rtol*vecnorm(pred1))
+    return norm(view(qr(pred2).Q'pred1, npreds2 + 1:nresp, :)) <= max(atol, rtol*norm(pred1))
 end
 
 _diffn(t::NTuple{N, T}) where {N, T} = ntuple(i->t[i]-t[i+1], N-1)

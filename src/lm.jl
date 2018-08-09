@@ -201,7 +201,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, l
     interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
     length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
 
-    R = cholesky!(mm.pp)[:U] #get the R matrix from the QR factorization
+    R = cholesky!(mm.pp).U #get the R matrix from the QR factorization
     residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
     retvariance = (newx/R).^2 * residvar
 
