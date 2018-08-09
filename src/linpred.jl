@@ -56,8 +56,13 @@ mutable struct DensePredQR{T<:BlasReal} <: DensePred
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
         new{T}(X, beta0, zeros(T,p), zeros(T,p), qr(X))
     end
+    function DensePredQR{T}(X::Matrix{T}) where T
+        n, p = size(X)
+        new{T}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X))
+    end
 end
 DensePredQR(X::Matrix, beta0::Vector) = DensePredQR{eltype(X)}(X, beta0)
+DensePredQR(X::Matrix{T}) where T = DensePredQR{T}(X, zeros(T, size(X,2)))
 convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
 """
