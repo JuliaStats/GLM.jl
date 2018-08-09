@@ -241,10 +241,10 @@ function inverselink(::LogLink, η)
 end
 
 linkfun(nbl::NegativeBinomialLink, μ) = log(μ / (μ + nbl.θ))
-linkinv(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1-e^η)
-mueta(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1-e^η)
+linkinv(nbl::NegativeBinomialLink, η) = ℯ^η * nbl.θ / (1-ℯ^η)
+mueta(nbl::NegativeBinomialLink, η) = ℯ^η * nbl.θ / (1-ℯ^η)
 function inverselink(nbl::NegativeBinomialLink, η)
-    μ = e^η * nbl.θ / (1-e^η)
+    μ = ℯ^η * nbl.θ / (1-ℯ^η)
     deriv = μ * (1 + μ / nbl.θ)
     μ, deriv, oftype(μ, NaN)
 end

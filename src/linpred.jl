@@ -169,7 +169,7 @@ mutable struct SparsePredChol{T,M<:SparseMatrixCSC,C} <: GLM.LinPred
     scratch::M
 end
 function SparsePredChol(X::SparseMatrixCSC{T}) where T
-    chol = cholesky(speye(size(X, 2)))
+    chol = cholesky(sparse(I, size(X, 2), size(X,2)))
     return SparsePredChol{eltype(X),typeof(X),typeof(chol)}(X,
         X',
         zeros(T, size(X, 2)),
