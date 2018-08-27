@@ -2,13 +2,13 @@ using GLM, DataFrames, StatsFuns
 glm(@formula(y ~ 1), DataFrame(y = float(bitrand(10))), Bernoulli())
 
 n = 2_500_000
-srand(1234321)
+Random.seed!(1234321)
 const df2 = DataFrame(x1 = rand(Normal(), n),
                 x2 = rand(Exponential(), n),
                 ss = pool(rand(DiscreteUniform(50), n)));
 const mf = ModelFrame(@formula(x1 ~ x1 + x2 + ss), df2)
 const mm = ModelMatrix(mf)
-const β = unshift!(rand(Normal(),52), 0.5); # "true" parameter values
+const β = pushfirst!(rand(Normal(),52), 0.5); # "true" parameter values
 
 ## Create linear predictor and mean response
 

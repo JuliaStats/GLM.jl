@@ -283,8 +283,8 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
     r = m.rr
     V = typeof(r.y)
     r.y = copy!(r.y, y)
-    isa(wts, Void) || copy!(r.wts, wts)
-    isa(offset, Void) || copy!(r.offset, offset)
+    isa(wts, Nothing) || copy!(r.wts, wts)
+    isa(offset, Nothing) || copy!(r.offset, offset)
     initialeta!(r.eta, r.d, r.l, r.y, r.wts, r.offset)
     updateμ!(r, r.eta)
     fill!(m.pp.beta0, 0)
