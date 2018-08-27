@@ -5,6 +5,7 @@ os:
   - osx
 julia:
   - 0.7
+  - 1.0
   - nightly
 notifications:
   email: false
@@ -12,7 +13,7 @@ git:
   depth: 99999999
 matrix:
   allow_failures:
-  - julia: 0.7
+  - julia: nightly
 
 script:
   - julia -e 'using Pkg; Pkg.clone(pwd()); Pkg.build("GLM"); Pkg.test("GLM"; coverage=true)'
