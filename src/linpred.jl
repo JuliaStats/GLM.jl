@@ -158,7 +158,7 @@ end
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     cf = cholfactors(p.chol)
     piv = p.chol.piv
-    cf .= mul!(p.scratchm2, adjoint(LinearAlgebra.lmul!(p.scratchm1, Diagonal(wt), p.X)), p.X)[piv, piv]
+    cf .= mul!(p.scratchm2, adjoint(LinearAlgebra.mul!(p.scratchm1, Diagonal(wt), p.X)), p.X)[piv, piv]
     cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.scratchm1), r))
     p
