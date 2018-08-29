@@ -1,5 +1,5 @@
 using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays, Random,
-      Statistics, StatsBase, Test
+      Statistics, StatsBase, Test, RDatasets
 using GLM
 
 test_show(x) = show(IOBuffer(), x)
