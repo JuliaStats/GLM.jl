@@ -27,18 +27,14 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
         new{V}(mu, off, wts, y)
     end
 end
-convert(::Type{LmResp{V}}, y::V) where {V<:FPVector} =
-    LmResp{V}(zeros(y), similar(y, 0), similar(y, 0), y)
+LmResp(y::V) where {V<:FPVector} = LmResp{V}(fill!(similar(y), 0), similar(y, 0), similar(y, 0), y)
 
-function convert(::Type{LmResp}, y::AbstractVector{T}) where T<:Real
-    yy = float(y)
-    convert(LmResp{typeof(yy)}, yy)
-end
+LmResp(y::AbstractVector{T}) where T<:Real = LmResp(float(y))
 
 function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
-    length(r.offset) == 0 ? copy!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
+    length(r.offset) == 0 ? copyto!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
     deviance(r)
 end
 updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
@@ -127,7 +123,7 @@ struct LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
     pp::T
 end
 
-cholfact(x::LinearModel) = cholfact(x.pp)
+LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 
 function StatsBase.fit!(obj::LinearModel)
     installbeta!(delbeta!(obj.pp, obj.rr.y))
@@ -185,7 +181,7 @@ function coeftable(mm::LinearModel)
     cc = coef(mm)
     se = stderror(mm)
     tt = cc ./ se
-    CoefTable(hcat(cc,se,tt,ccdf.(FDist(1, dof_residual(mm)), abs2.(tt))),
+    CoefTable(hcat(cc,se,tt,ccdf.(Ref(FDist(1, dof_residual(mm))), abs2.(tt))),
               ["Estimate","Std.Error","t value", "Pr(>|t|)"],
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
@@ -205,7 +201,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, l
     interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
     length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
 
-    R = cholfact!(mm.pp)[:U] #get the R matrix from the QR factorization
+    R = cholesky!(mm.pp).U #get the R matrix from the QR factorization
     residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
     retvariance = (newx/R).^2 * residvar
 

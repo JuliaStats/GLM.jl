@@ -1,8 +1,7 @@
-julia 0.6
-Compat 0.33.0
-Distributions 0.10.0
+julia 0.7 2
+Distributions 0.16.0
 StatsBase 0.22.0
-StatsFuns 0.3.0
+StatsFuns 0.6.0
 StatsModels 0.2.0
-SpecialFunctions 0.1.0
+SpecialFunctions 0.6.0
 Reexport 0.1

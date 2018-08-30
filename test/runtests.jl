@@ -1,5 +1,5 @@
-using CategoricalArrays, Compat, CSV, DataFrames, StatsBase, RDatasets
-using Compat.Test
+using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays, Random,
+      Statistics, StatsBase, Test, RDatasets
 using GLM
 
 test_show(x) = show(IOBuffer(), x)
@@ -10,14 +10,23 @@ const glm_datadir = joinpath(dirname(@__FILE__), "..", "data")
 form = DataFrame([[0.1,0.3,0.5,0.6,0.7,0.9],[0.086,0.269,0.446,0.538,0.626,0.782]],
     [:Carb, :OptDen])
 
+function simplemm(x::AbstractVecOrMat)
+    n = size(x, 2)
+    mat = fill(one(float(eltype(x))), length(x), n + 1)
+    copyto!(view(mat, :, 2:(n + 1)), x)
+    mat
+end
+
+linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
+
 @testset "lm" begin
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
     test_show(lm1)
-    @test isapprox(coef(lm1), collect(linreg(form[:Carb], form[:OptDen])))
+    @test isapprox(coef(lm1), linreg(form[:Carb], form[:OptDen]))
     Σ = [6.136653061224592e-05 -9.464489795918525e-05
         -9.464489795918525e-05 1.831836734693908e-04]
     @test isapprox(vcov(lm1), Σ)
-    @test isapprox(cor(lm1.model), diagm(diag(Σ))^(-1/2)*Σ*diagm(diag(Σ))^(-1/2))
+    @test isapprox(cor(lm1.model), Diagonal(diag(Σ))^(-1/2)*Σ*Diagonal(diag(Σ))^(-1/2))
     @test dof(lm1) == 3
     @test isapprox(deviance(lm1), 0.0002992000000000012)
     @test isapprox(loglikelihood(lm1), 21.204842144047973)
@@ -31,7 +40,7 @@ form = DataFrame([[0.1,0.3,0.5,0.6,0.7,0.9],[0.086,0.269,0.446,0.538,0.626,0.782
     @test isapprox(aicc(lm1), -24.409684288095946)
     @test isapprox(bic(lm1), -37.03440588041178)
     lm2 = fit(LinearModel, hcat(ones(6), 10form[:Carb]), form[:OptDen], true)
-    @test isa(lm2.pp.chol, LinAlg.CholeskyPivoted)
+    @test isa(lm2.pp.chol, CholeskyPivoted)
     @test lm2.pp.chol.piv == [2, 1]
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
 end
@@ -49,9 +58,9 @@ end
     @test isapprox(deviance(m1), 0.28856700971719657)
     Xmissingcell = X[inds, :]
     ymissingcell = y[inds]
-    @test_throws LinAlg.PosDefException m2 = fit(LinearModel, Xmissingcell, ymissingcell)
+    @test_throws PosDefException m2 = fit(LinearModel, Xmissingcell, ymissingcell)
     m2p = fit(LinearModel, Xmissingcell, ymissingcell, true)
-    @test isa(m2p.pp.chol, LinAlg.CholeskyPivoted)
+    @test isa(m2p.pp.chol, CholeskyPivoted)
     @test rank(m2p.pp.chol) == 11
     @test isapprox(deviance(m2p), 0.2859221258731563)
     @test isapprox(coef(m2p), [0.9178241203127236, 9.089883493902754, 3.01742566831296,
@@ -394,12 +403,12 @@ end
 end
 
 @testset "Sparse GLM" begin
-    srand(1)
+    Random.seed!(1)
     X = sprand(1000, 10, 0.01)
     β = randn(10)
     y = Bool[rand() < logistic(x) for x in X * β]
     gmsparse = fit(GeneralizedLinearModel, X, y, Binomial())
-    gmdense = fit(GeneralizedLinearModel, full(X), y, Binomial())
+    gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial())
 
     @test isapprox(deviance(gmsparse), deviance(gmdense))
     @test isapprox(coef(gmsparse), coef(gmdense))
@@ -408,7 +417,7 @@ end
 
 
 @testset "Predict" begin
-    srand(1)
+    Random.seed!(1)
     X = rand(10, 2)
     Y = logistic.(X * [3; -3])
 
@@ -518,7 +527,7 @@ end
          0.0  0.0  2.0    1.112    4.004  1.0    1.0    1.112    1.112    4.008  6.99206  0.0
          0.0  3.0  0.0    0.0      0.0    0.0    0.0    0.0      0.0      0.0    0.0      7.0]
     # Cholesky
-    RL = cholfact(V)[:L]
+    RL = cholesky(V).L
     Yc = RL\Y
     # Fit 1 (intercept)
     Xc1 = RL\X[:,[1]]
@@ -550,13 +559,14 @@ end
 
 @testset "Issue 153" begin
     X = [ones(10) randn(10)]
-    Test.@inferred cholfact(DensePredQR{Float64}(X))
+    Test.@inferred cholesky(DensePredQR{Float64}(X))
 end
 
 @testset "Issue 224" begin
-    srand(1009)
+    Random.seed!(1009)
     # Make X slightly ill conditioned to amplify rounding errors
-    X, y = qr(randn(100, 5))[1]*Diagonal(logspace(-2,2,5))*qr(randn(5,5))[1]', randn(100)
+    X = Matrix(qr(randn(100,5)).Q)*Diagonal(10 .^ (-2.0:1.0:2.0))*Matrix(qr(randn(5,5)).Q)'
+    y = randn(100)
     @test coef(GLM.glm(X, y, GLM.Normal(), GLM.IdentityLink())) ≈ coef(lm(X, y))
 end
 

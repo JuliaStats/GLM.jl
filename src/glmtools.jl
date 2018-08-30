@@ -194,7 +194,7 @@ function inverselink(::CloglogLink, η)
     expη = exp(η)
     μ = -expm1(-expη)
     omμ = exp(-expη)   # the complement, 1 - μ
-    μ, max(realmin(μ), expη * omμ), max(realmin(μ), μ * omμ)
+    μ, max(floatmin(μ), expη * omμ), max(floatmin(μ), μ * omμ)
 end
 
 linkfun(::IdentityLink, μ) = μ
@@ -241,10 +241,10 @@ function inverselink(::LogLink, η)
 end
 
 linkfun(nbl::NegativeBinomialLink, μ) = log(μ / (μ + nbl.θ))
-linkinv(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1-e^η)
-mueta(nbl::NegativeBinomialLink, η) = e^η * nbl.θ / (1-e^η)
+linkinv(nbl::NegativeBinomialLink, η) = ℯ^η * nbl.θ / (1-ℯ^η)
+mueta(nbl::NegativeBinomialLink, η) = ℯ^η * nbl.θ / (1-ℯ^η)
 function inverselink(nbl::NegativeBinomialLink, η)
-    μ = e^η * nbl.θ / (1-e^η)
+    μ = ℯ^η * nbl.θ / (1-ℯ^η)
     deriv = μ * (1 + μ / nbl.θ)
     μ, deriv, oftype(μ, NaN)
 end
@@ -326,10 +326,19 @@ function mustart end
 
 mustart(::Bernoulli, y, wt) = (y + oftype(y, 1/2)) / 2
 mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1/2)) / (wt + one(y))
-mustart(::Union{Gamma, InverseGaussian}, y, wt) = y == 0 ? oftype(y, 1/10) : y
-mustart(::NegativeBinomial, y, wt) = y == 0 ? y + oftype(y, 1/6) : y
+function mustart(::Union{Gamma, InverseGaussian}, y, wt)
+    fy = float(y)
+    iszero(y) ? oftype(y, 1/10) : fy
+end
+function mustart(::NegativeBinomial, y, wt)
+    fy = float(y)
+    iszero(y) ? fy + oftype(fy, 1/6) : fy
+end
 mustart(::Normal, y, wt) = y
-mustart(::Poisson, y, wt) = y + oftype(y, 1/10)
+function mustart(::Poisson, y, wt)
+    fy = float(y)
+    fy + oftype(fy, 1/10)
+end
 
 """
     devresid(D, y, μ)

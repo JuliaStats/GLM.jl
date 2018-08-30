@@ -1,25 +1,24 @@
+## Documentation: http://docs.travis-ci.com/user/languages/julia/
 language: julia
-
 os:
   - linux
   - osx
-
 julia:
-  - 0.6
+  - 0.7
+  - 1.0
   - nightly
-
 notifications:
   email: false
-
+git:
+  depth: 99999999
 matrix:
   allow_failures:
   - julia: nightly
 
 script:
-  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
-  - julia --check-bounds=yes -e 'Pkg.clone(pwd()); Pkg.build("GLM"); Pkg.test("GLM", coverage=true)'
-
+  - julia -e 'using Pkg; Pkg.clone(pwd()); Pkg.build("GLM"); Pkg.test("GLM"; coverage=true)'
 after_success:
-  - julia -e 'Pkg.add("Documenter")'
-  - julia -e 'cd(Pkg.dir("GLM")); include(joinpath("docs", "make.jl"))'
-  - julia -e 'cd(Pkg.dir("GLM")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(process_folder())'
+  # push coverage results to Coveralls
+  - julia -e 'using Pkg; cd(Pkg.dir("GLM")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
+  # push coverage results to Codecov
+  - julia -e 'using Pkg; cd(Pkg.dir("GLM")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
