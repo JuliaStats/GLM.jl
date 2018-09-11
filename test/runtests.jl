@@ -451,18 +451,18 @@ end
 
     Ylm = X * [0.8, 1.6] + 0.8randn(10)
     mm = fit(LinearModel, X, Ylm)
-    pred = predict(mm, newX, interval=:confint)
+    pred1 = predict(mm, newX)
+    pred2 = predict(mm, newX, interval=:confint)
 
-    @test isapprox(pred[1,2], 0.6122189104014528)
-    @test isapprox(pred[2,2], -0.33530477814532056)
-    @test isapprox(pred[3,2], 1.340413688904295)
-    @test isapprox(pred[4,2], 0.02118806218116165)
-    @test isapprox(pred[5,2], 0.8543142404183606)
-    @test isapprox(pred[1,3], 2.6853964084909836)
-    @test isapprox(pred[2,3], 1.2766396685055916)
-    @test isapprox(pred[3,3], 3.6617479283005894)
-    @test isapprox(pred[4,3], 0.6477623101170038)
-    @test isapprox(pred[5,3], 2.564532433982956)
+    @test pred1 == pred2[:, 1] ≈
+        [1.6488076594462182, 0.4706674451801356, 2.5010808086024423,
+         0.3344751861490827, 1.7094233372006582]
+    @test pred2[:, 2:3] ≈ [ 0.6122189104014528  2.6853964084909836
+                           -0.33530477814532056 1.2766396685055916
+                            1.340413688904295   3.6617479283005894
+                            0.02118806218116165 0.6477623101170038
+                            0.8543142404183606  2.564532433982956]
+
 end
 
 @testset "F test for model comparison" begin
