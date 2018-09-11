@@ -438,7 +438,7 @@ end
     @test isapprox(predict(gm12, newX, offset=newoff),
         logistic.(newX * coef(gm12) .+ newoff))
 
-        # Prediction from DataFrames
+    # Prediction from DataFrames
     d = convert(DataFrame, X)
     d[:y] = Y
 
@@ -451,7 +451,7 @@ end
 
     Ylm = X * [0.8, 1.6] + 0.8randn(10)
     mm = fit(LinearModel, X, Ylm)
-    pred = predict(mm, newX, :confint)
+    pred = predict(mm, newX, interval=:confint)
 
     @test isapprox(pred[1,2], 0.6122189104014528)
     @test isapprox(pred[2,2], -0.33530477814532056)

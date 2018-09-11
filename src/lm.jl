@@ -186,19 +186,25 @@ function coeftable(mm::LinearModel)
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
-predict(mm::LinearModel, newx::AbstractMatrix) = newx * coef(mm)
-
 """
-    predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level::Real = 0.95)
+    predict(mm::LinearModel, newx::AbstractMatrix;
+            interval::Union{Symbol,Nothing} = nothing, level::Real = 0.95)
 
-Specifying `interval_type` will return a 3-column matrix with the prediction and
+If `interval` is `nothing` (the default), return a vector with the predicted values
+for model `mm` and new data `newx`.
+Otherwise, return a 3-column matrix with the prediction and
 the lower and upper confidence bounds for a given `level` (0.95 equates alpha = 0.05).
-Valid values of `interval_type` are `:confint` delimiting the  uncertainty of the
+Valid values of `interval` are `:confint` delimiting the  uncertainty of the
 predicted relationship, and `:predint` delimiting estimated bounds for new data points.
 """
-function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, level::Real = 0.95)
+function predict(mm::LinearModel, newx::AbstractMatrix;
+                 interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95)
     retmean = newx * coef(mm)
-    interval_type == :confint || error("only :confint is currently implemented") #:predint will be implemented
+    if interval === nothing
+        return retmean
+    elseif interval !== :confint
+        error("only :confint is currently implemented") #:predint will be implemented
+    end
     length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
 
     R = cholesky!(mm.pp).U #get the R matrix from the QR factorization
