@@ -178,10 +178,10 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"))
     @test isapprox(aicc(gm6), 490.8823884513153)
     @test isapprox(bic(gm6), 501.35662813730465)
     @test isapprox(coef(gm6),
-        [45.674043486911685, -0.5655388496390964, 4.097065528072901, 8.660128180991693])
+        [49.7711090, -0.5655388, -4.0970655, 4.5630627])
     @test isapprox(GLM.dispersion(gm6.model, true), 48.6950385282296)
     @test isapprox(stderror(gm6),
-        [13.21670540145523, 0.16118236185182783, 1.893492606966926, 2.1931494116430517])
+        [13.3909581, 0.1611824, 1.8934926, 2.1333359])
 end
 
 @testset "Normal LogLink offset" begin
@@ -191,10 +191,10 @@ end
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
     @test isapprox(coef(gm7),
-        [3.9416285291318798, -0.9944526931311773, 0.050698258703983666, 0.1021922886616272])
+        [3.99232679, -0.99445269, -0.05069826, 0.05149403])
     @test isapprox(GLM.dispersion(gm7.model, true), 48.017753573192266)
     @test isapprox(stderror(gm7),
-        [0.1554026019351794, 0.0018862835443589627, 0.022584040191142126, 0.025187228659634627],
+        [0.157167944, 0.001886286, 0.022584069, 0.023882826],
         atol=1e-6)
 end
 
@@ -571,4 +571,12 @@ end
 
 @testset "Issue #228" begin
     @test_throws ArgumentError glm(randn(10, 2), rand(1:10, 10), Binomial(10))
+end
+
+@testset "Issue #263" begin
+    data = DataFrame(y = rand(100), x = rand(100))
+    data.x2 = data.x
+    model1 = lm(@formula(y ~ x), data)
+    model2 = lm(@formula(y ~ x + x2), data, true)
+    @test dof_residual(model1) == dof_residual(model2)
 end
