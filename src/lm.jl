@@ -209,6 +209,8 @@ function predict(mm::LinearModel, newx::AbstractMatrix, interval_type::Symbol, l
     hcat(retmean, retmean .+ interval, retmean .- interval)
 end
 
+dof_residual(obj::LinearModel{<:Any,<:DensePredChol{<:Any,<:CholeskyPivoted}}) =
+    nobs(obj) - obj.pp.chol.rank
 
 function confint(obj::LinearModel, level::Real)
     hcat(coef(obj),coef(obj)) + stderror(obj) *
