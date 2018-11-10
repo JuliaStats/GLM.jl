@@ -83,7 +83,7 @@ julia> predict(ols)
 
 julia> newX = DataFrame(X=[2,3,4]);
 
-julia> predict(ols, newX, interval=:confint)
+julia> predict(ols, newX, interval=:confidence)
  3×3 Array{Float64,2}:
   4.33333  1.33845   7.32821
   6.83333  2.09801  11.5687

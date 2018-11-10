@@ -194,16 +194,20 @@ If `interval` is `nothing` (the default), return a vector with the predicted val
 for model `mm` and new data `newx`.
 Otherwise, return a 3-column matrix with the prediction and
 the lower and upper confidence bounds for a given `level` (0.95 equates alpha = 0.05).
-Valid values of `interval` are `:confint` delimiting the  uncertainty of the
-predicted relationship, and `:predint` delimiting estimated bounds for new data points.
+Valid values of `interval` are `:confidence` delimiting the  uncertainty of the
+predicted relationship, and `:prediction` delimiting estimated bounds for new data points.
 """
 function predict(mm::LinearModel, newx::AbstractMatrix;
                  interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95)
     retmean = newx * coef(mm)
+    if interval === :confint
+        Base.depwarn("interval=:confint is deprecated in favor of interval=:confidence")
+        interval = :confidence
+    end
     if interval === nothing
         return retmean
-    elseif interval !== :confint
-        error("only :confint is currently implemented") #:predint will be implemented
+    elseif interval !== :confidence
+        error("only interval=:confidence is currently implemented") #:predint will be implemented
     end
     length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
 

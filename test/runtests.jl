@@ -452,7 +452,7 @@ end
     Ylm = X * [0.8, 1.6] + 0.8randn(10)
     mm = fit(LinearModel, X, Ylm)
     pred1 = predict(mm, newX)
-    pred2 = predict(mm, newX, interval=:confint)
+    pred2 = predict(mm, newX, interval=:confidence)
 
     @test pred1 == pred2[:, 1] ≈
         [1.6488076594462182, 0.4706674451801356, 2.5010808086024423,
