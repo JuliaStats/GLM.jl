@@ -214,6 +214,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     R = cholesky!(mm.pp).U #get the R matrix from the QR factorization
     residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
     retvariance = (newx/R).^2 * residvar
+    interval == :prediction && (retvariance .+= deviance(mm)/dof_residual(mm))
 
     interval = quantile(TDist(dof_residual(mm)), (1 - level)/2) * sqrt.(retvariance)
     hcat(retmean, retmean .+ interval, retmean .- interval)
