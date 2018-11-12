@@ -215,9 +215,9 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
     retvariance = (newx/R).^2 * residvar
     interval == :prediction && (retvariance .+= deviance(mm)/dof_residual(mm))
+    retinterval = quantile(TDist(dof_residual(mm)), (1. - level)/2) * sqrt.(retvariance)
 
-    interval = quantile(TDist(dof_residual(mm)), (1 - level)/2) * sqrt.(retvariance)
-    hcat(retmean, retmean .+ interval, retmean .- interval)
+    hcat(retmean, retmean .+ retinterval, retmean .- retinterval)
 end
 
 dof_residual(obj::LinearModel{<:Any,<:DensePredChol{<:Any,<:CholeskyPivoted}}) =
