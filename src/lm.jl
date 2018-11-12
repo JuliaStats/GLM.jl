@@ -206,17 +206,18 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     end
     if interval === nothing
         return retmean
-    elseif !(interval ∈ (:confidence, :prediction))
-        error("only :confidence and :prediction intervals are defined")
     end
     length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
-
     R = cholesky!(mm.pp).U #get the R matrix from the QR factorization
     residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
-    retvariance = (newx/R).^2 * residvar
-    interval == :prediction && (retvariance .+= deviance(mm)/dof_residual(mm))
+    if interval == :confidence
+        retvariance = (newx/R).^2 * residvar
+    elseif interval == :prediction
+        retvariance = (newx/R).^2 * residvar .+ deviance(mm)/dof_residual(mm)
+    else
+        error("only :confidence and :prediction intervals are defined")
+    end
     retinterval = quantile(TDist(dof_residual(mm)), (1. - level)/2) * sqrt.(retvariance)
-
     hcat(retmean, retmean .+ retinterval, retmean .- retinterval)
 end
 
