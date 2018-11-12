@@ -206,8 +206,8 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     end
     if interval === nothing
         return retmean
-    elseif interval !== :confidence
-        error("only interval=:confidence is currently implemented") #:predint will be implemented
+    elseif !(interval ∈ (:confidence, :prediction))
+        error("only :confidence and :prediction intervals are defined")
     end
     length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
 
