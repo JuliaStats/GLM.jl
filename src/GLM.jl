@@ -99,5 +99,6 @@ module GLM
     include("glmfit.jl")
     include("ftest.jl")
     include("negbinfit.jl")
+    include("deprecated.jl")
 
 end # module
