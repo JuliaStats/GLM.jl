@@ -574,9 +574,14 @@ end
 end
 
 @testset "Issue #263" begin
-    data = DataFrame(y = rand(100), x = rand(100))
-    data.x2 = data.x
-    model1 = lm(@formula(y ~ x), data)
-    model2 = lm(@formula(y ~ x + x2), data, true)
+    data = dataset("datasets", "iris")
+    data.SepalWidth2 = data.SepalWidth
+    model1 = lm(@formula(SepalLength ~ SepalWidth), data)
+    model2 = lm(@formula(SepalLength ~ SepalWidth + SepalWidth2), data, true)
+    model3 = lm(@formula(SepalLength ~ 0 + SepalWidth), data)
+    model4 = lm(@formula(SepalLength ~ 0 + SepalWidth + SepalWidth2), data, true)
+    @test dof(model1) == dof(model2)
+    @test dof(model3) == dof(model4)
     @test dof_residual(model1) == dof_residual(model2)
+    @test dof_residual(model3) == dof_residual(model4)
 end

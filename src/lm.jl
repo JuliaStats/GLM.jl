@@ -147,6 +147,8 @@ lm(X, y, allowrankdeficient::Bool=false) = fit(LinearModel, X, y, allowrankdefic
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
+dof(obj::LinearModel{<:LmResp,<:DensePredChol{<:Real,<:CholeskyPivoted}}) = obj.pp.chol.rank + 1
+
 """
     deviance(obj::LinearModel)
 
@@ -218,9 +220,6 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     interval = quantile(TDist(dof_residual(mm)), (1 - level)/2) * sqrt.(retvariance)
     hcat(retmean, retmean .+ interval, retmean .- interval)
 end
-
-dof_residual(obj::LinearModel{<:Any,<:DensePredChol{<:Any,<:CholeskyPivoted}}) =
-    nobs(obj) - obj.pp.chol.rank
 
 function confint(obj::LinearModel, level::Real)
     hcat(coef(obj),coef(obj)) + stderror(obj) *
