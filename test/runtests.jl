@@ -1,5 +1,5 @@
-using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays, Random,
-      Statistics, StatsBase, Test, RDatasets
+using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays,
+        RDatasets, Random, Statistics, StatsBase, StatsModels, Test
 using GLM
 
 test_show(x) = show(IOBuffer(), x)
@@ -45,7 +45,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
 end
 
-@testset "rankdeficient" begin
+@testset "rankdeficient-lm" begin
     # an example of rank deficiency caused by a missing cell in a table
     dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
                      categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
@@ -66,6 +66,173 @@ end
     @test isapprox(coef(m2p), [0.9178241203127236, 9.089883493902754, 3.01742566831296,
                    4.108734932819495, 4.995249696954908, 6.075962907632594, 0.0, 8.038151489191618,
                    8.848886704358202, 2.8697881579099085, 11.15107375630744, 11.8392578374927])
+end
+
+@testset "rankdeficient-glm" begin
+    df = CSV.read("rankdeficient-glm.csv")
+
+    OLS_1 = fit(
+        LinearModel,
+        @formula(label_1 ~ 1 + feature_1 + feature_2 + feature_3),
+        df,
+        true)
+    Test.@test coef(OLS_1)[1] ≈ 0.4814822002921986
+    Test.@test coef(OLS_1)[2] ≈ 0.0
+    Test.@test coef(OLS_1)[3] ≈ 7.100773448428529e-6
+    Test.@test coef(OLS_1)[4] ≈ 4.306733126416892e-6
+    Test.@test stderr(OLS_1)[1] ≈ 0.013269599196573958
+    Test.@test isnan(stderr(OLS_1)[2])
+    Test.@test stderr(OLS_1)[3] ≈ 8.60301517985726e-6
+    Test.@test stderr(OLS_1)[4] ≈ 3.452441071366933e-6
+    Test.@test coeftable(OLS_1).cols[4][1].v ≈ 6.294030157059516e-271
+    Test.@test isnan(coeftable(OLS_1).cols[4][2].v)
+    Test.@test coeftable(OLS_1).cols[4][3].v ≈ 0.40917447401965823
+    Test.@test coeftable(OLS_1).cols[4][4].v ≈ 0.21226330164430007
+
+    LR_1a = fit(
+        GeneralizedLinearModel,
+        @formula(label_1 ~ 1 + feature_1  + feature_3),
+        df,
+        Binomial(),
+        GLM.LogitLink())
+    Test.@test coef(LR_1a)[1] ≈ -0.0740844399988657
+    Test.@test coef(LR_1a)[2] ≈ 5.68174585490487e-5
+    Test.@test coef(LR_1a)[3] ≈ 1.722974656564798e-5
+    Test.@test stderr(LR_1a)[1] ≈ 0.053089711952845405
+    Test.@test stderr(LR_1a)[2] ≈ 6.883115518527803e-5
+    Test.@test stderr(LR_1a)[3] ≈ 1.3811665506702947e-5
+    Test.@test coeftable(LR_1a).cols[4][1].v ≈ 0.16287790368041208
+    Test.@test coeftable(LR_1a).cols[4][2].v ≈ 0.4091097146667967
+    Test.@test coeftable(LR_1a).cols[4][3].v ≈ 0.21222234299185375
+
+    LR_1b = fit(
+        GeneralizedLinearModel,
+        @formula(label_1 ~ 1 + feature_2 + feature_3),
+        df,
+        Binomial(),
+        GLM.LogitLink())
+    Test.@test coef(LR_1b)[1] ≈ -0.0740844399988657
+    Test.@test coef(LR_1b)[2] ≈ 2.840872927452435e-5
+    Test.@test coef(LR_1b)[3] ≈ 1.722974656564798e-5
+    Test.@test stderr(LR_1b)[1] ≈ 0.053089711952845405
+    Test.@test stderr(LR_1b)[2] ≈ 3.4415577592639016e-5
+    Test.@test stderr(LR_1b)[3] ≈ 1.3811665506702947e-5
+    Test.@test coeftable(LR_1b).cols[4][1].v ≈ 0.16287790368041208
+    Test.@test coeftable(LR_1b).cols[4][2].v ≈ 0.4091097146667967
+    Test.@test coeftable(LR_1b).cols[4][3].v ≈ 0.21222234299185375
+
+    Test.@test_throws(
+        LinearAlgebra.PosDefException,
+        fit(
+            GeneralizedLinearModel,
+            @formula(label_1 ~ 1 + feature_1 + feature_2 + feature_3),
+            df,
+            Binomial(),
+            GLM.LogitLink())
+        )
+
+    LR_1c = fit(
+        GeneralizedLinearModel,
+        @formula(label_1 ~ 1 + feature_1 + feature_2 + feature_3),
+        df,
+        Binomial(),
+        GLM.LogitLink(),
+        allowrankdeficient=true)
+    Test.@test coef(LR_1c)[1] ≈ -0.09006856416561783
+    Test.@test coef(LR_1c)[2] ≈ -705.8416751163222
+    Test.@test coef(LR_1c)[3] ≈ 352.9208720955511
+    Test.@test coef(LR_1c)[4] ≈ 2.0947481583582912e-5
+    Test.@test stderr(LR_1c)[1] ≈ 0.053096076008654604
+    Test.@test isnan(stderr(LR_1c)[2])
+    Test.@test stderr(LR_1c)[3] ≈ 3.441787778820763e-5
+    Test.@test stderr(LR_1c)[4] ≈ 1.381282290194956e-5
+    Test.@test coeftable(LR_1c).cols[4][1].v ≈ 0.08982305438748991
+    Test.@test isnan(coeftable(LR_1c).cols[4][2].v)
+    Test.@test coeftable(LR_1c).cols[4][3].v ≈ 0.0
+    Test.@test coeftable(LR_1c).cols[4][4].v ≈ 0.12938683057308423
+
+    OLS_2 = fit(
+        LinearModel,
+        @formula(label_2 ~ 1 + feature_1 + feature_2 + feature_3),
+        df,
+        true)
+    Test.@test coef(OLS_2)[1] ≈ -0.18433687795387846
+    Test.@test coef(OLS_2)[2] ≈ 0.0
+    Test.@test coef(OLS_2)[3] ≈ 6.937516672427037e-6
+    Test.@test coef(OLS_2)[4] ≈ 0.0002690550151709414
+    Test.@test stderr(OLS_2)[1] ≈ 0.008314840332069603
+    Test.@test isnan(stderr(OLS_2)[2])
+    Test.@test stderr(OLS_2)[3] ≈ 5.390720287418552e-6
+    Test.@test stderr(OLS_2)[4] ≈ 2.1633280582963663e-6
+    Test.@test coeftable(OLS_2).cols[4][1].v ≈ 2.399616832216088e-106
+    Test.@test isnan(coeftable(OLS_2).cols[4][2].v)
+    Test.@test coeftable(OLS_2).cols[4][3].v ≈ 0.19814609164909394
+    Test.@test coeftable(OLS_2).cols[4][4].v ≈ 0.0
+
+    LR_2a = fit(
+        GeneralizedLinearModel,
+        @formula(label_2 ~ 1 + feature_1  + feature_3),
+        df,
+        GLM.Binomial(),
+        GLM.LogitLink())
+    Test.@test coef(LR_2a)[1] ≈ -5.794539719571302
+    Test.@test coef(LR_2a)[2] ≈ 0.00013965128998063396
+    Test.@test coef(LR_2a)[3] ≈ 0.0022644689769415224
+    Test.@test stderr(LR_2a)[1] ≈ 0.1319550070864715
+    Test.@test stderr(LR_2a)[2] ≈ 0.0001167815891984272
+    Test.@test stderr(LR_2a)[3] ≈ 4.438988363503985e-5
+    Test.@test coeftable(LR_2a).cols[4][1].v ≈ 0.0
+    Test.@test coeftable(LR_2a).cols[4][2].v ≈ 0.23176169574597333
+    Test.@test coeftable(LR_2a).cols[4][3].v ≈ 0.0
+
+    LR_2b = fit(
+        GeneralizedLinearModel,
+        @formula(label_2 ~ 1  + feature_2 + feature_3),
+        df,
+        GLM.Binomial(),
+        GLM.LogitLink())
+    Test.@test coef(LR_2b)[1] ≈ -5.794539719571302
+    Test.@test coef(LR_2b)[2] ≈ 6.982564499031698e-5
+    Test.@test coef(LR_2b)[3] ≈ 0.0022644689769415224
+    Test.@test stderr(LR_2b)[1] ≈ 0.1319550070864715
+    Test.@test stderr(LR_2b)[2] ≈ 5.83907945992136e-5
+    Test.@test stderr(LR_2b)[3] ≈ 4.438988363503985e-5
+    Test.@test coeftable(LR_2b).cols[4][1].v ≈ 0.0
+    Test.@test coeftable(LR_2b).cols[4][2].v ≈ 0.23176169574597333
+    Test.@test coeftable(LR_2b).cols[4][3].v ≈ 0.0
+
+    Test.@test_throws(
+        LinearAlgebra.PosDefException,
+        fit(
+            GeneralizedLinearModel,
+            @formula(label_2 ~ 1 + feature_1 + feature_2 + feature_3),
+            df,
+            Binomial(),
+            GLM.LogitLink())
+        )
+
+    LR_2c = fit(
+        GeneralizedLinearModel,
+        @formula(label_2 ~ 1 + feature_1 + feature_2 + feature_3),
+        df,
+        GLM.Binomial(),
+        GLM.LogitLink(),
+        allowrankdeficient=true)
+
+    # Julia 0.7 and Julia 1.0 give different values for the coefficients
+    # and standard errors.
+    Test.@test coef(LR_2c)[1] ≈ -3.328540156969301 || coef(LR_2c)[1] ≈ -4.756075580430002
+    Test.@test coef(LR_2c)[2] ≈ -19075.40089756188 || coef(LR_2c)[2] ≈ 82671.55016968251
+    Test.@test coef(LR_2c)[3] ≈ 9537.700482524273 || coef(LR_2c)[3] ≈ -41335.775027244206
+    Test.@test coef(LR_2c)[4] ≈ 0.0013086543332250014 || coef(LR_2c)[4] ≈ 0.0018610941073488067
+    Test.@test stderr(LR_2c)[1] ≈ 0.08202132027793652 || stderr(LR_2c)[1] ≈ 0.10836551112478066
+    Test.@test isnan(stderr(LR_2c)[2])
+    Test.@test stderr(LR_2c)[3] ≈ 4.589276482806423e-5 || stderr(LR_2c)[3] ≈ 5.3248878958058954e-5
+    Test.@test stderr(LR_2c)[4] ≈ 2.4496362901653424e-5 || stderr(LR_2c)[4] ≈ 3.4880188349333056e-5
+    Test.@test coeftable(LR_2c).cols[4][1].v ≈ 0.0
+    Test.@test isnan(coeftable(LR_2c).cols[4][2].v)
+    Test.@test coeftable(LR_2c).cols[4][3].v ≈ 0.0
+    Test.@test coeftable(LR_2c).cols[4][4].v ≈ 0.0
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
@@ -496,24 +663,32 @@ end
 
     ft = ftest(mod, nullmod)
     @test isapprox(ft.pval[1].v,  2.481215056713184e-8)
-    @test sprint(show, ftest(mod, nullmod)) ==
-        """
+
+    # The business with strip(...) is necessary because of issues with
+    # whitespace. Atom/Juno by default uses uses the Whitespace package
+    # that adds a trailing line and trims whitespace in every line after
+    # each save. For these tests, we do not care about the whitespace.
+    # We only care about the actual values.
+    @test all(split(strip(sprint(show, ftest(mod, nullmod)))) .==
+        split(strip("""
                 Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F* p(>F)
-        Model 1       10   3      0.1283          0.9603                      
+        Model 1       10   3      0.1283          0.9603
         Model 2       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7
-        """
+        """)))
 
     bigmod = lm(@formula(Result~Treatment+Other), d).model
     ft2 = ftest(bigmod, mod, nullmod)
     @test isapprox(ft2.pval[2].v,  2.481215056713184e-8)
     @test isapprox(ft2.pval[1].v, 0.17903437900958952)
-    @test sprint(show, ftest(bigmod, mod, nullmod)) ==
-        """
+
+    # See comment above for explanation of the use of strip(...)
+    @test all(split(strip(sprint(show, ftest(bigmod, mod, nullmod)))) .==
+        split(strip("""
                 Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F*  p(>F)
-        Model 1        9   4      0.1038          0.9678                       
+        Model 1        9   4      0.1038          0.9678
         Model 2       10   3   -1 0.1283 -0.0245  0.9603 0.0076   2.1236 0.1790
         Model 3       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234  <1e-7
-        """
+        """)))
 end
 
 @testset "F test rounding error" begin

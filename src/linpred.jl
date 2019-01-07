@@ -7,6 +7,11 @@ The effective coefficient vector, `p.scratchbeta`, is evaluated as `p.beta0 .+ f
 and `out` is updated to `p.X * p.scratchbeta`
 """
 function linpred!(out, p::LinPred, f::Real=1.)
+    for i = 1:length(p.delbeta)
+        if isnan(p.delbeta[i]) || isinf(p.delbeta[i])
+            p.delbeta[i] = 0
+        end
+    end
     mul!(out, p.X, iszero(f) ? p.beta0 : broadcast!(muladd, p.scratchbeta, f, p.delbeta, p.beta0))
 end
 
@@ -126,7 +131,7 @@ function cholesky(p::DensePredChol{T}) where T<:FP
 end
 cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U', 0)
 
-function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}; allowrankdeficient::Bool=false) where T<:BlasReal
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.X), r))
     p
 end
@@ -148,18 +153,22 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}) where T<:
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}, wt::Vector{T}; allowrankdeficient::Bool = false) where T<:BlasReal
     scr = mul!(p.scratchm1, Diagonal(wt), p.X)
     cholesky!(Hermitian(mul!(cholfactors(p.chol), transpose(scr), p.X), :U))
     ldiv!(p.chol, mul!(p.delbeta, transpose(scr), r))
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vector{T}; allowrankdeficient::Bool = false) where T<:BlasReal
     cf = cholfactors(p.chol)
     piv = p.chol.piv
     cf .= mul!(p.scratchm2, adjoint(LinearAlgebra.mul!(p.scratchm1, Diagonal(wt), p.X)), p.X)[piv, piv]
-    cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
+    if allowrankdeficient
+        cholesky!(Hermitian(cf, Symbol(p.chol.uplo)), Val(true), tol = -one(T), check = false)
+    else
+        cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
+    end
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.scratchm1), r))
     p
 end
@@ -184,9 +193,9 @@ function SparsePredChol(X::SparseMatrixCSC{T}) where T
         similar(X))
 end
 
-cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
+cholpred(X::SparseMatrixCSC, pivot::Bool=false) = SparsePredChol(X)
 
-function delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where T
+function delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}; allowrankdeficient::Bool = false,) where T
     scr = mul!(p.scratch, Diagonal(wt), p.X)
     XtWX = p.Xt*scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))

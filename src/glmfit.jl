@@ -198,7 +198,7 @@ end
 dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
 
 function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
-              convTol::Real, start)
+              convTol::Real, start; allowrankdeficient::Bool = false)
 
     # Return early if model has the fit flag set
     m.fit && return m
@@ -215,7 +215,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
     if start == nothing || isempty(start)
         # Compute beta update based on default response value
         # if no starting values have been passed
-        delbeta!(p, wrkresp(r), r.wrkwt)
+        delbeta!(p, wrkresp(r), r.wrkwt; allowrankdeficient = allowrankdeficient,)
         linpred!(lp, p)
         updateμ!(r, lp)
         installbeta!(p)
@@ -234,7 +234,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
 
         # Compute the change to β, update μ and compute deviance
         try
-            delbeta!(p, r.wrkresid, r.wrkwt)
+            delbeta!(p, r.wrkresid, r.wrkwt; allowrankdeficient = allowrankdeficient,)
             linpred!(lp, p)
             updateμ!(r, lp)
             dev = deviance(m)
@@ -274,8 +274,8 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
 end
 
 StatsBase.fit!(m::AbstractGLM; verbose::Bool=false, maxIter::Integer=30,
-              minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing) =
-    _fit!(m, verbose, maxIter, minStepFac, convTol, start)
+              minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing, allowrankdeficient::Bool = false,) =
+    _fit!(m, verbose, maxIter, minStepFac, convTol, start; allowrankdeficient = allowrankdeficient,)
 
 function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::Bool=true,
                         verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
@@ -301,6 +301,7 @@ function fit(::Type{M},
     y::V,
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
+    allowrankdeficient::Bool = false,
     dofit::Bool = true,
     wts::V      = similar(y, 0),
     offset::V   = similar(y, 0),
@@ -312,8 +313,8 @@ function fit(::Type{M},
     end
 
     rr = GlmResp(y, d, l, offset, wts)
-    res = M(rr, cholpred(X), false)
-    return dofit ? fit!(res; fitargs...) : res
+    res = M(rr, cholpred(X, allowrankdeficient,), false)
+    return dofit ? fit!(res; allowrankdeficient = allowrankdeficient, fitargs...) : res
 end
 
 fit(::Type{M},
@@ -423,4 +424,3 @@ function checky(y, d::Binomial)
     end
     return nothing
 end
-
