@@ -6,6 +6,9 @@ An abstract type whose subtypes determine methods for [`linkfun`](@ref), [`linki
 """
 abstract type Link end
 
+# Make links broadcast like a scalar
+Base.Broadcast.broadcastable(l::Link) = Ref(l)
+
 """
     Link01
 
@@ -69,7 +72,7 @@ mutable struct LogLink <: Link end
 """
     NegativeBinomialLink
 
-The canonical [`Link`](@ref) for [`Distributions.NegativeBinomial`](@ref) distribution, defined as `η = log(μ/(μ+θ))`.
+The canonical [`Link`](@ref) for [`Distributions.NegativeBinomial`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.NegativeBinomial) distribution, defined as `η = log(μ/(μ+θ))`.
 The shape parameter θ has to be fixed for the distribution to belong to the exponential family.
 """
 mutable struct NegativeBinomialLink  <: Link
@@ -115,12 +118,13 @@ Return `μ`, the mean value, for link `L` at linear predictor value `η`.
 
 # Examples
 ```jldoctest
-julia> μ = inv(10):inv(5):1; showcompact(collect(μ))
-[0.1, 0.3, 0.5, 0.7, 0.9]
-julia> η = logit.(μ); showcompact(η)
-[-2.19722, -0.847298, 0.0, 0.847298, 2.19722]
-julia> showcompact(linkinv.(LogitLink(), η))
-[0.1, 0.3, 0.5, 0.7, 0.9]
+julia> μ = 0.1:0.2:1
+0.1:0.2:0.9
+
+julia> η = logit.(μ);
+
+julia> linkinv.(LogitLink(), η) ≈ μ
+true
 ```
 """
 function linkinv end
@@ -132,12 +136,14 @@ Return the derivative of [`linkinv`](@ref), `dμ/dη`, for link `L` at linear pr
 
 # Examples
 ```jldoctest
-julia> showcompact(mueta(LogitLink(), 0.0))
+julia> mueta(LogitLink(), 0.0)
 0.25
-julia> showcompact(mueta(CloglogLink(), 0.0))
-0.367879
-julia> showcompact(mueta(LogLink(), 2.0))
-7.38906
+
+julia> mueta(CloglogLink(), 0.0) ≈ 0.36787944117144233
+true
+
+julia> mueta(LogLink(), 2.0) ≈ 7.38905609893065
+true
 ```
 """
 function mueta end
@@ -151,12 +157,19 @@ The variance function is returned as NaN unless the range of μ is (0, 1)
 
 # Examples
 ```jldoctest
-julia> showcompact(inverselink(LogitLink(), 0.0))
+julia> inverselink(LogitLink(), 0.0)
 (0.5, 0.25, 0.25)
-julia> showcompact(inverselink(CloglogLink(), 0.0))
-(0.632121, 0.367879, 0.232544)
-julia> showcompact(inverselink(LogLink(), 2.0))
-(7.38906, 7.38906, NaN)
+
+julia> μ, oneminusμ, variance = inverselink(CloglogLink(), 0.0);
+
+julia> μ + oneminusμ ≈ 1
+true
+
+julia> μ*(1 - μ) ≈ variance
+true
+
+julia> isnan(last(inverselink(LogLink(), 2.0)))
+true
 ```
 """
 function inverselink end
@@ -169,7 +182,7 @@ Return the canonical link for distribution `D`, which must be in the exponential
 # Examples
 ```jldoctest
 julia> canonicallink(Bernoulli())
-GLM.LogitLink()
+LogitLink()
 ```
 """
 function canonicallink end
@@ -282,14 +295,19 @@ variance that depends on `μ`.
 
 # Examples
 ```jldoctest
-julia> μ = inv(6):inv(3):1; showcompact(collect(μ))
-[0.166667, 0.5, 0.833333]
-julia> showcompact(glmvar.(Normal(), μ))    # constant for Normal()
-[1.0, 1.0, 1.0]
-julia> showcompact(glmvar.(Bernoulli(), μ)) # μ * (1 - μ) for Bernoulli()
-[0.138889, 0.25, 0.138889]
-julia> showcompact(glmvar.(Poisson(), μ))   # μ for Poisson()
-[0.166667, 0.5, 0.833333]
+julia> μ = 1/6:1/3:1;
+
+julia> glmvar.(Normal(), μ)    # constant for Normal()
+3-element Array{Float64,1}:
+ 1.0
+ 1.0
+ 1.0
+
+julia> glmvar.(Bernoulli(), μ) ≈ μ .* (1 .- μ)
+true
+
+julia> glmvar.(Poisson(), μ) == μ
+true
 ```
 """
 function glmvar end
@@ -312,14 +330,17 @@ must be modified.
 
 # Examples
 ```jldoctest
-julia> showcompact(mustart(Bernoulli(), 0.0, 1))
-0.25
-julia> showcompact(mustart(Bernoulli(), 1.0, 1))
-0.75
-julia> showcompact(mustart(Binomial(), 0.0, 10))
-0.0454545
-julia> showcompact(mustart(Normal(), 0.0, 1))
-0.0
+julia> mustart(Bernoulli(), 0.0, 1) ≈ 1/4
+true
+
+julia> mustart(Bernoulli(), 1.0, 1) ≈ 3/4
+true
+
+julia> mustart(Binomial(), 0.0, 10) ≈ 1/22
+true
+
+julia> mustart(Normal(), 0.0, 1) ≈ 0
+true
 ```
 """
 function mustart end
@@ -354,12 +375,14 @@ sign(y - μ) * sqrt(devresid(D, y, μ))
 
 # Examples
 ```jldoctest
-julia> showcompact(devresid(Normal(), 0, 0.25))     # abs2(y - μ)
-0.0625
-julia> showcompact(devresid(Bernoulli(), 1, 0.75))  # -2log(μ) when y == 1
-0.575364
-julia> showcompact(devresid(Bernoulli(), 0, 0.25))  # -2log1p(-μ) = -2log(1-μ) when y == 0
-0.575364
+julia> devresid(Normal(), 0, 0.25) ≈ abs2(0.25)
+true
+
+julia> devresid(Bernoulli(), 1, 0.75) ≈ -2*log(0.75)
+true
+
+julia> devresid(Bernoulli(), 0, 0.25) ≈ -2*log1p(-0.25)
+true
 ```
 """
 function devresid end

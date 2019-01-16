@@ -2,9 +2,6 @@
 
 ```@meta
 DocTestSetup = quote
-    if Pkg.installed("RDatasets") isa Void
-        Pkg.add("RDatasets")
-    end
     using CategoricalArrays, DataFrames, Distributions, GLM, RDatasets
 end
 ```
@@ -54,14 +51,15 @@ julia> using DataFrames, GLM
 
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
 3×2 DataFrames.DataFrame
-│ Row │ X │ Y │
-├─────┼───┼───┤
-│ 1   │ 1 │ 2 │
-│ 2   │ 2 │ 4 │
-│ 3   │ 3 │ 7 │
+│ Row │ X     │ Y     │
+│     │ Int64 │ Int64 │
+├─────┼───────┼───────┤
+│ 1   │ 1     │ 2     │
+│ 2   │ 2     │ 4     │
+│ 3   │ 3     │ 7     │
 
 julia> ols = lm(@formula(Y ~ X), data)
-StatsModels.DataFrameRegressionModel{GLM.LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
 
 Formula: Y ~ 1 + X
 
@@ -70,17 +68,18 @@ Coefficients:
 (Intercept)  -0.666667   0.62361 -1.06904   0.4788
 X                  2.5  0.288675  8.66025   0.0732
 
-julia> stderror(ols)
+julia> round.(stderror(ols), digits=5)
 2-element Array{Float64,1}:
  0.62361
- 0.288675
+ 0.28868
 
-julia> predict(ols)
+julia> round.(predict(ols), digits=5)
 3-element Array{Float64,1}:
  1.83333
  4.33333
  6.83333
-
+```
+ <!-- Andreas Noack: As of 9 May 2018 (and again 16 May 2019) this example (still) doesn't work so I've temporarily commented it out
 julia> newX = DataFrame(X=[2,3,4]);
 
 julia> predict(ols, newX, interval=:confidence)
@@ -90,7 +89,7 @@ julia> predict(ols, newX, interval=:confidence)
   9.33333  1.40962  17.257
 ```
 
-The columns of the matrix are prediction, 95% lower and upper confidence bounds
+The columns of the matrix are prediction, 95% lower and upper confidence bounds-->
 .
 
 ### Probit Regression:
@@ -426,20 +425,23 @@ deviance.
 ### Types defined in the package
 
 ```@docs
+DensePredChol
+DensePredQR
+GlmResp
 LinearModel
 LmResp
 LinPred
-GlmResp
-DensePredQR
-DensePredChol
+GLM.ModResp
 ```
 
 ### Constructors for models
 
-The most general approach to fitting a model is with the [`fit`](@ref) function, as in
+The most general approach to fitting a model is with the `fit` function, as in
 ```jldoctest
-julia> fit(LinearModel, hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
-GLM.LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}}:
+julia> using Random; Random.seed!(12321);
+
+julia> fit(LinearModel, hcat(ones(10), 1:10), randn(10))
+LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
 
 Coefficients:
       Estimate Std.Error  t value Pr(>|t|)
@@ -449,8 +451,10 @@ x2   -0.152062  0.124931 -1.21717   0.2582
 
 This model can also be fit as
 ```jldoctest
-julia> lm(hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
-GLM.LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,Base.LinAlg.Cholesky{Float64,Array{Float64,2}}}}:
+julia> using Random; Random.seed!(12321);
+
+julia> lm(hcat(ones(10), 1:10), randn(10))
+LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
 
 Coefficients:
       Estimate Std.Error  t value Pr(>|t|)
@@ -458,18 +462,25 @@ x1    0.717436  0.775175 0.925515   0.3818
 x2   -0.152062  0.124931 -1.21717   0.2582
 ```
 
-### Methods for model updating
+### Model methods
 ```@docs
+GLM.cancancel
 delbeta!
+StatsBase.deviance
+GLM.dispersion
+GLM.installbeta!
+GLM.issubmodel
 linpred!
 linpred
-GLM.installbeta!
-GLM.cancancel
+lm
+StatsBase.nobs
+StatsBase.nulldeviance
+StatsBase.predict
 updateμ!
 wrkresp
 GLM.wrkresp!
-GLM.dispersion
 ```
+<!-- ftest should be included as well but currently Documenter can't parse the doctest for ftest-->
 
 ### Links and methods applied to them
 ```@docs

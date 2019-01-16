@@ -1,15 +1,11 @@
-using Distributions, Documenter, GLM
+using Distributions, Documenter, GLM, StatsBase
 
 makedocs(
-    format = :html,
+    format = Documenter.HTML(),
     sitename = "GLM",
     modules = [GLM]
 )
 
 deploydocs(
     repo   = "github.com/JuliaStats/GLM.jl.git",
-    julia  = "0.6",
-    target = "build",
-    deps   = nothing,
-    make   = nothing
 )
