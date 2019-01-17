@@ -220,7 +220,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
         error("only :confidence and :prediction intervals are defined")
     end
     retinterval = quantile(TDist(dof_residual(mm)), (1. - level)/2) * sqrt.(retvariance)
-    hcat(retmean, retmean .+ retinterval, retmean .- retinterval)
+    (newy = retmean, lower = retmean .+ retinterval, upper = retmean .- retinterval)
 end
 
 function confint(obj::LinearModel, level::Real)
