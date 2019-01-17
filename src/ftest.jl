@@ -70,6 +70,7 @@ julia> ft = ftest(model.model, nullmodel.model)
 Model 1       10   3      0.1283         0.9603
 Model 2       11   2   -1 3.2292 -3.1008 0.0000 0.9603 241.6234 <1e-7
 
+
 julia> ftest(bigmodel.model, model.model, nullmodel.model)
         Res. DOF DOF ΔDOF    SSR    ΔSSR     R²    ΔR²       F*  p(>F)
 Model 1        9   4      0.1038         0.9678
