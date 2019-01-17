@@ -1,7 +1,7 @@
 # Linear and generalized linear models in Julia
 
 | **Documentation** | **CI status** | Coverage |
-|:-----------------:|:------------------:|:-----------------:|:--------:|
+|:-----------------:|:------------------:|:-----------------:|
 | [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url] | [![][travis-img]][travis-url] | [![][coveralls-img]][coveralls-url] |
 
 [docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
