@@ -5,7 +5,7 @@
 | [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url] | [![][travis-img]][travis-url] | [![][coveralls-img]][coveralls-url] |
 
 [docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
-[docs-latest-url]: https://JuliaStats.github.io/GLM.jl/latest
+[docs-latest-url]: https://JuliaStats.github.io/GLM.jl/dev
 
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
 [docs-stable-url]: https://JuliaStats.github.io/GLM.jl/stable

@@ -56,8 +56,8 @@ this is an ANOVA, our null hypothesis is that `Result ~ 1` fits the data as well
 
 ```jldoctest
 julia> dat = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
-                              Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
-                              Other=[1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]);
+                       Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
+                       Other=[1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]);
 
 julia> model = lm(@formula(Result ~ 1 + Treatment), dat);
 

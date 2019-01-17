@@ -79,7 +79,7 @@ julia> round.(predict(ols), digits=5)
  4.33333
  6.83333
 ```
- <!-- Andreas Noack: As of 9 May 2018 (and again 16 May 2019) this example (still) doesn't work so I've temporarily commented it out
+ <!-- Andreas Noack: As of 9 May 2018 (and again 16 January 2019) this example (still) doesn't work so I've temporarily commented it out
 julia> newX = DataFrame(X=[2,3,4]);
 
 julia> predict(ols, newX, interval=:confidence)
@@ -438,9 +438,9 @@ GLM.ModResp
 
 The most general approach to fitting a model is with the `fit` function, as in
 ```jldoctest
-julia> using Random; Random.seed!(12321);
+julia> using Random;
 
-julia> fit(LinearModel, hcat(ones(10), 1:10), randn(10))
+julia> fit(LinearModel, hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
 LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
 
 Coefficients:
@@ -451,9 +451,9 @@ x2   -0.152062  0.124931 -1.21717   0.2582
 
 This model can also be fit as
 ```jldoctest
-julia> using Random; Random.seed!(12321);
+julia> using Random;
 
-julia> lm(hcat(ones(10), 1:10), randn(10))
+julia> lm(hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
 LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
 
 Coefficients:
