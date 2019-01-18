@@ -454,7 +454,7 @@ end
     pred1 = predict(mm, newX)
     pred2 = predict(mm, newX, interval=:confidence)
 
-    @test pred1 == pred2[:y] ≈
+    @test pred1 == pred2[:prediction] ≈
         [1.6488076594462182, 0.4706674451801356, 2.5010808086024423,
          0.3344751861490827, 1.7094233372006582]
     @test pred2[:lower] ≈ [0.6122189104014528, -0.33530477814532056,
@@ -463,7 +463,7 @@ end
         3.6617479283005894, 0.6477623101170038, 2.564532433982956]
 
     pred3 = predict(mm, newX, interval=:prediction)
-    @test pred1 == pred3[:y] ≈
+    @test pred1 == pred3[:prediction] ≈
         [1.6488076594462182, 0.4706674451801356, 2.5010808086024423,
          0.3344751861490827, 1.7094233372006582]
     @test pred3[:lower] ≈ [-0.606004481018231, -1.6878627906312276,
