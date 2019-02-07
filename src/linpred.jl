@@ -228,7 +228,7 @@ end
 
 modelframe(obj::LinPredModel) = obj.fr
 modelmatrix(obj::LinPredModel) = obj.pp.X
-model_response(obj::LinPredModel) = obj.rr.y
+response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
