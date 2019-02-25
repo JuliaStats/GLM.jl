@@ -46,6 +46,12 @@ x1    0.717436  0.775175 0.925515   0.3818
 x2   -0.152062  0.124931 -1.21717   0.2582
 ```
 
+```@docs
+glm
+fit
+lm
+```
+
 ## Model methods
 ```@docs
 GLM.cancancel
@@ -56,7 +62,6 @@ GLM.installbeta!
 GLM.issubmodel
 linpred!
 linpred
-lm
 StatsBase.nobs
 StatsBase.nulldeviance
 StatsBase.predict
