@@ -113,7 +113,7 @@ function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:Union{Bernoulli,Bino
         μi, dμdη, μomμ = inverselink(L(), η[i])
         μ[i] = μi
         yi = y[i]
-        wrkres[i] = (yi - μi) / dμdη
+        wrkres[i] = (yi - μi) / (dμdη + eps(dμdη))
         wrkwt[i] = cancancel(r) ? dμdη : abs2(dμdη) / μomμ
         dres[i] = devresid(r.d, yi, μi)
     end
@@ -198,7 +198,7 @@ end
 dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
 
 function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
-              convTol::Real, start)
+              convTol::Real, start, stopDev = 0)
 
     # Return early if model has the fit flag set
     m.fit && return m
@@ -261,7 +261,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         # Test for convergence
         crit = (devold - dev)/dev
         verbose && println("$i: $dev, $crit")
-        if crit < convTol || dev == 0
+        if crit < convTol || dev <= stopDev
             cvg = true
             break
         end
@@ -273,9 +273,17 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
     m
 end
 
-StatsBase.fit!(m::AbstractGLM; verbose::Bool=false, maxIter::Integer=30,
-              minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing) =
-    _fit!(m, verbose, maxIter, minStepFac, convTol, start)
+function StatsBase.fit!(
+    m::AbstractGLM;
+    verbose::Bool=false,
+    maxIter::Integer=30,
+    minStepFac::Real=0.001,
+    convTol::Real=1.e-6,
+    start=nothing,
+    stopDev = 0
+)
+    _fit!(m, verbose, maxIter, minStepFac, convTol, start, stopDev)
+end
 
 function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::Bool=true,
                         verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
