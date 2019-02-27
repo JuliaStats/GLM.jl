@@ -304,7 +304,7 @@ Fit a generalized linear model to data.
 # Keyword Arguments
 - `verbose::Bool=false`: Display convergence information for each iteration
 - `maxIter::Integer=30`: Maximum number of iterations allowed to achieve convergence
-- `convTol::Real=1.e-6`: Convergence is achieved when the relative change in
+- `convTol::Real=1e-6`: Convergence is achieved when the relative change in
 deviance is less than this
 - `minStepFac::Real=0.001`: Minimum line step fraction. Must be between 0 and 1.
 - `start=nothing`: Starting values for beta
