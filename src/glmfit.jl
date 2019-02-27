@@ -339,7 +339,7 @@ l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
 """
     glm(F, D, args...; kwargs...)
 
-Fit a generalized linear model to data. Alias for fit(GeneralizedLinearModel, ...).
+Fit a generalized linear model to data. Alias for `fit(GeneralizedLinearModel, ...)`.
 See [`fit`](@ref) for documentation.
 """
 glm(F, D, args...; kwargs...) = fit(GeneralizedLinearModel, F, D, args...; kwargs...)
