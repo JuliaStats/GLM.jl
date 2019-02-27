@@ -297,9 +297,11 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
 end
 
 """
-    fit(AbstractGLM, X, y, d, [l = canonicallink(d)]; <keyword arguments>)
+    fit(GeneralizedLinearModel, X, y, d, [l = canonicallink(d)]; <keyword arguments>)
 
-Fit a generalized linear model to data.
+Fit a generalized linear model to data. `X` and `y` can either be a formula and
+a dataframe, respectively, or a matrix and a vector. `l` must be a
+[`Link`](@ref), if supplied.
 
 # Keyword Arguments
 - `verbose::Bool=false`: Display convergence information for each iteration
@@ -307,7 +309,8 @@ Fit a generalized linear model to data.
 - `convTol::Real=1e-6`: Convergence is achieved when the relative change in
 deviance is less than this
 - `minStepFac::Real=0.001`: Minimum line step fraction. Must be between 0 and 1.
-- `start=nothing`: Starting values for beta
+- `start::AbstractVector=nothing`: Starting values for beta. Should have the
+same length as the number of columns in the model matrix.
 """
 function fit(::Type{M},
     X::Union{Matrix{T},SparseMatrixCSC{T}},
