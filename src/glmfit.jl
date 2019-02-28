@@ -300,7 +300,7 @@ end
     fit(GeneralizedLinearModel, X, y, d, [l = canonicallink(d)]; <keyword arguments>)
 
 Fit a generalized linear model to data. `X` and `y` can either be a formula and
-a dataframe, respectively, or a matrix and a vector. `l` must be a
+a data frame, respectively, or a matrix and a vector. `l` must be a
 [`Link`](@ref), if supplied.
 
 # Keyword Arguments
