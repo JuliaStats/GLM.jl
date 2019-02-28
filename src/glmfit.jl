@@ -299,9 +299,9 @@ end
 """
     fit(GeneralizedLinearModel, X, y, d, [l = canonicallink(d)]; <keyword arguments>)
 
-Fit a generalized linear model to data. `X` and `y` can either be a formula and
-a dataframe, respectively, or a matrix and a vector. `l` must be a
-[`Link`](@ref), if supplied.
+Fit a generalized linear model to data. `X` and `y` can either be a matrix and a
+vector, respectively, or a formula and a data frame. `d` must be a
+`UnivariateDistribution`, and `l` must be a [`Link`](@ref), if supplied.
 
 # Keyword Arguments
 - `verbose::Bool=false`: Display convergence information for each iteration
