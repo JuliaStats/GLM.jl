@@ -274,7 +274,8 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
 end
 
 function StatsBase.fit!(m::AbstractGLM; verbose::Bool=false, maxiter::Integer=30,
-                        minstepfac::Real=0.001, convtol::Real=1e-6, start=nothing)
+                        minstepfac::Real=0.001, convtol::Real=1e-6, start=nothing,
+                        kwargs...)
     if haskey(kwargs, :maxIter)
         Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
         maxiter = kwargs[:maxIter]
