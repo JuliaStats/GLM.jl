@@ -296,6 +296,22 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
     end
 end
 
+"""
+    fit(GeneralizedLinearModel, X, y, d, [l = canonicallink(d)]; <keyword arguments>)
+
+Fit a generalized linear model to data. `X` and `y` can either be a matrix and a
+vector, respectively, or a formula and a data frame. `d` must be a
+`UnivariateDistribution`, and `l` must be a [`Link`](@ref), if supplied.
+
+# Keyword Arguments
+- `verbose::Bool=false`: Display convergence information for each iteration
+- `maxIter::Integer=30`: Maximum number of iterations allowed to achieve convergence
+- `convTol::Real=1e-6`: Convergence is achieved when the relative change in
+deviance is less than this
+- `minStepFac::Real=0.001`: Minimum line step fraction. Must be between 0 and 1.
+- `start::AbstractVector=nothing`: Starting values for beta. Should have the
+same length as the number of columns in the model matrix.
+"""
 function fit(::Type{M},
     X::Union{Matrix{T},SparseMatrixCSC{T}},
     y::V,
@@ -323,6 +339,12 @@ d::UnivariateDistribution,
 l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
     fit(M, float(X), float(y), d, l; kwargs...)
 
+"""
+    glm(F, D, args...; kwargs...)
+
+Fit a generalized linear model to data. Alias for `fit(GeneralizedLinearModel, ...)`.
+See [`fit`](@ref) for documentation.
+"""
 glm(F, D, args...; kwargs...) = fit(GeneralizedLinearModel, F, D, args...; kwargs...)
 
 GLM.Link(mm::AbstractGLM) = mm.l
