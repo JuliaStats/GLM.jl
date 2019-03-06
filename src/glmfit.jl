@@ -174,6 +174,13 @@ confint(obj::AbstractGLM) = confint(obj, 0.95)
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
+function perfectlyseparatable(m::AbstractGLM)
+    y_pred = m.rr.y
+    y = m.pp.X[:,1]
+    order = sortperm(y_pred)
+    return perfectly_separable = count(diff(y).<0) == 0 
+end
+
 function loglikelihood(m::AbstractGLM)
     r   = m.rr
     wts = r.wts
@@ -261,7 +268,11 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         # Test for convergence
         crit = (devold - dev)/dev
         verbose && println("$i: $dev, $crit")
-        if crit < convTol || dev == 0
+        
+        # Test for separable
+        perfsep = perfectlyseparatable(m)
+        
+        if crit < convTol || dev == 0 || perfsep
             cvg = true
             break
         end
