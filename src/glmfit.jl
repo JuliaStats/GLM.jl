@@ -178,7 +178,7 @@ function perfectlyseparable(m::AbstractGLM)
     y_pred = m.rr.y
     y = m.pp.X[:,1]
     order = sortperm(y_pred)
-    count(diff(y).<0) == 0  #perfectly separable? (bool)
+    count(diff(y).!=0) == 1  #perfectly separable? (bool)
 end
 
 function loglikelihood(m::AbstractGLM)
