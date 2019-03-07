@@ -271,6 +271,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         
         # Test for separable
         perfsep = perfectlyseparable(m)
+        perfsep && @warn "Iteration halted early: The estimated coefficients perfectly separate results from each class, meaning that the theoretical best estimates are not finite."
         
         if crit < convTol || dev == 0 || perfsep
             cvg = true
