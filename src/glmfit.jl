@@ -178,7 +178,7 @@ function perfectlyseparable(m::AbstractGLM)
     y_pred = m.rr.y
     y = m.pp.X[:,1]
     order = sortperm(y_pred)
-    count(diff(y).!=0) == 1  #perfectly separable? (Given only 1 class interface in score-based sort) (bool)
+    count(diff(y[order]).!=0) == 1  #perfectly separable? (Given only 1 class interface in score-based sort) (bool)
 end
 
 function loglikelihood(m::AbstractGLM)
