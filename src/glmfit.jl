@@ -158,6 +158,37 @@ mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     fit::Bool
 end
 
+"""
+    coeftable(mm::AbstractGLM)
+
+Return the `CoefTable` (see StatsBase.jl for documentation) for a GLM fit. Can
+be used to access the z value and significance of model parameters.
+
+# Examples
+```jldoctest
+julia> data = DataFrame(X=[1,2,2], Y=[1,0,1])
+3×2 DataFrames.DataFrame
+│ Row │ X     │ Y     │
+│     │ Int64 │ Int64 │
+├─────┼───────┼───────┤
+│ 1   │ 1     │ 1     │
+│ 2   │ 2     │ 0     │
+│ 3   │ 2     │ 1     │
+
+julia> probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
+StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},Binomial{Float64},ProbitLink},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+Formula: Y ~ 1 + X
+
+Coefficients:
+             Estimate Std.Error    z value Pr(>|z|)
+(Intercept)   9.63839   293.909  0.0327937   0.9738
+X            -4.81919   146.957 -0.0327933   0.9738
+
+julia> coeftable(probit).cols[4][1] # Access the p-value of the intercept
+0.9738
+```
+"""
 function coeftable(mm::AbstractGLM)
     cc = coef(mm)
     se = stderror(mm)
