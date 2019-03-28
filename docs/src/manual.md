@@ -57,6 +57,7 @@ Many of the methods provided by this package have names similar to those in [R](
 - `dof_residual`: degrees of freedom for residuals, when meaningful
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
 - `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
+- `r2`: R^2 of the linear model measuring the proportion of variance in the target variable explained by the model
 - `stderror`: standard errors of the coefficients
 - `vcov`: estimated variance-covariance matrix of the coefficient estimates
 - `predict` : obtain predicted values of the dependent variable from the fitted model
