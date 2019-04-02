@@ -50,6 +50,7 @@ x2   -0.152062  0.124931 -1.21717   0.2582
 glm
 fit
 lm
+negbin
 ```
 
 ## Model methods

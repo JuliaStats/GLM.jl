@@ -55,7 +55,7 @@ module GLM
         glm,            # general interface
         linpred,        # linear predictor
         lm,             # linear model
-        negbin,         # interface to fitting genative binomial regression
+        negbin,         # interface to fitting negative binomial regression
         nobs,           # total number of observations
         predict,        # make predictions
         ftest           # compare models with an F test
