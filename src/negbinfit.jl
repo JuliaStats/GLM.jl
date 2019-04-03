@@ -30,7 +30,13 @@ function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
         end
         θ = θ - δ
     end
-    converged || throw(ConvergenceException(maxiter))
+    if !converged
+        @warn """
+        Estimating dispersion parameter failed, which may indicate Poisson
+        distributed data.
+        """
+        throw(ConvergenceException(maxIter))
+    end
     θ
 end
 
