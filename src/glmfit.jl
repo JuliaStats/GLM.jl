@@ -304,6 +304,10 @@ vector, respectively, or a formula and a data frame. `d` must be a
 `UnivariateDistribution`, and `l` must be a [`Link`](@ref), if supplied.
 
 # Keyword Arguments
+- `dofit::Bool=true`: Determines whether model will be fit
+- `wts::Vector=similar(y,0)`: prior case weights. Can be length 0.
+- `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
+length 0
 - `verbose::Bool=false`: Display convergence information for each iteration
 - `maxIter::Integer=30`: Maximum number of iterations allowed to achieve convergence
 - `convTol::Real=1e-6`: Convergence is achieved when the relative change in
