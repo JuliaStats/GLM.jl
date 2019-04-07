@@ -394,7 +394,8 @@ end
             try
                 negbin(@formula(y ~ 1), df, maxIter = maxIter)
             catch err
-                @test err.msg == "failure to converge after $(maxIter) iterations."
+                errmsg = sprint(showerror, err)
+                @test errmsg == "failure to converge after $(maxIter) iterations."
             end
         end
     end
