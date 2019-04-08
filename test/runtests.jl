@@ -386,16 +386,14 @@ end
         [2.894527697811509, -0.5693411448715979, 0.08238813087070128, -0.4484636623590206,
          0.08805060372902418, 0.3569553124412582, 0.2921383118842893])
 
-    # Issue #302
-    let df = DataFrame(
-        ;y = [1, 1, 0, 2, 3, 0, 0, 1, 1, 0, 2, 1, 3, 1, 1, 1, 4, 1, 2, 4]
-    )
+    @testset "NegativeBinomial Parameter estimation" begin
+        # Issue #302
+        df = DataFrame(y = [1, 1, 0, 2, 3, 0, 0, 1, 1, 0, 2, 1, 3, 1, 1, 1, 4])
         for maxIter in [30, 50]
             try
                 negbin(@formula(y ~ 1), df, maxIter = maxIter)
             catch err
-                errmsg = sprint(showerror, err)
-                @test errmsg == "failure to converge after $(maxIter) iterations."
+                @test err.iters == maxIter
             end
         end
     end
