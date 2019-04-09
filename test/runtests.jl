@@ -389,11 +389,11 @@ end
     @testset "NegativeBinomial Parameter estimation" begin
         # Issue #302
         df = DataFrame(y = [1, 1, 0, 2, 3, 0, 0, 1, 1, 0, 2, 1, 3, 1, 1, 1, 4])
-        for maxIter in [30, 50]
+        for maxiter in [30, 50]
             try
-                negbin(@formula(y ~ 1), df, maxIter = maxIter)
+                negbin(@formula(y ~ 1), df, maxiter = maxiter)
             catch err
-                @test err.iters == maxIter
+                @test err.iters == maxiter
             end
         end
     end
