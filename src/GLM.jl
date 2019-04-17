@@ -19,59 +19,45 @@ module GLM
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
            fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²
 
-    export                              # types
+    export
+        # types
+        ## Distributions
         Bernoulli,
         Binomial,
-        CauchitLink,
-        CloglogLink,
-        DensePred,
-        DensePredQR,
-        DensePredChol,
         Gamma,
         Gaussian,
-        GeneralizedLinearModel,
-        GlmResp,
-        IdentityLink,
         InverseGaussian,
-        InverseLink,
-        InverseSquareLink,
-        LinearModel,
-        Link,
-        LinPred,
-        LinPredModel,
-        LogitLink,
-        LogLink,
-        LmResp,
         NegativeBinomial,
-        NegativeBinomialLink,
         Normal,
         Poisson,
+
+        ## Link types
+        CauchitLink,
+        CloglogLink,
+        IdentityLink,
+        InverseLink,
+        InverseSquareLink,
+        LogitLink,
+        LogLink,
+        NegativeBinomialLink,
         ProbitLink,
         SqrtLink,
 
-                                        # functions
+        # Model types
+        GeneralizedLinearModel,
+        LinearModel,
+
+        # functions
         canonicallink,  # canonical link function for a distribution
-        delbeta!,       # evaluate the increment in the coefficient vector
         deviance,       # deviance of fitted and observed responses
         devresid,       # vector of squared deviance residuals
         formula,        # extract the formula from a model
         glm,            # general interface
-        glmvar,         # the variance function
-        inverselink,    # returns μ, dμ/dη and, when appropriate, μ*(1-μ)
-        linkfun,        # link function mapping mu to eta, the linear predictor
-        linkinv,        # inverse link mapping eta to mu
         linpred,        # linear predictor
-        linpred!,       # update the linear predictor in place
         lm,             # linear model
-        logistic,
-        logit,
-        mueta,          # derivative of inverse link
-        mustart,        # derive starting values for the mu vector
         negbin,         # interface to fitting genative binomial regression
         nobs,           # total number of observations
         predict,        # make predictions
-        updateμ!,       # update the response type from the linear predictor
-        wrkresp,        # working response
         ftest           # compare models with an F test
 
     const FP = AbstractFloat
