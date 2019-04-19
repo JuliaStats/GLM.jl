@@ -160,7 +160,7 @@ end
 
         X = [ones(n) randn(rng, n)]
         y = logistic.(X*ones(2) + 1/10*randn(rng, n)) .> 1/2
-        @test coeftable(glm(X, y, Binomial(), CloglogLink())).cols[4][2].v < 0.05
+        @test coeftable(glm(X, y, Binomial(), CloglogLink())).cols[4][2] < 0.05
     end
 end
 
@@ -551,8 +551,7 @@ end
     t = coeftable(lm1)
     @test t.cols[1:3] ==
         [coef(lm1), stderror(lm1), coef(lm1)./stderror(lm1)]
-    @test t.cols[4][1].v ≈ 0.5515952883836446
-    @test t.cols[4][2].v ≈ 3.409192065429258e-7
+    @test t.cols[4] ≈ [0.5515952883836446, 3.409192065429258e-7]
     @test hcat(t.cols[5:6]...) == confint(lm1)
     # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
     # supports keyword arguments
@@ -564,11 +563,8 @@ end
     t = coeftable(gm1)
     @test t.cols[1:3] ==
         [coef(gm1), stderror(gm1), coef(gm1)./stderror(gm1)]
-    @test t.cols[4][1].v ≈ 5.4267674619082684e-71
-    @test t.cols[4][2].v ≈ 0.024647114627808674
-    @test t.cols[4][3].v ≈ 0.12848651178787643
-    @test t.cols[4][4].v ≈ 0.9999999999999981
-    @test t.cols[4][5].v ≈ 0.9999999999999999
+    @test t.cols[4] ≈ [5.4267674619082684e-71, 0.024647114627808674, 0.12848651178787643,
+                       0.9999999999999981, 0.9999999999999999]
     @test hcat(t.cols[5:6]...) == confint(gm1)
     # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
     # supports keyword arguments
