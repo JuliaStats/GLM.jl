@@ -162,7 +162,7 @@ function coeftable(mm::AbstractGLM; level::Real=0.95)
     cc = coef(mm)
     se = stderror(mm)
     zz = cc ./ se
-    p = 2.0 * ccdf.(Ref(Normal()), abs.(zz))
+    p = 2 * ccdf.(Ref(Normal()), abs.(zz))
     ci = se*quantile(Normal(), (1-level)/2)
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
     CoefTable(hcat(cc,se,zz,p,cc+ci,cc-ci),
