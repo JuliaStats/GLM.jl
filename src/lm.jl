@@ -179,12 +179,15 @@ function dispersion(x::LinearModel, sqr::Bool=false)
     return sqr ? ssqr : sqrt(ssqr)
 end
 
-function coeftable(mm::LinearModel)
+function coeftable(mm::LinearModel; level::Real=0.95)
     cc = coef(mm)
     se = stderror(mm)
     tt = cc ./ se
-    CoefTable(hcat(cc,se,tt,ccdf.(Ref(FDist(1, dof_residual(mm))), abs2.(tt))),
-              ["Estimate","Std.Error","t value", "Pr(>|t|)"],
+    p = ccdf.(Ref(FDist(1, dof_residual(mm))), abs2.(tt))
+    ci = se*quantile(TDist(dof_residual(mm)), (1-level)/2)
+    levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
+    CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
+              ["Estimate","Std. Error","t value","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
@@ -223,8 +226,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     (prediction = retmean, lower = retmean .+ retinterval, upper = retmean .- retinterval)
 end
 
-function confint(obj::LinearModel, level::Real)
+function confint(obj::LinearModel; level::Real=0.95)
     hcat(coef(obj),coef(obj)) + stderror(obj) *
     quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
-confint(obj::LinearModel) = confint(obj, 0.95)

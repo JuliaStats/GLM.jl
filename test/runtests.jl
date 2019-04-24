@@ -160,7 +160,7 @@ end
 
         X = [ones(n) randn(rng, n)]
         y = logistic.(X*ones(2) + 1/10*randn(rng, n)) .> 1/2
-        @test coeftable(glm(X, y, Binomial(), CloglogLink())).cols[4][2].v < 0.05
+        @test coeftable(glm(X, y, Binomial(), CloglogLink())).cols[4][2] < 0.05
     end
 end
 
@@ -544,6 +544,32 @@ end
     Xc2 = RL\X
     mod2 = lm(Xc2, Yc)
     @test GLM.issubmodel(mod1, mod2)
+end
+
+@testset "coeftable" begin
+    lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
+    t = coeftable(lm1)
+    @test t.cols[1:3] ==
+        [coef(lm1), stderror(lm1), coef(lm1)./stderror(lm1)]
+    @test t.cols[4] ≈ [0.5515952883836446, 3.409192065429258e-7]
+    @test hcat(t.cols[5:6]...) == confint(lm1)
+    # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
+    # supports keyword arguments
+    t = coeftable(lm1.model, level=0.99)
+    @test hcat(t.cols[5:6]...) == confint(lm1, level=0.99)
+
+    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
+              dobson, Poisson())
+    t = coeftable(gm1)
+    @test t.cols[1:3] ==
+        [coef(gm1), stderror(gm1), coef(gm1)./stderror(gm1)]
+    @test t.cols[4] ≈ [5.4267674619082684e-71, 0.024647114627808674, 0.12848651178787643,
+                       0.9999999999999981, 0.9999999999999999]
+    @test hcat(t.cols[5:6]...) == confint(gm1)
+    # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
+    # supports keyword arguments
+    t = coeftable(gm1.model, level=0.99)
+    @test hcat(t.cols[5:6]...) == confint(gm1, level=0.99)
 end
 
 @testset "Issue 84" begin

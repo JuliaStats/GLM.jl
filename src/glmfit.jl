@@ -158,19 +158,21 @@ mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     fit::Bool
 end
 
-function coeftable(mm::AbstractGLM)
+function coeftable(mm::AbstractGLM; level::Real=0.95)
     cc = coef(mm)
     se = stderror(mm)
     zz = cc ./ se
-    CoefTable(hcat(cc,se,zz,2.0 * ccdf.(Ref(Normal()), abs.(zz))),
-              ["Estimate","Std.Error","z value", "Pr(>|z|)"],
+    p = 2 * ccdf.(Ref(Normal()), abs.(zz))
+    ci = se*quantile(Normal(), (1-level)/2)
+    levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
+    CoefTable(hcat(cc,se,zz,p,cc+ci,cc-ci),
+              ["Estimate","Std. Error","z value","Pr(>|z|)","Lower $levstr%","Upper $levstr%"],
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
-function confint(obj::AbstractGLM, level::Real)
+function confint(obj::AbstractGLM; level::Real=0.95)
     hcat(coef(obj),coef(obj)) + stderror(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
 end
-confint(obj::AbstractGLM) = confint(obj, 0.95)
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
