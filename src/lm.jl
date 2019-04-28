@@ -187,8 +187,8 @@ function coeftable(mm::LinearModel; level::Real=0.95)
     ci = se*quantile(TDist(dof_residual(mm)), (1-level)/2)
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
     CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
-              ["Estimate","Std. Error","t value","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
-              ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
+              ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
+              ["x$i" for i = 1:size(mm.pp.X, 2)], 4, 3)
 end
 
 """

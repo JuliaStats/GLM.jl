@@ -25,9 +25,12 @@ StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DenseP
 Formula: Y ~ 1 + X
 
 Coefficients:
-              Estimate Std.Error  t value Pr(>|t|)
-(Intercept)  -0.666667   0.62361 -1.06904   0.4788
-X                  2.5  0.288675  8.66025   0.0732
+─────────────────────────────────────────────────────────────────────────
+                 Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+─────────────────────────────────────────────────────────────────────────
+(Intercept)  -0.666667    0.62361   -1.07    0.4788   -8.59038    7.25704
+X             2.5         0.288675   8.66    0.0732   -1.16797    6.16797
+─────────────────────────────────────────────────────────────────────────
 
 julia> round.(stderror(ols), digits=5)
 2-element Array{Float64,1}:
@@ -60,9 +63,12 @@ StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float6
 Formula: Y ~ 1 + X
 
 Coefficients:
-             Estimate Std.Error    z value Pr(>|z|)
-(Intercept)   9.63839   293.909  0.0327937   0.9738
-X            -4.81919   146.957 -0.0327933   0.9738
+────────────────────────────────────────────────────────────────────────
+                Coef.  Std. Error      z  Pr(>|z|)  Lower 95%  Upper 95%
+────────────────────────────────────────────────────────────────────────
+(Intercept)   9.63839     293.909   0.03    0.9738   -566.414    585.69
+X            -4.81919     146.957  -0.03    0.9738   -292.849    283.211
+────────────────────────────────────────────────────────────────────────
 ```
 
 ## Negative binomial regression
@@ -97,14 +103,17 @@ StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float6
 Formula: Days ~ 1 + Eth + Sex + Age + Lrn
 
 Coefficients:
-              Estimate Std.Error  z value Pr(>|z|)
-(Intercept)    2.88645  0.227144  12.7076   <1e-36
-Eth: N       -0.567515  0.152449 -3.72265   0.0002
-Sex: M       0.0870771  0.159025 0.547568   0.5840
-Age: F1      -0.445076  0.239087 -1.86157   0.0627
-Age: F2      0.0927999  0.234502 0.395731   0.6923
-Age: F3       0.359485  0.246586  1.45785   0.1449
-Lrn: SL       0.296768  0.185934  1.59609   0.1105
+────────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      z  Pr(>|z|)   Lower 95%   Upper 95%
+────────────────────────────────────────────────────────────────────────────
+(Intercept)   2.88645      0.227144  12.71    <1e-36   2.44125     3.33164
+Eth: N       -0.567515     0.152449  -3.72    0.0002  -0.86631    -0.26872
+Sex: M        0.0870771    0.159025   0.55    0.5840  -0.224606    0.398761
+Age: F1      -0.445076     0.239087  -1.86    0.0627  -0.913678    0.0235251
+Age: F2       0.0927999    0.234502   0.40    0.6923  -0.366816    0.552416
+Age: F3       0.359485     0.246586   1.46    0.1449  -0.123814    0.842784
+Lrn: SL       0.296768     0.185934   1.60    0.1105  -0.0676559   0.661191
+────────────────────────────────────────────────────────────────────────────
 
 julia> nbrmodel = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink())
 StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},NegativeBinomial{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
@@ -112,14 +121,17 @@ StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float6
 Formula: Days ~ 1 + Eth + Sex + Age + Lrn
 
 Coefficients:
-              Estimate Std.Error  z value Pr(>|z|)
-(Intercept)    2.89453  0.227415   12.728   <1e-36
-Eth: N       -0.569341  0.152656 -3.72957   0.0002
-Sex: M       0.0823881  0.159209 0.517485   0.6048
-Age: F1      -0.448464  0.238687 -1.87888   0.0603
-Age: F2      0.0880506  0.235149 0.374445   0.7081
-Age: F3       0.356955  0.247228  1.44383   0.1488
-Lrn: SL       0.292138   0.18565  1.57359   0.1156
+────────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      z  Pr(>|z|)   Lower 95%   Upper 95%
+────────────────────────────────────────────────────────────────────────────
+(Intercept)   2.89453      0.227415  12.73    <1e-36   2.4488      3.34025
+Eth: N       -0.569341     0.152656  -3.73    0.0002  -0.868541   -0.270141
+Sex: M        0.0823881    0.159209   0.52    0.6048  -0.229655    0.394431
+Age: F1      -0.448464     0.238687  -1.88    0.0603  -0.916281    0.0193536
+Age: F2       0.0880506    0.235149   0.37    0.7081  -0.372834    0.548935
+Age: F3       0.356955     0.247228   1.44    0.1488  -0.127602    0.841513
+Lrn: SL       0.292138     0.18565    1.57    0.1156  -0.0717297   0.656006
+────────────────────────────────────────────────────────────────────────────
 
 julia> println("Estimated theta = ", round(nbrmodel.model.rr.d.r, digits=5))
 Estimated theta = 1.27489
@@ -141,7 +153,7 @@ The corresponding model with the `GLM` package is
 julia> using GLM, RDatasets
 
 julia> form = dataset("datasets", "Formaldehyde")
-6×2 DataFrames.DataFrame
+6×2 DataFrame
 │ Row │ Carb     │ OptDen   │
 │     │ Float64⍰ │ Float64⍰ │
 ├─────┼──────────┼──────────┤
@@ -157,16 +169,12 @@ StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DenseP
 
 Formula: OptDen ~ 1 + Carb
 
-Coefficients:
-               Estimate  Std.Error  t value Pr(>|t|)
-(Intercept)  0.00508571 0.00783368 0.649211   0.5516
-Carb           0.876286  0.0135345  64.7444    <1e-6
-
-julia> confint(lm1)
-2×2 Array{Float64,2}:
- -0.0166641  0.0268355
-  0.838708   0.913864
-
+───────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(>|t|)   Lower 95%  Upper 95%
+───────────────────────────────────────────────────────────────────────────
+(Intercept)  0.00508571  0.00783368   0.65    0.5516  -0.0166641  0.0268355
+Carb         0.876286    0.0135345   64.74    <1e-6    0.838708   0.913864
+───────────────────────────────────────────────────────────────────────────
 ```
 
 A more complex example in R is
@@ -182,7 +190,7 @@ ddpi         0.4096949279 0.1961971276  2.0881801 0.0424711387
 with the corresponding Julia code
 ```jldoctest
 julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
-50×6 DataFrames.DataFrame
+50×6 DataFrame
 │ Row │ Country        │ SR       │ Pop15    │ Pop75    │ DPI      │ DDPI     │
 │     │ String⍰        │ Float64⍰ │ Float64⍰ │ Float64⍰ │ Float64⍰ │ Float64⍰ │
 ├─────┼────────────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
@@ -209,12 +217,15 @@ StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DenseP
 Formula: SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
 
 Coefficients:
-                 Estimate   Std.Error   t value Pr(>|t|)
-(Intercept)       28.5661     7.35452   3.88416   0.0003
-Pop15           -0.461193    0.144642  -3.18851   0.0026
-Pop75             -1.6915      1.0836    -1.561   0.1255
-DPI          -0.000336902 0.000931107 -0.361829   0.7192
-DDPI             0.409695    0.196197   2.08818   0.0425
+─────────────────────────────────────────────────────────────────────────────────
+                    Coef.   Std. Error      t  Pr(>|t|)    Lower 95%    Upper 95%
+─────────────────────────────────────────────────────────────────────────────────
+(Intercept)  28.5661       7.35452       3.88    0.0003  13.7533      43.3788
+Pop15        -0.461193     0.144642     -3.19    0.0026  -0.752518    -0.169869
+Pop75        -1.6915       1.0836       -1.56    0.1255  -3.87398      0.490983
+DPI          -0.000336902  0.000931107  -0.36    0.7192  -0.00221225   0.00153844
+DDPI          0.409695     0.196197      2.09    0.0425   0.0145336    0.804856
+─────────────────────────────────────────────────────────────────────────────────
 ```
 
 The `glm` function (or equivalently, `fit(GeneralizedLinearModel, ...)`)
@@ -294,7 +305,7 @@ julia> using DataFrames, CategoricalArrays, GLM
 julia> dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
                           Outcome   = categorical([1,2,3,1,2,3,1,2,3]),
                           Treatment = categorical([1,1,1,2,2,2,3,3,3]))
-9×3 DataFrames.DataFrame
+9×3 DataFrame
 │ Row │ Counts  │ Outcome      │ Treatment    │
 │     │ Float64 │ Categorical… │ Categorical… │
 ├─────┼─────────┼──────────────┼──────────────┤
@@ -315,12 +326,15 @@ StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float6
 Formula: Counts ~ 1 + Outcome + Treatment
 
 Coefficients:
-               Estimate Std.Error   z value Pr(>|z|)
-(Intercept)     3.03128  0.171155   17.7107   <1e-69
-Outcome: 2    -0.454255  0.202171  -2.24689   0.0246
-Outcome: 3    -0.251314  0.190476   -1.3194   0.1870
-Treatment: 2  0.0198026  0.199017 0.0995021   0.9207
-Treatment: 3  0.0198026  0.199017 0.0995021   0.9207
+────────────────────────────────────────────────────────────────────────────
+                   Coef.  Std. Error      z  Pr(>|z|)  Lower 95%   Upper 95%
+────────────────────────────────────────────────────────────────────────────
+(Intercept)    3.03128      0.171155  17.71    <1e-69   2.69582    3.36674
+Outcome: 2    -0.454255     0.202171  -2.25    0.0246  -0.850503  -0.0580079
+Outcome: 3    -0.251314     0.190476  -1.32    0.1870  -0.624641   0.122012
+Treatment: 2   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
+Treatment: 3   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
+────────────────────────────────────────────────────────────────────────────
 
 julia> round(deviance(gm1), digits=5)
 5.11746
