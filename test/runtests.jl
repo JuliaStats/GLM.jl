@@ -593,3 +593,10 @@ end
     @test dof_residual(model1) == dof_residual(model2)
     @test dof_residual(model3) == dof_residual(model4)
 end
+
+@testset "Issue 286 - Perfect separation" begin
+    x = rand(1000)
+    df = DataFrame(class=x.>0.5, a=x, b=rand(1000))
+    ols = glm(@formula(class ~ a + b), df, Binomial(),LogitLink())
+    @test dof(ols) == 3 # Basic test to check that the line above is successful
+end
