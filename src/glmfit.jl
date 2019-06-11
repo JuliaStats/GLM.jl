@@ -175,10 +175,16 @@ confint(obj::AbstractGLM) = confint(obj, 0.95)
 deviance(m::AbstractGLM) = deviance(m.rr)
 
 function perfectlyseparable(m::AbstractGLM)
-    y_pred = m.rr.y
     y = m.pp.X[:,1]
-    order = sortperm(y_pred)
-    count(diff(y[order]).!=0) == 1  #perfectly separable? (Given only 1 class interface in score-based sort) (bool)
+    order = sortperm(m.rr.y)
+    non_equal_found = false
+    for i in 2:length(order)
+        if y[order[i]] != y[order[i-1]] # Compare consecutive ordered values for class interfaces
+            non_equal_found && return false # If a non-equal interface has already been found
+            non_equal_found = true
+        end
+    end
+    return true
 end
 
 function loglikelihood(m::AbstractGLM)
