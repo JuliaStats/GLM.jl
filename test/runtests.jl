@@ -1,6 +1,7 @@
 using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays, Random,
       Statistics, StatsBase, Test, RDatasets
 using GLM
+using StatsFuns: logistic
 
 test_show(x) = show(IOBuffer(), x)
 
@@ -159,7 +160,7 @@ end
 
         X = [ones(n) randn(rng, n)]
         y = logistic.(X*ones(2) + 1/10*randn(rng, n)) .> 1/2
-        @test coeftable(glm(X, y, Binomial(), CloglogLink())).cols[4][2].v < 0.05
+        @test coeftable(glm(X, y, Binomial(), CloglogLink())).cols[4][2] < 0.05
     end
 end
 
@@ -186,7 +187,7 @@ end
 
 @testset "Normal LogLink offset" begin
     gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), LogLink(), offset=Array{Float64}(anorexia[:Prewt]), convTol=1e-8)
+              Normal(), LogLink(), offset=Array{Float64}(anorexia[:Prewt]), tol=1e-8)
     @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
@@ -205,7 +206,7 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
 @testset "Gamma" begin
     gm8 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma())
     @test !GLM.cancancel(gm8.model.rr)
-    @test isa(Link(gm8.model), InverseLink)
+    @test isa(GLM.Link(gm8.model), InverseLink)
     test_show(gm8)
     @test dof(gm8) == 3
     @test isapprox(deviance(gm8), 0.016729715178484157)
@@ -221,7 +222,7 @@ end
 @testset "InverseGaussian" begin
     gm8a = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, InverseGaussian())
     @test !GLM.cancancel(gm8a.model.rr)
-    @test isa(Link(gm8a.model), InverseSquareLink)
+    @test isa(GLM.Link(gm8a.model), InverseSquareLink)
     test_show(gm8a)
     @test dof(gm8a) == 3
     @test isapprox(deviance(gm8a), 0.006931128347234519)
@@ -236,7 +237,7 @@ end
 
 @testset "Gamma LogLink" begin
     gm9 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(),
-              convTol=1e-8)
+              tol=1e-8)
     @test !GLM.cancancel(gm9.model.rr)
     test_show(gm9)
     @test dof(gm9) == 3
@@ -252,7 +253,7 @@ end
 
 @testset "Gamma IdentityLink" begin
     gm10 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(),
-               convTol=1e-8)
+               tol=1e-8)
     @test !GLM.cancancel(gm10.model.rr)
     test_show(gm10)
     @test dof(gm10) == 3
@@ -545,6 +546,32 @@ end
     @test GLM.issubmodel(mod1, mod2)
 end
 
+@testset "coeftable" begin
+    lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
+    t = coeftable(lm1)
+    @test t.cols[1:3] ==
+        [coef(lm1), stderror(lm1), coef(lm1)./stderror(lm1)]
+    @test t.cols[4] ≈ [0.5515952883836446, 3.409192065429258e-7]
+    @test hcat(t.cols[5:6]...) == confint(lm1)
+    # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
+    # supports keyword arguments
+    t = coeftable(lm1.model, level=0.99)
+    @test hcat(t.cols[5:6]...) == confint(lm1, level=0.99)
+
+    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
+              dobson, Poisson())
+    t = coeftable(gm1)
+    @test t.cols[1:3] ==
+        [coef(gm1), stderror(gm1), coef(gm1)./stderror(gm1)]
+    @test t.cols[4] ≈ [5.4267674619082684e-71, 0.024647114627808674, 0.12848651178787643,
+                       0.9999999999999981, 0.9999999999999999]
+    @test hcat(t.cols[5:6]...) == confint(gm1)
+    # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
+    # supports keyword arguments
+    t = coeftable(gm1.model, level=0.99)
+    @test hcat(t.cols[5:6]...) == confint(gm1, level=0.99)
+end
+
 @testset "Issue 84" begin
     X = [1 1; 2 4; 3 9]
     Xf = [1 1; 2 4; 3 9.]
@@ -566,7 +593,7 @@ end
 
 @testset "Issue 153" begin
     X = [ones(10) randn(10)]
-    Test.@inferred cholesky(DensePredQR{Float64}(X))
+    Test.@inferred cholesky(GLM.DensePredQR{Float64}(X))
 end
 
 @testset "Issue 224" begin
@@ -574,7 +601,7 @@ end
     # Make X slightly ill conditioned to amplify rounding errors
     X = Matrix(qr(randn(100,5)).Q)*Diagonal(10 .^ (-2.0:1.0:2.0))*Matrix(qr(randn(5,5)).Q)'
     y = randn(100)
-    @test coef(GLM.glm(X, y, GLM.Normal(), GLM.IdentityLink())) ≈ coef(lm(X, y))
+    @test coef(glm(X, y, Normal(), IdentityLink())) ≈ coef(lm(X, y))
 end
 
 @testset "Issue #228" begin

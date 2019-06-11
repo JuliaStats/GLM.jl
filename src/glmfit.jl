@@ -158,19 +158,21 @@ mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     fit::Bool
 end
 
-function coeftable(mm::AbstractGLM)
+function coeftable(mm::AbstractGLM; level::Real=0.95)
     cc = coef(mm)
     se = stderror(mm)
     zz = cc ./ se
-    CoefTable(hcat(cc,se,zz,2.0 * ccdf.(Ref(Normal()), abs.(zz))),
-              ["Estimate","Std.Error","z value", "Pr(>|z|)"],
+    p = 2 * ccdf.(Ref(Normal()), abs.(zz))
+    ci = se*quantile(Normal(), (1-level)/2)
+    levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
+    CoefTable(hcat(cc,se,zz,p,cc+ci,cc-ci),
+              ["Estimate","Std. Error","z value","Pr(>|z|)","Lower $levstr%","Upper $levstr%"],
               ["x$i" for i = 1:size(mm.pp.X, 2)], 4)
 end
 
-function confint(obj::AbstractGLM, level::Real)
+function confint(obj::AbstractGLM; level::Real=0.95)
     hcat(coef(obj),coef(obj)) + stderror(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
 end
-confint(obj::AbstractGLM) = confint(obj, 0.95)
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
@@ -210,15 +212,15 @@ end
 
 dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
 
-function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real,
-              convTol::Real, start)
+function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real,
+               tol::Real, start)
 
     # Return early if model has the fit flag set
     m.fit && return m
 
     # Check arguments
-    maxIter >= 1       || throw(ArgumentError("maxIter must be positive"))
-    0 < minStepFac < 1 || throw(ArgumentError("minStepFac must be in (0, 1)"))
+    maxiter >= 1       || throw(ArgumentError("maxiter must be positive"))
+    0 < minstepfac < 1 || throw(ArgumentError("minstepfac must be in (0, 1)"))
 
     # Extract fields and set convergence flag
     cvg, p, r = false, m.pp, m.rr
@@ -241,7 +243,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
     end
     devold = deviance(m)
 
-    for i = 1:maxIter
+    for i = 1:maxiter
         f = 1.0 # line search factor
         local dev
 
@@ -257,11 +259,11 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
 
         # Line search
         ## If the deviance isn't declining then half the step size
-        ## The convTol*dev term is to avoid failure when deviance
+        ## The tol*dev term is to avoid failure when deviance
         ## is unchanged except for rouding errors.
-        while dev > devold + convTol*dev
+        while dev > devold + tol*dev
             f /= 2
-            f > minStepFac || error("step-halving failed at beta0 = $(p.beta0)")
+            f > minstepfac || error("step-halving failed at beta0 = $(p.beta0)")
             try
                 updateμ!(r, linpred(p, f))
                 dev = deviance(m)
@@ -274,30 +276,65 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxIter::Integer, minStepFac::Real
         # Test for convergence
         crit = (devold - dev)/dev
         verbose && println("$i: $dev, $crit")
-        
+
         # Test for separable
         perfsep = perfectlyseparable(m)
         perfsep && @warn "Iteration halted early: The estimated coefficients perfectly separate results from each class, meaning that the theoretical best estimates are not finite."
         
-        if crit < convTol || dev == 0 || perfsep
+        if crit < tol || dev == 0 || perfsep
             cvg = true
             break
         end
+        
         @assert isfinite(crit)
         devold = dev
     end
-    cvg || throw(ConvergenceException(maxIter))
+    cvg || throw(ConvergenceException(maxiter))
     m.fit = true
     m
 end
 
-StatsBase.fit!(m::AbstractGLM; verbose::Bool=false, maxIter::Integer=30,
-              minStepFac::Real=0.001, convTol::Real=1.e-6, start=nothing) =
-    _fit!(m, verbose, maxIter, minStepFac, convTol, start)
+function StatsBase.fit!(m::AbstractGLM; verbose::Bool=false, maxiter::Integer=30,
+                        minstepfac::Real=0.001, tol::Real=1e-6, start=nothing,
+                        kwargs...)
+    if haskey(kwargs, :maxIter)
+        Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
+        maxiter = kwargs[:maxIter]
+    end
+    if haskey(kwargs, :minStepFac)
+        Base.depwarn("'minStepFac' argument is deprecated, use 'minstepfac' instead", :fit!)
+        minstepfac = kwargs[:minStepFac]
+    end
+    if haskey(kwargs, :convTol)
+        Base.depwarn("'convTol' argument is deprecated, use 'tol' instead", :fit!)
+        tol = kwargs[:convTol]
+    end
+    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol))
+        throw(ArgumentError("unsupported keyword argument"))
+    end
+
+    _fit!(m, verbose, maxiter, minstepfac, tol, start)
+end
 
 function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::Bool=true,
-                        verbose::Bool=false, maxIter::Integer=30, minStepFac::Real=0.001, convTol::Real=1.e-6,
-                        start=nothing)
+                        verbose::Bool=false, maxiter::Integer=30, minstepfac::Real=0.001,
+                        tol::Real=1e-6, start=nothing, kwargs...)
+    if haskey(kwargs, :maxIter)
+        Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
+        maxiter = kwargs[:maxIter]
+    end
+    if haskey(kwargs, :minStepFac)
+        Base.depwarn("'minStepFac' argument is deprecated, use 'minstepfac' instead", :fit!)
+        minstepfac = kwargs[:minStepFac]
+    end
+    if haskey(kwargs, :convTol)
+        Base.depwarn("'convTol' argument is deprecated, use 'tol' instead", :fit!)
+        tol = kwargs[:convTol]
+    end
+    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol))
+        throw(ArgumentError("unsupported keyword argument"))
+    end
+
     r = m.rr
     V = typeof(r.y)
     r.y = copy!(r.y, y)
@@ -308,7 +345,7 @@ function StatsBase.fit!(m::AbstractGLM, y; wts=nothing, offset=nothing, dofit::B
     fill!(m.pp.beta0, 0)
     m.fit = false
     if dofit
-        _fit!(m, verbose, maxIter, minStepFac, convTol, start)
+        _fit!(m, verbose, maxiter, minstepfac, tol, start)
     else
         m
     end
@@ -322,11 +359,15 @@ vector, respectively, or a formula and a data frame. `d` must be a
 `UnivariateDistribution`, and `l` must be a [`Link`](@ref), if supplied.
 
 # Keyword Arguments
+- `dofit::Bool=true`: Determines whether model will be fit
+- `wts::Vector=similar(y,0)`: prior case weights. Can be length 0.
+- `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
+length 0
 - `verbose::Bool=false`: Display convergence information for each iteration
-- `maxIter::Integer=30`: Maximum number of iterations allowed to achieve convergence
-- `convTol::Real=1e-6`: Convergence is achieved when the relative change in
+- `maxiter::Integer=30`: Maximum number of iterations allowed to achieve convergence
+- `tol::Real=1e-6`: Convergence is achieved when the relative change in
 deviance is less than this
-- `minStepFac::Real=0.001`: Minimum line step fraction. Must be between 0 and 1.
+- `minstepfac::Real=0.001`: Minimum line step fraction. Must be between 0 and 1.
 - `start::AbstractVector=nothing`: Starting values for beta. Should have the
 same length as the number of columns in the model matrix.
 """

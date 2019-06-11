@@ -1,5 +1,5 @@
 function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
-                   maxIter=30, convTol=1.e-6)
+                   maxiter=30, tol=1.e-6)
     function first_derivative(θ::Real)
         tmp(yi, μi) = (yi+θ)/(μi+θ) + log(μi+θ) - 1 - log(θ) - digamma(θ+yi) + digamma(θ)
         unit_weights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
@@ -21,33 +21,49 @@ function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
     end
     δ, converged = one(θ), false
 
-    for t = 1:maxIter
+    for t = 1:maxiter
         θ = abs(θ)
         δ = first_derivative(θ) / second_derivative(θ)
-        if abs(δ) <= convTol
+        if abs(δ) <= tol
             converged = true
             break
         end
         θ = θ - δ
     end
-    converged || throw(ConvergenceException(maxIter))
+    converged || throw(ConvergenceException(maxiter))
     θ
 end
 
 function negbin(F, D, args...;
-                initialθ::Real=Inf, maxIter::Integer=30, convTol::Real=1.e-6,
+                initialθ::Real=Inf, maxiter::Integer=30, tol::Real=1.e-6,
                 verbose::Bool=false, kwargs...)
-    maxIter >= 1 || throw(ArgumentError("maxIter must be positive"))
-    convTol > 0  || throw(ArgumentError("convTol must be positive"))
+    if haskey(kwargs, :maxIter)
+        Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
+        maxiter = kwargs[:maxIter]
+    end
+    if haskey(kwargs, :minStepFac)
+        Base.depwarn("'minStepFac' argument is deprecated, use 'minstepfac' instead", :fit!)
+        minstepfac = kwargs[:minStepFac]
+    end
+    if haskey(kwargs, :convTol)
+        Base.depwarn("'convTol' argument is deprecated, use 'tol' instead", :fit!)
+        tol = kwargs[:convTol]
+    end
+    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol))
+        throw(ArgumentError("unsupported keyword argument"))
+    end
+
+    maxiter >= 1 || throw(ArgumentError("maxiter must be positive"))
+    tol > 0  || throw(ArgumentError("tol must be positive"))
     initialθ > 0 || throw(ArgumentError("initialθ must be positive"))
 
     # fit a Poisson regression model if the user does not specify an initial θ
     if isinf(initialθ) 
         regmodel = glm(F, D, Poisson(), args...;
-                       maxIter=maxIter, convTol=convTol, verbose=verbose, kwargs...)
+                       maxiter=maxiter, tol=tol, verbose=verbose, kwargs...)
     else
         regmodel = glm(F, D, NegativeBinomial(initialθ), args...;
-                       maxIter=maxIter, convTol=convTol, verbose=verbose, kwargs...)
+                       maxiter=maxiter, tol=tol, verbose=verbose, kwargs...)
     end
 
     μ = regmodel.model.rr.mu
@@ -65,21 +81,21 @@ function negbin(F, D, args...;
     ll0 = ll + 2 * d
 
     converged = false
-    for i = 1:maxIter
-        if abs(ll0 - ll)/d + abs(δ) <= convTol
+    for i = 1:maxiter
+        if abs(ll0 - ll)/d + abs(δ) <= tol
             converged = true
             break
         end
         verbose && println("[ Alternating iteration ", i, ", θ = ", θ, " ]")
         regmodel = glm(F, D, NegativeBinomial(θ), args...;
-                       maxIter=maxIter, convTol=convTol, verbose=verbose, kwargs...)
+                       maxiter=maxiter, tol=tol, verbose=verbose, kwargs...)
         μ = regmodel.model.rr.mu
         prevθ = θ
-        θ = mle_for_θ(y, μ, wts; maxIter=maxIter, convTol=convTol)
+        θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=tol)
         δ = prevθ - θ
         ll0 = ll
         ll = loglikelihood(regmodel)
     end
-    converged || throw(ConvergenceException(maxIter))
+    converged || throw(ConvergenceException(maxiter))
     regmodel
 end
