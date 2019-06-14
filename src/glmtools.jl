@@ -95,7 +95,7 @@ A [`Link`](@ref) defined as `η = √μ`
 mutable struct SqrtLink <: Link end
 
 """
-    linkfun(L::Link, μ)
+    linkfun(L::Link, μ::Real)
 
 Return `η`, the value of the linear predictor for link `L` at mean `μ`.
 
@@ -112,7 +112,7 @@ julia> show(linkfun.(LogitLink(), μ))
 function linkfun end
 
 """
-    linkinv(L::Link, η)
+    linkinv(L::Link, η::Real)
 
 Return `μ`, the mean value, for link `L` at linear predictor value `η`.
 
@@ -123,14 +123,14 @@ julia> μ = 0.1:0.2:1
 
 julia> η = logit.(μ);
 
-julia> linkinv.(LogitLink(), η) ≈ μ
+julia> linkinv.(LogitLink(), η::Real) ≈ μ
 true
 ```
 """
 function linkinv end
 
 """
-    mueta(L::Link, η)
+    mueta(L::Link, η::Real)
 
 Return the derivative of [`linkinv`](@ref), `dμ/dη`, for link `L` at linear predictor value `η`.
 
@@ -149,7 +149,7 @@ true
 function mueta end
 
 """
-    inverselink(L::Link, η)
+    inverselink(L::Link, η::Real)
 
 Return a 3-tuple of the inverse link, the derivative of the inverse link, and when appropriate, the variance function `μ*(1 - μ)`.
 
@@ -187,94 +187,96 @@ LogitLink()
 """
 function canonicallink end
 
-linkfun(::CauchitLink, μ) = tan(pi * (μ - oftype(μ, 1/2)))
-linkinv(::CauchitLink, η) = oftype(η, 1/2) + atan(η) / pi
-mueta(::CauchitLink, η) = one(η) / (pi * (one(η) + abs2(η)))
-function inverselink(::CauchitLink, η)
-    μlower = atan(-abs(η)) / π
-    μlower += oftype(μlower, 1/2)
-    η > 0 ? 1 - μlower : μlower, inv(π * (1 + abs2(η))), μlower * (1 - μlower)
+linkfun(::CauchitLink, μ::Real) = tan(pi * (μ - oftype(μ, 1/2)))
+linkinv(::CauchitLink, η::Real) = oftype(η, 1/2) + atan(η) / pi
+mueta(::CauchitLink, η::Real) = one(η) / (pi * (one(η) + abs2(η)))
+function inverselink(::CauchitLink, η::Real)
+    # atan decays so slowly that we don't need to be careful when evaluating μ
+    μ = atan(η) / π
+    μ += one(μ)/2
+    return μ, 1 - μ, inv(π * (1 + abs2(η)))
 end
 
-linkfun(::CloglogLink, μ) = log(-log1p(-μ))
-function linkinv(::CloglogLink, η::T) where T<:Real
-    clamp(-expm1(-exp(η)), eps(T), one(T) - eps(T))
-end
-function mueta(::CloglogLink, η::T) where T<:Real
-    max(eps(T), exp(η) * exp(-exp(η)))
-end
-function inverselink(::CloglogLink, η)
+linkfun(::CloglogLink, μ::Real) = log(-log1p(-μ))
+linkinv(::CloglogLink, η::Real) = -expm1(-exp(η))
+mueta(::CloglogLink, η::Real) = exp(η) * exp(-exp(η))
+function inverselink(::CloglogLink, η::Real)
     expη = exp(η)
     μ = -expm1(-expη)
     omμ = exp(-expη)   # the complement, 1 - μ
-    μ, max(floatmin(μ), expη * omμ), max(floatmin(μ), μ * omμ)
+    return μ, omμ, expη * omμ
 end
 
-linkfun(::IdentityLink, μ) = μ
-linkinv(::IdentityLink, η) = η
-mueta(::IdentityLink, η) = one(η)
-inverselink(::IdentityLink, η) = η, one(η), oftype(η, NaN)
+linkfun(::IdentityLink, μ::Real) = μ
+linkinv(::IdentityLink, η::Real) = η
+mueta(::IdentityLink, η::Real) = one(η)
+inverselink(::IdentityLink, η::Real) = η, one(η), oftype(η, NaN)
 
-linkfun(::InverseLink, μ) = inv(μ)
-linkinv(::InverseLink, η) = inv(η)
-mueta(::InverseLink, η) = -inv(abs2(η))
-function inverselink(::InverseLink, η)
+linkfun(::InverseLink, μ::Real) = inv(μ)
+linkinv(::InverseLink, η::Real) = inv(η)
+mueta(::InverseLink, η::Real) = -inv(abs2(η))
+function inverselink(::InverseLink, η::Real)
     μ = inv(η)
-    μ, -abs2(μ), oftype(μ, NaN)
+    return μ, -abs2(μ), oftype(μ, NaN)
 end
 
-linkfun(::InverseSquareLink, μ) = inv(abs2(μ))
-linkinv(::InverseSquareLink, η) = inv(sqrt(η))
-mueta(::InverseSquareLink, η) = -inv(2η*sqrt(η))
-function inverselink(::InverseSquareLink, η)
+linkfun(::InverseSquareLink, μ::Real) = inv(abs2(μ))
+linkinv(::InverseSquareLink, η::Real) = inv(sqrt(η))
+mueta(::InverseSquareLink, η::Real) = -inv(2η*sqrt(η))
+function inverselink(::InverseSquareLink, η::Real)
     μ = inv(sqrt(η))
-    μ, -μ / (2η), oftype(μ, NaN)
+    return μ, -μ / (2η), oftype(μ, NaN)
 end
 
-linkfun(::LogitLink, μ) = logit(μ)
-linkinv(::LogitLink, η) = logistic(η)
-function mueta(::LogitLink, η)
+linkfun(::LogitLink, μ::Real) = logit(μ)
+linkinv(::LogitLink, η::Real) = logistic(η)
+function mueta(::LogitLink, η::Real)
     expabs = exp(-abs(η))
     denom = 1 + expabs
-    (expabs / denom) / denom
+    return (expabs / denom) / denom
 end
-function inverselink(::LogitLink, η)
+function inverselink(::LogitLink, η::Real)
     expabs = exp(-abs(η))
     opexpabs = 1 + expabs
     deriv = (expabs / opexpabs) / opexpabs
-    η ≤ 0 ? expabs / opexpabs : inv(opexpabs), deriv, deriv
+    if η < 0
+        μ, omμ = expabs / opexpabs, 1 / opexpabs
+    else
+        μ, omμ = 1 / opexpabs, expabs / opexpabs
+    end
+    return μ, omμ, deriv
 end
 
-linkfun(::LogLink, μ) = log(μ)
-linkinv(::LogLink, η) = exp(η)
-mueta(::LogLink, η) = exp(η)
-function inverselink(::LogLink, η)
+linkfun(::LogLink, μ::Real) = log(μ)
+linkinv(::LogLink, η::Real) = exp(η)
+mueta(::LogLink, η::Real) = exp(η)
+function inverselink(::LogLink, η::Real)
     μ = exp(η)
-    μ, μ, oftype(μ, NaN)
+    return μ, μ, oftype(μ, NaN)
 end
 
-linkfun(nbl::NegativeBinomialLink, μ) = log(μ / (μ + nbl.θ))
-linkinv(nbl::NegativeBinomialLink, η) = ℯ^η * nbl.θ / (1-ℯ^η)
-mueta(nbl::NegativeBinomialLink, η) = ℯ^η * nbl.θ / (1-ℯ^η)
-function inverselink(nbl::NegativeBinomialLink, η)
-    μ = ℯ^η * nbl.θ / (1-ℯ^η)
+linkfun(nbl::NegativeBinomialLink, μ::Real) = log(μ / (μ + nbl.θ))
+linkinv(nbl::NegativeBinomialLink, η::Real) = -exp(η) * nbl.θ / expm1(η)
+mueta(nbl::NegativeBinomialLink, η::Real) = -exp(η) * nbl.θ / expm1(η)
+function inverselink(nbl::NegativeBinomialLink, η::Real)
+    μ = -exp(η) * nbl.θ / expm1(η)
     deriv = μ * (1 + μ / nbl.θ)
-    μ, deriv, oftype(μ, NaN)
+    return μ, deriv, oftype(μ, NaN)
 end
 
-linkfun(::ProbitLink, μ) = -sqrt2 * erfcinv(2μ)
-linkinv(::ProbitLink, η) = erfc(-η / sqrt2) / 2
-mueta(::ProbitLink, η) = exp(-abs2(η) / 2) / sqrt2π
-function inverselink(::ProbitLink, η)
-    μlower = erfc(abs(η) / sqrt2) / 2
-    μupper = 1 - μlower
-    η < 0 ? μlower : μupper, exp(-abs2(η) / 2 ) / sqrt2π, μlower * μupper
+linkfun(::ProbitLink, μ::Real) = -sqrt2 * erfcinv(2μ)
+linkinv(::ProbitLink, η::Real) = erfc(-η / sqrt2) / 2
+mueta(::ProbitLink, η::Real) = exp(-abs2(η) / 2) / sqrt2π
+function inverselink(::ProbitLink, η::Real)
+    μ   =  cdf(Normal(), η)
+    omμ = ccdf(Normal(), η)
+    return μ, omμ, pdf(Normal(), η)
 end
 
-linkfun(::SqrtLink, μ) = sqrt(μ)
-linkinv(::SqrtLink, η) = abs2(η)
-mueta(::SqrtLink, η) = 2η
-inverselink(::SqrtLink, η) = abs2(η), 2η, oftype(η, NaN)
+linkfun(::SqrtLink, μ::Real) = sqrt(μ)
+linkinv(::SqrtLink, η::Real) = abs2(η)
+mueta(::SqrtLink, η::Real) = 2η
+inverselink(::SqrtLink, η::Real) = abs2(η), 2η, oftype(η, NaN)
 
 canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()
@@ -285,7 +287,7 @@ canonicallink(::Normal) = IdentityLink()
 canonicallink(::Poisson) = LogLink()
 
 """
-    glmvar(D::Distribution, μ)
+    glmvar(D::Distribution, μ::Real)
 
 Return the value of the variance function for `D` at `μ`
 
@@ -297,27 +299,27 @@ variance that depends on `μ`.
 ```jldoctest
 julia> μ = 1/6:1/3:1;
 
-julia> glmvar.(Normal(), μ)    # constant for Normal()
+julia> glmvar.(Normal(), μ::Real)    # constant for Normal()
 3-element Array{Float64,1}:
  1.0
  1.0
  1.0
 
-julia> glmvar.(Bernoulli(), μ) ≈ μ .* (1 .- μ)
+julia> glmvar.(Bernoulli(), μ::Real) ≈ μ .* (1 .- μ)
 true
 
-julia> glmvar.(Poisson(), μ) == μ
+julia> glmvar.(Poisson(), μ::Real) == μ
 true
 ```
 """
 function glmvar end
 
-glmvar(::Union{Bernoulli,Binomial}, μ) = μ * (1 - μ)
-glmvar(::Gamma, μ) = abs2(μ)
-glmvar(::InverseGaussian, μ) = μ^3
-glmvar(d::NegativeBinomial, μ) = μ * (1 + μ/d.r)
-glmvar(::Normal, μ) = one(μ)
-glmvar(::Poisson, μ) = μ
+glmvar(::Union{Bernoulli,Binomial}, μ::Real) = μ * (1 - μ)
+glmvar(::Gamma, μ::Real) = abs2(μ)
+glmvar(::InverseGaussian, μ::Real) = μ^3
+glmvar(d::NegativeBinomial, μ::Real) = μ * (1 + μ/d.r)
+glmvar(::Normal, μ::Real) = one(μ)
+glmvar(::Poisson, μ::Real) = μ
 
 """
     mustart(D::Distribution, y, wt)
@@ -362,7 +364,7 @@ function mustart(::Poisson, y, wt)
 end
 
 """
-    devresid(D, y, μ)
+    devresid(D, y, μ::Real)
 
 Return the squared deviance residual of `μ` from `y` for distribution `D`
 
@@ -387,7 +389,7 @@ true
 """
 function devresid end
 
-function devresid(::Bernoulli, y, μ)
+function devresid(::Bernoulli, y, μ::Real)
     if y == 1
         return -2 * log(μ)
     elseif y == 0
@@ -395,7 +397,7 @@ function devresid(::Bernoulli, y, μ)
     end
     throw(ArgumentError("y should be 0 or 1 (got $y)"))
 end
-function devresid(::Binomial, y, μ)
+function devresid(::Binomial, y, μ::Real)
     if y == 1
         return -2 * log(μ)
     elseif y == 0
@@ -404,15 +406,15 @@ function devresid(::Binomial, y, μ)
         return 2 * (y * (log(y) - log(μ)) + (1 - y)*(log1p(-y) - log1p(-μ)))
     end
 end
-devresid(::Gamma, y, μ) = -2 * (log(y / μ) - (y - μ) / μ)
-devresid(::InverseGaussian, y, μ) = abs2(y - μ) / (y * abs2(μ))
-function devresid(d::NegativeBinomial, y, μ)
+devresid(::Gamma, y, μ::Real) = -2 * (log(y / μ) - (y - μ) / μ)
+devresid(::InverseGaussian, y, μ::Real) = abs2(y - μ) / (y * abs2(μ))
+function devresid(d::NegativeBinomial, y, μ::Real)
     θ = d.r
     v = 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
     return μ == 0 ? oftype(v, NaN) : v
 end
-devresid(::Normal, y, μ) = abs2(y - μ)
-devresid(::Poisson, y, μ) = 2 * (xlogy(y, y / μ) - (y - μ))
+devresid(::Normal, y, μ::Real) = abs2(y - μ)
+devresid(::Poisson, y, μ::Real) = 2 * (xlogy(y, y / μ) - (y - μ))
 
 """
     dispersion_parameter(D)  # not exported
