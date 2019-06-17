@@ -620,7 +620,7 @@ end
     x  = rand(1000)
     df = DataFrame(y = x .> 0.5, x₁ = x, x₂ = rand(1000))
     @testset "Binomial with $l" for l in (LogitLink(), ProbitLink(), CauchitLink(), CloglogLink())
-        @test glm(@formula(y ~ x₁ + x₂), df, Binomial(), l, maxiter=40) isa StatsModels.DataFrameRegressionModel
+        @test deviance(glm(@formula(y ~ x₁ + x₂), df, Binomial(), l, maxiter=40)) < 1e-6
     end
 end
 
