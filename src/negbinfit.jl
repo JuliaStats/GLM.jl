@@ -52,15 +52,15 @@ function negbin(F,
         minstepfac = kwargs[:minStepFac]
     end
     if haskey(kwargs, :convTol)
-        Base.depwarn("'convTol' argument is deprecated, use 'tol' instead", :negbin)
-        tol = kwargs[:convTol]
+        Base.depwarn("`convTol` argument is deprecated, use `atol` and `rtol` instead", :negbin)
+        rtol = kwargs[:convTol]
     end
     if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol))
         throw(ArgumentError("unsupported keyword argument"))
     end
     if haskey(kwargs, :tol)
         Base.depwarn("`tol` argument is deprecated, use `atol` and `rtol` instead", :negbin)
-        tol = kwargs[:tol]
+        rtol = kwargs[:tol]
     end
 
     maxiter >= 1 || throw(ArgumentError("maxiter must be positive"))

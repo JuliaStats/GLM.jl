@@ -355,14 +355,14 @@ function StatsBase.fit!(m::AbstractGLM;
     end
     if haskey(kwargs, :convTol)
         Base.depwarn("'convTol' argument is deprecated, use `atol` and `rtol` instead", :fit!)
-        tol = kwargs[:convTol]
+        rtol = kwargs[:convTol]
     end
     if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol))
         throw(ArgumentError("unsupported keyword argument"))
     end
     if haskey(kwargs, :tol)
         Base.depwarn("`tol` argument is deprecated, use `atol` and `rtol` instead", :fit!)
-        tol = kwargs[:tol]
+        rtol = kwargs[:tol]
     end
 
     _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
@@ -390,14 +390,14 @@ function StatsBase.fit!(m::AbstractGLM,
     end
     if haskey(kwargs, :convTol)
         Base.depwarn("'convTol' argument is deprecated, use `atol` and `rtol` instead", :fit!)
-        tol = kwargs[:convTol]
+        rtol = kwargs[:convTol]
     end
     if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol))
         throw(ArgumentError("unsupported keyword argument"))
     end
     if haskey(kwargs, :tol)
         Base.depwarn("`tol` argument is deprecated, use `atol` and `rtol` instead", :fit!)
-        tol = kwargs[:tol]
+        rtol = kwargs[:tol]
     end
 
     r = m.rr
