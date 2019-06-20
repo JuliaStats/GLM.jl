@@ -92,22 +92,19 @@ end
 admit = CSV.read(joinpath(glm_datadir, "admit.csv"))
 admit[:rank] = categorical(admit[:rank])
 
-@testset "Binomial, Bernoulli, LogitLink" begin
-    for distr in (Binomial, Bernoulli)
-        gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit,
-                  distr())
-        @test GLM.cancancel(gm2.model.rr)
-        test_show(gm2)
-        @test dof(gm2) == 6
-        @test isapprox(deviance(gm2), 458.5174924758994)
-        @test isapprox(loglikelihood(gm2), -229.25874623794968)
-        @test isapprox(aic(gm2), 470.51749247589936)
-        @test isapprox(aicc(gm2), 470.7312329339146)
-        @test isapprox(bic(gm2), 494.4662797585473)
-        @test isapprox(coef(gm2),
-            [-3.9899786606380756, 0.0022644256521549004, 0.804037453515578,
-            -0.6754428594116578, -1.340203811748108, -1.5514636444657495])
-    end
+@testset "$distr with LogitLink" for distr in (Binomial, Bernoulli)
+    gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit, distr())
+    @test GLM.cancancel(gm2.model.rr)
+    test_show(gm2)
+    @test dof(gm2) == 6
+    @test deviance(gm2) ≈ 458.5174924758994
+    @test loglikelihood(gm2) ≈ -229.25874623794968
+    @test isapprox(aic(gm2), 470.51749247589936)
+    @test isapprox(aicc(gm2), 470.7312329339146)
+    @test isapprox(bic(gm2), 494.4662797585473)
+    @test isapprox(coef(gm2),
+        [-3.9899786606380756, 0.0022644256521549004, 0.804037453515578,
+         -0.6754428594116578, -1.340203811748108, -1.5514636444657495])
 end
 
 @testset "Bernoulli ProbitLink" begin
@@ -187,7 +184,7 @@ end
 
 @testset "Normal LogLink offset" begin
     gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), LogLink(), offset=Array{Float64}(anorexia[:Prewt]), tol=1e-8)
+              Normal(), LogLink(), offset=Array{Float64}(anorexia[:Prewt]), rtol=1e-8)
     @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
@@ -237,23 +234,23 @@ end
 
 @testset "Gamma LogLink" begin
     gm9 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(),
-              tol=1e-8)
+              rtol=1e-8, atol=0.0)
     @test !GLM.cancancel(gm9.model.rr)
     test_show(gm9)
     @test dof(gm9) == 3
-    @test isapprox(deviance(gm9), 0.16260829451739)
-    @test isapprox(loglikelihood(gm9), -26.24082810384911)
-    @test isapprox(aic(gm9), 58.48165620769822)
-    @test isapprox(aicc(gm9), 63.28165620769822)
-    @test isapprox(bic(gm9), 59.07332993970688)
-    @test isapprox(coef(gm9), [5.50322528458221, -0.60191617825971])
-    @test isapprox(GLM.dispersion(gm9.model, true), 0.02435442293561081)
-    @test isapprox(stderror(gm9), [0.19030107482720, 0.05530784660144])
+    @test deviance(gm9) ≈ 0.16260829451739
+    @test loglikelihood(gm9) ≈ -26.24082810384911
+    @test aic(gm9) ≈ 58.48165620769822
+    @test aicc(gm9) ≈ 63.28165620769822
+    @test bic(gm9) ≈ 59.07332993970688
+    @test coef(gm9) ≈ [5.50322528458221, -0.60191617825971]
+    @test GLM.dispersion(gm9.model, true) ≈ 0.02435442293561081
+    @test stderror(gm9) ≈ [0.19030107482720, 0.05530784660144]
 end
 
 @testset "Gamma IdentityLink" begin
     gm10 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(),
-               tol=1e-8)
+               rtol=1e-8, atol=0.0)
     @test !GLM.cancancel(gm10.model.rr)
     test_show(gm10)
     @test dof(gm10) == 3
@@ -300,14 +297,12 @@ admit_agr2[:p] = admit_agr2[:admit] ./ admit_agr2[:count]
     test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
-# The model matrix is singular so the deviance is essentially round-off error
-#    @test isapprox(deviance(gm15), -2.4424906541753456e-15, rtol = 1e-7)
-    @test isapprox(loglikelihood(gm15), -9.50254433604239)
-    @test isapprox(aic(gm15), 27.00508867208478)
-    @test isapprox(aicc(gm15), 27.106354494869592)
-    @test isapprox(bic(gm15), 42.970946860516705)
-    @test isapprox(coef(gm15),
-        [0.1643030512912767, -0.7500299832303851, -1.3646980342693287, -1.6867295867357475])
+    @test deviance(gm15) ≈ -2.4424906541753456e-15 atol = 1e-13
+    @test loglikelihood(gm15) ≈ -9.50254433604239
+    @test aic(gm15) ≈ 27.00508867208478
+    @test aicc(gm15) ≈ 27.106354494869592
+    @test bic(gm15) ≈ 42.970946860516705
+    @test coef(gm15) ≈ [0.1643030512912767, -0.7500299832303851, -1.3646980342693287, -1.6867295867357475]
 end
 
 # Weighted Gamma example (weights are totally made up)
@@ -620,3 +615,12 @@ end
     @test dof_residual(model1) == dof_residual(model2)
     @test dof_residual(model3) == dof_residual(model4)
 end
+
+@testset "Issue #286 (separable data)" begin
+    x  = rand(1000)
+    df = DataFrame(y = x .> 0.5, x₁ = x, x₂ = rand(1000))
+    @testset "Binomial with $l" for l in (LogitLink(), ProbitLink(), CauchitLink(), CloglogLink())
+        @test deviance(glm(@formula(y ~ x₁ + x₂), df, Binomial(), l, maxiter=40)) < 1e-6
+    end
+end
+
