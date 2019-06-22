@@ -1,5 +1,5 @@
 using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays, StableRNGs,
-      Statistics, StatsBase, Test, RDatasets
+      Random, Statistics, StatsBase, Test, RDatasets
 using GLM
 using StatsFuns: logistic
 using Distributions: TDist
@@ -139,6 +139,58 @@ end
     @test rank(m2p_dep_pos_kw.pp.chol) == rank(m2p.pp.chol)
     @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
     @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
+end
+
+@testset "rankdeficient GLM" begin
+    # an example of rank deficiency caused by linearly dependent columns
+    num_rows = 100_000
+    dfrm = DataFrame()
+    dfrm[:x1] = randn(MersenneTwister(123), num_rows)
+    dfrm[:x2] = randn(MersenneTwister(456), num_rows)
+    dfrm[:x3]= 2*dfrm[:x1] + 3*dfrm[:x2]
+    dfrm[:y] = Int.(randn(MersenneTwister(9999999), num_rows) .> 0)
+    f1 = @eval(@formula(y ~ 1+x1+x2+x3))
+    @test_throws PosDefException fit(GeneralizedLinearModel,
+                                     f1,
+                                     dfrm,
+                                     Binomial(),
+                                     GLM.LogitLink())
+    @test_throws PosDefException fit(GeneralizedLinearModel,
+                                     f1,
+                                     dfrm,
+                                     Binomial(),
+                                     GLM.LogitLink();
+                                     allowrankdeficient=false)
+    m1 = fit(GeneralizedLinearModel,
+             f1,
+             dfrm,
+             Binomial(),
+             GLM.LogitLink();
+             allowrankdeficient=true)
+    @test isa(m1.model.pp.chol, CholeskyPivoted)
+    @test rank(m1.model.pp.chol) == 3
+    @test deviance(m1.model) ≈ 138625.6633724341
+    f2 = @eval(@formula(y ~ 1+x1*x2*x3))
+    @test_throws PosDefException fit(GeneralizedLinearModel,
+                                     f2,
+                                     dfrm,
+                                     Binomial(),
+                                     GLM.LogitLink())
+    @test_throws PosDefException fit(GeneralizedLinearModel,
+                                     f2,
+                                     dfrm,
+                                     Binomial(),
+                                     GLM.LogitLink();
+                                     allowrankdeficient=false)
+    m2 = fit(GeneralizedLinearModel,
+             f2,
+             dfrm,
+             Binomial(),
+             GLM.LogitLink();
+             allowrankdeficient=true)
+    @test isa(m2.model.pp.chol, CholeskyPivoted)
+    @test rank(m2.model.pp.chol) == 7
+    @test deviance(m2.model) ≈ 138615.90834086522
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
