@@ -51,7 +51,7 @@ end
     dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
                      categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
                      [:G, :H])
-    f = @eval(@formula($nothing ~ 1+G*H))
+    f = @formula(0 ~ 1 + G*H)
     X = ModelMatrix(ModelFrame(f, dfrm)).m
     y = X * (1:size(X, 2)) + 0.1 * randn(MersenneTwister(1234321), size(X, 1))
     inds = deleteat!(collect(1:length(y)), 7:8)
@@ -623,4 +623,3 @@ end
         @test deviance(glm(@formula(y ~ x₁ + x₂), df, Binomial(), l, maxiter=40)) < 1e-6
     end
 end
-
