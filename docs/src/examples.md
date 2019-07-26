@@ -50,7 +50,7 @@ Using `categorical`:
 ```jldoctest
 julia> using DataFrames, GLM
 
-julia> data = DataFrame(y = rand(100), x = repeat([1, 2, 3, 4], 25) |> categorical);
+julia> data = DataFrame(y = rand(100), x = categorical(repeat([1, 2, 3, 4], 25)));
 
 julia> # It is also possible to convert an existing column to be categorical with
 
