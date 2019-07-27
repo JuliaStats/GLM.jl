@@ -41,9 +41,9 @@ julia> round.(predict(ols), digits=5)
  6.83333
 ```
 
-## Categorical variables/dummy coding
+## Categorical variables
 
-Categorical variables will be dummy coded if they are marked as categorical in an input DataFrame. Alternatively, you can pass an explicit dictionary of contrasts.
+Categorical variables will be dummy coded by default if they are non-numeric or if they are marked as categorical in an input DataFrame. Alternatively, you can pass an explicit [contrasts](https://juliastats.github.io/StatsModels.jl/latest/contrasts/) argument if you would like a different contrast coding system or if you are not using DataFrames.
 
 Using `categorical`:
 
@@ -72,7 +72,7 @@ x: 4          0.0490837   0.0866835   0.566241    0.5726  -0.122982  0.221149
 ──────────────────────────────────────────────────────────────────────────────
 ```
 
-Using `contrasts`:
+Using [`contrasts`](https://juliastats.github.io/StatsModels.jl/latest/contrasts/):
 
 ```jldoctest
 julia> using DataFrames, GLM
