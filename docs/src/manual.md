@@ -51,7 +51,7 @@ An intercept is included in any GLM by default.
 
 ## Categorical variables
 
-Categorical variables will be dummy coded by default if they are non-numeric or if they are [`CategoricalVector`s](juliadata.github.io/CategoricalArrays.jl/stable/) within a TableTraits-supporting table (DataFrames, JuliaDB, ColumnTable, etc). Alternatively, you can pass an explicit [contrasts](https://juliastats.github.io/StatsModels.jl/latest/contrasts/) argument if you would like a different contrast coding system or if you are not using DataFrames.
+Categorical variables will be dummy coded by default if they are non-numeric or if they are [`CategoricalVector`s](https://juliadata.github.io/CategoricalArrays.jl/stable/) within a TableTraits-supporting table (DataFrames, JuliaDB, ColumnTable, etc). Alternatively, you can pass an explicit [contrasts](https://juliastats.github.io/StatsModels.jl/latest/contrasts/) argument if you would like a different contrast coding system or if you are not using DataFrames.
 
 The response (dependent) variable may not be categorical.
 
