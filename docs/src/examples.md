@@ -72,14 +72,14 @@ x: 4          0.0490837   0.0866835   0.566241    0.5726  -0.122982  0.221149
 ──────────────────────────────────────────────────────────────────────────────
 ```
 
-Using [`contrasts`](https://juliastats.github.io/StatsModels.jl/latest/contrasts/) (Note that we must use `fit` rather than `lm`):
+Using [`contrasts`](https://juliastats.github.io/StatsModels.jl/latest/contrasts/):
 
 ```jldoctest
 julia> using DataFrames, GLM
 
 julia> data = DataFrame(y = rand(100), x = repeat([1, 2, 3, 4], 25));
 
-julia> fit(LinearModel, @formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
+julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
 StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
 
 y ~ 1 + x
