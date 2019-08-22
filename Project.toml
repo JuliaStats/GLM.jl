@@ -27,7 +27,7 @@ test = ["CategoricalArrays", "CSV", "DataFrames", "RDatasets", "Test"]
 
 [compat]
 CategoricalArrays = ">= 0.3"
-CSV = "0.5"
+CSV = ">= 0.5"
 DataFrames = ">= 0.11"
 Distributions = ">= 0.16"
 RDatasets = ">= 0.5"
