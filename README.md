@@ -17,4 +17,4 @@
 [coveralls-url]: https://coveralls.io/github/JuliaStats/GLM.jl?branch=master
 
 [DOI-img]: https://zenodo.org/badge/DOI/10.5281/zenodo.3376013.svg
-[DOI-url]: https://doi.org/10.5281/zenodo.3376014
+[DOI-url]: https://doi.org/10.5281/zenodo.3376013
