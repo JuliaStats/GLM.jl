@@ -240,7 +240,7 @@ response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
-StatsModels.formula(obj::LinPredModel) = modelframe(obj).formula
+StatsModels.formula(obj::LinPredModel) = obj.formula
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 """

@@ -109,9 +109,9 @@ function negbin(F,
                        maxiter=maxiter, atol=atol, rtol=rtol, verbose=verbose, kwargs...)
     end
 
-    μ = regmodel.model.rr.mu
-    y = regmodel.model.rr.y
-    wts = regmodel.model.rr.wts
+    μ = regmodel.rr.mu
+    y = regmodel.rr.y
+    wts = regmodel.rr.wts
     lw, ly = length(wts), length(y)
     if lw != ly && lw != 0
         throw(ArgumentError("length of wts must be either $ly or 0 but was $lw"))
@@ -132,7 +132,7 @@ function negbin(F,
         verbose && println("[ Alternating iteration ", i, ", θ = ", θ, " ]")
         regmodel = glm(F, D, NegativeBinomial(θ), args...;
                        maxiter=maxiter, atol=atol, rtol=rtol, verbose=verbose, kwargs...)
-        μ = regmodel.model.rr.mu
+        μ = regmodel.rr.mu
         prevθ = θ
         θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)
         δ = prevθ - θ

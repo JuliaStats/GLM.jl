@@ -132,7 +132,7 @@ Age: F3       0.356955     0.247228   1.44    0.1488  -0.127602    0.841513
 Lrn: SL       0.292138     0.18565    1.57    0.1156  -0.0717297   0.656006
 ────────────────────────────────────────────────────────────────────────────
 
-julia> println("Estimated theta = ", round(nbrmodel.model.rr.d.r, digits=5))
+julia> println("Estimated theta = ", round(nbrmodel.rr.d.r, digits=5))
 Estimated theta = 1.27489
 
 ```

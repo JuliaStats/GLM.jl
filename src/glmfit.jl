@@ -226,11 +226,14 @@ end
 
 abstract type AbstractGLM <: LinPredModel end
 
-mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
+mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred,F<:Union{FormulaTerm,Nothing}} <: AbstractGLM
     rr::G
     pp::L
+    f::F
     fit::Bool
 end
+
+formula(obj::GeneralizedLinearModel) = obj.f
 
 function coeftable(mm::AbstractGLM; level::Real=0.95)
     cc = coef(mm)
@@ -239,9 +242,10 @@ function coeftable(mm::AbstractGLM; level::Real=0.95)
     p = 2 * ccdf.(Ref(Normal()), abs.(zz))
     ci = se*quantile(Normal(), (1-level)/2)
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
+    cn = mm.f === nothing ? ["x$i" for i = 1:size(mm.pp.X, 2)] : coefnames(mm)
     CoefTable(hcat(cc,se,zz,p,cc+ci,cc-ci),
               ["Coef.","Std. Error","z","Pr(>|z|)","Lower $levstr%","Upper $levstr%"],
-              ["x$i" for i = 1:size(mm.pp.X, 2)], 4, 3)
+              cn, 4, 3)
 end
 
 function confint(obj::AbstractGLM; level::Real=0.95)
@@ -486,7 +490,7 @@ function fit(::Type{M},
     end
 
     rr = GlmResp(y, d, l, offset, wts)
-    res = M(rr, cholpred(X), false)
+    res = M(rr, cholpred(X), nothing, false)
     return dofit ? fit!(res; fitargs...) : res
 end
 
@@ -496,6 +500,33 @@ fit(::Type{M},
     d::UnivariateDistribution,
     l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
         fit(M, float(X), float(y), d, l; kwargs...)
+
+function fit(::Type{M},
+             f::FormulaTerm,
+             data,
+             d::UnivariateDistribution,
+             l::Link=canonicallink(d);
+             # TODO: support passing wts and offset as symbols
+             offset::Union{AbstractVector, Nothing} = nothing,
+             wts::Union{AbstractVector, Nothing} = nothing,
+             dofit::Bool = true,
+             contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
+             fitargs...) where {M<:AbstractGLM}
+    f, (y, X) = StatsModels.modelmatrix(f, data, contrasts, model=M)
+
+    # Check that X and y have the same number of observations
+    if size(X, 1) != size(y, 1)
+        throw(DimensionMismatch("number of rows in X and y must match"))
+    end
+
+    # TODO: allocate right type upfront
+    yf = float(y)
+    off = offset === nothing ? similar(yf, 0) : offset
+    wts = wts === nothing ? similar(yf, 0) : wts
+    rr = GlmResp(yf, d, l, off, wts)
+    res = M(rr, cholpred(X), f, false)
+    return dofit ? fit!(res; fitargs...) : res
+end
 
 """
     glm(formula, data,
@@ -557,7 +588,27 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
                  offset::FPVector=eltype(newX)[],
                  interval::Union{Symbol,Nothing}=nothing,
                  level::Real=0.95,
-                 interval_method=:transformation)
+                 interval_method=:transformation,
+                 skipmissing::Bool=false)
+    r = response(mm)
+    len = size(newX, 1)
+    res = interval === nothing ?
+        similar(r, len) :
+        (prediction=similar(r, len), lower=similar(r, len), upper=similar(r, len))
+    predict!(res, mm, newX,
+             offset=offset, interval=interval, level=level,
+             interval_method=interval_method)
+end
+
+# TODO: add docstring
+function StatsModels.predict!(res::Union{AbstractVector,
+                                         NamedTuple{(:prediction, :lower, :upper),
+                                                    <: NTuple{3, AbstractVector}}},
+                              mm::AbstractGLM, newX::AbstractMatrix;
+                              offset::FPVector=eltype(newX)[],
+                              interval::Union{Symbol,Nothing}=nothing,
+                              level::Real=0.95,
+                              interval_method=:transformation)
     eta = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||
@@ -566,11 +617,14 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
     else
         length(offset) > 0 && throw(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
     end
-    mu = linkinv.(Link(mm), eta)
 
     if interval === nothing
-        return mu
+        res .= linkinv.(Link(mm), eta)
     elseif interval == :confidence
+        res isa NamedTuple ||
+            throw(ArgumentError("`res` must be a `NamedTuple` when `interval == :confidence`"))
+        mu, lower, upper = res
+        mu .= linkinv.(Link(mm), eta)
         normalquantile = quantile(Normal(), (1 + level)/2)
         # Compute confidence intervals in two steps
         # (2nd step varies depending on `interval_method`)
@@ -583,19 +637,19 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
             # 2. Now compute the variance for mu based on variance of eta and
             # construct intervals based on that (Delta method)
             stdmu = stdeta .* abs.(mueta.(Link(mm), eta))
-            lower = mu .- normalquantile .* stdmu
-            upper = mu .+ normalquantile .* stdmu
+            lower .= mu .- normalquantile .* stdmu
+            upper .= mu .+ normalquantile .* stdmu
         elseif interval_method == :transformation
             # 2. Construct intervals for eta, then apply inverse link
-            lower = linkinv.(Link(mm), eta .- normalquantile .* stdeta)
-            upper = linkinv.(Link(mm), eta .+ normalquantile .* stdeta)
+            lower .= linkinv.(Link(mm), eta .- normalquantile .* stdeta)
+            upper .= linkinv.(Link(mm), eta .+ normalquantile .* stdeta)
         else
             throw(ArgumentError("interval_method can be only :transformation or :delta"))
         end
     else
         throw(ArgumentError("only :confidence intervals are defined"))
     end
-    (prediction = mu, lower = lower, upper = upper)
+    return res
 end
 
 # A helper function to choose default values for eta

@@ -108,8 +108,7 @@ julia> model = lm(@formula(Result ~ 1 + Treatment), dat);
 
 julia> bigmodel = lm(@formula(Result ~ 1 + Treatment + Other), dat);
 
-
-julia> ftest(nullmodel.model, model.model)
+julia> ftest(nullmodel, model)
 F-test: 2 models fitted on 12 observations
 ──────────────────────────────────────────────────────────────────
      DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)
@@ -118,7 +117,7 @@ F-test: 2 models fitted on 12 observations
 [2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234  <1e-07
 ──────────────────────────────────────────────────────────────────
 
-julia> ftest(nullmodel.model, model.model, bigmodel.model)
+julia> ftest(nullmodel, model, bigmodel)
 F-test: 3 models fitted on 12 observations
 ──────────────────────────────────────────────────────────────────
      DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)

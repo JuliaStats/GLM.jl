@@ -28,7 +28,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     Σ = [6.136653061224592e-05 -9.464489795918525e-05
         -9.464489795918525e-05 1.831836734693908e-04]
     @test isapprox(vcov(lm1), Σ)
-    @test isapprox(cor(lm1.model), Diagonal(diag(Σ))^(-1/2)*Σ*Diagonal(diag(Σ))^(-1/2))
+    @test isapprox(cor(lm1), Diagonal(diag(Σ))^(-1/2)*Σ*Diagonal(diag(Σ))^(-1/2))
     @test dof(lm1) == 3
     @test isapprox(deviance(lm1), 0.0002992000000000012)
     @test isapprox(loglikelihood(lm1), 21.204842144047973)
@@ -148,7 +148,7 @@ end
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
-    @test isinf(GLM.dispersion(model.model))
+    @test isinf(GLM.dispersion(model))
     @test coef(model) ≈ [1, 1, 2]
     @test isequal(hcat(ct.cols[2:end]...),
                   [Inf 0.0 1.0 -Inf Inf
@@ -159,7 +159,7 @@ end
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
-    @test isinf(GLM.dispersion(model.model))
+    @test isinf(GLM.dispersion(model))
     @test coef(model) ≈ [1, 2, 3]
     @test isequal(hcat(ct.cols[2:end]...),
                   [Inf 0.0 1.0 -Inf Inf
@@ -170,7 +170,7 @@ end
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
-    @test isinf(GLM.dispersion(model.model))
+    @test isinf(GLM.dispersion(model))
     @test coef(model) ≈ [1, 1, 2]
     @test isequal(hcat(ct.cols[2:end]...),
                   [Inf 0.0 1.0 -Inf Inf
@@ -181,7 +181,7 @@ end
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
-    @test isinf(GLM.dispersion(model.model))
+    @test isinf(GLM.dispersion(model))
     @test coef(model) ≈ [1, 2, 3]
     @test isequal(hcat(ct.cols[2:end]...),
                   [Inf 0.0 1.0 -Inf Inf
@@ -194,7 +194,7 @@ end
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
-    @test isinf(GLM.dispersion(model.model))
+    @test isinf(GLM.dispersion(model))
     @test coef(model) ≈ [1, 1, 2, 0, 0]
     @test isequal(hcat(ct.cols[2:end]...),
                   [Inf 0.0 1.0 -Inf Inf
@@ -216,7 +216,7 @@ end
         mdl = lm(@formula(y ~ 0 + x), data)
         @test coef(mdl) ≈ [2.07438016528926]
         @test stderror(mdl) ≈ [0.165289256198347E-01]
-        @test GLM.dispersion(mdl.model) ≈ 3.56753034006338
+        @test GLM.dispersion(mdl) ≈ 3.56753034006338
         @test dof(mdl) == 2
         @test dof_residual(mdl) == 10
         @test r2(mdl) ≈ 0.999365492298663
@@ -239,7 +239,7 @@ end
         mdl = lm(@formula(y ~ 0 + x), data)
         @test coef(mdl) ≈ [0.727272727272727]
         @test stderror(mdl) ≈ [0.420827318078432E-01]
-        @test GLM.dispersion(mdl.model) ≈ 0.369274472937998
+        @test GLM.dispersion(mdl) ≈ 0.369274472937998
         @test dof(mdl) == 2
         @test dof_residual(mdl) == 2
         @test r2(mdl) ≈ 0.993348115299335
@@ -261,7 +261,7 @@ end
 
         @test coef(mdl1) ≈ coef(mdl2)
         @test stderror(mdl1) ≈ stderror(mdl2)
-        @test GLM.dispersion(mdl1.model) ≈ GLM.dispersion(mdl2)
+        @test GLM.dispersion(mdl1) ≈ GLM.dispersion(mdl2)
         @test dof(mdl1) ≈ dof(mdl2)
         @test dof_residual(mdl1) ≈ dof_residual(mdl2)
         @test r2(mdl1) ≈ r2(mdl2)
@@ -282,7 +282,7 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
 @testset "Poisson GLM" begin
     gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
               dobson, Poisson())
-    @test GLM.cancancel(gm1.model.rr)
+    @test GLM.cancancel(gm1.rr)
     test_show(gm1)
     @test dof(gm1) == 5
     @test isapprox(deviance(gm1), 5.12914107700115, rtol = 1e-7)
@@ -300,7 +300,7 @@ admit.rank = categorical(admit.rank)
 
 @testset "$distr with LogitLink" for distr in (Binomial, Bernoulli)
     gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit, distr())
-    @test GLM.cancancel(gm2.model.rr)
+    @test GLM.cancancel(gm2.rr)
     test_show(gm2)
     @test dof(gm2) == 6
     @test deviance(gm2) ≈ 458.5174924758994
@@ -317,7 +317,7 @@ end
     gm3 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit,
               Binomial(), ProbitLink())
     test_show(gm3)
-    @test !GLM.cancancel(gm3.model.rr)
+    @test !GLM.cancancel(gm3.rr)
     @test dof(gm3) == 6
     @test isapprox(deviance(gm3), 458.4131713833386)
     @test isapprox(loglikelihood(gm3), -229.20658569166932)
@@ -332,7 +332,7 @@ end
 @testset "Bernoulli CauchitLink" begin
     gm4 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
               Binomial(), CauchitLink())
-    @test !GLM.cancancel(gm4.model.rr)
+    @test !GLM.cancancel(gm4.rr)
     test_show(gm4)
     @test dof(gm4) == 6
     @test isapprox(deviance(gm4), 459.3401112751141)
@@ -345,7 +345,7 @@ end
 @testset "Bernoulli CloglogLink" begin
     gm5 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
               Binomial(), CloglogLink())
-    @test !GLM.cancancel(gm5.model.rr)
+    @test !GLM.cancancel(gm5.rr)
     test_show(gm5)
     @test dof(gm5) == 6
     @test isapprox(deviance(gm5), 458.89439629612616)
@@ -373,7 +373,7 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
 @testset "Offset" begin
     gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
               Normal(), IdentityLink(), offset=Array{Float64}(anorexia.Prewt))
-    @test GLM.cancancel(gm6.model.rr)
+    @test GLM.cancancel(gm6.rr)
     test_show(gm6)
     @test dof(gm6) == 5
     @test isapprox(deviance(gm6), 3311.262619919613)
@@ -383,7 +383,7 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
     @test isapprox(bic(gm6), 501.35662813730465)
     @test isapprox(coef(gm6),
         [49.7711090, -0.5655388, -4.0970655, 4.5630627])
-    @test isapprox(GLM.dispersion(gm6.model, true), 48.6950385282296)
+    @test isapprox(GLM.dispersion(gm6, true), 48.6950385282296)
     @test isapprox(stderror(gm6),
         [13.3909581, 0.1611824, 1.8934926, 2.1333359])
 end
@@ -391,12 +391,12 @@ end
 @testset "Normal LogLink offset" begin
     gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
               Normal(), LogLink(), offset=Array{Float64}(anorexia.Prewt), rtol=1e-8)
-    @test !GLM.cancancel(gm7.model.rr)
+    @test !GLM.cancancel(gm7.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
     @test isapprox(coef(gm7),
         [3.99232679, -0.99445269, -0.05069826, 0.05149403])
-    @test isapprox(GLM.dispersion(gm7.model, true), 48.017753573192266)
+    @test isapprox(GLM.dispersion(gm7, true), 48.017753573192266)
     @test isapprox(stderror(gm7),
         [0.157167944, 0.001886286, 0.022584069, 0.023882826],
         atol=1e-6)
@@ -408,8 +408,8 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
 
 @testset "Gamma" begin
     gm8 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma())
-    @test !GLM.cancancel(gm8.model.rr)
-    @test isa(GLM.Link(gm8.model), InverseLink)
+    @test !GLM.cancancel(gm8.rr)
+    @test isa(GLM.Link(gm8), InverseLink)
     test_show(gm8)
     @test dof(gm8) == 3
     @test isapprox(deviance(gm8), 0.016729715178484157)
@@ -418,14 +418,14 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
     @test isapprox(aicc(gm8), 42.78992394955449)
     @test isapprox(bic(gm8), 38.58159768156315)
     @test isapprox(coef(gm8), [-0.01655438172784895,0.01534311491072141])
-    @test isapprox(GLM.dispersion(gm8.model, true), 0.002446059333495581, atol=1e-6)
+    @test isapprox(GLM.dispersion(gm8, true), 0.002446059333495581, atol=1e-6)
     @test isapprox(stderror(gm8), [0.00092754223, 0.000414957683], atol=1e-6)
 end
 
 @testset "InverseGaussian" begin
     gm8a = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, InverseGaussian())
-    @test !GLM.cancancel(gm8a.model.rr)
-    @test isa(GLM.Link(gm8a.model), InverseSquareLink)
+    @test !GLM.cancancel(gm8a.rr)
+    @test isa(GLM.Link(gm8a), InverseSquareLink)
     test_show(gm8a)
     @test dof(gm8a) == 3
     @test isapprox(deviance(gm8a), 0.006931128347234519)
@@ -434,14 +434,14 @@ end
     @test isapprox(aicc(gm8a), 66.37485201769974)
     @test isapprox(bic(gm8a), 62.16652574970839)
     @test isapprox(coef(gm8a), [-0.0011079770504295668,0.0007219138982289362])
-    @test isapprox(GLM.dispersion(gm8a.model, true), 0.0011008719709455776, atol=1e-6)
+    @test isapprox(GLM.dispersion(gm8a, true), 0.0011008719709455776, atol=1e-6)
     @test isapprox(stderror(gm8a), [0.0001675339726910311,9.468485015919463e-5], atol=1e-6)
 end
 
 @testset "Gamma LogLink" begin
     gm9 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(),
               rtol=1e-8, atol=0.0)
-    @test !GLM.cancancel(gm9.model.rr)
+    @test !GLM.cancancel(gm9.rr)
     test_show(gm9)
     @test dof(gm9) == 3
     @test deviance(gm9) ≈ 0.16260829451739
@@ -450,14 +450,14 @@ end
     @test aicc(gm9) ≈ 63.28165620769822
     @test bic(gm9) ≈ 59.07332993970688
     @test coef(gm9) ≈ [5.50322528458221, -0.60191617825971]
-    @test GLM.dispersion(gm9.model, true) ≈ 0.02435442293561081
+    @test GLM.dispersion(gm9, true) ≈ 0.02435442293561081
     @test stderror(gm9) ≈ [0.19030107482720, 0.05530784660144]
 end
 
 @testset "Gamma IdentityLink" begin
     gm10 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(),
                rtol=1e-8, atol=0.0)
-    @test !GLM.cancancel(gm10.model.rr)
+    @test !GLM.cancancel(gm10.rr)
     test_show(gm10)
     @test dof(gm10) == 3
     @test isapprox(deviance(gm10), 0.60845414895344)
@@ -466,7 +466,7 @@ end
     @test isapprox(aicc(gm10), 75.23214487456835)
     @test isapprox(bic(gm10), 71.02381860657701)
     @test isapprox(coef(gm10), [99.250446880986, -18.374324929002])
-    @test isapprox(GLM.dispersion(gm10.model, true), 0.10417373, atol=1e-6)
+    @test isapprox(GLM.dispersion(gm10, true), 0.10417373, atol=1e-6)
     @test isapprox(stderror(gm10), [17.864084, 4.297895], atol=1e-4)
 end
 
@@ -545,7 +545,7 @@ end
 quine = dataset("MASS", "quine")
 @testset "NegativeBinomial LogLink Fixed θ" begin
     gm18 = fit(GeneralizedLinearModel, @formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
-    @test !GLM.cancancel(gm18.model.rr)
+    @test !GLM.cancancel(gm18.rr)
     test_show(gm18)
     @test dof(gm18) == 8
     @test isapprox(deviance(gm18), 239.11105911824325, rtol = 1e-7)
@@ -561,7 +561,7 @@ end
 @testset "NegativeBinomial NegativeBinomialLink Fixed θ" begin
     # the default/canonical link is NegativeBinomialLink
     gm19 = fit(GeneralizedLinearModel, @formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0))
-    @test GLM.cancancel(gm19.model.rr)
+    @test GLM.cancancel(gm19.rr)
     test_show(gm19)
     @test dof(gm19) == 8
     @test isapprox(deviance(gm19), 239.68562048977307, rtol = 1e-7)
@@ -848,10 +848,10 @@ end
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
                   Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
-    mod = lm(@formula(Result~Treatment), d).model
-    othermod = lm(@formula(Result~Other), d).model
-    nullmod = lm(@formula(Result~1), d).model
-    bothmod = lm(@formula(Result~Other+Treatment), d).model
+    mod = lm(@formula(Result~Treatment), d)
+    othermod = lm(@formula(Result~Other), d)
+    nullmod = lm(@formula(Result~1), d)
+    bothmod = lm(@formula(Result~Other+Treatment), d)
     nointerceptmod = lm(reshape(d.Treatment, :, 1), d.Result)
 
     ft1 = ftest(mod)
@@ -903,10 +903,10 @@ end
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
                   Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
-    mod = lm(@formula(Result~Treatment), d).model
-    othermod = lm(@formula(Result~Other), d).model
-    nullmod = lm(@formula(Result~1), d).model
-    bothmod = lm(@formula(Result~Other+Treatment), d).model
+    mod = lm(@formula(Result~Treatment), d)
+    othermod = lm(@formula(Result~Other), d)
+    nullmod = lm(@formula(Result~1), d)
+    bothmod = lm(@formula(Result~Other+Treatment), d)
     @test StatsModels.isnested(nullmod, mod)
     @test !StatsModels.isnested(othermod, mod)
     @test StatsModels.isnested(mod, bothmod)
@@ -914,7 +914,7 @@ end
     @test StatsModels.isnested(othermod, bothmod)
 
     d.Sum = d.Treatment + (d.Other .== 1)
-    summod = lm(@formula(Result~Sum), d).model
+    summod = lm(@formula(Result~Sum), d)
     @test StatsModels.isnested(summod, bothmod)
 
     ft1a = ftest(mod, nullmod)
@@ -963,7 +963,7 @@ end
             ─────────────────────────────────────────────────────────────────"""
     end
 
-    bigmod = lm(@formula(Result~Treatment+Other), d).model
+    bigmod = lm(@formula(Result~Treatment+Other), d)
     ft2a = ftest(nullmod, mod, bigmod)
     @test isnan(ft2a.pval[1])
     @test ft2a.pval[2] ≈ 2.481215056713184e-8
@@ -1019,7 +1019,7 @@ end
     @test_throws ArgumentError ftest(mod, bigmod, nullmod)
     @test_throws ArgumentError ftest(nullmod, bigmod, mod)
     @test_throws ArgumentError ftest(bigmod, nullmod, mod)
-    mod2 = lm(@formula(Result~Treatment), d[2:end, :]).model
+    mod2 = lm(@formula(Result~Treatment), d[2:end, :])
     @test_throws ArgumentError ftest(mod, mod2)
 end
 
@@ -1062,7 +1062,7 @@ end
     @test hcat(t.cols[5:6]...) == confint(lm1)
     # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
     # supports keyword arguments
-    t = coeftable(lm1.model, level=0.99)
+    t = coeftable(lm1, level=0.99)
     @test hcat(t.cols[5:6]...) == confint(lm1, level=0.99)
 
     gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
@@ -1073,9 +1073,7 @@ end
     @test t.cols[4] ≈ [5.4267674619082684e-71, 0.024647114627808674, 0.12848651178787643,
                        0.9999999999999981, 0.9999999999999999]
     @test hcat(t.cols[5:6]...) == confint(gm1)
-    # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
-    # supports keyword arguments
-    t = coeftable(gm1.model, level=0.99)
+    t = coeftable(gm1, level=0.99)
     @test hcat(t.cols[5:6]...) == confint(gm1, level=0.99)
 end
 
@@ -1155,10 +1153,10 @@ end
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
                   Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
 
-    mod = lm(@formula(Result~Treatment), d).model
+    mod = lm(@formula(Result~Treatment), d)
     @test hasintercept(mod)
 
-    nullmod = lm(@formula(Result~1), d).model
+    nullmod = lm(@formula(Result~1), d)
     @test hasintercept(nullmod)
 
     nointerceptmod = lm(reshape(d.Treatment, :, 1), d.Result)
@@ -1265,7 +1263,7 @@ end
         @test coef(mdl) ≈ [-0.05132238692134761, 0.01428684676273272, 0.15033126098228242]
         @test stderror(mdl) ≈ [0.224095414423756, 0.003342439119757, 0.005838227761632] atol=1.0e-8
         @test dof(mdl) == 4
-        @test GLM.dispersion(mdl.model, true) ≈ 6.577062388609384
+        @test GLM.dispersion(mdl, true) ≈ 6.577062388609384
         @test loglikelihood(mdl) ≈ -71.60507986987612
         @test deviance(mdl) ≈ 184.15774688106
         @test aic(mdl) ≈ 151.21015973975
@@ -1278,7 +1276,7 @@ end
         @test stderror(mdl1) ≈ stderror(mdl2)
         @test dof(mdl1) == dof(mdl2)
         @test dof_residual(mdl1) == dof_residual(mdl2)
-        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test GLM.dispersion(mdl1, true) ≈ GLM.dispersion(mdl2,true)
         @test deviance(mdl1) ≈ deviance(mdl2)
         @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
         @test confint(mdl1) ≈ confint(mdl2)
@@ -1292,7 +1290,7 @@ end
         @test stderror(mdl1) ≈ stderror(mdl2)
         @test dof(mdl1) == dof(mdl2)
         @test dof_residual(mdl1) == dof_residual(mdl2)
-        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test GLM.dispersion(mdl1, true) ≈ GLM.dispersion(mdl2,true)
         @test deviance(mdl1) ≈ deviance(mdl2)
         @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
         @test confint(mdl1) ≈ confint(mdl2)
@@ -1308,7 +1306,7 @@ end
         @test dof_residual(mdl1) == dof_residual(mdl2)
         @test deviance(mdl1) ≈ deviance(mdl2)
         @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
-        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test GLM.dispersion(mdl1, true) ≈ GLM.dispersion(mdl2,true)
         @test confint(mdl1) ≈ confint(mdl2)
         @test aic(mdl1) ≈ aic(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
