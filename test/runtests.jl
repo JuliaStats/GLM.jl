@@ -467,6 +467,18 @@ end
     @test pred3[:upper] ≈ [3.9036197999106674, 2.6291976809914988,
         4.815559090394707, 2.3612485765861515, 3.8867779526777784]
 
+    mm = fit(LinearModel, @formula(y ~ 0 + x1 + x2),
+             DataFrame(y=Ylm, x1=X[:, 1], x2=X[:, 2]))
+    pred4 = predict(mm, DataFrame(newX), interval=:confidence)
+    @test pred4.prediction == pred2.prediction
+    @test pred4.lower == pred2.lower
+    @test pred4.upper == pred2.upper
+
+    pred5 = predict(mm, DataFrame(newX), interval=:prediction)
+    @test pred5.prediction == pred3.prediction
+    @test pred5.lower == pred3.lower
+    @test pred5.upper == pred3.upper
+
 end
 
 @testset "F test for model comparison" begin

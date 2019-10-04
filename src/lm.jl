@@ -222,7 +222,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     else
         error("only :confidence and :prediction intervals are defined")
     end
-    retinterval = quantile(TDist(dof_residual(mm)), (1. - level)/2) * sqrt.(retvariance)
+    retinterval = vec(quantile(TDist(dof_residual(mm)), (1. - level)/2) * sqrt.(retvariance))
     (prediction = retmean, lower = retmean .+ retinterval, upper = retmean .- retinterval)
 end
 
