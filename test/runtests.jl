@@ -540,11 +540,11 @@ end
         [3]    2    -1  3.2292  3.1008  -0.0000  -0.9603  241.6234   <1e-7
         ──────────────────────────────────────────────────────────────────"""
 
-        @test_throws ArgumentError ftest(mod, bigmod, nullmod)
-        @test_throws ArgumentError ftest(nullmod, bigmod, mod)
-        @test_throws ArgumentError ftest(bigmod, nullmod, mod)
-        mod2 = lm(@formula(Result~Treatment), d[2:end, :]).model
-        @test_throws ArgumentError ftest(mod, mod2)
+    @test_throws ArgumentError ftest(mod, bigmod, nullmod)
+    @test_throws ArgumentError ftest(nullmod, bigmod, mod)
+    @test_throws ArgumentError ftest(bigmod, nullmod, mod)
+    mod2 = lm(@formula(Result~Treatment), d[2:end, :]).model
+    @test_throws ArgumentError ftest(mod, mod2)
 end
 
 @testset "F test rounding error" begin
