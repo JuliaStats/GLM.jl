@@ -1,6 +1,7 @@
 mutable struct FTestResult{N}
+    nobs::Int
     ssr::NTuple{N, Float64}
-    dof_resid::NTuple{N, Int}
+    dof::NTuple{N, Int}
     r2::NTuple{N, Float64}
     fstat::NTuple{N, Float64}
     pval::NTuple{N, Float64}
@@ -53,8 +54,8 @@ this is an ANOVA, our null hypothesis is that `Result ~ 1` fits the data as well
 `Result ~ 1 + Treatment`.
 
 ```jldoctest
-julia> dat = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
-                       Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
+julia> dat = DataFrame(Result=[1.1, 1.2, 1, 2.2, 1.9, 2, 0.9, 1, 1, 2.2, 2, 2],
+                       Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2],
                        Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]));
 
 julia> nullmodel = lm(@formula(Result ~ 1), dat);
@@ -64,24 +65,30 @@ julia> model = lm(@formula(Result ~ 1 + Treatment), dat);
 julia> bigmodel = lm(@formula(Result ~ 1 + Treatment + Other), dat);
 
 julia> ftest(nullmodel.model, model.model)
-──────────────────────────────────────────────────────────────────────
-     Res. DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*  p(>F)
-──────────────────────────────────────────────────────────────────────
-[1]        11        3.2292           -0.0000                         
-[2]        10    -1  0.1283  -3.1008   0.9603  0.9603  241.6234  <1e-7
-──────────────────────────────────────────────────────────────────────
+F-test: 2 models fitted on 12 observations
+─────────────────────────────────────────────────────────────────
+     DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*  p(>F)
+─────────────────────────────────────────────────────────────────
+[1]    2        3.2292           -0.0000                         
+[2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234  <1e-7
+─────────────────────────────────────────────────────────────────
 
 julia> ftest(nullmodel.model, model.model, bigmodel.model)
-───────────────────────────────────────────────────────────────────────
-     Res. DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)
-───────────────────────────────────────────────────────────────────────
-[1]        11        3.2292           -0.0000                          
-[2]        10    -1  0.1283  -3.1008   0.9603  0.9603  241.6234   <1e-7
-[3]         8    -2  0.1017  -0.0266   0.9685  0.0082    1.0456  0.3950
-───────────────────────────────────────────────────────────────────────
+F-test: 3 models fitted on 12 observations
+──────────────────────────────────────────────────────────────────
+     DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)
+──────────────────────────────────────────────────────────────────
+[1]    2        3.2292           -0.0000                          
+[2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234   <1e-7
+[3]    5     2  0.1017  -0.0266   0.9685  0.0082    1.0456  0.3950
+──────────────────────────────────────────────────────────────────
 ```
 """
 function ftest(mods::LinearModel...; atol::Real=0.0)
+    if !all(==(nobs(mods[1])), nobs.(mods))
+        throw(ArgumentError("F test is only valid for models fitted on the same data, " *
+                            "but number of observations differ"))
+    end
     forward = length(mods) == 1 || dof(mods[1]) <= dof(mods[2])
     if forward
         for i in 2:length(mods)
@@ -99,7 +106,8 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
 
     SSR = deviance.(mods)
 
-    Δdf = _diff(dof.(mods))
+    df = dof.(mods)
+    Δdf = _diff(df)
     dfr = Int.(dof_residual.(mods))
     MSR1 = _diffn(SSR) ./ Δdf
     MSR2 = (SSR ./ dfr)
@@ -113,11 +121,11 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
 
     fstat = (NaN, (MSR1 ./ MSR2)...)
     pval = (NaN, ccdf.(FDist.(abs.(Δdf), dfr_big), abs.(fstat[2:end]))...)
-    return FTestResult(SSR, dfr, r2.(mods), fstat, pval)
+    return FTestResult(Int(nobs(mods[1])), SSR, df, r2.(mods), fstat, pval)
 end
 
 function show(io::IO, ftr::FTestResult{N}) where N
-    Δdof = _diff(ftr.dof_resid)
+    Δdof = _diff(ftr.dof)
     Δssr = _diff(ftr.ssr)
     ΔR² = _diff(ftr.r2)
 
@@ -125,16 +133,16 @@ function show(io::IO, ftr::FTestResult{N}) where N
     nr = N
     outrows = Matrix{String}(undef, nr+1, nc)
 
-    outrows[1, :] = ["", "Res. DOF", "ΔDOF", "SSR", "ΔSSR",
+    outrows[1, :] = ["", "DOF", "ΔDOF", "SSR", "ΔSSR",
                      "R²", "ΔR²", "F*", "p(>F)"]
 
-    outrows[2, :] = ["[1]", @sprintf("%.0d", ftr.dof_resid[1]), " ",
+    outrows[2, :] = ["[1]", @sprintf("%.0d", ftr.dof[1]), " ",
                      @sprintf("%.4f", ftr.ssr[1]), " ",
                      @sprintf("%.4f", ftr.r2[1]), " ", " ", " "]
 
     for i in 2:nr
         outrows[i+1, :] = ["[$i]",
-                           @sprintf("%.0d", ftr.dof_resid[i]), @sprintf("%.0d", Δdof[i-1]),
+                           @sprintf("%.0d", ftr.dof[i]), @sprintf("%.0d", Δdof[i-1]),
                            @sprintf("%.4f", ftr.ssr[i]), @sprintf("%.4f", Δssr[i-1]),
                            @sprintf("%.4f", ftr.r2[i]), @sprintf("%.4f", ΔR²[i-1]),
                            @sprintf("%.4f", ftr.fstat[i]), string(PValue(ftr.pval[i])) ]
@@ -143,6 +151,7 @@ function show(io::IO, ftr::FTestResult{N}) where N
     max_colwidths = [maximum(view(colwidths, :, i)) for i in 1:nc]
     totwidth = sum(max_colwidths) + 2*8
 
+    println(io, "F-test: $N models fitted on $(ftr.nobs) observations")
     println(io, '─'^totwidth)
 
     for r in 1:nr+1
