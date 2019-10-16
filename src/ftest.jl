@@ -35,7 +35,7 @@ For each sequential pair of linear models in `mod...`, perform an F-test to dete
 the one model fits significantly better than the other. Models must have been fitted
 on the same data, and be nested either in forward or backward direction.
 
-A table is returned containing residual degrees of freedom (DOF),
+A table is returned containing consumed degrees of freedom (DOF),
 difference in DOF from the preceding model, sum of squared residuals (SSR), difference in
 SSR from the preceding model, R², difference in R² from the preceding model, and F-statistic
 and p-value for the comparison between the two models.
