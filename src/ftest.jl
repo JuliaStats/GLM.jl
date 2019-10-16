@@ -85,6 +85,9 @@ F-test: 3 models fitted on 12 observations
 ```
 """
 function ftest(mods::LinearModel...; atol::Real=0.0)
+    if length(mods) < 2
+        Base.depwarn("Passing less than two models to ftest is deprecated", :ftest)
+    end
     if !all(==(nobs(mods[1])), nobs.(mods))
         throw(ArgumentError("F test is only valid for models fitted on the same data, " *
                             "but number of observations differ"))

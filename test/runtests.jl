@@ -487,15 +487,6 @@ end
     summod = lm(@formula(Result~Sum), d).model
     @test GLM.issubmodel(summod, bothmod)
 
-    ft0 = ftest(mod)
-    @test sprint(show, ft0) == """
-        F-test: 1 models fitted on 12 observations
-        ────────────────────────────────────────────────────
-             DOF  ΔDOF     SSR  ΔSSR      R²  ΔR²  F*  p(>F)
-        ────────────────────────────────────────────────────
-        [1]    3        0.1283        0.9603                
-        ────────────────────────────────────────────────────"""
-
     ft1a = ftest(mod, nullmod)
     @test isnan(ft1a.pval[1])
     @test ft1a.pval[2] ≈ 2.481215056713184e-8
