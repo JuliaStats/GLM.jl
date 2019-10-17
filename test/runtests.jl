@@ -472,7 +472,7 @@ end
 @testset "F test for model comparison" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
-                  Other=[1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1])
+                  Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
     mod = lm(@formula(Result~Treatment), d).model
     othermod = lm(@formula(Result~Other), d).model
     nullmod = lm(@formula(Result~1), d).model
@@ -483,32 +483,68 @@ end
     @test !GLM.issubmodel(bothmod, mod)
     @test GLM.issubmodel(othermod, bothmod)
 
-    @test_throws ArgumentError ftest(mod, othermod)
-
-    d[:Sum] = d[:Treatment] + d[:Other]
+    d[:Sum] = d[:Treatment] + (d[:Other] .== 1)
     summod = lm(@formula(Result~Sum), d).model
     @test GLM.issubmodel(summod, bothmod)
 
-    ft = ftest(mod, nullmod)
-    @test isapprox(ft.pval[1].v,  2.481215056713184e-8)
-    @test sprint(show, ftest(mod, nullmod)) ==
-        """
-                Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F* p(>F)
-        Model 1       10   3      0.1283          0.9603                      
-        Model 2       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7
-        """
+    ft1a = ftest(mod, nullmod)
+    @test isnan(ft1a.pval[1])
+    @test ft1a.pval[2] ≈ 2.481215056713184e-8
+    @test sprint(show, ft1a) == """
+        F-test: 2 models fitted on 12 observations
+        ─────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR    ΔSSR       R²      ΔR²        F*  p(>F)
+        ─────────────────────────────────────────────────────────────────
+        [1]    3        0.1283           0.9603                          
+        [2]    2    -1  3.2292  3.1008  -0.0000  -0.9603  241.6234  <1e-7
+        ─────────────────────────────────────────────────────────────────"""
+
+    ft1b = ftest(nullmod, mod)
+    @test isnan(ft1b.pval[1])
+    @test ft1b.pval[2] ≈ 2.481215056713184e-8
+    @test sprint(show, ft1b) == """
+        F-test: 2 models fitted on 12 observations
+        ─────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*  p(>F)
+        ─────────────────────────────────────────────────────────────────
+        [1]    2        3.2292           -0.0000                         
+        [2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234  <1e-7
+        ─────────────────────────────────────────────────────────────────"""
 
     bigmod = lm(@formula(Result~Treatment+Other), d).model
-    ft2 = ftest(bigmod, mod, nullmod)
-    @test isapprox(ft2.pval[2].v,  2.481215056713184e-8)
-    @test isapprox(ft2.pval[1].v, 0.17903437900958952)
-    @test sprint(show, ftest(bigmod, mod, nullmod)) ==
-        """
-                Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F*  p(>F)
-        Model 1        9   4      0.1038          0.9678                       
-        Model 2       10   3   -1 0.1283 -0.0245  0.9603 0.0076   2.1236 0.1790
-        Model 3       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234  <1e-7
-        """
+    ft2a = ftest(nullmod, mod, bigmod)
+    @test isnan(ft2a.pval[1])
+    @test ft2a.pval[2] ≈ 2.481215056713184e-8
+    @test ft2a.pval[3] ≈ 0.3949973540194818
+    @test sprint(show, ft2a) == """
+        F-test: 3 models fitted on 12 observations
+        ──────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)
+        ──────────────────────────────────────────────────────────────────
+        [1]    2        3.2292           -0.0000                          
+        [2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234   <1e-7
+        [3]    5     2  0.1017  -0.0266   0.9685  0.0082    1.0456  0.3950
+        ──────────────────────────────────────────────────────────────────"""
+
+    ft2b = ftest(bigmod, mod, nullmod)
+    @test isnan(ft2b.pval[1])
+    @test ft2b.pval[2] ≈ 0.3949973540194818
+    @test ft2b.pval[3] ≈ 2.481215056713184e-8
+    @test sprint(show, ft2b) == """
+        F-test: 3 models fitted on 12 observations
+        ──────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR    ΔSSR       R²      ΔR²        F*   p(>F)
+        ──────────────────────────────────────────────────────────────────
+        [1]    5        0.1017           0.9685                           
+        [2]    3    -2  0.1283  0.0266   0.9603  -0.0082    1.0456  0.3950
+        [3]    2    -1  3.2292  3.1008  -0.0000  -0.9603  241.6234   <1e-7
+        ──────────────────────────────────────────────────────────────────"""
+
+    @test_throws ArgumentError ftest(mod, bigmod, nullmod)
+    @test_throws ArgumentError ftest(nullmod, bigmod, mod)
+    @test_throws ArgumentError ftest(bigmod, nullmod, mod)
+    mod2 = lm(@formula(Result~Treatment), d[2:end, :]).model
+    @test_throws ArgumentError ftest(mod, mod2)
 end
 
 @testset "F test rounding error" begin
