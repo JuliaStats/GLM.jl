@@ -191,6 +191,10 @@ end
     @test isa(m2.model.pp.chol, CholeskyPivoted)
     @test rank(m2.model.pp.chol) == 7
     @test deviance(m2.model) ≈ 138615.90834086522
+    # issue about can't converge within 30 iterations discussed in PR #314
+    df = CSV.read(joinpath(glm_datadir, "glm.test.csv"))
+    glmallow = fit(GeneralizedLinearModel, @formula(y~x1+x2), df, Poisson(), allowrankdeficient=true)
+    @test isa(glmallow.model.pp.chol, CholeskyPivoted)
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
