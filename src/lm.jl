@@ -27,9 +27,23 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
         new{V}(mu, off, wts, y)
     end
 end
-LmResp(y::V) where {V<:FPVector} = LmResp{V}(fill!(similar(y), 0), similar(y, 0), similar(y, 0), y)
 
-LmResp(y::AbstractVector{T}) where T<:Real = LmResp(float(y))
+function LmResp(y::V; wts = nothing) where {V<:FPVector} 
+    if isa(wts, Nothing)
+        LmResp{V}(fill!(similar(y), 0), similar(y, 0), similar(y, 0), y)
+    else
+      @assert wts isa typeof(y)
+      LmResp{V}(fill!(similar(y), 0), similar(y, 0), wts, y)  
+    end
+end
+
+function LmResp(y::AbstractVector{T}; wts = nothing) where T<:Real 
+    if isa(wts, nothing)
+        LmResp(float(y))
+    else
+        LmResp(float(y), wts = float(wts))
+    end
+end
 
 function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
     n = length(linPr)
@@ -132,18 +146,20 @@ function StatsBase.fit!(obj::LinearModel)
 end
 
 function fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector,
-             allowrankdeficient::Bool=false)
-    fit!(LinearModel(LmResp(y), cholpred(X, allowrankdeficient)))
+             allowrankdeficient::Bool=false; wts = nothing)
+    fit!(LinearModel(LmResp(y, wts = wts), cholpred(X, allowrankdeficient)))
 end
 
 """
-    lm(X, y, allowrankdeficient::Bool=false)
+    lm(X, y, allowrankdeficient::Bool=false; wts = nothing)
 
 An alias for `fit(LinearModel, X, y, allowrankdeficient)`
 
 The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a `DataFrame`.
+
+The keyword argument `wts` can be a `Vector{Float64}`. 
 """
-lm(X, y, allowrankdeficient::Bool=false) = fit(LinearModel, X, y, allowrankdeficient)
+lm(X, y, allowrankdeficient::Bool=false; wts = nothing) = fit(LinearModel, X, y, allowrankdeficient; wts = wts)
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
