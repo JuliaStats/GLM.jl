@@ -16,6 +16,9 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
     wts::V                                 # prior weights (may have length 0)
+    # devresid
+    # wrkwt
+    # wkresid
     y::V                                   # response
     function LmResp{V}(mu::V, off::V, wts::V, y::V) where V
         n = length(y)
@@ -28,27 +31,18 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     end
 end
 
-function LmResp(y::V; wts = nothing) where {V<:FPVector} 
-    if isa(wts, Nothing)
-        LmResp{V}(fill!(similar(y), 0), similar(y, 0), similar(y, 0), y)
-    else
-      @assert wts isa typeof(y)
-      LmResp{V}(fill!(similar(y), 0), similar(y, 0), wts, y)  
-    end
-end
+LmResp(y::V; wts::V) where {V<:FPVector} = LmResp{V}(fill!(similar(y), 0), similar(y, 0), wts, y)
 
-function LmResp(y::AbstractVector{T}; wts = nothing) where T<:Real 
-    if isa(wts, nothing)
-        LmResp(float(y))
-    else
-        LmResp(float(y), wts = float(wts))
-    end
-end
+LmResp(y::AbstractVector{T}; wts::AbstractVector{T}) where T<:Real = LmResp(float(y), float(wts))
 
-function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
+function updateμ!(r::LmResp{V}, linPr::V) where {V<:FPVector}
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copyto!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
+    # if !isempty(r.wts)
+    #    map!(*, r.devresid, r.devresid, r.wts)
+    #    map!(*, r.wrkwt, r.wrkwt, r.wts)  
+    # end
     deviance(r)
 end
 updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
@@ -145,8 +139,8 @@ function StatsBase.fit!(obj::LinearModel)
     return obj
 end
 
-function fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector,
-             allowrankdeficient::Bool=false; wts = nothing)
+function fit(::Type{LinearModel}, X::AbstractMatrix, y::V,
+             allowrankdeficient::Bool=false; wts::V = similar(y, 0)) where {V<:FPVector}
     fit!(LinearModel(LmResp(y, wts = wts), cholpred(X, allowrankdeficient)))
 end
 
@@ -159,7 +153,7 @@ The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a 
 
 The keyword argument `wts` can be a `Vector{Float64}`. 
 """
-lm(X, y, allowrankdeficient::Bool=false; wts = nothing) = fit(LinearModel, X, y, allowrankdeficient; wts = wts)
+lm(X, y, allowrankdeficient::Bool=false; kwargs...) = fit(LinearModel, X, y, allowrankdeficient; kwargs...)
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
