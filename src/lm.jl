@@ -16,9 +16,6 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
     wts::V                                 # prior weights (may have length 0)
-    # devresid
-    # wrkwt
-    # wkresid
     y::V                                   # response
     function LmResp{V}(mu::V, off::V, wts::V, y::V) where V
         n = length(y)
@@ -39,10 +36,6 @@ function updateμ!(r::LmResp{V}, linPr::V) where {V<:FPVector}
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copyto!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
-    # if !isempty(r.wts)
-    #    map!(*, r.devresid, r.devresid, r.wts)
-    #    map!(*, r.wrkwt, r.wrkwt, r.wts)  
-    # end
     deviance(r)
 end
 updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
@@ -134,7 +127,11 @@ end
 LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 
 function StatsBase.fit!(obj::LinearModel)
-    installbeta!(delbeta!(obj.pp, obj.rr.y))
+    if length(obj.rr.wts) == 0
+        installbeta!(delbeta!(obj.pp, obj.rr.y))
+    else 
+        installbeta!(delbeta!(obj.pp, obj.rr.y, obj.rr.wts))
+    end          
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
     return obj
 end
