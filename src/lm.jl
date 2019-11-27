@@ -28,9 +28,9 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     end
 end
 
-LmResp(y::V; wts::V) where {V<:FPVector} = LmResp{V}(fill!(similar(y), 0), similar(y, 0), wts, y)
+LmResp(y::FPVector; wts = similar(y, 0)) = LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
 
-LmResp(y::AbstractVector{T}; wts::AbstractVector{T}) where T<:Real = LmResp(float(y), float(wts))
+LmResp(y::AbstractVector{T}; wts::AbstractVector{T} = similar(y, 0)) where T<:Real = LmResp(float(y), float(wts))
 
 function updateμ!(r::LmResp{V}, linPr::V) where {V<:FPVector}
     n = length(linPr)
