@@ -28,9 +28,13 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     end
 end
 
-LmResp(y::FPVector; wts::FPVector = similar(y, 0)) = LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
+function LmResp(y::FPVector, wts::FPVector=similar(y, 0)) 
+    LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
+end
 
-LmResp(y::AbstractVector{T}; wts::AbstractVector{T} = similar(y, 0)) where T<:Real = LmResp(float(y), float(wts))
+function LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0)) where T<:Real
+    LmResp(float(y), float(wts))
+end
 
 function updateμ!(r::LmResp{V}, linPr::V) where {V<:FPVector}
     n = length(linPr)
@@ -128,21 +132,22 @@ LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 
 function StatsBase.fit!(obj::LinearModel)
     if length(obj.rr.wts) == 0
-        installbeta!(delbeta!(obj.pp, obj.rr.y))
+        delbeta!(obj.pp, obj.rr.y)
     else 
-        installbeta!(delbeta!(obj.pp, obj.rr.y, obj.rr.wts))
-    end          
+        delbeta!(obj.pp, obj.rr.y, obj.rr.wts)
+    end
+    installbeta!(obj.pp)     
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
     return obj
 end
 
-function fit(::Type{LinearModel}, X::AbstractMatrix, y::V,
-             allowrankdeficient::Bool=false; wts::V = similar(y, 0)) where {V<:FPVector}
-    fit!(LinearModel(LmResp(y, wts = wts), cholpred(X, allowrankdeficient)))
+function fit(::Type{LinearModel}, X::AbstractMatrix, y::FPVector,
+             allowrankdeficient::Bool=false; wts::FPVector=similar(y, 0))
+    fit!(LinearModel(LmResp(y, wts), cholpred(X, allowrankdeficient)))
 end
 
 """
-    lm(X, y, allowrankdeficient::Bool=false; wts = nothing)
+    lm(X, y, allowrankdeficient::Bool=false; wts=similar(y, 0))
 
 An alias for `fit(LinearModel, X, y, allowrankdeficient)`
 
