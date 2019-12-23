@@ -23,7 +23,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
 @testset "lm" begin
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
     test_show(lm1)
-    @test isapprox(coef(lm1), linreg(form[:Carb], form[:OptDen]))
+    @test isapprox(coef(lm1), linreg(form[:,:Carb], form[:,:OptDen]))
     Σ = [6.136653061224592e-05 -9.464489795918525e-05
         -9.464489795918525e-05 1.831836734693908e-04]
     @test isapprox(vcov(lm1), Σ)
@@ -40,7 +40,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(aic(lm1), -36.409684288095946)
     @test isapprox(aicc(lm1), -24.409684288095946)
     @test isapprox(bic(lm1), -37.03440588041178)
-    lm2 = fit(LinearModel, hcat(ones(6), 10form[:Carb]), form[:OptDen], true)
+    lm2 = fit(LinearModel, hcat(ones(6), 10form[:,:Carb]), form[:,:OptDen], true)
     @test isa(lm2.pp.chol, CholeskyPivoted)
     @test lm2.pp.chol.piv == [2, 1]
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
@@ -90,7 +90,7 @@ end
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
 admit = CSV.read(joinpath(glm_datadir, "admit.csv"))
-admit[:rank] = categorical(admit[:rank])
+admit[!,:rank] = categorical(admit[:,:rank])
 
 @testset "$distr with LogitLink" for distr in (Binomial, Bernoulli)
     gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit, distr())
@@ -166,7 +166,7 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"))
 
 @testset "Offset" begin
     gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), IdentityLink(), offset=Array{Float64}(anorexia[:Prewt]))
+              Normal(), IdentityLink(), offset=Array{Float64}(anorexia[:,:Prewt]))
     @test GLM.cancancel(gm6.model.rr)
     test_show(gm6)
     @test dof(gm6) == 5
@@ -184,7 +184,7 @@ end
 
 @testset "Normal LogLink offset" begin
     gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), LogLink(), offset=Array{Float64}(anorexia[:Prewt]), rtol=1e-8)
+              Normal(), LogLink(), offset=Array{Float64}(anorexia[:,:Prewt]), rtol=1e-8)
     @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
@@ -272,7 +272,7 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
 @testset "Aggregated Binomial LogitLink" begin
     for distr in (Binomial, Bernoulli)
         gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
-                   wts=Array(admit_agr[:count]))
+                   wts=Array(admit_agr[:,:count]))
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
         @test isapprox(deviance(gm14), 474.9667184280627)
@@ -288,12 +288,12 @@ end
 # Logistic regression using aggregated data with proportions of successes and weights
 admit_agr2 = DataFrame(Any[[61., 151, 121, 67], [33., 54, 28, 12], categorical(1:4)],
     [:count, :admit, :rank])
-admit_agr2[:p] = admit_agr2[:admit] ./ admit_agr2[:count]
+admit_agr2[!,:p] = admit_agr2[:,:admit] ./ admit_agr2[:,:count]
 
 ## The model matrix here is singular so tests like the deviance are just round off error
 @testset "Binomial LogitLink aggregated" begin
     gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial(),
-               wts=admit_agr2[:count])
+               wts=admit_agr2[:,:count])
     test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
@@ -436,10 +436,10 @@ end
 
     # Prediction from DataFrames
     d = convert(DataFrame, X)
-    d[:y] = Y
+    d[!,:y] = Y
 
     gm13 = fit(GeneralizedLinearModel, @formula(y ~ 0 + x1 + x2), d, Binomial())
-    @test predict(gm13) ≈ predict(gm13, d[[:x1, :x2]])
+    @test predict(gm13) ≈ predict(gm13, d[:,[:x1, :x2]])
     @test predict(gm13) ≈ predict(gm13, d)
 
     newd = convert(DataFrame, newX)
@@ -466,7 +466,6 @@ end
         0.18660252681017786, -1.6922982042879862, -0.46793127827646197]
     @test pred3[:upper] ≈ [3.9036197999106674, 2.6291976809914988,
         4.815559090394707, 2.3612485765861515, 3.8867779526777784]
-
 end
 
 @testset "F test for model comparison" begin
@@ -483,7 +482,7 @@ end
     @test !GLM.issubmodel(bothmod, mod)
     @test GLM.issubmodel(othermod, bothmod)
 
-    d[:Sum] = d[:Treatment] + (d[:Other] .== 1)
+    d[!,:Sum] = d[:,:Treatment] + (d[:,:Other] .== 1)
     summod = lm(@formula(Result~Sum), d).model
     @test GLM.issubmodel(summod, bothmod)
 
