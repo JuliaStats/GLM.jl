@@ -46,6 +46,26 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
 end
 
+@testset "lm with weights" begin 
+    df = dataset("quantreg", "engel")
+    N = nrow(df)
+    df.weights = repeat(1.0:5.0, Int(N/5))
+    df_long = DataFrame()
+    for i in 1:N
+        row = df[i, :]
+        for j in 1:row.weights
+            push!(df_long, row)
+        end
+    end
+    f = @formula(FoodExp ~ Income)
+    lm_model = lm(f, df, wts = df.weights)
+    glm_model = glm(f, df, Normal(), wts = df.weights)
+    long_model = lm(f, df_long)
+    @test isapprox(coef(lm_model), coef(glm_model))
+    @test isapprox(coef(lm_model), coef(long_model))
+    @test isapprox(stderror(lm_model), stderror(long_model))
+end
+
 @testset "rankdeficient" begin
     # an example of rank deficiency caused by a missing cell in a table
     dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
@@ -658,24 +678,4 @@ end
     @testset "Binomial with $l" for l in (LogitLink(), ProbitLink(), CauchitLink(), CloglogLink())
         @test deviance(glm(@formula(y ~ x₁ + x₂), df, Binomial(), l, maxiter=40)) < 1e-6
     end
-end
-
-@testset "lm with Weights" begin 
-    df = dataset("quantreg", "engel")
-    N = nrow(df)
-    df.weights = repeat(1.0:5.0, Int(N/5))
-    df_long = DataFrame()
-    for i in 1:N
-        row = df[i, :]
-        for j in 1:row.weights
-            push!(df_long, row)
-        end
-    end
-    form = @formula(FoodExp ~ Income)
-    lm_model = lm(form, df, wts = df.weights)
-    glm_model = glm(form, df, Normal(), wts = df.weights)
-    long_model = lm(form, df_long)
-    @test isapprox(coef(lm_model), coef(glm_model))
-    @test isapprox(coef(lm_model), coef(long_model))
-    @test isapprox(stderror(lm_model), stderror(long_model))
 end
