@@ -141,7 +141,7 @@ function StatsBase.fit!(obj::LinearModel)
     return obj
 end
 
-function fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector,
+function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient::Bool=false; wts::AbstractVector=similar(y, 0))
     fit!(LinearModel(LmResp(y, wts), cholpred(X, allowrankdeficient)))
 end
