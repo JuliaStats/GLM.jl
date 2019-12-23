@@ -32,7 +32,7 @@ function LmResp(y::FPVector, wts::FPVector=similar(y, 0))
     LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
 end
 
-function LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0)) where T<:Real
+function LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0))
     LmResp(float(y), float(wts))
 end
 
@@ -141,8 +141,8 @@ function StatsBase.fit!(obj::LinearModel)
     return obj
 end
 
-function fit(::Type{LinearModel}, X::AbstractMatrix, y::FPVector,
-             allowrankdeficient::Bool=false; wts::FPVector=similar(y, 0))
+function fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector,
+             allowrankdeficient::Bool=false; wts::AbstractVector=similar(y, 0))
     fit!(LinearModel(LmResp(y, wts), cholpred(X, allowrankdeficient)))
 end
 

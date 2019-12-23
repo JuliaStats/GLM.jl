@@ -659,3 +659,23 @@ end
         @test deviance(glm(@formula(y ~ x₁ + x₂), df, Binomial(), l, maxiter=40)) < 1e-6
     end
 end
+
+@testset "lm with Weights" begin 
+    df = dataset("quantreg", "engel")
+    N = nrow(df)
+    df.weights = repeat(1.0:5.0, Int(N/5))
+    df_long = DataFrame()
+    for i in 1:N
+        row = df[i, :]
+        for j in 1:row.weights
+            push!(df_long, row)
+        end
+    end
+    form = @formula(FoodExp ~ Income)
+    lm_model = lm(form, df, wts = df.weights)
+    glm_model = glm(form, df, Normal(), wts = df.weights)
+    long_model = lm(form, df_long)
+    @test isapprox(coef(lm_model), coef(glm_model))
+    @test isapprox(coef(lm_model), coef(long_model))
+    @test isapprox(stderror(lm_model), stderror(long_model))
+end
