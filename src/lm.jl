@@ -153,7 +153,7 @@ An alias for `fit(LinearModel, X, y, allowrankdeficient)`
 
 The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a `DataFrame`.
 
-The keyword argument `wts` can be a `Vector{Float64}`. 
+The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
 """
 lm(X, y, allowrankdeficient::Bool=false; kwargs...) = fit(LinearModel, X, y, allowrankdeficient; kwargs...)
 
