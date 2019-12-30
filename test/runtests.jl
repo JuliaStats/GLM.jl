@@ -90,7 +90,7 @@ end
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
 admit = CSV.read(joinpath(glm_datadir, "admit.csv"))
-admit[!,:rank] = categorical(admit[:,:rank])
+admit.rank = categorical(admit.rank)
 
 @testset "$distr with LogitLink" for distr in (Binomial, Bernoulli)
     gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit, distr())
