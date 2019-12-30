@@ -184,7 +184,7 @@ end
 
 @testset "Normal LogLink offset" begin
     gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), LogLink(), offset=Array{Float64}(anorexia[:,:Prewt]), rtol=1e-8)
+              Normal(), LogLink(), offset=Array{Float64}(anorexia.Prewt), rtol=1e-8)
     @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
