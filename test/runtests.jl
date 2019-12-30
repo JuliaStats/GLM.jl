@@ -46,24 +46,17 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
 end
 
-@testset "lm with weights" begin 
+@testset "weights" begin 
     df = dataset("quantreg", "engel")
     N = nrow(df)
     df.weights = repeat(1.0:5.0, Int(N/5))
-    df_long = DataFrame()
-    for i in 1:N
-        row = df[i, :]
-        for j in 1:row.weights
-            push!(df_long, row)
-        end
-    end
     f = @formula(FoodExp ~ Income)
     lm_model = lm(f, df, wts = df.weights)
     glm_model = glm(f, df, Normal(), wts = df.weights)
-    long_model = lm(f, df_long)
-    @test isapprox(coef(lm_model), coef(glm_model))
-    @test isapprox(coef(lm_model), coef(long_model))
-    @test isapprox(stderror(lm_model), stderror(long_model))
+    @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
+    @test isapprox(r2(lm_model), 0.8330258148644486)
 end
 
 @testset "rankdeficient" begin
