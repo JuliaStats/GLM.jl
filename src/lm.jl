@@ -139,7 +139,7 @@ function StatsBase.fit!(obj::LinearModel)
 end
 
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
-             allowrankdeficient::Bool=false; wts::AbstractVector=similar(y, 0))
+             allowrankdeficient::Bool=false; wts::AbstractVector{<:Real}=similar(y, 0))
     fit!(LinearModel(LmResp(y, wts), cholpred(X, allowrankdeficient)))
 end
 
@@ -150,7 +150,7 @@ An alias for `fit(LinearModel, X, y, allowrankdeficient)`
 
 The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a `DataFrame`.
 
-The keyword argument `wts` can be a `Vector{Float64}`. 
+The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
 """
 lm(X, y, allowrankdeficient::Bool=false; kwargs...) = fit(LinearModel, X, y, allowrankdeficient; kwargs...)
 
