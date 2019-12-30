@@ -28,20 +28,17 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     end
 end
 
-function LmResp(y::FPVector, wts::FPVector=similar(y, 0)) 
-    LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
-end
+LmResp(y::FPVector, wts::FPVector=similar(y, 0)) = LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
 
-function LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0))
-    LmResp(float(y), float(wts))
-end
+LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0)) = LmResp(float(y), float(wts))
 
-function updateμ!(r::LmResp{V}, linPr::V) where {V<:FPVector}
+function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copyto!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
     deviance(r)
 end
+
 updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
 
 function deviance(r::LmResp)
