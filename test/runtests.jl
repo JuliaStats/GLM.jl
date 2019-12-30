@@ -23,7 +23,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
 @testset "lm" begin
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
     test_show(lm1)
-    @test isapprox(coef(lm1), linreg(form[:,:Carb], form[:,:OptDen]))
+    @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
     Σ = [6.136653061224592e-05 -9.464489795918525e-05
         -9.464489795918525e-05 1.831836734693908e-04]
     @test isapprox(vcov(lm1), Σ)
