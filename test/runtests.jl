@@ -40,7 +40,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(aic(lm1), -36.409684288095946)
     @test isapprox(aicc(lm1), -24.409684288095946)
     @test isapprox(bic(lm1), -37.03440588041178)
-    lm2 = fit(LinearModel, hcat(ones(6), 10form[:,:Carb]), form[:,:OptDen], true)
+    lm2 = fit(LinearModel, hcat(ones(6), 10form.Carb), form.OptDen, true)
     @test isa(lm2.pp.chol, CholeskyPivoted)
     @test lm2.pp.chol.piv == [2, 1]
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
