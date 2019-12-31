@@ -60,8 +60,13 @@ end
 
 function nulldeviance(r::LmResp)
     y = r.y
-    m = mean(y)
     wts = r.wts
+    if isempty(wts)
+        m = mean(y)
+    else 
+        m = mean(r.y, weights(r.wts))
+    end
+
     v = zero(eltype(y))*zero(eltype(wts))
     if isempty(wts)
         @inbounds @simd for i = 1:length(y)

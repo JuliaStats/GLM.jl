@@ -58,6 +58,11 @@ function GlmResp(y::V, d::D, l::L, off::V, wts::V) where {V<:FPVector,D,L}
     return r
 end
 
+function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real}, 
+                 wts::AbstractVector{<:Real}) where {D, L}
+        GlmResp(float(y), d, l, float(off), float(wts))
+end
+
 deviance(r::GlmResp) = sum(r.devresid)
 
 """
@@ -440,13 +445,13 @@ same length as the number of columns in the model matrix.
 """
 function fit(::Type{M},
     X::Union{Matrix{T},SparseMatrixCSC{T}},
-    y::V,
+    y::AbstractVector{<:Real},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
     dofit::Bool = true,
-    wts::V      = similar(y, 0),
-    offset::V   = similar(y, 0),
-    fitargs...) where {M<:AbstractGLM,T<:FP,V<:FPVector}
+    wts::AbstractVector{<:Real}      = similar(y, 0),
+    offset::AbstractVector{<:Real}   = similar(y, 0),
+    fitargs...) where {M<:AbstractGLM,T<:FP}
 
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
