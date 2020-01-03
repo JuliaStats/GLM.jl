@@ -81,38 +81,50 @@ function nulldeviance(r::LmResp)
 end
 
 function loglikelihood(r::LmResp)
-    n = length(r.y)
     wts = r.wts
-    sw = zero(log(one(eltype(wts))))
-    for w in wts
-        sw += log(w)
+    y   = r.y
+    mu  = r.mu
+    ll  = zero(eltype(mu))
+    if length(wts) == length(y)
+        ϕ = deviance(r)/sum(wts)
+        @inbounds for i in eachindex(y, mu, wts)
+            ll += loglik_obs(Normal(), y[i], mu[i], wts[i], ϕ)
+        end
+    else
+        ϕ = deviance(r)/length(y)
+        @inbounds for i in eachindex(y, mu)
+            ll += loglik_obs(Normal(), y[i], mu[i], 1, ϕ)
+        end
     end
-    -n/2 * (log(2π * deviance(r)/n) + 1 - sw)
+    ll
 end
 
 function nullloglikelihood(r::LmResp)
-    n = length(r.y)
     wts = r.wts
-    sw = zero(log(one(eltype(wts))))
-    for w in wts
-        sw += log(w)
+    y   = r.y
+    if isempty(wts)
+        @show mu  = mean(y)
+    else 
+        mu = mean(y, weights(wts))
     end
-    -n/2 * (log(2π * nulldeviance(r)/n) + 1 - sw)
+
+    ll = zero(typeof(mu))
+    if length(wts) == length(y)
+        ϕ = nulldeviance(r)/sum(wts)
+        @inbounds for i in eachindex(y, wts)
+            ll += loglik_obs(Normal(), y[i], mu, wts[i], ϕ)
+        end
+    else
+        ϕ = nulldeviance(r)/length(y)
+        @inbounds for i in eachindex(y)
+            ll += loglik_obs(Normal(), y[i], mu, 1, ϕ)
+        end
+    end
+    ll
 end
 
 function residuals(r::LmResp)
-    y = r.y
-    mu = r.mu
-    if isempty(r.wts)
-        y - mu
-    else
-        wts = r.wts
-        resid = similar(y)
-        @simd for i = eachindex(resid,y,mu,wts)
-            @inbounds resid[i] = (y[i] - mu[i]) * sqrt(wts[i])
-        end
-        resid
-    end
+    r.y - r.mu
 end
 
 """
