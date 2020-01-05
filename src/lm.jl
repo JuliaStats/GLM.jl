@@ -28,9 +28,11 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     end
 end
 
-LmResp(y::FPVector, wts::FPVector=similar(y, 0)) = LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
+LmResp(y::FPVector, wts::FPVector=similar(y, 0)) = 
+    LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
 
-LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0)) = LmResp(float(y), float(wts))
+LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0)) = 
+    LmResp(float(y), float(wts))
 
 function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
     n = length(linPr)
@@ -81,51 +83,16 @@ function nulldeviance(r::LmResp)
 end
 
 function loglikelihood(r::LmResp)
-    wts = r.wts
-    y   = r.y
-    mu  = r.mu
-    ll  = zero(eltype(mu))
-    if length(wts) == length(y)
-        ϕ = deviance(r)/sum(wts)
-        @inbounds for i in eachindex(y, mu, wts)
-            ll += loglik_obs(Normal(), y[i], mu[i], wts[i], ϕ)
-        end
-    else
-        ϕ = deviance(r)/length(y)
-        @inbounds for i in eachindex(y, mu)
-            ll += loglik_obs(Normal(), y[i], mu[i], 1, ϕ)
-        end
-    end
-    ll
+    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+    -n/2 * (log(2π * deviance(r)/n) + 1)
 end
 
 function nullloglikelihood(r::LmResp)
-    wts = r.wts
-    y   = r.y
-    if isempty(wts)
-        @show mu  = mean(y)
-    else 
-        mu = mean(y, weights(wts))
-    end
-
-    ll = zero(typeof(mu))
-    if length(wts) == length(y)
-        ϕ = nulldeviance(r)/sum(wts)
-        @inbounds for i in eachindex(y, wts)
-            ll += loglik_obs(Normal(), y[i], mu, wts[i], ϕ)
-        end
-    else
-        ϕ = nulldeviance(r)/length(y)
-        @inbounds for i in eachindex(y)
-            ll += loglik_obs(Normal(), y[i], mu, 1, ϕ)
-        end
-    end
-    ll
+    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+    -n/2 * (log(2π * nulldeviance(r)/n) + 1) 
 end
 
-function residuals(r::LmResp)
-    r.y - r.mu
-end
+residuals(r::LmResp) = r.y - r.mu
 
 """
     LinearModel
@@ -145,7 +112,7 @@ end
 LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 
 function StatsBase.fit!(obj::LinearModel)
-    if length(obj.rr.wts) == 0
+    if isempty(obj.rr.wts)
         delbeta!(obj.pp, obj.rr.y)
     else 
         delbeta!(obj.pp, obj.rr.y, obj.rr.wts)
@@ -169,7 +136,8 @@ The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a 
 
 The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
 """
-lm(X, y, allowrankdeficient::Bool=false; kwargs...) = fit(LinearModel, X, y, allowrankdeficient; kwargs...)
+lm(X, y, allowrankdeficient::Bool=false; kwargs...) = 
+    fit(LinearModel, X, y, allowrankdeficient; kwargs...)
 
 dof(x::LinearModel) = length(coef(x)) + 1
 

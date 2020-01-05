@@ -46,7 +46,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
 end
 
-@testset "weights" begin 
+@testset "linear model with weights" begin 
     df = dataset("quantreg", "engel")
     N = nrow(df)
     df.weights = repeat(1:5, Int(N/5))
