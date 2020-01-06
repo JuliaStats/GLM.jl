@@ -65,6 +65,26 @@ end
 
 deviance(r::GlmResp) = sum(r.devresid)
 
+function nulldeviance(r::GlmResp)
+    y = r.y
+    d = r.d
+    wts = r.wts
+    if isempty(r.wts)
+        mu = mean(y)
+        dv = 0.0 
+        for i in eachindex(y)
+            dv += devresid(d, y[i], mu)
+        end
+    else 
+        mu = mean(y, weights(wts))
+        dv = 0.0
+        for i in eachindex(y, wts)
+            dv += devresid(d, y[i], mu) * wts[i]
+        end
+    end
+    return dv
+end
+
 """
     cancancel(r::GlmResp{V,D,L})
 
@@ -243,6 +263,7 @@ function confint(obj::AbstractGLM; level::Real=0.95)
 end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
+nulldeviance(m::AbstractGLM) = nulldeviance(m.rr)
 
 function loglikelihood(m::AbstractGLM)
     r   = m.rr
