@@ -46,6 +46,27 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
 end
 
+@testset "linear model with weights" begin 
+    df = dataset("quantreg", "engel")
+    N = nrow(df)
+    df.weights = repeat(1:5, Int(N/5))
+    f = @formula(FoodExp ~ Income)
+    lm_model = lm(f, df, wts = df.weights)
+    glm_model = glm(f, df, Normal(), wts = df.weights)
+    @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
+    @test isapprox(r2(lm_model), 0.8330258148644486)
+    @test isapprox(adjr2(lm_model), 0.832788298242634)
+    @test isapprox(vcov(lm_model), [88.02760245551447 -0.06772589439264813; 
+                                    -0.06772589439264813 6.670664781664879e-5])
+    @test isapprox(first(predict(lm_model)), 357.57694841780994)
+    @test isapprox(loglikelihood(lm_model), -4353.946729075838)
+    @test isapprox(loglikelihood(glm_model), -4353.946729075838)
+    @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
+    @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
+end
+
 @testset "rankdeficient" begin
     # an example of rank deficiency caused by a missing cell in a table
     dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),

@@ -27,9 +27,12 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
         new{V}(mu, off, wts, y)
     end
 end
-LmResp(y::V) where {V<:FPVector} = LmResp{V}(fill!(similar(y), 0), similar(y, 0), similar(y, 0), y)
 
-LmResp(y::AbstractVector{T}) where T<:Real = LmResp(float(y))
+LmResp(y::FPVector, wts::FPVector=similar(y, 0)) = 
+    LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
+
+LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0)) = 
+    LmResp(float(y), float(wts))
 
 function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
     n = length(linPr)
@@ -37,6 +40,7 @@ function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
     length(r.offset) == 0 ? copyto!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
     deviance(r)
 end
+
 updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
 
 function deviance(r::LmResp)
@@ -58,8 +62,13 @@ end
 
 function nulldeviance(r::LmResp)
     y = r.y
-    m = mean(y)
     wts = r.wts
+    if isempty(wts)
+        m = mean(y)
+    else 
+        m = mean(r.y, weights(r.wts))
+    end
+
     v = zero(eltype(y))*zero(eltype(wts))
     if isempty(wts)
         @inbounds @simd for i = 1:length(y)
@@ -74,39 +83,16 @@ function nulldeviance(r::LmResp)
 end
 
 function loglikelihood(r::LmResp)
-    n = length(r.y)
-    wts = r.wts
-    sw = zero(log(one(eltype(wts))))
-    for w in wts
-        sw += log(w)
-    end
-    -n/2 * (log(2π * deviance(r)/n) + 1 - sw)
+    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+    -n/2 * (log(2π * deviance(r)/n) + 1)
 end
 
 function nullloglikelihood(r::LmResp)
-    n = length(r.y)
-    wts = r.wts
-    sw = zero(log(one(eltype(wts))))
-    for w in wts
-        sw += log(w)
-    end
-    -n/2 * (log(2π * nulldeviance(r)/n) + 1 - sw)
+    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+    -n/2 * (log(2π * nulldeviance(r)/n) + 1) 
 end
 
-function residuals(r::LmResp)
-    y = r.y
-    mu = r.mu
-    if isempty(r.wts)
-        y - mu
-    else
-        wts = r.wts
-        resid = similar(y)
-        @simd for i = eachindex(resid,y,mu,wts)
-            @inbounds resid[i] = (y[i] - mu[i]) * sqrt(wts[i])
-        end
-        resid
-    end
-end
+residuals(r::LmResp) = r.y - r.mu
 
 """
     LinearModel
@@ -126,24 +112,32 @@ end
 LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 
 function StatsBase.fit!(obj::LinearModel)
-    installbeta!(delbeta!(obj.pp, obj.rr.y))
+    if isempty(obj.rr.wts)
+        delbeta!(obj.pp, obj.rr.y)
+    else 
+        delbeta!(obj.pp, obj.rr.y, obj.rr.wts)
+    end
+    installbeta!(obj.pp)     
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
     return obj
 end
 
-function fit(::Type{LinearModel}, X::AbstractMatrix, y::AbstractVector,
-             allowrankdeficient::Bool=false)
-    fit!(LinearModel(LmResp(y), cholpred(X, allowrankdeficient)))
+function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
+             allowrankdeficient::Bool=false; wts::AbstractVector{<:Real}=similar(y, 0))
+    fit!(LinearModel(LmResp(y, wts), cholpred(X, allowrankdeficient)))
 end
 
 """
-    lm(X, y, allowrankdeficient::Bool=false)
+    lm(X, y, allowrankdeficient::Bool=false; wts=similar(y, 0))
 
 An alias for `fit(LinearModel, X, y, allowrankdeficient)`
 
 The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a `DataFrame`.
+
+The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
 """
-lm(X, y, allowrankdeficient::Bool=false) = fit(LinearModel, X, y, allowrankdeficient)
+lm(X, y, allowrankdeficient::Bool=false; kwargs...) = 
+    fit(LinearModel, X, y, allowrankdeficient; kwargs...)
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
