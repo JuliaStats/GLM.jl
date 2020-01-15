@@ -23,7 +23,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
 @testset "lm" begin
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
     test_show(lm1)
-    @test isapprox(coef(lm1), linreg(form[:Carb], form[:OptDen]))
+    @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
     Σ = [6.136653061224592e-05 -9.464489795918525e-05
         -9.464489795918525e-05 1.831836734693908e-04]
     @test isapprox(vcov(lm1), Σ)
@@ -40,10 +40,31 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(aic(lm1), -36.409684288095946)
     @test isapprox(aicc(lm1), -24.409684288095946)
     @test isapprox(bic(lm1), -37.03440588041178)
-    lm2 = fit(LinearModel, hcat(ones(6), 10form[:Carb]), form[:OptDen], true)
+    lm2 = fit(LinearModel, hcat(ones(6), 10form.Carb), form.OptDen, true)
     @test isa(lm2.pp.chol, CholeskyPivoted)
     @test lm2.pp.chol.piv == [2, 1]
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
+end
+
+@testset "linear model with weights" begin 
+    df = dataset("quantreg", "engel")
+    N = nrow(df)
+    df.weights = repeat(1:5, Int(N/5))
+    f = @formula(FoodExp ~ Income)
+    lm_model = lm(f, df, wts = df.weights)
+    glm_model = glm(f, df, Normal(), wts = df.weights)
+    @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
+    @test isapprox(r2(lm_model), 0.8330258148644486)
+    @test isapprox(adjr2(lm_model), 0.832788298242634)
+    @test isapprox(vcov(lm_model), [88.02760245551447 -0.06772589439264813; 
+                                    -0.06772589439264813 6.670664781664879e-5])
+    @test isapprox(first(predict(lm_model)), 357.57694841780994)
+    @test isapprox(loglikelihood(lm_model), -4353.946729075838)
+    @test isapprox(loglikelihood(glm_model), -4353.946729075838)
+    @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
+    @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
 end
 
 @testset "rankdeficient" begin
@@ -51,7 +72,7 @@ end
     dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
                      categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
                      [:G, :H])
-    f = @eval(@formula($nothing ~ 1+G*H))
+    f = @formula(0 ~ 1 + G*H)
     X = ModelMatrix(ModelFrame(f, dfrm)).m
     y = X * (1:size(X, 2)) + 0.1 * randn(MersenneTwister(1234321), size(X, 1))
     inds = deleteat!(collect(1:length(y)), 7:8)
@@ -90,24 +111,21 @@ end
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
 admit = CSV.read(joinpath(glm_datadir, "admit.csv"))
-admit[:rank] = categorical(admit[:rank])
+admit.rank = categorical(admit.rank)
 
-@testset "Binomial, Bernoulli, LogitLink" begin
-    for distr in (Binomial, Bernoulli)
-        gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit,
-                  distr())
-        @test GLM.cancancel(gm2.model.rr)
-        test_show(gm2)
-        @test dof(gm2) == 6
-        @test isapprox(deviance(gm2), 458.5174924758994)
-        @test isapprox(loglikelihood(gm2), -229.25874623794968)
-        @test isapprox(aic(gm2), 470.51749247589936)
-        @test isapprox(aicc(gm2), 470.7312329339146)
-        @test isapprox(bic(gm2), 494.4662797585473)
-        @test isapprox(coef(gm2),
-            [-3.9899786606380756, 0.0022644256521549004, 0.804037453515578,
-            -0.6754428594116578, -1.340203811748108, -1.5514636444657495])
-    end
+@testset "$distr with LogitLink" for distr in (Binomial, Bernoulli)
+    gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit, distr())
+    @test GLM.cancancel(gm2.model.rr)
+    test_show(gm2)
+    @test dof(gm2) == 6
+    @test deviance(gm2) ≈ 458.5174924758994
+    @test loglikelihood(gm2) ≈ -229.25874623794968
+    @test isapprox(aic(gm2), 470.51749247589936)
+    @test isapprox(aicc(gm2), 470.7312329339146)
+    @test isapprox(bic(gm2), 494.4662797585473)
+    @test isapprox(coef(gm2),
+        [-3.9899786606380756, 0.0022644256521549004, 0.804037453515578,
+         -0.6754428594116578, -1.340203811748108, -1.5514636444657495])
 end
 
 @testset "Bernoulli ProbitLink" begin
@@ -160,7 +178,7 @@ end
 
         X = [ones(n) randn(rng, n)]
         y = logistic.(X*ones(2) + 1/10*randn(rng, n)) .> 1/2
-        @test coeftable(glm(X, y, Binomial(), CloglogLink())).cols[4][2].v < 0.05
+        @test coeftable(glm(X, y, Binomial(), CloglogLink())).cols[4][2] < 0.05
     end
 end
 
@@ -169,7 +187,7 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"))
 
 @testset "Offset" begin
     gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), IdentityLink(), offset=Array{Float64}(anorexia[:Prewt]))
+              Normal(), IdentityLink(), offset=Array{Float64}(anorexia.Prewt))
     @test GLM.cancancel(gm6.model.rr)
     test_show(gm6)
     @test dof(gm6) == 5
@@ -187,7 +205,7 @@ end
 
 @testset "Normal LogLink offset" begin
     gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), LogLink(), offset=Array{Float64}(anorexia[:Prewt]), tol=1e-8)
+              Normal(), LogLink(), offset=Array{Float64}(anorexia.Prewt), rtol=1e-8)
     @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
@@ -237,23 +255,23 @@ end
 
 @testset "Gamma LogLink" begin
     gm9 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(),
-              tol=1e-8)
+              rtol=1e-8, atol=0.0)
     @test !GLM.cancancel(gm9.model.rr)
     test_show(gm9)
     @test dof(gm9) == 3
-    @test isapprox(deviance(gm9), 0.16260829451739)
-    @test isapprox(loglikelihood(gm9), -26.24082810384911)
-    @test isapprox(aic(gm9), 58.48165620769822)
-    @test isapprox(aicc(gm9), 63.28165620769822)
-    @test isapprox(bic(gm9), 59.07332993970688)
-    @test isapprox(coef(gm9), [5.50322528458221, -0.60191617825971])
-    @test isapprox(GLM.dispersion(gm9.model, true), 0.02435442293561081)
-    @test isapprox(stderror(gm9), [0.19030107482720, 0.05530784660144])
+    @test deviance(gm9) ≈ 0.16260829451739
+    @test loglikelihood(gm9) ≈ -26.24082810384911
+    @test aic(gm9) ≈ 58.48165620769822
+    @test aicc(gm9) ≈ 63.28165620769822
+    @test bic(gm9) ≈ 59.07332993970688
+    @test coef(gm9) ≈ [5.50322528458221, -0.60191617825971]
+    @test GLM.dispersion(gm9.model, true) ≈ 0.02435442293561081
+    @test stderror(gm9) ≈ [0.19030107482720, 0.05530784660144]
 end
 
 @testset "Gamma IdentityLink" begin
     gm10 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(),
-               tol=1e-8)
+               rtol=1e-8, atol=0.0)
     @test !GLM.cancancel(gm10.model.rr)
     test_show(gm10)
     @test dof(gm10) == 3
@@ -275,7 +293,7 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
 @testset "Aggregated Binomial LogitLink" begin
     for distr in (Binomial, Bernoulli)
         gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
-                   wts=Array(admit_agr[:count]))
+                   wts=Array(admit_agr.count))
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
         @test isapprox(deviance(gm14), 474.9667184280627)
@@ -291,23 +309,21 @@ end
 # Logistic regression using aggregated data with proportions of successes and weights
 admit_agr2 = DataFrame(Any[[61., 151, 121, 67], [33., 54, 28, 12], categorical(1:4)],
     [:count, :admit, :rank])
-admit_agr2[:p] = admit_agr2[:admit] ./ admit_agr2[:count]
+admit_agr2.p = admit_agr2.admit ./ admit_agr2.count
 
 ## The model matrix here is singular so tests like the deviance are just round off error
 @testset "Binomial LogitLink aggregated" begin
     gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial(),
-               wts=admit_agr2[:count])
+               wts=admit_agr2.count)
     test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
-# The model matrix is singular so the deviance is essentially round-off error
-#    @test isapprox(deviance(gm15), -2.4424906541753456e-15, rtol = 1e-7)
-    @test isapprox(loglikelihood(gm15), -9.50254433604239)
-    @test isapprox(aic(gm15), 27.00508867208478)
-    @test isapprox(aicc(gm15), 27.106354494869592)
-    @test isapprox(bic(gm15), 42.970946860516705)
-    @test isapprox(coef(gm15),
-        [0.1643030512912767, -0.7500299832303851, -1.3646980342693287, -1.6867295867357475])
+    @test deviance(gm15) ≈ -2.4424906541753456e-15 atol = 1e-13
+    @test loglikelihood(gm15) ≈ -9.50254433604239
+    @test aic(gm15) ≈ 27.00508867208478
+    @test aicc(gm15) ≈ 27.106354494869592
+    @test bic(gm15) ≈ 42.970946860516705
+    @test coef(gm15) ≈ [0.1643030512912767, -0.7500299832303851, -1.3646980342693287, -1.6867295867357475]
 end
 
 # Weighted Gamma example (weights are totally made up)
@@ -441,10 +457,10 @@ end
 
     # Prediction from DataFrames
     d = convert(DataFrame, X)
-    d[:y] = Y
+    d.y = Y
 
     gm13 = fit(GeneralizedLinearModel, @formula(y ~ 0 + x1 + x2), d, Binomial())
-    @test predict(gm13) ≈ predict(gm13, d[[:x1, :x2]])
+    @test predict(gm13) ≈ predict(gm13, d[:,[:x1, :x2]])
     @test predict(gm13) ≈ predict(gm13, d)
 
     newd = convert(DataFrame, newX)
@@ -455,29 +471,28 @@ end
     pred1 = predict(mm, newX)
     pred2 = predict(mm, newX, interval=:confidence)
 
-    @test pred1 == pred2[:prediction] ≈
+    @test pred1 == pred2.prediction ≈
         [1.6488076594462182, 0.4706674451801356, 2.5010808086024423,
          0.3344751861490827, 1.7094233372006582]
-    @test pred2[:lower] ≈ [0.6122189104014528, -0.33530477814532056,
+    @test pred2.lower ≈ [0.6122189104014528, -0.33530477814532056,
         1.340413688904295, 0.02118806218116165, 0.8543142404183606]
-    @test pred2[:upper] ≈ [2.6853964084909836, 1.2766396685055916,
+    @test pred2.upper ≈ [2.6853964084909836, 1.2766396685055916,
         3.6617479283005894, 0.6477623101170038, 2.564532433982956]
 
     pred3 = predict(mm, newX, interval=:prediction)
-    @test pred1 == pred3[:prediction] ≈
+    @test pred1 == pred3.prediction ≈
         [1.6488076594462182, 0.4706674451801356, 2.5010808086024423,
          0.3344751861490827, 1.7094233372006582]
-    @test pred3[:lower] ≈ [-0.606004481018231, -1.6878627906312276,
+    @test pred3.lower ≈ [-0.606004481018231, -1.6878627906312276,
         0.18660252681017786, -1.6922982042879862, -0.46793127827646197]
-    @test pred3[:upper] ≈ [3.9036197999106674, 2.6291976809914988,
+    @test pred3.upper ≈ [3.9036197999106674, 2.6291976809914988,
         4.815559090394707, 2.3612485765861515, 3.8867779526777784]
-
 end
 
 @testset "F test for model comparison" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
-                  Other=[1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1])
+                  Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
     mod = lm(@formula(Result~Treatment), d).model
     othermod = lm(@formula(Result~Other), d).model
     nullmod = lm(@formula(Result~1), d).model
@@ -488,32 +503,68 @@ end
     @test !GLM.issubmodel(bothmod, mod)
     @test GLM.issubmodel(othermod, bothmod)
 
-    @test_throws ArgumentError ftest(mod, othermod)
-
-    d[:Sum] = d[:Treatment] + d[:Other]
+    d.Sum = d.Treatment + (d.Other .== 1)
     summod = lm(@formula(Result~Sum), d).model
     @test GLM.issubmodel(summod, bothmod)
 
-    ft = ftest(mod, nullmod)
-    @test isapprox(ft.pval[1].v,  2.481215056713184e-8)
-    @test sprint(show, ftest(mod, nullmod)) ==
-        """
-                Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F* p(>F)
-        Model 1       10   3      0.1283          0.9603                      
-        Model 2       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234 <1e-7
-        """
+    ft1a = ftest(mod, nullmod)
+    @test isnan(ft1a.pval[1])
+    @test ft1a.pval[2] ≈ 2.481215056713184e-8
+    @test sprint(show, ft1a) == """
+        F-test: 2 models fitted on 12 observations
+        ─────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR    ΔSSR       R²      ΔR²        F*  p(>F)
+        ─────────────────────────────────────────────────────────────────
+        [1]    3        0.1283           0.9603                          
+        [2]    2    -1  3.2292  3.1008  -0.0000  -0.9603  241.6234  <1e-7
+        ─────────────────────────────────────────────────────────────────"""
+
+    ft1b = ftest(nullmod, mod)
+    @test isnan(ft1b.pval[1])
+    @test ft1b.pval[2] ≈ 2.481215056713184e-8
+    @test sprint(show, ft1b) == """
+        F-test: 2 models fitted on 12 observations
+        ─────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*  p(>F)
+        ─────────────────────────────────────────────────────────────────
+        [1]    2        3.2292           -0.0000                         
+        [2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234  <1e-7
+        ─────────────────────────────────────────────────────────────────"""
 
     bigmod = lm(@formula(Result~Treatment+Other), d).model
-    ft2 = ftest(bigmod, mod, nullmod)
-    @test isapprox(ft2.pval[2].v,  2.481215056713184e-8)
-    @test isapprox(ft2.pval[1].v, 0.17903437900958952)
-    @test sprint(show, ftest(bigmod, mod, nullmod)) ==
-        """
-                Res. DOF DOF ΔDOF    SSR    ΔSSR      R²    ΔR²       F*  p(>F)
-        Model 1        9   4      0.1038          0.9678                       
-        Model 2       10   3   -1 0.1283 -0.0245  0.9603 0.0076   2.1236 0.1790
-        Model 3       11   2   -1 3.2292 -3.1008 -0.0000 0.9603 241.6234  <1e-7
-        """
+    ft2a = ftest(nullmod, mod, bigmod)
+    @test isnan(ft2a.pval[1])
+    @test ft2a.pval[2] ≈ 2.481215056713184e-8
+    @test ft2a.pval[3] ≈ 0.3949973540194818
+    @test sprint(show, ft2a) == """
+        F-test: 3 models fitted on 12 observations
+        ──────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)
+        ──────────────────────────────────────────────────────────────────
+        [1]    2        3.2292           -0.0000                          
+        [2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234   <1e-7
+        [3]    5     2  0.1017  -0.0266   0.9685  0.0082    1.0456  0.3950
+        ──────────────────────────────────────────────────────────────────"""
+
+    ft2b = ftest(bigmod, mod, nullmod)
+    @test isnan(ft2b.pval[1])
+    @test ft2b.pval[2] ≈ 0.3949973540194818
+    @test ft2b.pval[3] ≈ 2.481215056713184e-8
+    @test sprint(show, ft2b) == """
+        F-test: 3 models fitted on 12 observations
+        ──────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR    ΔSSR       R²      ΔR²        F*   p(>F)
+        ──────────────────────────────────────────────────────────────────
+        [1]    5        0.1017           0.9685                           
+        [2]    3    -2  0.1283  0.0266   0.9603  -0.0082    1.0456  0.3950
+        [3]    2    -1  3.2292  3.1008  -0.0000  -0.9603  241.6234   <1e-7
+        ──────────────────────────────────────────────────────────────────"""
+
+    @test_throws ArgumentError ftest(mod, bigmod, nullmod)
+    @test_throws ArgumentError ftest(nullmod, bigmod, mod)
+    @test_throws ArgumentError ftest(bigmod, nullmod, mod)
+    mod2 = lm(@formula(Result~Treatment), d[2:end, :]).model
+    @test_throws ArgumentError ftest(mod, mod2)
 end
 
 @testset "F test rounding error" begin
@@ -544,6 +595,32 @@ end
     Xc2 = RL\X
     mod2 = lm(Xc2, Yc)
     @test GLM.issubmodel(mod1, mod2)
+end
+
+@testset "coeftable" begin
+    lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
+    t = coeftable(lm1)
+    @test t.cols[1:3] ==
+        [coef(lm1), stderror(lm1), coef(lm1)./stderror(lm1)]
+    @test t.cols[4] ≈ [0.5515952883836446, 3.409192065429258e-7]
+    @test hcat(t.cols[5:6]...) == confint(lm1)
+    # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
+    # supports keyword arguments
+    t = coeftable(lm1.model, level=0.99)
+    @test hcat(t.cols[5:6]...) == confint(lm1, level=0.99)
+
+    gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
+              dobson, Poisson())
+    t = coeftable(gm1)
+    @test t.cols[1:3] ==
+        [coef(gm1), stderror(gm1), coef(gm1)./stderror(gm1)]
+    @test t.cols[4] ≈ [5.4267674619082684e-71, 0.024647114627808674, 0.12848651178787643,
+                       0.9999999999999981, 0.9999999999999999]
+    @test hcat(t.cols[5:6]...) == confint(gm1)
+    # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
+    # supports keyword arguments
+    t = coeftable(gm1.model, level=0.99)
+    @test hcat(t.cols[5:6]...) == confint(gm1, level=0.99)
 end
 
 @testset "Issue 84" begin
@@ -593,4 +670,12 @@ end
     @test dof(model3) == dof(model4)
     @test dof_residual(model1) == dof_residual(model2)
     @test dof_residual(model3) == dof_residual(model4)
+end
+
+@testset "Issue #286 (separable data)" begin
+    x  = rand(1000)
+    df = DataFrame(y = x .> 0.5, x₁ = x, x₂ = rand(1000))
+    @testset "Binomial with $l" for l in (LogitLink(), ProbitLink(), CauchitLink(), CloglogLink())
+        @test deviance(glm(@formula(y ~ x₁ + x₂), df, Binomial(), l, maxiter=40)) < 1e-6
+    end
 end
