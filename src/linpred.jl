@@ -151,7 +151,8 @@ end
 function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     scr = mul!(p.scratchm1, Diagonal(wt), p.X)
     cholesky!(Hermitian(mul!(cholfactors(p.chol), transpose(scr), p.X), :U))
-    ldiv!(p.chol, mul!(p.delbeta, transpose(scr), r))
+    mul!(p.delbeta, transpose(scr), r)
+    ldiv!(p.chol, p.delbeta)
     p
 end
 

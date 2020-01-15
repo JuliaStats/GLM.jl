@@ -13,7 +13,7 @@ function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
 
     unit_weights = length(wts) == 0
     if unit_weights
-        n = length(y) 
+        n = length(y)
         θ = n / sum((yi/μi - 1)^2 for (yi, μi) in zip(y, μ))
     else
         n = sum(wts)
@@ -34,36 +34,47 @@ function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
     θ
 end
 
-function negbin(F, D, args...;
-                initialθ::Real=Inf, maxiter::Integer=30, tol::Real=1.e-6,
-                verbose::Bool=false, kwargs...)
+function negbin(F,
+                D,
+                args...;
+                initialθ::Real=Inf,
+                maxiter::Integer=30,
+                atol::Real=1e-6,
+                rtol::Real=1.e-6,
+                verbose::Bool=false,
+                kwargs...)
     if haskey(kwargs, :maxIter)
-        Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
+        Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :negbin)
         maxiter = kwargs[:maxIter]
     end
     if haskey(kwargs, :minStepFac)
-        Base.depwarn("'minStepFac' argument is deprecated, use 'minstepfac' instead", :fit!)
+        Base.depwarn("'minStepFac' argument is deprecated, use 'minstepfac' instead", :negbin)
         minstepfac = kwargs[:minStepFac]
     end
     if haskey(kwargs, :convTol)
-        Base.depwarn("'convTol' argument is deprecated, use 'tol' instead", :fit!)
-        tol = kwargs[:convTol]
+        Base.depwarn("`convTol` argument is deprecated, use `atol` and `rtol` instead", :negbin)
+        rtol = kwargs[:convTol]
     end
     if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol))
         throw(ArgumentError("unsupported keyword argument"))
     end
+    if haskey(kwargs, :tol)
+        Base.depwarn("`tol` argument is deprecated, use `atol` and `rtol` instead", :negbin)
+        rtol = kwargs[:tol]
+    end
 
     maxiter >= 1 || throw(ArgumentError("maxiter must be positive"))
-    tol > 0  || throw(ArgumentError("tol must be positive"))
+    atol > 0  || throw(ArgumentError("atol must be positive"))
+    rtol > 0  || throw(ArgumentError("rtol must be positive"))
     initialθ > 0 || throw(ArgumentError("initialθ must be positive"))
 
     # fit a Poisson regression model if the user does not specify an initial θ
-    if isinf(initialθ) 
+    if isinf(initialθ)
         regmodel = glm(F, D, Poisson(), args...;
-                       maxiter=maxiter, tol=tol, verbose=verbose, kwargs...)
+                       maxiter=maxiter, atol=atol, rtol=rtol, verbose=verbose, kwargs...)
     else
         regmodel = glm(F, D, NegativeBinomial(initialθ), args...;
-                       maxiter=maxiter, tol=tol, verbose=verbose, kwargs...)
+                       maxiter=maxiter, atol=atol, rtol=rtol, verbose=verbose, kwargs...)
     end
 
     μ = regmodel.model.rr.mu
@@ -82,16 +93,16 @@ function negbin(F, D, args...;
 
     converged = false
     for i = 1:maxiter
-        if abs(ll0 - ll)/d + abs(δ) <= tol
+        if abs(ll0 - ll)/d + abs(δ) <= rtol
             converged = true
             break
         end
         verbose && println("[ Alternating iteration ", i, ", θ = ", θ, " ]")
         regmodel = glm(F, D, NegativeBinomial(θ), args...;
-                       maxiter=maxiter, tol=tol, verbose=verbose, kwargs...)
+                       maxiter=maxiter, atol=atol, rtol=rtol, verbose=verbose, kwargs...)
         μ = regmodel.model.rr.mu
         prevθ = θ
-        θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=tol)
+        θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)
         δ = prevθ - θ
         ll0 = ll
         ll = loglikelihood(regmodel)
