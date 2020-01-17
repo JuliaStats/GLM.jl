@@ -85,7 +85,7 @@ function negbin(F,
         throw(ArgumentError("length of wts must be either $ly or 0 but was $lw"))
     end
 
-    θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=tol)
+    θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)
     d = sqrt(2 * max(1, deviance(regmodel)))
     δ = one(θ)
     ll = loglikelihood(regmodel)
