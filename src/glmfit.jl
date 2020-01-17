@@ -71,13 +71,13 @@ function nulldeviance(r::GlmResp)
     wts = r.wts
     if isempty(r.wts)
         mu = mean(y)
-        dv = 0.0 
+        dv = zero(mu) 
         for i in eachindex(y)
             dv += devresid(d, y[i], mu)
         end
     else 
         mu = mean(y, weights(wts))
-        dv = 0.0
+        dv = zero(mu)
         for i in eachindex(y, wts)
             dv += devresid(d, y[i], mu) * wts[i]
         end
