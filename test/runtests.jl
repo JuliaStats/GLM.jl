@@ -104,6 +104,7 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     test_show(gm1)
     @test dof(gm1) == 5
     @test isapprox(deviance(gm1), 5.12914107700115, rtol = 1e-7)
+    @test isapprox(nulldeviance(gm1), 10.581445863750867)
     @test isapprox(loglikelihood(gm1), -23.380659200978837, rtol = 1e-7)
     @test isapprox(aic(gm1), 56.76131840195767)
     @test isapprox(aicc(gm1), 76.76131840195768)
@@ -118,10 +119,15 @@ admit.rank = categorical(admit.rank)
 
 @testset "$distr with LogitLink" for distr in (Binomial, Bernoulli)
     gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit, distr())
+    glmR = R"""
+        m = glm(Cadmit ~ 1 + gre + gpa + rank, family = binomial, data = $admit)
+        m[["null.deviance"]]
+    """    
     @test GLM.cancancel(gm2.model.rr)
     test_show(gm2)
     @test dof(gm2) == 6
     @test deviance(gm2) ≈ 458.5174924758994
+    @test isapprox(nulldeviance(gm2), 499.976517554917)
     @test loglikelihood(gm2) ≈ -229.25874623794968
     @test isapprox(aic(gm2), 470.51749247589936)
     @test isapprox(aicc(gm2), 470.7312329339146)
@@ -138,6 +144,7 @@ end
     @test !GLM.cancancel(gm3.model.rr)
     @test dof(gm3) == 6
     @test isapprox(deviance(gm3), 458.4131713833386)
+    @test isapprox(nulldeviance(gm3), 499.976517554917)
     @test isapprox(loglikelihood(gm3), -229.20658569166932)
     @test isapprox(aic(gm3), 470.41317138333864)
     @test isapprox(aicc(gm3), 470.6269118413539)
@@ -146,7 +153,7 @@ end
         [-2.3867922998680777, 0.0013755394922972401, 0.47772908362646926,
         -0.4154125854823675, -0.8121458010130354, -0.9359047862425297])
 end
-
+# end here
 @testset "Bernoulli CauchitLink" begin
     gm4 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
               Binomial(), CauchitLink())
