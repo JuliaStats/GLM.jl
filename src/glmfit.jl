@@ -146,7 +146,7 @@ function _weights_residuals(yᵢ, ηᵢ, μᵢ, omμᵢ, dμdηᵢ, l::CloglogLi
         emη = exp(-ηᵢ)
         if iszero(emη)
             # Diverges to -∞
-            wrkresᵢ = -typeof(wrkresᵢ)(Inf)
+            wrkresᵢ = oftype(emηᵢ, -Inf)
         elseif isinf(emη)
             # converges to -1
             wrkresᵢ = -one(emη)
