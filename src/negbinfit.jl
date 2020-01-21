@@ -34,6 +34,29 @@ function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
     θ
 end
 
+"""
+    negbin(formula,
+           data,
+           link;
+           initialθ::Real=Inf,
+           maxiter::Integer=30,
+           atol::Real=1e-6,
+           rtol::Real=1.e-6,
+           verbose::Bool=false,
+           kwargs...)
+
+Fit a negative binomial generalized linear model to data, while simultaneously
+estimating the shape parameter θ. Extra arguments and keyword arguments will be
+passed to [`glm`](@ref).
+
+# Keyword Arguments
+- `initialθ::Real=Inf`: Starting value for shape parameter θ. If it is `Inf`
+  then the initial value will be estimated by fitting a Poisson distribution.
+- `maxiter::Integer=30`: See `maxiter` for [`glm`](@ref)
+- `atol::Real=1.0e-6`: See `atol` for [`glm`](@ref)
+- `rtol::Real=1.0e-6`: See `rtol` for [`glm`](@ref)
+- `verbose::Bool=false`: See `verbose` for [`glm`](@ref)
+"""
 function negbin(F,
                 D,
                 args...;
