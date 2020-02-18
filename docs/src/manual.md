@@ -62,48 +62,20 @@ The response (dependent) variable may not be categorical.
 
 Using a `CategoricalVector` constructed with `categorical` or `categorical!`:
 
-```jldoctest
-julia> using DataFrames, GLM
+```@example
+using DataFrames, GLM
 
-julia> data = DataFrame(y = rand(100), x = categorical(repeat([1, 2, 3, 4], 25)));
-
-julia> lm(@formula(y ~ x), data)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
-
-y ~ 1 + x
-
-Coefficients:
-──────────────────────────────────────────────────────────────────────────────
-               Estimate  Std. Error    t value  Pr(>|t|)  Lower 95%  Upper 95%
-──────────────────────────────────────────────────────────────────────────────
-(Intercept)   0.561258    0.0612945   9.15675     <1e-14   0.439589  0.682927
-x: 2         -0.121297    0.0866835  -1.39931     0.1649  -0.293363  0.0507681
-x: 3         -0.109711    0.0866835  -1.26565     0.2087  -0.281776  0.0623548
-x: 4          0.0490837   0.0866835   0.566241    0.5726  -0.122982  0.221149
-──────────────────────────────────────────────────────────────────────────────
+data = DataFrame(y = rand(100), x = categorical(repeat([1, 2, 3, 4], 25)))
+lm(@formula(y ~ x), data)
 ```
 
 Using [`contrasts`](https://juliastats.github.io/StatsModels.jl/stable/contrasts/):
 
-```jldoctest
-julia> using DataFrames, GLM
+```@example
+using DataFrames, GLM
 
-julia> data = DataFrame(y = rand(100), x = repeat([1, 2, 3, 4], 25));
-
-julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
-
-y ~ 1 + x
-
-Coefficients:
-────────────────────────────────────────────────────────────────────────────────
-              Estimate  Std. Error    t value  Pr(>|t|)     Lower 95%  Upper 95%
-────────────────────────────────────────────────────────────────────────────────
-(Intercept)  0.404169    0.0545628  7.40741      <1e-10   0.295863      0.512476
-x: 2         0.0048212   0.0771635  0.0624804    0.9503  -0.148347      0.15799
-x: 3         0.153049    0.0771635  1.98344      0.0502  -0.000118963   0.306218
-x: 4         0.0512872   0.0771635  0.664656     0.5079  -0.101881      0.204456
-────────────────────────────────────────────────────────────────────────────────
+data = DataFrame(y = rand(100), x = repeat([1, 2, 3, 4], 25))
+lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
 ```
 
 ## Methods applied to fitted models
