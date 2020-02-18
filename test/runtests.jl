@@ -46,7 +46,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
     lm3 = lm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), contrasts=Dict(:x=>DummyCoding()))
     lm4 = lm(@formula(y~x), (y=1:25, x=categorical(repeat(1:5, 5))))
-    @test coef(lm3) == coef(lm4)
+    @test coef(lm3) == coef(lm4) ≈ [11, 1, 2, 3, 4]
 end
 
 @testset "linear model with weights" begin 
