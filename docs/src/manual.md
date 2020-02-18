@@ -55,14 +55,12 @@ Categorical variables will be dummy coded by default if they are non-numeric or 
 
 The response (dependent) variable may not be categorical.
 
-Using a `CategoricalVector` constructed with `categorical`:
+Using a `CategoricalVector` constructed with `categorical` or `categorical!`:
 
 ```jldoctest
 julia> using DataFrames, GLM
 
 julia> data = DataFrame(y = rand(100), x = categorical(repeat([1, 2, 3, 4], 25)));
-
-julia> # It is also possible to convert an existing column to be categorical with categorical!(data, :x)
 
 julia> lm(@formula(y ~ x), data)
 StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
