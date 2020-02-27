@@ -53,8 +53,8 @@ An intercept is included in any GLM by default.
 
 Categorical variables will be dummy coded by default if they are non-numeric or if they are
 [`CategoricalVector`s](https://juliadata.github.io/CategoricalArrays.jl/stable/) within a
-[Tables.jl](https://juliadata.github.io/Tables.jl/stable/) table (DataFrames, JuliaDB,
-ColumnTable, etc). Alternatively, you can pass an explicit 
+[Tables.jl](https://juliadata.github.io/Tables.jl/stable/) table (`DataFrame`, JuliaDB table,
+named tuple of vectors, etc). Alternatively, you can pass an explicit 
 [contrasts](https://juliastats.github.io/StatsModels.jl/stable/contrasts/) argument if you
 would like a different contrast coding system or if you are not using DataFrames.
 
@@ -62,20 +62,49 @@ The response (dependent) variable may not be categorical.
 
 Using a `CategoricalVector` constructed with `categorical` or `categorical!`:
 
-```@example
-using DataFrames, GLM
+```@jldoctest
+julia> using DataFrames, GLM
 
-data = DataFrame(y = rand(100), x = categorical(repeat([1, 2, 3, 4], 25)))
-lm(@formula(y ~ x), data)
+julia> data = DataFrame(y = rand(100), x = categorical(repeat([1, 2, 3, 4], 25)));
+
+
+julia> lm(@formula(y ~ x), data)
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+y ~ 1 + x
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────────────
+               Estimate  Std. Error    t value  Pr(>|t|)  Lower 95%  Upper 95%
+──────────────────────────────────────────────────────────────────────────────
+(Intercept)   0.519242    0.0565212   9.18668     <1e-14   0.407048   0.631435
+x: 2         -0.0812668   0.079933   -1.01669     0.3119  -0.239933   0.077399
+x: 3          0.0245862   0.079933    0.307586    0.7591  -0.13408    0.183252
+x: 4          0.0183136   0.079933    0.229112    0.8193  -0.140352   0.176979
+──────────────────────────────────────────────────────────────────────────────
 ```
 
 Using [`contrasts`](https://juliastats.github.io/StatsModels.jl/stable/contrasts/):
 
-```@example
-using DataFrames, GLM
+```jldoctest
+julia> using DataFrames, GLM
 
-data = DataFrame(y = rand(100), x = repeat([1, 2, 3, 4], 25))
-lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
+julia> data = DataFrame(y = rand(100), x = repeat([1, 2, 3, 4], 25));
+
+julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+
+y ~ 1 + x
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────────────
+               Estimate  Std. Error    t value  Pr(>|t|)  Lower 95%  Upper 95%
+──────────────────────────────────────────────────────────────────────────────
+(Intercept)   0.455105    0.0563224   8.08036     <1e-11   0.343306  0.566904 
+x: 2         -0.0637462   0.0796519  -0.800309    0.4255  -0.221854  0.0943616
+x: 3          0.0275562   0.0796519   0.345958    0.7301  -0.130552  0.185664 
+x: 4         -0.0642706   0.0796519  -0.806894    0.4217  -0.222378  0.0938372
+──────────────────────────────────────────────────────────────────────────────
 ```
 
 ## Methods applied to fitted models
