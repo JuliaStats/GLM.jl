@@ -41,8 +41,6 @@ julia> round.(predict(ols), digits=5)
  6.83333
 ```
 
-.
-
 ## Probit regression
 ```jldoctest
 julia> data = DataFrame(X=[1,2,2], Y=[1,0,1])
