@@ -11,9 +11,6 @@ notifications:
   email: false
 git:
   depth: 99999999
-matrix:
-  allow_failures:
-  - julia: nightly
 
 after_success:
   # push coverage results to Coveralls
@@ -22,6 +19,8 @@ after_success:
   - julia -e 'using Pkg; cd(Pkg.dir("GLM")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
 
 jobs:
+  allow_failures:
+    - julia: nightly
   include:
     - stage: "Documentation"
       julia: 1.0
