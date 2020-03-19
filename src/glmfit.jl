@@ -507,13 +507,16 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
 end
 
 """
-    predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Vector{eltype(newX)}(0))
+    predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=eltype(newX)[],
+            interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95)
 
-Form the predicted response of model `mm` from covariate values `newX` and, optionally,
-an offset.
+If `interval` is `nothing` (the default), return the predicted response of model
+`mm` from covariate values `newX` and, optionally, an `offset`. If `interval` is
+`:confidence`, also return upper and lower bounds for a given coverage `level`.
 """
 function predict(mm::AbstractGLM, newX::AbstractMatrix;
-                 offset::FPVector=eltype(newX)[])
+                 offset::FPVector=eltype(newX)[],
+                 interval::Union{Symbol,Nothing}=nothing, level::Real=0.95)
     eta = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||
@@ -523,7 +526,24 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
         length(offset) > 0 && throw(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
     end
     mu = [linkinv(Link(mm), x) for x in eta]
+
+    if interval === nothing
+        return mu
+    elseif interval == :confidence
+        # Use Delta method to estimate variance in two steps
+        # 1. Estimate variance for eta based on variance for coefficients
+        #    through the diagonal of newX*vcov(mm)*newX'
+        vareta =  dot.(eachrow(newX), eachcol(vcov(mm)*newX'))
+        # 2. Now compute the variance for mu based on variance of eta
+        varmu = vareta .* [abs2(mueta(Link(mm), x)) for x in eta]
+    else
+        error("only :confidence intervals are defined")
+    end
+    ciwidth = quantile(Normal(), (1. - level)/2) .* sqrt.(varmu)
+    (prediction = mu, lower = mu .+ ciwidth, upper = mu .- ciwidth)
 end
+
+
 
 # A helper function to choose default values for eta
 function initialeta!(eta::AbstractVector,

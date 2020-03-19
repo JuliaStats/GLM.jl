@@ -458,7 +458,14 @@ end
 
     newX = rand(5, 2)
     newY = logistic.(newX * coef(gm11))
-    @test isapprox(predict(gm11, newX), newY)
+    gm11_pred1 = predict(gm11, newX)
+    gm11_pred2 = predict(gm11, newX; interval=:confidence)
+    @test gm11_pred1 == gm11_pred2.prediction ≈ newY
+    se_pred = [0.19904587484129196, 0.18029108261296775,
+                   0.3290573571361879, 0.11536024793564569, 0.23972290956210984]
+    @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975).*se_pred #
+    @test gm11_pred2.upper ≈ gm11_pred2.prediction .+ quantile(Normal(), 0.975).*se_pred
+
 
     off = rand(10)
     newoff = rand(5)
