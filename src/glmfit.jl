@@ -533,7 +533,8 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
         # Use Delta method to estimate variance in two steps
         # 1. Estimate variance for eta based on variance for coefficients
         #    through the diagonal of newX*vcov(mm)*newX'
-        vareta =  dot.(eachrow(newX), eachcol(vcov(mm)*newX'))
+        vcovXnewT = vcov(mm)*newX'
+        vareta = [dot(view(newX, i, :), view(vcovXnewT, :, i)) for i in axes(newX,1)]
         # 2. Now compute the variance for mu based on variance of eta
         varmu = vareta .* [abs2(mueta(Link(mm), x)) for x in eta]
     else
