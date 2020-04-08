@@ -240,7 +240,7 @@ function cooksdistance(obj::LinearModel)
     if isempty(wts)
         hii = diag(X * inv(X' * X) * X')
     else
-        W = spdiagm(0 => wts)
+        W = Diagonal(wts)
         hii = diag(X * inv(X' * W * X) * X' * W)
     end
     D = u.^2 .* (hii ./ (1 .- hii).^2) ./ (k*mse)
