@@ -2,6 +2,8 @@ using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays, Random,
       Statistics, StatsBase, Test, RDatasets
 using GLM
 using StatsFuns: logistic
+# For purpses of writing PR
+using RCall
 
 test_show(x) = show(IOBuffer(), x)
 
@@ -22,6 +24,11 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
 
 @testset "lm" begin
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
+    # `lm` does not define null deviance
+    # nulldevianeR = R"""
+    #     m = lm(OptDen ~ 1 + Carb, data = $form)
+    #     m[["null.deviance"]]
+    # """  
     test_show(lm1)
     @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
     Σ = [6.136653061224592e-05 -9.464489795918525e-05
@@ -100,6 +107,10 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
 @testset "Poisson GLM" begin
     gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
               dobson, Poisson())
+    nulldevianceR = R"""
+        m = glm(Counts ~ 1 + Outcome + Treatment, family = poisson, data = $dobson)
+        m[["null.deviance"]]
+    """   
     @test GLM.cancancel(gm1.model.rr)
     test_show(gm1)
     @test dof(gm1) == 5
@@ -119,8 +130,8 @@ admit.rank = categorical(admit.rank)
 
 @testset "$distr with LogitLink" for distr in (Binomial, Bernoulli)
     gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit, distr())
-    glmR = R"""
-        m = glm(Cadmit ~ 1 + gre + gpa + rank, family = binomial, data = $admit)
+    nulldevianeR = R"""
+        m = glm(admit ~ 1 + gre + gpa + rank, family = binomial, data = $admit)
         m[["null.deviance"]]
     """    
     @test GLM.cancancel(gm2.model.rr)
@@ -140,6 +151,10 @@ end
 @testset "Bernoulli ProbitLink" begin
     gm3 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit,
               Binomial(), ProbitLink())
+    nulldevianeR = R"""
+        m = glm(admit ~ 1 + gre + gpa + rank, family = binomial(link =  "probit"), data = $admit)
+        m[["null.deviance"]]
+    """
     test_show(gm3)
     @test !GLM.cancancel(gm3.model.rr)
     @test dof(gm3) == 6
@@ -153,10 +168,14 @@ end
         [-2.3867922998680777, 0.0013755394922972401, 0.47772908362646926,
         -0.4154125854823675, -0.8121458010130354, -0.9359047862425297])
 end
-# end here
+
 @testset "Bernoulli CauchitLink" begin
     gm4 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
               Binomial(), CauchitLink())
+    nulldevianeR = R"""
+        m = glm(admit ~ 1 + gre + gpa + rank, family = binomial(link =  "cauchit"), data = $admit)
+        m[["null.deviance"]]
+    """
     @test !GLM.cancancel(gm4.model.rr)
     test_show(gm4)
     @test dof(gm4) == 6
@@ -167,14 +186,19 @@ end
     @test isapprox(aicc(gm4), 471.5538517331295)
     @test isapprox(bic(gm4), 495.28889855776214)
 end
-# here
+
 @testset "Bernoulli CloglogLink" begin
     gm5 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
               Binomial(), CloglogLink())
+    nulldevianeR = R"""
+        m = glm(admit ~ 1 + gre + gpa + rank, family = binomial(link =  "cloglog"), data = $admit)
+        m[["null.deviance"]]
+    """
     @test !GLM.cancancel(gm5.model.rr)
     test_show(gm5)
     @test dof(gm5) == 6
     @test isapprox(deviance(gm5), 458.89439629612616)
+    @test isapprox(nulldeviance(gm5), 499.976517554917)
     @test isapprox(loglikelihood(gm5), -229.44719814806314)
     @test isapprox(aic(gm5), 470.8943962961263)
     @test isapprox(aicc(gm5), 471.1081367541415)
@@ -196,6 +220,7 @@ end
 ## Example with offsets from Venables & Ripley (2002, p.189)
 anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"))
 
+# TODO: Understand offsets in R in order to test
 @testset "Offset" begin
     gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
               Normal(), IdentityLink(), offset=Array{Float64}(anorexia.Prewt))
@@ -234,11 +259,16 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
 
 @testset "Gamma" begin
     gm8 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma())
+    nulldevianceR = R"""
+        m = glm(lot1 ~ 1 + u, family = Gamma, data = $clotting)
+        m[["null.deviance"]]
+    """
     @test !GLM.cancancel(gm8.model.rr)
     @test isa(GLM.Link(gm8.model), InverseLink)
     test_show(gm8)
     @test dof(gm8) == 3
     @test isapprox(deviance(gm8), 0.016729715178484157)
+    @test isapprox(nulldeviance(gm8), 3.512826263828517)
     @test isapprox(loglikelihood(gm8), -15.994961974777247)
     @test isapprox(aic(gm8), 37.989923949554495)
     @test isapprox(aicc(gm8), 42.78992394955449)
@@ -247,7 +277,7 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
     @test isapprox(GLM.dispersion(gm8.model, true), 0.002446059333495581, atol=1e-6)
     @test isapprox(stderror(gm8), [0.00092754223, 0.000414957683], atol=1e-6)
 end
-
+# end here
 @testset "InverseGaussian" begin
     gm8a = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, InverseGaussian())
     @test !GLM.cancancel(gm8a.model.rr)
