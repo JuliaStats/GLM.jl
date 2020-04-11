@@ -161,12 +161,13 @@ end
     test_show(gm4)
     @test dof(gm4) == 6
     @test isapprox(deviance(gm4), 459.3401112751141)
+    @test isapprox(nulldeviance(gm4), 499.976517554917)
     @test isapprox(loglikelihood(gm4), -229.6700556375571)
     @test isapprox(aic(gm4), 471.3401112751142)
     @test isapprox(aicc(gm4), 471.5538517331295)
     @test isapprox(bic(gm4), 495.28889855776214)
 end
-
+# here
 @testset "Bernoulli CloglogLink" begin
     gm5 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
               Binomial(), CloglogLink())
