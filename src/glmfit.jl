@@ -60,7 +60,9 @@ end
 
 function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real}, 
                  wts::AbstractVector{<:Real}) where {D, L}
-        GlmResp(float(y), d, l, float(off), float(wts))
+        yt = float(y)
+        T = eltype(yt)
+        GlmResp(T.(y), d, l, T.(off), T.(wts))
 end
 
 deviance(r::GlmResp) = sum(r.devresid)
