@@ -459,8 +459,9 @@ end
     newX = rand(5, 2)
     newY = logistic.(newX * coef(gm11))
     gm11_pred1 = predict(gm11, newX)
-    gm11_pred2 = predict(gm11, newX; interval=:confidence)
-    @test gm11_pred1 == gm11_pred2.prediction ≈ newY
+    gm11_pred2 = predict(gm11, newX; interval=:confidence, symmetric=true)
+    gm11_pred3 = predict(gm11, newX; interval=:confidence, symmetric=false)
+    @test gm11_pred1 == gm11_pred2.prediction == gm11_pred3.prediction≈ newY
     se_pred = [0.19904587484129196, 0.18029108261296775,
                    0.3290573571361879, 0.11536024793564569, 0.23972290956210984]
     @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975).*se_pred #
@@ -510,6 +511,34 @@ end
     @test pred3.upper ≈ [3.9036197999106674, 2.6291976809914988,
         4.815559090394707, 2.3612485765861515, 3.8867779526777784]
 end
+
+@testset "GLM confidence intervals" begin
+    X = [fill(1,50) range(0,1, length=50)]
+    Y = vec([0 0 0 1 0 1 1 0 0 0 0 0 0 0 1 0 1 1 0 1 1 0 1 0 0 1 1 1 0 1 1 1 1 1 0 1 0 1 1 1 0 1 1 1 1 1 1 1 1 1])
+    gm = fit(GeneralizedLinearModel, X, Y, Binomial())
+
+    newX = [fill(1,5) [0.0000000, 0.2405063, 0.4936709, 0.7468354, 1.0000000]]
+
+    ggplot_prediction = [0.1804678, 0.3717731, 0.6262062, 0.8258605, 0.9306787]
+    ggplot_lower = [0.05704968, 0.20624382, 0.46235427, 0.63065189, 0.73579237]
+    ggplot_upper = [0.4449066, 0.5740713, 0.7654544, 0.9294403, 0.9847846]
+
+    R_glm_se = [0.09748766, 0.09808412, 0.07963897, 0.07495792, 0.05177654]
+
+    preds_asymmetric = predict(gm, newX, interval=:confidence, symmetric=false)
+    preds_symmetric = predict(gm, newX, interval=:confidence, symmetric=true)
+
+    @test preds_asymmetric.prediction == preds_symmetric.prediction
+    @test preds_asymmetric.prediction ≈ ggplot_prediction atol=1e-3
+    @test preds_asymmetric.lower ≈ ggplot_lower atol=1e-3
+    @test preds_asymmetric.upper ≈ ggplot_upper atol=1e-3
+
+    @test preds_symmetric.upper .-  preds_symmetric.lower ≈ 2 .* 1.96 .* R_glm_se atol=1e-3
+
+    # now fit model at level so that CI width is equal to standard error
+    preds_symmetric_at_se =  predict(gm, newX, interval=:confidence, symmetric=true, level=0.3829249)
+    @test preds_symmetric_at_se.upper .-  preds_symmetric_at_se.lower ≈  R_glm_se atol=1e-3
+end 
 
 @testset "F test for model comparison" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],

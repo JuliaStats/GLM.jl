@@ -508,15 +508,19 @@ end
 
 """
     predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=eltype(newX)[],
-            interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95)
+            interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95,
+            symmetric::Bool = false)
 
 If `interval` is `nothing` (the default), return the predicted response of model
 `mm` from covariate values `newX` and, optionally, an `offset`. If `interval` is
-`:confidence`, also return upper and lower bounds for a given coverage `level`.
+`:confidence`, also return upper and lower bounds for a given coverage `level`. By 
+default (`symmetric = false`) the intervals are constructed by applying the inverse link
+to intervals for the linear predictor, if `symmetric=true`, the intervals are symmetric 
+around the point estimates.
 """
 function predict(mm::AbstractGLM, newX::AbstractMatrix;
                  offset::FPVector=eltype(newX)[],
-                 interval::Union{Symbol,Nothing}=nothing, level::Real=0.95)
+                 interval::Union{Symbol,Nothing}=nothing, level::Real=0.95, symmetric=false)
     eta = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||
@@ -525,23 +529,34 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
     else
         length(offset) > 0 && throw(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
     end
-    mu = [linkinv(Link(mm), x) for x in eta]
+    mu = linkinv.(Link(mm), eta)
 
     if interval === nothing
         return mu
     elseif interval == :confidence
+        normalquantile = quantile(Normal(), (1. + level)/2)
         # Use Delta method to estimate variance in two steps
+        # (2nd step varies as `symmetric` is `true` or `false`)
         # 1. Estimate variance for eta based on variance for coefficients
         #    through the diagonal of newX*vcov(mm)*newX'
         vcovXnewT = vcov(mm)*newX'
         vareta = [dot(view(newX, i, :), view(vcovXnewT, :, i)) for i in axes(newX,1)]
-        # 2. Now compute the variance for mu based on variance of eta
-        varmu = vareta .* [abs2(mueta(Link(mm), x)) for x in eta]
+        
+        if symmetric
+            # 2. Now compute the variance for mu based on variance of eta and
+            # construct intervals based on that
+            varmu = vareta .* [abs2(mueta(Link(mm), x)) for x in eta]
+            lower = mu .- normalquantile .* sqrt.(varmu)
+            upper = mu .+ normalquantile .* sqrt.(varmu)
+        elseif !symmetric 
+            # 2. Construct intervals for eta, then apply inverse link
+            lower = linkinv.(Link(mm), eta .- normalquantile .* sqrt.(vareta))
+            upper = linkinv.(Link(mm), eta .+ normalquantile .* sqrt.(vareta))
+        end
     else
         error("only :confidence intervals are defined")
     end
-    ciwidth = quantile(Normal(), (1. - level)/2) .* sqrt.(varmu)
-    (prediction = mu, lower = mu .+ ciwidth, upper = mu .- ciwidth)
+    (prediction = mu, lower = lower, upper = upper)
 end
 
 
