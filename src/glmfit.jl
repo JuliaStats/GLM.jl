@@ -430,7 +430,13 @@ vector, respectively, or a formula and a data frame. `d` must be a
 
 # Keyword Arguments
 - `dofit::Bool=true`: Determines whether model will be fit
-- `wts::Vector=similar(y,0)`: prior case weights. Can be length 0.
+- `wts::Vector=similar(y,0)`: Prior frequency (a.k.a. case) weights of observations.
+Such weights are equivalent to repeating each observation a number of times equal
+to its weight. Do note that this interpretation gives equal point estimates but
+different standard errors from analytical (a.k.a. inverse variance) weights and
+from probability (a.k.a. sampling) weights which are the default in some other
+software.
+Can be length 0 to indicate no weighting (default).
 - `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
 length 0
 - `verbose::Bool=false`: Display convergence information for each iteration
