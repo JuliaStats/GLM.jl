@@ -7,7 +7,7 @@ Encapsulates the response for a linear model
 
 - `mu`: current value of the mean response vector or fitted value
 - `offset`: optional offset added to the linear predictor to form `mu`
-- `wts`: optional vector of prior weights
+- `wts`: optional vector of prior frequency (a.k.a. case) weights for observations
 - `y`: observed response vector
 
 Either or both `offset` and `wts` may be of length 0
@@ -135,6 +135,11 @@ An alias for `fit(LinearModel, X, y, allowrankdeficient)`
 The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a `DataFrame`.
 
 The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
+Such weights are equivalent to repeating each observation a number of times equal
+to its weight. Do note that this interpretation gives equal point estimates but
+different standard errors from analytical (a.k.a. inverse variance) weights and
+from probability (a.k.a. sampling) weights which are the default in some other
+software.
 """
 lm(X, y, allowrankdeficient::Bool=false; kwargs...) = 
     fit(LinearModel, X, y, allowrankdeficient; kwargs...)
