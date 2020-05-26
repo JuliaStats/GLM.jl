@@ -22,28 +22,34 @@ GLM.ModResp
 
 The most general approach to fitting a model is with the `fit` function, as in
 ```jldoctest
-julia> using Random;
+julia> using Random
 
 julia> fit(LinearModel, hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
-LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
+LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
 
 Coefficients:
-      Estimate Std.Error  t value Pr(>|t|)
-x1    0.717436  0.775175 0.925515   0.3818
-x2   -0.152062  0.124931 -1.21717   0.2582
+────────────────────────────────────────────────────────────────
+        Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+────────────────────────────────────────────────────────────────
+x1   0.717436    0.775175   0.93    0.3818  -1.07012    2.50499
+x2  -0.152062    0.124931  -1.22    0.2582  -0.440153   0.136029
+────────────────────────────────────────────────────────────────
 ```
 
 This model can also be fit as
 ```jldoctest
-julia> using Random;
+julia> using Random
 
 julia> lm(hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
 LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
 
 Coefficients:
-      Estimate Std.Error  t value Pr(>|t|)
-x1    0.717436  0.775175 0.925515   0.3818
-x2   -0.152062  0.124931 -1.21717   0.2582
+────────────────────────────────────────────────────────────────
+        Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+────────────────────────────────────────────────────────────────
+x1   0.717436    0.775175   0.93    0.3818  -1.07012    2.50499
+x2  -0.152062    0.124931  -1.22    0.2582  -0.440153   0.136029
+────────────────────────────────────────────────────────────────
 ```
 
 ```@docs
