@@ -277,7 +277,7 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
     @test isapprox(GLM.dispersion(gm8.model, true), 0.002446059333495581, atol=1e-6)
     @test isapprox(stderror(gm8), [0.00092754223, 0.000414957683], atol=1e-6)
 end
-# end here
+
 @testset "InverseGaussian" begin
     gm8a = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, InverseGaussian())
     nulldevianceR = R"""
@@ -433,6 +433,7 @@ end
 end
 
 # TODO: Understand how negative binomail works here
+# end here
 @rlibrary MASS
 # "quine" dataset discussed in Section 7.4 of "Modern Applied Statistics with S"
 quine = dataset("MASS", "quine")
