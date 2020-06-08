@@ -280,11 +280,16 @@ end
 # end here
 @testset "InverseGaussian" begin
     gm8a = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, InverseGaussian())
+    nulldevianceR = R"""
+        m = glm(lot1 ~ 1 + u, family = inverse.gaussian, data = $clotting)
+        m[["null.deviance"]]
+    """
     @test !GLM.cancancel(gm8a.model.rr)
     @test isa(GLM.Link(gm8a.model), InverseSquareLink)
     test_show(gm8a)
     @test dof(gm8a) == 3
-    @test isapprox(deviance(gm8a), 0.006931128347234519)
+    @test isapprox(deviance(gm8a), 0.08779963125372367)
+    @test isapprox(nulldeviance(gm8a), 3.512826263828517)
     @test isapprox(loglikelihood(gm8a), -27.787426008849867)
     @test isapprox(aic(gm8a), 61.57485201769973)
     @test isapprox(aicc(gm8a), 66.37485201769974)
@@ -297,10 +302,15 @@ end
 @testset "Gamma LogLink" begin
     gm9 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(),
               rtol=1e-8, atol=0.0)
+    nulldevianceR = R"""
+        m = glm(lot1 ~ 1 + u, family = Gamma(link = "log"), data = $clotting)
+        m[["null.deviance"]]
+    """    
     @test !GLM.cancancel(gm9.model.rr)
     test_show(gm9)
     @test dof(gm9) == 3
     @test deviance(gm9) ≈ 0.16260829451739
+    @test nulldeviance(gm9) ≈ 3.512826263828517
     @test loglikelihood(gm9) ≈ -26.24082810384911
     @test aic(gm9) ≈ 58.48165620769822
     @test aicc(gm9) ≈ 63.28165620769822
@@ -313,10 +323,15 @@ end
 @testset "Gamma IdentityLink" begin
     gm10 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(),
                rtol=1e-8, atol=0.0)
+    nulldevianceR = R"""
+        m = glm(lot1 ~ 1 + u, family = Gamma(link = "identity"), data = $clotting)
+        m[["null.deviance"]]
+    """    
     @test !GLM.cancancel(gm10.model.rr)
     test_show(gm10)
     @test dof(gm10) == 3
     @test isapprox(deviance(gm10), 0.60845414895344)
+    @test isapprox(nulldeviance(gm10), 3.512826263828517)
     @test isapprox(loglikelihood(gm10), -32.216072437284176)
     @test isapprox(aic(gm10), 70.43214487456835)
     @test isapprox(aicc(gm10), 75.23214487456835)
@@ -332,12 +347,17 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
                       rank = categorical(repeat(1:4, outer=2)))
 
 @testset "Aggregated Binomial LogitLink" begin
+    nulldevianceR = R"""
+           m = glm(admit ~ 1 + rank, family = binomial, data = $admit_agr, weight = count)
+           m[["null.deviance"]]
+    """
     for distr in (Binomial, Bernoulli)
         gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
                    wts=Array(admit_agr.count))
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
         @test isapprox(deviance(gm14), 474.9667184280627)
+        @test isapprox(nulldeviance(gm14), 499.9765175549154)
         @test isapprox(loglikelihood(gm14), -237.48335921403134)
         @test isapprox(aic(gm14), 482.96671842822883)
         @test isapprox(aicc(gm14), 483.0679842510136)
@@ -356,10 +376,15 @@ admit_agr2.p = admit_agr2.admit ./ admit_agr2.count
 @testset "Binomial LogitLink aggregated" begin
     gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial(),
                wts=admit_agr2.count)
+    nulldevianceR = R"""
+           m = glm(p ~ rank, family = binomial, data = $admit_agr2, weight = count)
+           m[["null.deviance"]]
+    """
     test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
     @test deviance(gm15) ≈ -2.4424906541753456e-15 atol = 1e-13
+    @test nulldeviance(gm15) ≈ 25.009799126861317 atol = 1e-13
     @test loglikelihood(gm15) ≈ -9.50254433604239
     @test aic(gm15) ≈ 27.00508867208478
     @test aicc(gm15) ≈ 27.106354494869592
@@ -371,10 +396,15 @@ end
 @testset "Gamma InverseLink Weights" begin
     gm16 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(),
                wts=[1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
+    nulldevianceR = R"""
+           m = glm(lot1 ~ 1 + u, family = Gamma, data = $clotting, weight = c(1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7))
+           m[["null.deviance"]]
+    """
     test_show(gm16)
     @test dof(gm16) == 3
     @test nobs(gm16) == 32.7
     @test isapprox(deviance(gm16), 0.03933389380881689)
+    @test isapprox(nulldeviance(gm16), 9.26580653637591)
     @test isapprox(loglikelihood(gm16), -43.35907878769152)
     @test isapprox(aic(gm16), 92.71815757538305)
     @test isapprox(aicc(gm16), 93.55439450918095)
@@ -386,9 +416,14 @@ end
 @testset "Poisson LogLink Weights" begin
     gm17 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson(),
         wts = [1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
+    nulldevianceR = R"""
+           m = glm(Counts ~ Outcome + Treatment, family = poisson, data = $dobson, weight = c(1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7))
+           m[["null.deviance"]]
+    """
     test_show(gm17)
     @test dof(gm17) == 5
     @test isapprox(deviance(gm17), 17.699857821414266)
+    @test isapprox(nulldeviance(gm17), 47.37955120289139)
     @test isapprox(loglikelihood(gm17), -84.57429468506352)
     @test isapprox(aic(gm17), 179.14858937012704)
     @test isapprox(aicc(gm17), 181.39578038136298)
@@ -397,10 +432,16 @@ end
                            -0.017850203824417415,-0.03507851122782909])
 end
 
+# TODO: Understand how negative binomail works here
+@rlibrary MASS
 # "quine" dataset discussed in Section 7.4 of "Modern Applied Statistics with S"
 quine = dataset("MASS", "quine")
 @testset "NegativeBinomial LogLink Fixed θ" begin
     gm18 = fit(GeneralizedLinearModel, @formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
+    gm18R = R"""
+           library("MASS")
+           m = glm.nb(Days ~ Eth+Sex+Age+Lrn, data = $quine, init.theta = 2.0, link = "log")
+    """    
     @test !GLM.cancancel(gm18.model.rr)
     test_show(gm18)
     @test dof(gm18) == 8
