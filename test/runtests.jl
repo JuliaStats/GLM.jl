@@ -698,4 +698,5 @@ end
 @testset "Issue #376 (== for links)" begin
     @test GLM.LogitLink() == GLM.LogitLink()
     @test NegativeBinomialLink(0.3) == NegativeBinomialLink(0.3)
+    @test NegativeBinomialLink(0.31) != NegativeBinomialLink(0.3)
 end
