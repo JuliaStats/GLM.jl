@@ -694,3 +694,8 @@ end
         @test deviance(glm(@formula(y ~ x₁ + x₂), df, Binomial(), l, maxiter=40)) < 1e-6
     end
 end
+
+@testset "Issue #376 (== for links)" begin
+    @test GLM.LogitLink() == GLM.LogitLink()
+    @test NegativeBinomialLink(0.3) == NegativeBinomialLink(0.3)
+end
