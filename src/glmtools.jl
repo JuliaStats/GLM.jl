@@ -75,13 +75,9 @@ struct LogLink <: Link end
 The canonical [`Link`](@ref) for [`Distributions.NegativeBinomial`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.NegativeBinomial) distribution, defined as `η = log(μ/(μ+θ))`.
 The shape parameter θ has to be fixed for the distribution to belong to the exponential family.
 """
-mutable struct NegativeBinomialLink  <: Link
+struct NegativeBinomialLink  <: Link
     θ::Float64
 end
-
-import Base.==
-==(lnk1::NegativeBinomialLink, lnk2::NegativeBinomialLink) =
-    lnk1.θ == lnk2.θ
 
 """
     ProbitLink
