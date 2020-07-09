@@ -695,8 +695,16 @@ end
     end
 end
 
-@testset "Issue #376 (== for links)" begin
+@testset "Issue #376 (== and isequal for links)" begin
     @test GLM.LogitLink() == GLM.LogitLink()
     @test NegativeBinomialLink(0.3) == NegativeBinomialLink(0.3)
     @test NegativeBinomialLink(0.31) != NegativeBinomialLink(0.3)
+
+    @test isequal(GLM.LogitLink(), GLM.LogitLink())
+    @test isequal(NegativeBinomialLink(0.3), NegativeBinomialLink(0.3))
+    @test !isequal(NegativeBinomialLink(0.31), NegativeBinomialLink(0.3))
+
+    @test hash(GLM.LogitLink()) == hash(GLM.LogitLink())
+    @test hash(NegativeBinomialLink(0.3)) == hash(NegativeBinomialLink(0.3))
+    @test hash(NegativeBinomialLink(0.31)) != hash(NegativeBinomialLink(0.3))
 end
