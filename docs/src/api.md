@@ -9,12 +9,12 @@ end
 ## Types defined in the package
 
 ```@docs
-DensePredChol
-DensePredQR
-GlmResp
 LinearModel
-LmResp
-LinPred
+GLM.DensePredChol
+GLM.DensePredQR
+GLM.LmResp
+GLM.GlmResp
+GLM.LinPred
 GLM.ModResp
 ```
 
@@ -53,28 +53,21 @@ x2  -0.152062    0.124931  -1.22    0.2582  -0.440153   0.136029
 ```
 
 ```@docs
-glm
-fit
 lm
+glm
 negbin
+fit
 ```
 
 ## Model methods
 ```@docs
-GLM.cancancel
-delbeta!
 StatsBase.deviance
 GLM.dispersion
 GLM.installbeta!
 GLM.issubmodel
-linpred!
-linpred
 StatsBase.nobs
 StatsBase.nulldeviance
 StatsBase.predict
-updateμ!
-wrkresp
-GLM.wrkresp!
 ```
 
 ## Links and methods applied to them
@@ -91,14 +84,15 @@ LogLink
 NegativeBinomialLink
 ProbitLink
 SqrtLink
-linkfun
-linkinv
-mueta
-inverselink
+GLM.linkfun
+GLM.linkinv
+GLM.mueta
+GLM.inverselink
 canonicallink
-glmvar
-mustart
+GLM.glmvar
+GLM.mustart
 devresid
 GLM.dispersion_parameter
 GLM.loglik_obs
+GLM.cancancel
 ```

@@ -122,26 +122,44 @@ function StatsBase.fit!(obj::LinearModel)
     return obj
 end
 
+const FIT_LM_DOC = """
+    In the first method, `formula` must be a `Formula` object and `data` a table
+    (in the Tables.jl definition, e.g. a data frame).
+    In the second method, `X` must be a matrix holding values of the dependent variable(s)
+    in columns (including if appropriate the intercept), and `y` must be a vector holding
+    values of the independent variable.
+
+    The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
+    Such weights are equivalent to repeating each observation a number of times equal
+    to its weight. Do note that this interpretation gives equal point estimates but
+    different standard errors from analytical (a.k.a. inverse variance) weights and
+    from probability (a.k.a. sampling) weights which are the default in some other
+    software.
+    """
+
+"""
+    fit(LinearModel, formula, data, allowrankdeficient=false; wts=similar(y, 0))
+    fit(LinearModel, X::AbstractMatrix, y::AbstractVector, allowrankdeficient=false;
+        wts=similar(y, 0))
+
+Fit a linear model to data.
+
+$FIT_LM_DOC
+"""
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient::Bool=false; wts::AbstractVector{<:Real}=similar(y, 0))
     fit!(LinearModel(LmResp(y, wts), cholpred(X, allowrankdeficient)))
 end
 
 """
-    lm(X, y, allowrankdeficient::Bool=false; wts=similar(y, 0))
+    lm(formula, data, allowrankdeficient=false; wts=similar(y, 0))
+    lm(X::AbstractMatrix, y::AbstractVector, allowrankdeficient=false; wts=similar(y, 0))
 
-An alias for `fit(LinearModel, X, y, allowrankdeficient)`
+Fit a generalized linear model to data. Alias for `fit(LinearModel, ...)`.
 
-The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a `DataFrame`.
-
-The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
-Such weights are equivalent to repeating each observation a number of times equal
-to its weight. Do note that this interpretation gives equal point estimates but
-different standard errors from analytical (a.k.a. inverse variance) weights and
-from probability (a.k.a. sampling) weights which are the default in some other
-software.
+$FIT_LM_DOC
 """
-lm(X, y, allowrankdeficient::Bool=false; kwargs...) = 
+lm(X, y, allowrankdeficient::Bool=false; kwargs...) =
     fit(LinearModel, X, y, allowrankdeficient; kwargs...)
 
 dof(x::LinearModel) = length(coef(x)) + 1

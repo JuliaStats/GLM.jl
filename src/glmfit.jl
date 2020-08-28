@@ -421,33 +421,47 @@ function StatsBase.fit!(m::AbstractGLM,
     end
 end
 
+const FIT_GLM_DOC = """
+    In the first method, `formula` must be a `Formula` object and `data` a table
+    (in the Tables.jl definition, e.g. a data frame).
+    In the second method, `X` must be a matrix holding values of the dependent variable(s)
+    in columns (including if appropriate the intercept), and `y` must be a vector holding
+    values of the independent variable.
+    In both cases, `distr` must specify the distribution, and `link` may specify the link
+    function (if omitted, it is taken to be the canonical link for `distr`; see [`Link`](@ref)
+    for a list of built-in links).
+
+    # Keyword Arguments
+    - `dofit::Bool=true`: Determines whether model will be fit
+    - `wts::Vector=similar(y,0)`: Prior frequency (a.k.a. case) weights of observations.
+      Such weights are equivalent to repeating each observation a number of times equal
+      to its weight. Do note that this interpretation gives equal point estimates but
+      different standard errors from analytical (a.k.a. inverse variance) weights and
+      from probability (a.k.a. sampling) weights which are the default in some other
+      software.
+      Can be length 0 to indicate no weighting (default).
+    - `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
+      length 0
+    - `verbose::Bool=false`: Display convergence information for each iteration
+    - `maxiter::Integer=30`: Maximum number of iterations allowed to achieve convergence
+    - `atol::Real=1e-6`: Convergence is achieved when the relative change in
+      deviance is less than `max(rtol*dev, atol)`.
+    - `rtol::Real=1e-6`: Convergence is achieved when the relative change in
+      deviance is less than `max(rtol*dev, atol)`.
+    - `minstepfac::Real=0.001`: Minimum line step fraction. Must be between 0 and 1.
+    - `start::AbstractVector=nothing`: Starting values for beta. Should have the
+      same length as the number of columns in the model matrix.
+    """
+
 """
-    fit(GeneralizedLinearModel, X, y, d, [l = canonicallink(d)]; <keyword arguments>)
+    fit(GeneralizedLinearModel, formula, data,
+        distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
+    fit(GeneralizedLinearModel, X::AbstractMatrix, y::AbstractVector,
+        distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
 
-Fit a generalized linear model to data. `X` and `y` can either be a matrix and a
-vector, respectively, or a formula and a data frame. `d` must be a
-`UnivariateDistribution`, and `l` must be a [`Link`](@ref), if supplied.
+Fit a generalized linear model to data.
 
-# Keyword Arguments
-- `dofit::Bool=true`: Determines whether model will be fit
-- `wts::Vector=similar(y,0)`: Prior frequency (a.k.a. case) weights of observations.
-Such weights are equivalent to repeating each observation a number of times equal
-to its weight. Do note that this interpretation gives equal point estimates but
-different standard errors from analytical (a.k.a. inverse variance) weights and
-from probability (a.k.a. sampling) weights which are the default in some other
-software.
-Can be length 0 to indicate no weighting (default).
-- `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
-length 0
-- `verbose::Bool=false`: Display convergence information for each iteration
-- `maxiter::Integer=30`: Maximum number of iterations allowed to achieve convergence
-- `atol::Real=1e-6`: Convergence is achieved when the relative change in
-deviance is less than `max(rtol*dev, atol)`.
-- `rtol::Real=1e-6`: Convergence is achieved when the relative change in
-deviance is less than `max(rtol*dev, atol)`.
-- `minstepfac::Real=0.001`: Minimum line step fraction. Must be between 0 and 1.
-- `start::AbstractVector=nothing`: Starting values for beta. Should have the
-same length as the number of columns in the model matrix.
+$FIT_GLM_DOC
 """
 function fit(::Type{M},
     X::Union{Matrix{T},SparseMatrixCSC{T}},
@@ -477,12 +491,16 @@ fit(::Type{M},
         fit(M, float(X), float(y), d, l; kwargs...)
 
 """
-    glm(F, D, args...; kwargs...)
+    glm(formula, data,
+        distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
+    glm(X::AbstractMatrix, y::AbstractVector,
+        distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
 
 Fit a generalized linear model to data. Alias for `fit(GeneralizedLinearModel, ...)`.
-See [`fit`](@ref) for documentation.
+
+$FIT_GLM_DOC
 """
-glm(F, D, args...; kwargs...) = fit(GeneralizedLinearModel, F, D, args...; kwargs...)
+glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
 GLM.Link(mm::AbstractGLM) = mm.l
 GLM.Link(r::GlmResp{T,D,L}) where {T,D,L} = L()

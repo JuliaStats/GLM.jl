@@ -1,8 +1,17 @@
 """
     Link
 
-An abstract type whose subtypes determine methods for [`linkfun`](@ref), [`linkinv`](@ref),
-[`mueta`](@ref), and [`inverselink`](@ref).
+An abstract type whose subtypes refer to link functions.
+
+GLM currently supports the following links:
+[`CauchitLink`](@ref), [`CloglogLink`](@ref), [`IdentityLink`](@ref),
+[`InverseLink`](@ref), [`InverseSquareLink`](@ref), [`LogitLink`](@ref),
+[`LogLink`](@ref), [`NegativeBinomialLink`](@ref), [`ProbitLink`](@ref),
+[`SqrtLink`](@ref).
+
+Subtypes of `Link` are required to implement methods for
+[`GLM.linkfun`](@ref), [`GLM.linkinv`](@ref), [`GLM.mueta`](@ref),
+and [`GLM.inverselink`](@ref).
 """
 abstract type Link end
 
@@ -95,7 +104,7 @@ A [`Link`](@ref) defined as `η = √μ`
 struct SqrtLink <: Link end
 
 """
-    linkfun(L::Link, μ::Real)
+    GLM.linkfun(L::Link, μ::Real)
 
 Return `η`, the value of the linear predictor for link `L` at mean `μ`.
 
@@ -112,7 +121,7 @@ julia> show(linkfun.(LogitLink(), μ))
 function linkfun end
 
 """
-    linkinv(L::Link, η::Real)
+    GLM.linkinv(L::Link, η::Real)
 
 Return `μ`, the mean value, for link `L` at linear predictor value `η`.
 
@@ -130,7 +139,7 @@ true
 function linkinv end
 
 """
-    mueta(L::Link, η::Real)
+    GLM.mueta(L::Link, η::Real)
 
 Return the derivative of [`linkinv`](@ref), `dμ/dη`, for link `L` at linear predictor value `η`.
 
@@ -149,7 +158,7 @@ true
 function mueta end
 
 """
-    inverselink(L::Link, η::Real)
+    GLM.inverselink(L::Link, η::Real)
 
 Return a 3-tuple of the inverse link, the derivative of the inverse link, and when appropriate, the variance function `μ*(1 - μ)`.
 
@@ -287,7 +296,7 @@ canonicallink(::Normal) = IdentityLink()
 canonicallink(::Poisson) = LogLink()
 
 """
-    glmvar(D::Distribution, μ::Real)
+    GLM.glmvar(D::Distribution, μ::Real)
 
 Return the value of the variance function for `D` at `μ`
 
@@ -322,7 +331,7 @@ glmvar(::Normal, μ::Real) = one(μ)
 glmvar(::Poisson, μ::Real) = μ
 
 """
-    mustart(D::Distribution, y, wt)
+    GLM.mustart(D::Distribution, y, wt)
 
 Return a starting value for μ.
 
@@ -417,7 +426,7 @@ devresid(::Normal, y, μ::Real) = abs2(y - μ)
 devresid(::Poisson, y, μ::Real) = 2 * (xlogy(y, y / μ) - (y - μ))
 
 """
-    dispersion_parameter(D)  # not exported
+    GLM.dispersion_parameter(D)
 
 Does distribution `D` have a separate dispersion parameter, ϕ?
 
@@ -435,7 +444,7 @@ dispersion_parameter(D) = true
 dispersion_parameter(::Union{Bernoulli, Binomial, Poisson}) = false
 
 """
-    loglik_obs(D, y, μ, wt, ϕ)  # not exported
+    GLM.loglik_obs(D, y, μ, wt, ϕ)
 
 Returns `wt * logpdf(D(μ, ϕ), y)` where the parameters of `D` are derived from `μ` and `ϕ`.
 
