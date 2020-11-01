@@ -58,7 +58,7 @@ function GlmResp(y::V, d::D, l::L, off::V, wts::V) where {V<:FPVector,D,L}
     return r
 end
 
-function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real}, 
+function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
                  wts::AbstractVector{<:Real}) where {D, L}
         GlmResp(float(y), d, l, float(off), float(wts))
 end
