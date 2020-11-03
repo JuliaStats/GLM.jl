@@ -154,7 +154,7 @@ The coefficient on redundant linearly dependent columns is `0.0` and all other
 associated statistics are set to `NaN`.
 """
 lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
-    fit(LinearModel, X, y, nothing; kwargs...)
+    fit(LinearModel, X, y, allowrankdeficient_dep; kwargs...)
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
