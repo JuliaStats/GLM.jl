@@ -28,7 +28,7 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     end
 end
 
-LmResp(y::FPVector, wts::FPVector=similar(y, 0)) =
+LmResp(y::FPVector, wts::FPVector=similar(y, 0)) = 
     LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
 
 LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0)) =
@@ -65,7 +65,7 @@ function nulldeviance(r::LmResp)
     wts = r.wts
     if isempty(wts)
         m = mean(y)
-    else
+    else 
         m = mean(r.y, weights(r.wts))
     end
 
@@ -89,7 +89,7 @@ end
 
 function nullloglikelihood(r::LmResp)
     n = isempty(r.wts) ? length(r.y) : sum(r.wts)
-    -n/2 * (log(2π * nulldeviance(r)/n) + 1)
+    -n/2 * (log(2π * nulldeviance(r)/n) + 1) 
 end
 
 residuals(r::LmResp) = r.y - r.mu
@@ -117,7 +117,7 @@ function StatsBase.fit!(obj::LinearModel)
     else
         delbeta!(obj.pp, obj.rr.y, obj.rr.wts)
     end
-    installbeta!(obj.pp)
+    installbeta!(obj.pp)	
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
     return obj
 end
