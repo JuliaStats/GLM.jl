@@ -128,8 +128,8 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
              allowrankdeficient::Bool=false)
     if allowrankdeficient_dep != nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword" *
-              "argument instead. Proceeding with positional argument  value: $allowrankdeficient_dep"
-              allowrankdeficient = allowrankdeficient_dep
+                    "argument instead. Proceeding with positional argument  value: $allowrankdeficient_dep"
+        allowrankdeficient = allowrankdeficient_dep
     end
     fit!(LinearModel(LmResp(y, wts), cholpred(X, allowrankdeficient)))
 end
