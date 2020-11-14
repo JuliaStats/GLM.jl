@@ -126,9 +126,9 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
              wts::AbstractVector{<:Real}=similar(y, 0),
              allowrankdeficient::Bool=false)
-    if allowrankdeficient_dep != nothing
-        @warn "Positional argument `allowrankdeficient` is deprecated, use keyword" *
-                    "argument instead. Proceeding with positional argument  value: $allowrankdeficient_dep"
+    if allowrankdeficient_dep !== nothing
+        @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
+              "argument instead. Proceeding with positional argument value: $allowrankdeficient_dep"
         allowrankdeficient = allowrankdeficient_dep
     end
     fit!(LinearModel(LmResp(y, wts), cholpred(X, allowrankdeficient)))
@@ -137,7 +137,7 @@ end
 """
     lm(X, y; wts=similar(y, 0), allowrankdeficient::Bool=false)
 
-An alias for `fit(LinearModel, X, y;wts=wts, allowrankdeficient=allowrankdeficient)`
+An alias for `fit(LinearModel, X, y; wts=wts, allowrankdeficient=allowrankdeficient)`
 
 The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a `DataFrame`.
 
@@ -150,7 +150,7 @@ software.
 
 `allowrankdeficient` controls whether or not `lm` accepts a model matrix which
 is less-than-full rank. If `true`, only the first linearly-dependent columns are used.
-The coefficient on redundant linearly dependent columns is `0.0` and all other
+The coefficient on redundant linearly dependent columns is `0.0` and all
 associated statistics are set to `NaN`.
 """
 lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =

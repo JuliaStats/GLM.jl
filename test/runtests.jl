@@ -93,16 +93,17 @@ end
                    8.848886704358202, 2.8697881579099085, 11.15107375630744, 11.8392578374927])
 
     m2p_dep_pos = fit(LinearModel, Xmissingcell, ymissingcell, true)
-    @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keywordargument instead. Proceeding with positional argument  value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
+    @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword argument instead. " *
+                "Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
     @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
     @test rank(m2p_dep_pos.pp.chol) == rank(m2p.pp.chol)
-    @test isapprox(deviance(m2p_dep_pos),deviance(m2p))
+    @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
     @test isapprox(coef(m2p_dep_pos), coef(m2p))
 
     m2p_dep_pos_kw = fit(LinearModel, Xmissingcell, ymissingcell, true; allowrankdeficient = false)
     @test isa(m2p_dep_pos_kw.pp.chol, CholeskyPivoted)
     @test rank(m2p_dep_pos_kw.pp.chol) == rank(m2p.pp.chol)
-    @test isapprox(deviance(m2p_dep_pos_kw),deviance(m2p))
+    @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
     @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
 end
 
