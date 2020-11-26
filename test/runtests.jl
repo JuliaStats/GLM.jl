@@ -49,7 +49,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test coef(lm3) == coef(lm4) ≈ [11, 1, 2, 3, 4]
 end
 
-@testset "linear model with weights" begin 
+@testset "linear model with weights" begin
     df = dataset("quantreg", "engel")
     N = nrow(df)
     df.weights = repeat(1:5, Int(N/5))
@@ -61,13 +61,13 @@ end
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
     @test isapprox(r2(lm_model), 0.8330258148644486)
     @test isapprox(adjr2(lm_model), 0.832788298242634)
-    @test isapprox(vcov(lm_model), [88.02760245551447 -0.06772589439264813; 
+    @test isapprox(vcov(lm_model), [88.02760245551447 -0.06772589439264813;
                                     -0.06772589439264813 6.670664781664879e-5])
     @test isapprox(first(predict(lm_model)), 357.57694841780994)
     @test isapprox(loglikelihood(lm_model), -4353.946729075838)
     @test isapprox(loglikelihood(glm_model), -4353.946729075838)
     @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
-    @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
+    @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
 end
 
 @testset "rankdeficient" begin
@@ -83,8 +83,8 @@ end
     @test isapprox(deviance(m1), 0.28856700971719657)
     Xmissingcell = X[inds, :]
     ymissingcell = y[inds]
-    @test_throws PosDefException m2 = fit(LinearModel, Xmissingcell, ymissingcell)
-    m2p = fit(LinearModel, Xmissingcell, ymissingcell; allowrankdeficient = true)
+    @test_throws PosDefException m2 = fit(LinearModel, Xmissingcell, ymissingcell; dropcollinear=false)
+    m2p = fit(LinearModel, Xmissingcell, ymissingcell)
     @test isa(m2p.pp.chol, CholeskyPivoted)
     @test rank(m2p.pp.chol) == 11
     @test isapprox(deviance(m2p), 0.2859221258731563)
@@ -93,14 +93,14 @@ end
                    8.848886704358202, 2.8697881579099085, 11.15107375630744, 11.8392578374927])
 
     m2p_dep_pos = fit(LinearModel, Xmissingcell, ymissingcell, true)
-    @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword argument instead. " *
-                "Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
+    @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
+                "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
     @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
     @test rank(m2p_dep_pos.pp.chol) == rank(m2p.pp.chol)
     @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
     @test isapprox(coef(m2p_dep_pos), coef(m2p))
 
-    m2p_dep_pos_kw = fit(LinearModel, Xmissingcell, ymissingcell, true; allowrankdeficient = false)
+    m2p_dep_pos_kw = fit(LinearModel, Xmissingcell, ymissingcell, true; dropcollinear = false)
     @test isa(m2p_dep_pos_kw.pp.chol, CholeskyPivoted)
     @test rank(m2p_dep_pos_kw.pp.chol) == rank(m2p.pp.chol)
     @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
@@ -544,7 +544,7 @@ end
         ─────────────────────────────────────────────────────────────────
              DOF  ΔDOF     SSR    ΔSSR       R²      ΔR²        F*  p(>F)
         ─────────────────────────────────────────────────────────────────
-        [1]    3        0.1283           0.9603                          
+        [1]    3        0.1283           0.9603
         [2]    2    -1  3.2292  3.1008  -0.0000  -0.9603  241.6234  <1e-7
         ─────────────────────────────────────────────────────────────────"""
 
@@ -556,7 +556,7 @@ end
         ─────────────────────────────────────────────────────────────────
              DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*  p(>F)
         ─────────────────────────────────────────────────────────────────
-        [1]    2        3.2292           -0.0000                         
+        [1]    2        3.2292           -0.0000
         [2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234  <1e-7
         ─────────────────────────────────────────────────────────────────"""
 
@@ -570,7 +570,7 @@ end
         ──────────────────────────────────────────────────────────────────
              DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)
         ──────────────────────────────────────────────────────────────────
-        [1]    2        3.2292           -0.0000                          
+        [1]    2        3.2292           -0.0000
         [2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234   <1e-7
         [3]    5     2  0.1017  -0.0266   0.9685  0.0082    1.0456  0.3950
         ──────────────────────────────────────────────────────────────────"""
@@ -584,7 +584,7 @@ end
         ──────────────────────────────────────────────────────────────────
              DOF  ΔDOF     SSR    ΔSSR       R²      ΔR²        F*   p(>F)
         ──────────────────────────────────────────────────────────────────
-        [1]    5        0.1017           0.9685                           
+        [1]    5        0.1017           0.9685
         [2]    3    -2  0.1283  0.0266   0.9603  -0.0082    1.0456  0.3950
         [3]    2    -1  3.2292  3.1008  -0.0000  -0.9603  241.6234   <1e-7
         ──────────────────────────────────────────────────────────────────"""

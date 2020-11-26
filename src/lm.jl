@@ -28,10 +28,10 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     end
 end
 
-LmResp(y::FPVector, wts::FPVector=similar(y, 0)) = 
+LmResp(y::FPVector, wts::FPVector=similar(y, 0)) =
     LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
 
-LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0)) = 
+LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0)) =
     LmResp(float(y), float(wts))
 
 function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
@@ -65,7 +65,7 @@ function nulldeviance(r::LmResp)
     wts = r.wts
     if isempty(wts)
         m = mean(y)
-    else 
+    else
         m = mean(r.y, weights(r.wts))
     end
 
@@ -89,7 +89,7 @@ end
 
 function nullloglikelihood(r::LmResp)
     n = isempty(r.wts) ? length(r.y) : sum(r.wts)
-    -n/2 * (log(2π * nulldeviance(r)/n) + 1) 
+    -n/2 * (log(2π * nulldeviance(r)/n) + 1)
 end
 
 residuals(r::LmResp) = r.y - r.mu
@@ -114,10 +114,10 @@ LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 function StatsBase.fit!(obj::LinearModel)
     if isempty(obj.rr.wts)
         delbeta!(obj.pp, obj.rr.y)
-    else 
+    else
         delbeta!(obj.pp, obj.rr.y, obj.rr.wts)
     end
-    installbeta!(obj.pp)     
+    installbeta!(obj.pp)
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
     return obj
 end
@@ -125,19 +125,19 @@ end
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
              wts::AbstractVector{<:Real}=similar(y, 0),
-             allowrankdeficient::Bool=false)
+             dropcollinear::Bool=true)
     if allowrankdeficient_dep !== nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
-              "argument instead. Proceeding with positional argument value: $allowrankdeficient_dep"
-        allowrankdeficient = allowrankdeficient_dep
+              "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
+        dropcollinear = allowrankdeficient_dep
     end
-    fit!(LinearModel(LmResp(y, wts), cholpred(X, allowrankdeficient)))
+    fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
 end
 
 """
-    lm(X, y; wts=similar(y, 0), allowrankdeficient::Bool=false)
+    lm(X, y; wts=similar(y, 0), dropcollinear::Bool=true)
 
-An alias for `fit(LinearModel, X, y; wts=wts, allowrankdeficient=allowrankdeficient)`
+An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear)`
 
 The arguments `X` and `y` can be a `Matrix` and a `Vector` or a `Formula` and a `DataFrame`.
 
@@ -148,10 +148,10 @@ different standard errors from analytical (a.k.a. inverse variance) weights and
 from probability (a.k.a. sampling) weights which are the default in some other
 software.
 
-`allowrankdeficient` controls whether or not `lm` accepts a model matrix which
-is less-than-full rank. If `true`, only the first linearly-dependent columns are used.
-The coefficient on redundant linearly dependent columns is `0.0` and all
-associated statistics are set to `NaN`.
+`dropcollinear` controls whether or not `lm` accepts a model matrix which
+is less-than-full rank. If `true`, the default, only the first linearly-dependent
+columns are used. The coefficient on redundant linearly dependent columns is
+`0.0` and all associated statistics are set to `NaN`.
 """
 lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
     fit(LinearModel, X, y, allowrankdeficient_dep; kwargs...)
