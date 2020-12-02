@@ -447,7 +447,6 @@ end
     @test isapprox(vcov(gmsparse), vcov(gmdense))
 end
 
-
 @testset "Predict" begin
     Random.seed!(1)
     X = rand(10, 2)
@@ -455,7 +454,8 @@ end
 
     gm11 = fit(GeneralizedLinearModel, X, Y, Binomial())
     @test isapprox(predict(gm11), Y)
-
+    @test predict(gm11) == fitted(gm11)
+    
     newX = rand(5, 2)
     newY = logistic.(newX * coef(gm11))
     @test isapprox(predict(gm11, newX), newY)
