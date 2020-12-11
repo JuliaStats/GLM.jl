@@ -2,7 +2,7 @@
 
 | Documentation | CI Status | Coverage | DOI
 |:-----------------:|:------------------:|:-----------------:|:----------:|
-| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url] | [![][travis-img]][travis-url] | [![][coveralls-img]][coveralls-url] | [![][DOI-img]][DOI-url] |
+| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url] | [![][ci-img]][ci-url] | [![][codecof-img]][codecov-url] | [![][DOI-img]][DOI-url] |
 
 [docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
 [docs-latest-url]: https://JuliaStats.github.io/GLM.jl/dev
@@ -10,11 +10,11 @@
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
 [docs-stable-url]: https://JuliaStats.github.io/GLM.jl/stable
 
-[travis-img]: https://travis-ci.org/JuliaStats/GLM.jl.svg?branch=master
-[travis-url]: https://travis-ci.org/JuliaStats/GLM.jl
+[ci-img]: https://github.com/JuliaStats/GLM.jl/workflows/CI-stable/badge.svg
+[ci-url]: https://github.com/JuliaStats/GLM.jl/actions?query=workflow%3ACI-stable+branch%3Amaster
 
-[coveralls-img]: https://coveralls.io/repos/github/JuliaStats/GLM.jl/badge.svg?branch=master
-[coveralls-url]: https://coveralls.io/github/JuliaStats/GLM.jl?branch=master
+[codecov-img]: https://codecov.io/gh/JuliaStats/GLM.jl/branch/master/graph/badge.svg?token=cVkd4c3M8H
+[codecov-url]: https://codecov.io/gh/JuliaStats/GLM.jl
 
 [DOI-img]: https://zenodo.org/badge/DOI/10.5281/zenodo.3376013.svg
 [DOI-url]: https://doi.org/10.5281/zenodo.3376013
