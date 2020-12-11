@@ -2,7 +2,7 @@
 
 | Documentation | CI Status | Coverage | DOI
 |:-----------------:|:------------------:|:-----------------:|:----------:|
-| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url] | [![][ci-img]][ci-url] | [![][codecof-img]][codecov-url] | [![][DOI-img]][DOI-url] |
+| [![][docs-stable-img]][docs-stable-url] [![][docs-latest-img]][docs-latest-url] | [![][ci-img]][ci-url] | [![][codecov-img]][codecov-url] | [![][DOI-img]][DOI-url] |
 
 [docs-latest-img]: https://img.shields.io/badge/docs-latest-blue.svg
 [docs-latest-url]: https://JuliaStats.github.io/GLM.jl/dev
