@@ -19,6 +19,9 @@ jobs:
         version: ['1.0', '1']
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
         arch: ['x64', 'x86']
+        exclude: 
+          - os: 'macos-latest'
+            arch: 'x86'
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v2
