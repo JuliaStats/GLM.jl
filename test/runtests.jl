@@ -113,7 +113,7 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
 end
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
-admit = CSV.read(joinpath(glm_datadir, "admit.csv"))
+admit = CSV.read(joinpath(glm_datadir, "admit.csv"), DataFrame)
 admit.rank = categorical(admit.rank)
 
 @testset "$distr with LogitLink" for distr in (Binomial, Bernoulli)
@@ -471,14 +471,14 @@ end
         logistic.(newX * coef(gm12) .+ newoff))
 
     # Prediction from DataFrames
-    d = convert(DataFrame, X)
+    d = DataFrame(X, :auto)
     d.y = Y
 
     gm13 = fit(GeneralizedLinearModel, @formula(y ~ 0 + x1 + x2), d, Binomial())
     @test predict(gm13) ≈ predict(gm13, d[:,[:x1, :x2]])
     @test predict(gm13) ≈ predict(gm13, d)
 
-    newd = convert(DataFrame, newX)
+    newd = DataFrame(newX, :auto)
     predict(gm13, newd)
 
     Ylm = X * [0.8, 1.6] + 0.8randn(10)
