@@ -61,7 +61,7 @@ end
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
     @test isapprox(r2(lm_model), 0.8330258148644486)
     @test isapprox(adjr2(lm_model), 0.832788298242634)
-    @test isapprox(vcov(lm_model), [88.02760245551447 -0.06772589439264813;
+    @test isapprox(vcov(lm_model), [88.02760245551447 -0.06772589439264813; 
                                     -0.06772589439264813 6.670664781664879e-5])
     @test isapprox(first(predict(lm_model)), 357.57694841780994)
     @test isapprox(loglikelihood(lm_model), -4353.946729075838)
