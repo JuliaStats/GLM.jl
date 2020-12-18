@@ -117,7 +117,7 @@ function StatsBase.fit!(obj::LinearModel)
     else 
         delbeta!(obj.pp, obj.rr.y, obj.rr.wts)
     end
-    installbeta!(obj.pp)    
+    installbeta!(obj.pp)     
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
     return obj
 end
