@@ -149,8 +149,8 @@ from probability (a.k.a. sampling) weights which are the default in some other
 software.
 
 `dropcollinear` controls whether or not `lm` accepts a model matrix which
-is less-than-full rank. If `true`, the default, only the first linearly-dependent
-columns are used. The coefficient on redundant linearly dependent columns is
+is less-than-full rank. If `true` (the default), only the first of each set of
+linearly-dependent columns is used. The coefficient for redundant linearly dependent columns is
 `0.0` and all associated statistics are set to `NaN`.
 """
 lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
