@@ -67,7 +67,7 @@ end
     @test isapprox(loglikelihood(lm_model), -4353.946729075838)
     @test isapprox(loglikelihood(glm_model), -4353.946729075838)
     @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
-    @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
+    @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
 end
 
 @testset "rankdeficient" begin
