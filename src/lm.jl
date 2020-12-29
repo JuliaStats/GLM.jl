@@ -144,9 +144,9 @@ const FIT_LM_DOC = """
 
 """
     fit(LinearModel, formula, data, allowrankdeficient=false;
-        wts=similar(y, 0), dropcollinear=true)
+       [wts::AbstractVector], dropcollinear::Bool=true)
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
-        wts=similar(y, 0), dropcollinear=true)
+        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
 
 Fit a linear model to data.
 
@@ -166,11 +166,11 @@ end
 
 """
     lm(formula, data, allowrankdeficient=false;
-       wts=Float64[], dropcollinear=true)
+       [wts::AbstractVector], dropcollinear::Bool=true)
     lm(X::AbstractMatrix, y::AbstractVector;
-       wts=similar(y, 0), dropcollinear=true)
+       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
 
-Fit a generalized linear model to data.
+Fit a linear model to data.
 An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear)`
 
 $FIT_LM_DOC
