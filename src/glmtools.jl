@@ -20,7 +20,7 @@ abstract type Link01 <: Link end
     CauchitLink
 
 A [`Link01`](@ref) corresponding to the standard Cauchy distribution,
-[`Distributions.Cauchy`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Cauchy).
+[`Distributions.Cauchy`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.Cauchy).
 """
 struct CauchitLink <: Link01 end
 
@@ -42,37 +42,37 @@ struct IdentityLink <: Link end
 """
     InverseLink
 
-The canonical [`Link`](@ref) for [`Distributions.Gamma`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Gamma) distribution, defined as `η = inv(μ)`.
+The canonical [`Link`](@ref) for [`Distributions.Gamma`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.Gamma) distribution, defined as `η = inv(μ)`.
 """
 struct InverseLink  <: Link end
 
 """
     InverseSquareLink
 
-The canonical [`Link`](@ref) for [`Distributions.InverseGaussian`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.InverseGaussian) distribution, defined as `η = inv(abs2(μ))`.
+The canonical [`Link`](@ref) for [`Distributions.InverseGaussian`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.InverseGaussian) distribution, defined as `η = inv(abs2(μ))`.
 """
 struct InverseSquareLink  <: Link end
 
 """
     LogitLink
 
-The canonical [`Link01`](@ref) for [`Distributions.Bernoulli`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Bernoulli) and [`Distributions.Binomial`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Binomial).
+The canonical [`Link01`](@ref) for [`Distributions.Bernoulli`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.Bernoulli) and [`Distributions.Binomial`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.Binomial).
 The inverse link, [`linkinv`](@ref), is the c.d.f. of the standard logistic distribution,
-[`Distributions.Logistic`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Logistic).
+[`Distributions.Logistic`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.Logistic).
 """
 struct LogitLink <: Link01 end
 
 """
     LogLink
 
-The canonical [`Link`](@ref) for [`Distributions.Poisson`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Poisson), defined as `η = log(μ)`.
+The canonical [`Link`](@ref) for [`Distributions.Poisson`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.Poisson), defined as `η = log(μ)`.
 """
 struct LogLink <: Link end
 
 """
     NegativeBinomialLink
 
-The canonical [`Link`](@ref) for [`Distributions.NegativeBinomial`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.NegativeBinomial) distribution, defined as `η = log(μ/(μ+θ))`.
+The canonical [`Link`](@ref) for [`Distributions.NegativeBinomial`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.NegativeBinomial) distribution, defined as `η = log(μ/(μ+θ))`.
 The shape parameter θ has to be fixed for the distribution to belong to the exponential family.
 """
 struct NegativeBinomialLink  <: Link
@@ -83,7 +83,7 @@ end
     ProbitLink
 
 A [`Link01`](@ref) whose [`linkinv`](@ref) is the c.d.f. of the standard normal
-distribution, [`Distributions.Normal()`](https://juliastats.github.io/Distributions.jl/stable/univariate.html#Distributions.Normal).
+distribution, [`Distributions.Normal()`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.Normal).
 """
 struct ProbitLink <: Link01 end
 
