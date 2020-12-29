@@ -83,14 +83,28 @@ end
     @test isapprox(deviance(m1), 0.28856700971719657)
     Xmissingcell = X[inds, :]
     ymissingcell = y[inds]
-    @test_throws PosDefException m2 = fit(LinearModel, Xmissingcell, ymissingcell)
-    m2p = fit(LinearModel, Xmissingcell, ymissingcell, true)
+    @test_throws PosDefException m2 = fit(LinearModel, Xmissingcell, ymissingcell; dropcollinear=false)
+    m2p = fit(LinearModel, Xmissingcell, ymissingcell)
     @test isa(m2p.pp.chol, CholeskyPivoted)
     @test rank(m2p.pp.chol) == 11
     @test isapprox(deviance(m2p), 0.2859221258731563)
     @test isapprox(coef(m2p), [0.9178241203127236, 9.089883493902754, 3.01742566831296,
                    4.108734932819495, 4.995249696954908, 6.075962907632594, 0.0, 8.038151489191618,
                    8.848886704358202, 2.8697881579099085, 11.15107375630744, 11.8392578374927])
+
+    m2p_dep_pos = fit(LinearModel, Xmissingcell, ymissingcell, true)
+    @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
+                "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
+    @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
+    @test rank(m2p_dep_pos.pp.chol) == rank(m2p.pp.chol)
+    @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
+    @test isapprox(coef(m2p_dep_pos), coef(m2p))
+
+    m2p_dep_pos_kw = fit(LinearModel, Xmissingcell, ymissingcell, true; dropcollinear = false)
+    @test isa(m2p_dep_pos_kw.pp.chol, CholeskyPivoted)
+    @test rank(m2p_dep_pos_kw.pp.chol) == rank(m2p.pp.chol)
+    @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
+    @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
@@ -113,7 +127,7 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
 end
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
-admit = CSV.read(joinpath(glm_datadir, "admit.csv"))
+admit = CSV.read(joinpath(glm_datadir, "admit.csv"), DataFrame)
 admit.rank = categorical(admit.rank)
 
 @testset "$distr with LogitLink" for distr in (Binomial, Bernoulli)
@@ -447,7 +461,6 @@ end
     @test isapprox(vcov(gmsparse), vcov(gmdense))
 end
 
-
 @testset "Predict" begin
     Random.seed!(1)
     X = rand(10, 2)
@@ -455,7 +468,8 @@ end
 
     gm11 = fit(GeneralizedLinearModel, X, Y, Binomial())
     @test isapprox(predict(gm11), Y)
-
+    @test predict(gm11) == fitted(gm11)
+    
     newX = rand(5, 2)
     newY = logistic.(newX * coef(gm11))
     @test isapprox(predict(gm11, newX), newY)
@@ -471,14 +485,14 @@ end
         logistic.(newX * coef(gm12) .+ newoff))
 
     # Prediction from DataFrames
-    d = convert(DataFrame, X)
+    d = DataFrame(X, :auto)
     d.y = Y
 
     gm13 = fit(GeneralizedLinearModel, @formula(y ~ 0 + x1 + x2), d, Binomial())
     @test predict(gm13) ≈ predict(gm13, d[:,[:x1, :x2]])
     @test predict(gm13) ≈ predict(gm13, d)
 
-    newd = convert(DataFrame, newX)
+    newd = DataFrame(newX, :auto)
     predict(gm13, newd)
 
     Ylm = X * [0.8, 1.6] + 0.8randn(10)

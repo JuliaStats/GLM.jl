@@ -135,32 +135,48 @@ const FIT_LM_DOC = """
     different standard errors from analytical (a.k.a. inverse variance) weights and
     from probability (a.k.a. sampling) weights which are the default in some other
     software.
+
+    `dropcollinear` controls whether or not `lm` accepts a model matrix which
+    is less-than-full rank. If `true` (the default), only the first of each set of
+    linearly-dependent columns is used. The coefficient for redundant linearly dependent columns is
+    `0.0` and all associated statistics are set to `NaN`.
     """
 
 """
-    fit(LinearModel, formula, data, allowrankdeficient=false; wts=similar(y, 0))
-    fit(LinearModel, X::AbstractMatrix, y::AbstractVector, allowrankdeficient=false;
-        wts=similar(y, 0))
+    fit(LinearModel, formula, data, allowrankdeficient=false;
+        wts=similar(y, 0), dropcollinear=true)
+    fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
+        wts=similar(y, 0), dropcollinear=true)
 
 Fit a linear model to data.
 
 $FIT_LM_DOC
 """
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
-             allowrankdeficient::Bool=false; wts::AbstractVector{<:Real}=similar(y, 0))
-    fit!(LinearModel(LmResp(y, wts), cholpred(X, allowrankdeficient)))
+             allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
+             wts::AbstractVector{<:Real}=similar(y, 0),
+             dropcollinear::Bool=true)
+    if allowrankdeficient_dep !== nothing
+        @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
+              "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
+        dropcollinear = allowrankdeficient_dep
+    end
+    fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
 end
 
 """
-    lm(formula, data, allowrankdeficient=false; wts=similar(y, 0))
-    lm(X::AbstractMatrix, y::AbstractVector, allowrankdeficient=false; wts=similar(y, 0))
+    lm(formula, data, allowrankdeficient=false;
+       wts=Float64[], dropcollinear=true)
+    lm(X::AbstractMatrix, y::AbstractVector;
+       wts=similar(y, 0), dropcollinear=true)
 
-Fit a generalized linear model to data. Alias for `fit(LinearModel, ...)`.
+Fit a generalized linear model to data.
+An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear)`
 
 $FIT_LM_DOC
 """
-lm(X, y, allowrankdeficient::Bool=false; kwargs...) =
-    fit(LinearModel, X, y, allowrankdeficient; kwargs...)
+lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
+    fit(LinearModel, X, y, allowrankdeficient_dep; kwargs...)
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
