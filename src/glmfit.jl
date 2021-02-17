@@ -515,7 +515,7 @@ If `interval` is `nothing` (the default), return the predicted response of model
 `mm` from covariate values `newX` and, optionally, an `offset`. If `interval` is
 `:confidence`, also return upper and lower bounds for a given coverage `level`. By 
 default (`symmetric = false`) the intervals are constructed by applying the inverse link
-to intervals for the linear predictor, if `symmetric=true`, the intervals are symmetric 
+to intervals for the linear predictor. If `symmetric=true`, the intervals are symmetric 
 around the point estimates.
 """
 function predict(mm::AbstractGLM, newX::AbstractMatrix;
