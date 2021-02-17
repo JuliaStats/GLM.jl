@@ -534,10 +534,6 @@ end
     @test preds_asymmetric.upper ≈ ggplot_upper atol=1e-3
 
     @test preds_symmetric.upper .-  preds_symmetric.lower ≈ 2 .* 1.96 .* R_glm_se atol=1e-3
-
-    # now fit model at level so that CI width is equal to standard error
-    preds_symmetric_at_se =  predict(gm, newX, interval=:confidence, symmetric=true, level=0.3829249)
-    @test preds_symmetric_at_se.upper .-  preds_symmetric_at_se.lower ≈  R_glm_se atol=1e-3
 end 
 
 @testset "F test for model comparison" begin
