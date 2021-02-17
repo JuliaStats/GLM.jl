@@ -463,8 +463,8 @@ end
     gm11_pred3 = predict(gm11, newX; interval=:confidence, symmetric=false)
     @test gm11_pred1 == gm11_pred2.prediction == gm11_pred3.prediction≈ newY
     se_pred = [0.19904587484129196, 0.18029108261296775,
-                   0.3290573571361879, 0.11536024793564569, 0.23972290956210984]
-    @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975).*se_pred #
+               0.3290573571361879, 0.11536024793564569, 0.23972290956210984]
+    @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975).*se_pred
     @test gm11_pred2.upper ≈ gm11_pred2.prediction .+ quantile(Normal(), 0.975).*se_pred
 
 

@@ -534,32 +534,30 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
     if interval === nothing
         return mu
     elseif interval == :confidence
-        normalquantile = quantile(Normal(), (1. + level)/2)
+        normalquantile = quantile(Normal(), (1 + level)/2)
         # Use Delta method to estimate variance in two steps
         # (2nd step varies as `symmetric` is `true` or `false`)
         # 1. Estimate variance for eta based on variance for coefficients
         #    through the diagonal of newX*vcov(mm)*newX'
         vcovXnewT = vcov(mm)*newX'
-        vareta = [dot(view(newX, i, :), view(vcovXnewT, :, i)) for i in axes(newX,1)]
+        stdeta = [sqrt(dot(view(newX, i, :), view(vcovXnewT, :, i))) for i in axes(newX,1)]
         
         if symmetric
             # 2. Now compute the variance for mu based on variance of eta and
             # construct intervals based on that
-            varmu = vareta .* [abs2(mueta(Link(mm), x)) for x in eta]
-            lower = mu .- normalquantile .* sqrt.(varmu)
-            upper = mu .+ normalquantile .* sqrt.(varmu)
+            stdmu = stdeta .* abs.(mueta.(Link(mm), eta))
+            lower = mu .- normalquantile .* stdmu
+            upper = mu .+ normalquantile .* stdmu
         elseif !symmetric 
             # 2. Construct intervals for eta, then apply inverse link
-            lower = linkinv.(Link(mm), eta .- normalquantile .* sqrt.(vareta))
-            upper = linkinv.(Link(mm), eta .+ normalquantile .* sqrt.(vareta))
+            lower = linkinv.(Link(mm), eta .- normalquantile .* stdeta)
+            upper = linkinv.(Link(mm), eta .+ normalquantile .* stdeta)
         end
     else
         error("only :confidence intervals are defined")
     end
     (prediction = mu, lower = lower, upper = upper)
 end
-
-
 
 # A helper function to choose default values for eta
 function initialeta!(eta::AbstractVector,
