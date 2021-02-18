@@ -540,7 +540,7 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
         return mu
     elseif interval == :confidence
         normalquantile = quantile(Normal(), (1 + level)/2)
-        # Estimate variance in two steps
+        # Compute confidence intervals in two steps
         # (2nd step varies depending on `interval_method`)
         # 1. Estimate variance for eta based on variance for coefficients
         #    through the diagonal of newX*vcov(mm)*newX'
