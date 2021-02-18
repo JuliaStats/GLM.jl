@@ -459,8 +459,8 @@ end
     newX = rand(5, 2)
     newY = logistic.(newX * coef(gm11))
     gm11_pred1 = predict(gm11, newX)
-    gm11_pred2 = predict(gm11, newX; interval=:confidence, symmetric=true)
-    gm11_pred3 = predict(gm11, newX; interval=:confidence, symmetric=false)
+    gm11_pred2 = predict(gm11, newX; interval=:confidence, interval_method=:delta)
+    gm11_pred3 = predict(gm11, newX; interval=:confidence, interval_method=:transformation)
     @test gm11_pred1 == gm11_pred2.prediction == gm11_pred3.prediction≈ newY
     se_pred = [0.19904587484129196, 0.18029108261296775,
                0.3290573571361879, 0.11536024793564569, 0.23972290956210984]
@@ -525,15 +525,16 @@ end
 
     R_glm_se = [0.09748766, 0.09808412, 0.07963897, 0.07495792, 0.05177654]
 
-    preds_asymmetric = predict(gm, newX, interval=:confidence, symmetric=false)
-    preds_symmetric = predict(gm, newX, interval=:confidence, symmetric=true)
+    preds_transformation = predict(gm, newX, interval=:confidence, interval_method=:transformation)
+    preds_delta = predict(gm, newX, interval=:confidence, interval_method=:delta)
 
-    @test preds_asymmetric.prediction == preds_symmetric.prediction
-    @test preds_asymmetric.prediction ≈ ggplot_prediction atol=1e-3
-    @test preds_asymmetric.lower ≈ ggplot_lower atol=1e-3
-    @test preds_asymmetric.upper ≈ ggplot_upper atol=1e-3
+    @test preds_transformation.prediction == preds_delta.prediction
+    @test preds_transformation.prediction ≈ ggplot_prediction atol=1e-3
+    @test preds_transformation.lower ≈ ggplot_lower atol=1e-3
+    @test preds_transformation.upper ≈ ggplot_upper atol=1e-3
 
-    @test preds_symmetric.upper .-  preds_symmetric.lower ≈ 2 .* 1.96 .* R_glm_se atol=1e-3
+    @test preds_delta.upper .-  preds_delta.lower ≈ 2 .* 1.96 .* R_glm_se atol=1e-3
+    @test_throws ErrorException predict(gm, newX, interval=:confidence, interval_method=:undefined_method)
 end 
 
 @testset "F test for model comparison" begin
