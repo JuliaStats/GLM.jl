@@ -534,7 +534,8 @@ end
     @test preds_transformation.upper ≈ ggplot_upper atol=1e-3
 
     @test preds_delta.upper .-  preds_delta.lower ≈ 2 .* 1.96 .* R_glm_se atol=1e-3
-    @test_throws ErrorException predict(gm, newX, interval=:confidence, interval_method=:undefined_method)
+    @test_throws ArgumentError predict(gm, newX, interval=:confidence, interval_method=:undefined_method)
+    @test_throws ArgumentError predict(gm, newX, interval=:undefined)
 end 
 
 @testset "F test for model comparison" begin

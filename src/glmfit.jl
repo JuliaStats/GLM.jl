@@ -511,11 +511,12 @@ end
             interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95,
             interval_method::Symbol = :transformation)
 
-If `interval` is `nothing` (the default), return the predicted response of model
-`mm` from covariate values `newX` and, optionally, an `offset`. If `interval` is
-`:confidence`, also return upper and lower bounds for a given coverage `level`. By default
-(`interval_method = :transformation`) the intervals are constructed by applying the
-inverse link to intervals for the linear predictor. If `interval_method = :delta`,
+Return the predicted response of model `mm` from covariate values `newX` and,
+optionally, an `offset`.
+
+If `interval=:confidence`, also return upper and lower bounds for a given coverage `level`.
+By default (`interval_method = :transformation`) the intervals are constructed by applying
+the inverse link to intervals for the linear predictor. If `interval_method = :delta`,
 the intervals are constructed by the delta method, i.e., by linearization of the predicted
 response around the linear predictor. The `:delta` method intervals are symmetric around
 the point estimates, but do not respect natural parameter constraints
@@ -558,10 +559,10 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
             lower = linkinv.(Link(mm), eta .- normalquantile .* stdeta)
             upper = linkinv.(Link(mm), eta .+ normalquantile .* stdeta)
         else
-            error("interval_method can be only :transformation or :delta")
+            throw(ArgumentError("interval_method can be only :transformation or :delta"))
         end
     else
-        error("only :confidence intervals are defined")
+        throw(ArgumentError("only :confidence intervals are defined"))
     end
     (prediction = mu, lower = lower, upper = upper)
 end
