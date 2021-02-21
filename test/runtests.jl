@@ -472,7 +472,15 @@ end
     
     newX = rand(5, 2)
     newY = logistic.(newX * coef(gm11))
-    @test isapprox(predict(gm11, newX), newY)
+    gm11_pred1 = predict(gm11, newX)
+    gm11_pred2 = predict(gm11, newX; interval=:confidence, interval_method=:delta)
+    gm11_pred3 = predict(gm11, newX; interval=:confidence, interval_method=:transformation)
+    @test gm11_pred1 == gm11_pred2.prediction == gm11_pred3.prediction≈ newY
+    se_pred = [0.19904587484129196, 0.18029108261296775,
+               0.3290573571361879, 0.11536024793564569, 0.23972290956210984]
+    @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975).*se_pred
+    @test gm11_pred2.upper ≈ gm11_pred2.prediction .+ quantile(Normal(), 0.975).*se_pred
+
 
     off = rand(10)
     newoff = rand(5)
@@ -517,6 +525,32 @@ end
     @test pred3.upper ≈ [3.9036197999106674, 2.6291976809914988,
         4.815559090394707, 2.3612485765861515, 3.8867779526777784]
 end
+
+@testset "GLM confidence intervals" begin
+    X = [fill(1,50) range(0,1, length=50)]
+    Y = vec([0 0 0 1 0 1 1 0 0 0 0 0 0 0 1 0 1 1 0 1 1 0 1 0 0 1 1 1 0 1 1 1 1 1 0 1 0 1 1 1 0 1 1 1 1 1 1 1 1 1])
+    gm = fit(GeneralizedLinearModel, X, Y, Binomial())
+
+    newX = [fill(1,5) [0.0000000, 0.2405063, 0.4936709, 0.7468354, 1.0000000]]
+
+    ggplot_prediction = [0.1804678, 0.3717731, 0.6262062, 0.8258605, 0.9306787]
+    ggplot_lower = [0.05704968, 0.20624382, 0.46235427, 0.63065189, 0.73579237]
+    ggplot_upper = [0.4449066, 0.5740713, 0.7654544, 0.9294403, 0.9847846]
+
+    R_glm_se = [0.09748766, 0.09808412, 0.07963897, 0.07495792, 0.05177654]
+
+    preds_transformation = predict(gm, newX, interval=:confidence, interval_method=:transformation)
+    preds_delta = predict(gm, newX, interval=:confidence, interval_method=:delta)
+
+    @test preds_transformation.prediction == preds_delta.prediction
+    @test preds_transformation.prediction ≈ ggplot_prediction atol=1e-3
+    @test preds_transformation.lower ≈ ggplot_lower atol=1e-3
+    @test preds_transformation.upper ≈ ggplot_upper atol=1e-3
+
+    @test preds_delta.upper .-  preds_delta.lower ≈ 2 .* 1.96 .* R_glm_se atol=1e-3
+    @test_throws ArgumentError predict(gm, newX, interval=:confidence, interval_method=:undefined_method)
+    @test_throws ArgumentError predict(gm, newX, interval=:undefined)
+end 
 
 @testset "F test for model comparison" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],

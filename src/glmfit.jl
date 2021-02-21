@@ -58,7 +58,7 @@ function GlmResp(y::V, d::D, l::L, off::V, wts::V) where {V<:FPVector,D,L}
     return r
 end
 
-function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real}, 
+function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
                  wts::AbstractVector{<:Real}) where {D, L}
         GlmResp(float(y), d, l, float(off), float(wts))
 end
@@ -513,13 +513,26 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
 end
 
 """
-    predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=Vector{eltype(newX)}(0))
+    predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=eltype(newX)[],
+            interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95,
+            interval_method::Symbol = :transformation)
 
-Form the predicted response of model `mm` from covariate values `newX` and, optionally,
-an offset.
+Return the predicted response of model `mm` from covariate values `newX` and,
+optionally, an `offset`.
+
+If `interval=:confidence`, also return upper and lower bounds for a given coverage `level`.
+By default (`interval_method = :transformation`) the intervals are constructed by applying
+the inverse link to intervals for the linear predictor. If `interval_method = :delta`,
+the intervals are constructed by the delta method, i.e., by linearization of the predicted
+response around the linear predictor. The `:delta` method intervals are symmetric around
+the point estimates, but do not respect natural parameter constraints
+(e.g., the lower bound for a probability could be negative).
 """
 function predict(mm::AbstractGLM, newX::AbstractMatrix;
-                 offset::FPVector=eltype(newX)[])
+                 offset::FPVector=eltype(newX)[],
+                 interval::Union{Symbol,Nothing}=nothing,
+                 level::Real=0.95,
+                 interval_method=:transformation)
     eta = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||
@@ -528,7 +541,36 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
     else
         length(offset) > 0 && throw(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
     end
-    mu = [linkinv(Link(mm), x) for x in eta]
+    mu = linkinv.(Link(mm), eta)
+
+    if interval === nothing
+        return mu
+    elseif interval == :confidence
+        normalquantile = quantile(Normal(), (1 + level)/2)
+        # Compute confidence intervals in two steps
+        # (2nd step varies depending on `interval_method`)
+        # 1. Estimate variance for eta based on variance for coefficients
+        #    through the diagonal of newX*vcov(mm)*newX'
+        vcovXnewT = vcov(mm)*newX'
+        stdeta = [sqrt(dot(view(newX, i, :), view(vcovXnewT, :, i))) for i in axes(newX,1)]
+
+        if interval_method == :delta
+            # 2. Now compute the variance for mu based on variance of eta and
+            # construct intervals based on that (Delta method)
+            stdmu = stdeta .* abs.(mueta.(Link(mm), eta))
+            lower = mu .- normalquantile .* stdmu
+            upper = mu .+ normalquantile .* stdmu
+        elseif interval_method == :transformation
+            # 2. Construct intervals for eta, then apply inverse link
+            lower = linkinv.(Link(mm), eta .- normalquantile .* stdeta)
+            upper = linkinv.(Link(mm), eta .+ normalquantile .* stdeta)
+        else
+            throw(ArgumentError("interval_method can be only :transformation or :delta"))
+        end
+    else
+        throw(ArgumentError("only :confidence intervals are defined"))
+    end
+    (prediction = mu, lower = lower, upper = upper)
 end
 
 # A helper function to choose default values for eta
