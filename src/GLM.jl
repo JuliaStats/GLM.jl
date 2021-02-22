@@ -25,7 +25,6 @@ module GLM
         Bernoulli,
         Binomial,
         Gamma,
-        Gaussian,
         InverseGaussian,
         NegativeBinomial,
         Normal,
