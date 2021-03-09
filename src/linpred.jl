@@ -138,12 +138,12 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}) where T<:
     if rnk == length(delbeta)
         ldiv!(ch, delbeta)
     else
-        permute!(delbeta, ch.piv)
+        permute!(delbeta, ch.p)
         for k=(rnk+1):length(delbeta)
             delbeta[k] = -zero(T)
         end
         LAPACK.potrs!(ch.uplo, view(ch.factors, 1:rnk, 1:rnk), view(delbeta, 1:rnk))
-        invpermute!(delbeta, ch.piv)
+        invpermute!(delbeta, ch.p)
     end
     p
 end
@@ -158,7 +158,7 @@ end
 
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     cf = cholfactors(p.chol)
-    piv = p.chol.piv
+    piv = p.chol.p
     cf .= mul!(p.scratchm2, adjoint(LinearAlgebra.mul!(p.scratchm1, Diagonal(wt), p.X)), p.X)[piv, piv]
     cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.scratchm1), r))
@@ -209,7 +209,7 @@ function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
         res[i, j] = fac[i, j]
     end
     copytri!(LAPACK.potri!(ch.uplo, view(res, 1:rnk, 1:rnk)), ch.uplo, true)
-    ipiv = invperm(ch.piv)
+    ipiv = invperm(ch.p)
     res[ipiv, ipiv]
 end
 invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
