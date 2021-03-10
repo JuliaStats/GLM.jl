@@ -200,7 +200,7 @@ end
 end
 
 ## Example with offsets from Venables & Ripley (2002, p.189)
-anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"))
+anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
 
 @testset "Offset" begin
     gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
