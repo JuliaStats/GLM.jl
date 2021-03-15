@@ -524,6 +524,21 @@ end
         0.18660252681017786, -1.6922982042879862, -0.46793127827646197]
     @test pred3.upper ≈ [3.9036197999106674, 2.6291976809914988,
         4.815559090394707, 2.3612485765861515, 3.8867779526777784]
+
+    # Prediction with dropcollinear (#409)
+    x = [1.0 1.0
+         1.0 2.0
+         1.0 -1.0]
+    y = [1.0, 3.0, -2.0]
+    m1 = lm(x, y, dropcollinear=true)
+    m2 = lm(x, y, dropcollinear=false)
+
+    p1 = predict(m1, x, interval=:confidence)
+    p2 = predict(m2, x, interval=:confidence)
+
+    @test p1.prediction ≈ p2.prediction
+    @test p1.upper ≈ p2.upper
+    @test p1.lower ≈ p2.lower
 end
 
 @testset "GLM confidence intervals" begin
