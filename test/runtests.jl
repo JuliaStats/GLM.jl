@@ -539,6 +539,9 @@ end
     @test p1.prediction ≈ p2.prediction
     @test p1.upper ≈ p2.upper
     @test p1.lower ≈ p2.lower
+
+    # Deprecated argument value
+    @test predict(m1, x, interval=:confint) == p1
 end
 
 @testset "GLM confidence intervals" begin
