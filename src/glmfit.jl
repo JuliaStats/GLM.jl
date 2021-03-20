@@ -422,8 +422,9 @@ function StatsBase.fit!(m::AbstractGLM,
 end
 
 const FIT_GLM_DOC = """
-    In the first method, `formula` must be a `Formula` object and `data` a table
-    (in the Tables.jl definition, e.g. a data frame).
+    In the first method, `formula` must be a
+    [StatsModels.jl `Formula` object](https://juliastats.org/StatsModels.jl/stable/formula/)
+    and `data` a table (in the Tables.jl definition, e.g. a data frame).
     In the second method, `X` must be a matrix holding values of the dependent variable(s)
     in columns (including if appropriate the intercept), and `y` must be a vector holding
     values of the independent variable.
