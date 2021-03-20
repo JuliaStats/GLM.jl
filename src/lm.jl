@@ -126,9 +126,9 @@ const FIT_LM_DOC = """
     In the first method, `formula` must be a
     [StatsModels.jl `Formula` object](https://juliastats.org/StatsModels.jl/stable/formula/)
     and `data` a table (in the Tables.jl definition, e.g. a data frame).
-    In the second method, `X` must be a matrix holding values of the dependent variable(s)
+    In the second method, `X` must be a matrix holding values of the independent variable(s)
     in columns (including if appropriate the intercept), and `y` must be a vector holding
-    values of the independent variable.
+    values of the dependent variable.
 
     The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
     Such weights are equivalent to repeating each observation a number of times equal

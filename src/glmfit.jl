@@ -425,9 +425,9 @@ const FIT_GLM_DOC = """
     In the first method, `formula` must be a
     [StatsModels.jl `Formula` object](https://juliastats.org/StatsModels.jl/stable/formula/)
     and `data` a table (in the Tables.jl definition, e.g. a data frame).
-    In the second method, `X` must be a matrix holding values of the dependent variable(s)
+    In the second method, `X` must be a matrix holding values of the independent variable(s)
     in columns (including if appropriate the intercept), and `y` must be a vector holding
-    values of the independent variable.
+    values of the dependent variable.
     In both cases, `distr` must specify the distribution, and `link` may specify the link
     function (if omitted, it is taken to be the canonical link for `distr`; see [`Link`](@ref)
     for a list of built-in links).
