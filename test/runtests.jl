@@ -49,6 +49,23 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test coef(lm3) == coef(lm4) ≈ [11, 1, 2, 3, 4]
 end
 
+@testset "Linear Model Cooks Distance - refers to PR #368 and issue #414" begin
+    st_df = DataFrame( 
+        Y=[1.3, 2.3, 5.3, 10., 7.2 , 6.3],
+        XA=[1.5, 6.5, 11.5, 19.9, 17.0, 15.5],
+        XB=[1.8, 7.8, 11.8, 20.5, 17.3, 15.8], 
+        W=[0.1, 0.2, 0.2, 0.1, 0.2, 0.2],
+        CooksD=[1.7122291956, 18.983407026, 0.000118078, 0.8470797843, 0.0715921999, 0.1105843157], 
+        CooksDW=[0.7371619575, 30.979165951, 0.0112480511, 0.5168548491, 0.0600217986, 0.1270980264] )
+    
+    t_lm = lm(@formula(Y ~ XA + XB), st_df)
+    @show(r2(t_lm))
+    @test isapprox(st_df.CooksD, cooksdistance(t_lm))
+    t_lm_w = lm(@formula(Y ~ XA + XB), st_df, wts = st_df.W)
+    @show(r2(t_lm_w))
+    @test isapprox(st_df.CooksDW, cooksdistance(t_lm_w))
+end
+
 @testset "linear model with weights" begin 
     df = dataset("quantreg", "engel")
     N = nrow(df)

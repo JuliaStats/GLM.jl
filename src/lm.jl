@@ -243,3 +243,24 @@ function confint(obj::LinearModel; level::Real=0.95)
     hcat(coef(obj),coef(obj)) + stderror(obj) *
     quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
+
+"""
+    cooksdistance(obj::LinearModel)
+Compute Cook's distance for each observation, an estimate of the influence of each data point.
+Credit to Tyler Beason https://github.com/tbeason
+"""
+function cooksdistance(obj::LinearModel)
+    u = residuals(obj)
+    mse = dispersion(obj,true)
+    k = dof(obj)-1
+    X = modelmatrix(obj)
+    wts = obj.rr.wts
+    if isempty(wts)
+        hii = diag(X * inv(X' * X) * X')
+    else
+        W = Diagonal(wts)
+        hii = diag(X * inv(X' * W * X) * X' * W)
+    end
+    D = u.^2 .* (hii ./ (1 .- hii).^2) ./ (k*mse)
+    return D
+end
