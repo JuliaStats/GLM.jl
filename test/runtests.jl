@@ -57,12 +57,10 @@ end
         W=[0.1, 0.2, 0.2, 0.1, 0.2, 0.2],
         CooksD=[1.7122291956, 18.983407026, 0.000118078, 0.8470797843, 0.0715921999, 0.1105843157], 
         CooksDW=[0.7371619575, 30.979165951, 0.0112480511, 0.5168548491, 0.0600217986, 0.1270980264] )
-    
+
     t_lm = lm(@formula(Y ~ XA + XB), st_df)
-    @show(r2(t_lm))
     @test isapprox(st_df.CooksD, cooksdistance(t_lm))
     t_lm_w = lm(@formula(Y ~ XA + XB), st_df, wts = st_df.W)
-    @show(r2(t_lm_w))
     @test isapprox(st_df.CooksDW, cooksdistance(t_lm_w))
 end
 
