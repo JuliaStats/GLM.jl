@@ -264,3 +264,9 @@ function cooksdistance(obj::LinearModel)
     D = u.^2 .* (hii ./ (1 .- hii).^2) ./ (k*mse)
     return D
 end
+
+using StatsModels
+
+function cooksdistance(obj :: StatsModels.TableRegressionModel)
+    cooksdistance(obj.model)
+end  
