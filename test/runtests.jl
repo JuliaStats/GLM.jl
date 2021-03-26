@@ -61,9 +61,9 @@ end
     t_lm = lm(@formula(Y ~ XA + XB), st_df)
     @show(r2(t_lm))
     @test isapprox(st_df.CooksD, cooksdistance(t_lm))
-    t_lm_w = lm(@formula(Y ~ XA + XB), st_df, wts = st_df.W)
-    @show(r2(t_lm_w))
-    @test isapprox(st_df.CooksDW, cooksdistance(t_lm_w))
+    # t_lm_w = lm(@formula(Y ~ XA + XB), st_df, wts = st_df.W)
+    # @show(r2(t_lm_w))
+    # @test isapprox(st_df.CooksDW, cooksdistance(t_lm_w))
 end
 
 @testset "linear model with weights" begin 
