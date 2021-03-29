@@ -261,7 +261,7 @@ function cooksdistance(obj::LinearModel)
     if isempty(wts)
         hii = diag(X * inv(X' * X) * X')
     else
-        if mean(wts) == 1.
+        if mean(wts) == 1. # assume that the weights are normalised if the mean is 1 
             u = @. u * sqrt(wts)
             W = Diagonal(wts)
             hii = diag(X * inv(X' * W * X) * X' * W)
@@ -275,10 +275,14 @@ end
 
 using StatsModels
 
+"""
+    cooksdistance(obj :: StatsModels.TableRegressionModel)
+wrapper from TableRegressionModel to LinearModel. Will produce error when use with something else than LinearModel.
+"""
 function cooksdistance(obj :: StatsModels.TableRegressionModel)
     if isa(obj.model , LinearModel)
         cooksdistance(obj.model)
     else
         error("cooksdistance not implemented for model type: ", typeof(obj.model))
     end
-end  
+end
