@@ -246,10 +246,11 @@ end
 
 """
     cooksdistance(obj::LinearModel)
-Compute Cook's distance for each observation, an estimate of the influence of each data point.
-Currently only model without weights or with normalised weights are supported.
-reference: https://en.wikipedia.org/wiki/Cook%27s_distance
-Credit to Tyler Beason https://github.com/tbeason
+
+Compute [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance)
+for each observation in linear model `obj`, giving an estimate of the influence
+of each data point.
+Currently only models without weights or with normalised weights are supported.
 """
 function cooksdistance(obj::LinearModel)
     u = residuals(obj)
