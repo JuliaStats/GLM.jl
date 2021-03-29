@@ -247,26 +247,37 @@ end
 """
     cooksdistance(obj::LinearModel)
 Compute Cook's distance for each observation, an estimate of the influence of each data point.
+Currently only model without weights are supported
 Credit to Tyler Beason https://github.com/tbeason
 """
 function cooksdistance(obj::LinearModel)
     u = residuals(obj)
     mse = dispersion(obj,true)
     k = dof(obj)-1
+    d_res = dof_residual(obj)
     X = modelmatrix(obj)
     wts = obj.rr.wts
     if isempty(wts)
         hii = diag(X * inv(X' * X) * X')
     else
-        W = Diagonal(wts)
-        hii = diag(X * inv(X' * W * X) * X' * W)
+        if mean(wts) == 1.
+            u = @. u * sqrt(wts)
+            W = Diagonal(wts)
+            hii = diag(X * inv(X' * W * X) * X' * W)
+        else
+            error("Currently only support LinearModel without weight or with normalised weights `wts= wts ./ mean(wts)`.")
+        end
     end
-    D = u.^2 .* (hii ./ (1 .- hii).^2) ./ (k*mse)
+    D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
     return D
 end
 
 using StatsModels
 
 function cooksdistance(obj :: StatsModels.TableRegressionModel)
-    cooksdistance(obj.model)
+    if isa(obj.model , LinearModel)
+        cooksdistance(obj.model)
+    else
+        error("cooksdistance not implemented for model type: ", typeof(obj.model))
+    end
 end  
