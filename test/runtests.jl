@@ -51,17 +51,26 @@ end
 
 @testset "Linear Model Cooks Distance - refers to PR #368 and issue #414" begin
     st_df = DataFrame( 
-        Y=[1.3, 2.3, 5.3, 10., 7.2 , 6.3],
+        Y=[6.4, 7.4, 10.4, 15.1, 12.3 , 11.4],
         XA=[1.5, 6.5, 11.5, 19.9, 17.0, 15.5],
         XB=[1.8, 7.8, 11.8, 20.5, 17.3, 15.8], 
         W=[0.6, 1.2, 1.2, 0.6, 1.2, 1.2],
-        CooksD=[1.7122291956, 18.983407026, 0.000118078, 0.8470797843, 0.0715921999, 0.1105843157], 
-        CooksDW=[0.7371619575, 30.979165951, 0.0112480511, 0.5168548491, 0.0600217986, 0.1270980264] )
+        CooksD_base=[1.4068501943, 0.176809102, 0.0026655177, 1.0704009915, 0.0875726457, 0.1331183932], 
+        CooksD_noint=[0.0076891801, 0.0302993877, 0.0410262965, 0.0294348488, 0.0691589296, 0.0273045538], 
+        CooksD_multi=[1.7122291956,	18.983407026, 0.000118078, 0.8470797843, 0.0715921999, 0.1105843157 ] )
 
-    t_lm = lm(@formula(Y ~ XA + XB), st_df)
-    @test isapprox(st_df.CooksD, cooksdistance(t_lm))
-    t_lm_w = lm(@formula(Y ~ XA + XB), st_df, wts = st_df.W)
-    @test isapprox(st_df.CooksDW, cooksdistance(t_lm_w))
+    # linear regression
+    t_lm_base = lm(@formula(Y ~ XA), st_df)
+    @test isapprox(st_df.CooksD_base, cooksdistance(t_lm_base))
+
+    # linear regression, no intercept 
+    t_lm_noint = lm(@formula(Y ~ XA +0), st_df)
+    @test isapprox(st_df.CooksD_noint, cooksdistance(t_lm_noint))
+
+    # linear regression, two collinear variables (Variance inflation factor ≊ 250)
+    t_lm_multi = lm(@formula(Y ~ XA + XB), st_df)
+    @test isapprox(st_df.CooksD_multi, cooksdistance(t_lm_multi))
+
 end
 
 @testset "linear model with weights" begin 
