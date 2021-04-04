@@ -262,13 +262,7 @@ function cooksdistance(obj::LinearModel)
     if isempty(wts)
         hii = diag(X * inv(X' * X) * X')
     else
-        if mean(wts) == 1. # assume that the weights are normalised if the mean is 1 
-            u = @. u * sqrt(wts)
-            W = Diagonal(wts)
-            hii = diag(X * inv(X' * W * X) * X' * W)
-        else
-            error("Currently only support LinearModel without weight or with normalised weights `wts= wts ./ mean(wts)`.")
-        end
+        error("Currently only support LinearModel without weight/frequency.")
     end
     D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
     return D
