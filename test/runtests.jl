@@ -54,10 +54,12 @@ end
         Y=[6.4, 7.4, 10.4, 15.1, 12.3 , 11.4],
         XA=[1.5, 6.5, 11.5, 19.9, 17.0, 15.5],
         XB=[1.8, 7.8, 11.8, 20.5, 17.3, 15.8], 
+        XC=[3., 13., 23., 39.8, 34., 31.],
         W=[0.6, 1.2, 1.2, 0.6, 1.2, 1.2],
         CooksD_base=[1.4068501943, 0.176809102, 0.0026655177, 1.0704009915, 0.0875726457, 0.1331183932], 
         CooksD_noint=[0.0076891801, 0.0302993877, 0.0410262965, 0.0294348488, 0.0691589296, 0.0273045538], 
-        CooksD_multi=[1.7122291956,	18.983407026, 0.000118078, 0.8470797843, 0.0715921999, 0.1105843157 ] )
+        CooksD_multi=[1.7122291956,	18.983407026, 0.000118078, 0.8470797843, 0.0715921999, 0.1105843157 ],
+         )
 
     # linear regression
     t_lm_base = lm(@formula(Y ~ XA), st_df)
@@ -70,6 +72,10 @@ end
     # linear regression, two collinear variables (Variance inflation factor ≊ 250)
     t_lm_multi = lm(@formula(Y ~ XA + XB), st_df)
     @test isapprox(st_df.CooksD_multi, cooksdistance(t_lm_multi))
+
+    # linear regression, two full collinear variables (XA = 2 XC) hence should get the same results as base
+    t_lm_colli = lm(@formula(Y ~ XA + XC), st_df)
+    @test isapprox(st_df.CooksD_base, cooksdistance(t_lm_colli))
 
 end
 
