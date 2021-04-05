@@ -250,7 +250,7 @@ end
 Compute [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance)
 for each observation in linear model `obj`, giving an estimate of the influence
 of each data point.
-Currently only models without weights or with normalised weights are supported.
+Currently only implemented for LinearModel models without weights.
 """
 function cooksdistance(obj::LinearModel)
     u = residuals(obj)
@@ -266,18 +266,4 @@ function cooksdistance(obj::LinearModel)
     end
     D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
     return D
-end
-
-using StatsModels
-
-"""
-    cooksdistance(obj :: StatsModels.TableRegressionModel)
-wrapper from TableRegressionModel to LinearModel. Will produce error when use with something else than LinearModel.
-"""
-function cooksdistance(obj :: StatsModels.TableRegressionModel)
-    if isa(obj.model , LinearModel)
-        cooksdistance(obj.model)
-    else
-        error("cooksdistance not implemented for model type: ", typeof(obj.model))
-    end
 end
