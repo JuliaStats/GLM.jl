@@ -52,6 +52,8 @@ Currently the available Link types are
     ProbitLink
     SqrtLink
 
+Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
+in practice one typically uses `LogLink`.
 The `NegativeBinomial` distribution belongs to the exponential family only if θ (the shape
 parameter) is fixed, thus θ has to be provided if we use `glm` with `NegativeBinomial` family.
 If one would like to also estimate θ, then `negbin(formula, data, link)` should be
