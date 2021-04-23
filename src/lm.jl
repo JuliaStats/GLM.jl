@@ -252,7 +252,7 @@ for each observation in linear model `obj`, giving an estimate of the influence
 of each data point.
 Currently only implemented for LinearModel models without weights.
 """
-function cooksdistance(obj::LinearModel)
+function StatsBase.cooksdistance(obj::LinearModel)
     u = residuals(obj)
     mse = dispersion(obj,true)
     k = dof(obj)-1
