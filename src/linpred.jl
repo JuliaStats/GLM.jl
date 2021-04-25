@@ -224,7 +224,38 @@ end
 stderror(x::LinPredModel) = sqrt.(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
-    println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
+    println(io, typeof(obj))
+    println(io)
+    println(io, "Coefficients:")
+    println(io, coeftable(obj))
+    println(io)
+    println("R² = ", round(r2(obj), sigdigits=4))
+    println(io, fstatistic(obj))
+end
+
+struct FStatistic
+    nobs::Int64
+    ndims::Int64
+    f::Float64
+    fprob::Float64
+end
+
+function fstatistic(obj::LinPredModel)
+    rss = sum(residuals(obj).^2)
+    tss = sum((response(obj) .- mean(response(obj))).^2)
+
+    n = nobs(obj)
+    p = length(coef(obj)) - 1 # minus intercept
+    fstat = ((tss - rss) / p) / (rss / (n - p - 1))
+    fdist = FDist(n, p)
+
+    FStatistic(n, p, fstat, ccdf.(fdist, abs(fstat)))
+end
+
+function show(io::IO, fstat::FStatistic)
+    print(io, "F-statistic: ", round(fstat.f, sigdigits=4), " ")
+    print(io, "on ", fstat.ndims, " and ", fstat.nobs, " degrees of freedom, ")
+    print(io, "p-value: ", round(fstat.fprob, sigdigits=4))
 end
 
 modelmatrix(obj::LinPredModel) = obj.pp.X
