@@ -227,13 +227,11 @@ function show(io::IO, obj::LinPredModel)
     println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
 end
 
-modelframe(obj::LinPredModel) = obj.fr
 modelmatrix(obj::LinPredModel) = obj.pp.X
 response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
-formula(obj::LinPredModel) = modelframe(obj).formula
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 """
