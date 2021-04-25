@@ -643,7 +643,62 @@ end
     @test preds_delta.upper .-  preds_delta.lower ≈ 2 .* 1.96 .* R_glm_se atol=1e-3
     @test_throws ArgumentError predict(gm, newX, interval=:confidence, interval_method=:undefined_method)
     @test_throws ArgumentError predict(gm, newX, interval=:undefined)
-end 
+end
+
+@testset "F test comparing to null model" begin
+    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
+                  Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
+                  Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
+    mod = lm(@formula(Result~Treatment), d).model
+    othermod = lm(@formula(Result~Other), d).model
+    nullmod = lm(@formula(Result~1), d).model
+    bothmod = lm(@formula(Result~Other+Treatment), d).model
+    nointerceptmod = lm(reshape(d.Treatment, :, 1), d.Result)
+
+    ft1 = ftest(mod)
+    ft1base = ftest(nullmod, mod)
+    @test ft1.nobs == ft1base.nobs
+    @test ft1.dof ≈ dof(mod) - dof(nullmod)
+    @test ft1.fstat ≈ ft1base.fstat[2]
+    @test ft1.pval ≈ ft1base.pval[2]
+    if VERSION >= v"1.6.0"
+        @test sprint(show, ft1) == """
+            F-test against the null model:
+            F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-07"""
+    else
+        @test sprint(show, ft1) == """
+            F-test against the null model:
+            F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-7"""
+    end
+
+    ft2 = ftest(othermod)
+    ft2base = ftest(nullmod, othermod)
+    @test ft2.nobs == ft2base.nobs
+    @test ft2.dof ≈ dof(othermod) - dof(nullmod)
+    @test ft2.fstat ≈ ft2base.fstat[2]
+    @test ft2.pval ≈ ft2base.pval[2]
+    @test sprint(show, ft2) == """
+        F-test against the null model:
+        F-statistic: 1.12 on 12 observations and 2 degrees of freedom, p-value: 0.3690"""
+
+    ft3 = ftest(bothmod)
+    ft3base = ftest(nullmod, bothmod)
+    @test ft3.nobs == ft3base.nobs
+    @test ft3.dof ≈ dof(bothmod) - dof(nullmod)
+    @test ft3.fstat ≈ ft3base.fstat[2]
+    @test ft3.pval ≈ ft3base.pval[2]
+    if VERSION >= v"1.6.0"
+        @test sprint(show, ft3) == """
+            F-test against the null model:
+            F-statistic: 81.97 on 12 observations and 3 degrees of freedom, p-value: <1e-05"""
+    else
+        @test sprint(show, ft3) == """
+            F-test against the null model:
+            F-statistic: 81.97 on 12 observations and 3 degrees of freedom, p-value: <1e-5"""
+    end
+
+    @test_throws ArgumentError ftest(nointerceptmod)
+end
 
 @testset "F test for model comparison" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
@@ -894,4 +949,23 @@ end
     @test hash(GLM.LogitLink()) == hash(GLM.LogitLink())
     @test hash(NegativeBinomialLink(0.3)) == hash(NegativeBinomialLink(0.3))
     @test hash(NegativeBinomialLink(0.31)) != hash(NegativeBinomialLink(0.3))
+end
+
+@testset "hasintercept" begin
+    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
+                  Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
+                  Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
+
+    mod = lm(@formula(Result~Treatment), d).model
+    @test hasintercept(mod)
+
+    nullmod = lm(@formula(Result~1), d).model
+    @test hasintercept(nullmod)
+
+    nointerceptmod = lm(reshape(d.Treatment, :, 1), d.Result)
+    @test !hasintercept(nointerceptmod)
+
+    rng = StableRNG(1234321)
+    secondcolinterceptmod = glm([randn(rng, 5) ones(5)], ones(5), Binomial(), LogitLink())
+    @test hasintercept(secondcolinterceptmod)
 end

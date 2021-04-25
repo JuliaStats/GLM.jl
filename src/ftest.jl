@@ -1,3 +1,10 @@
+struct SingleFTestResult
+    nobs::Int
+    dof::Int
+    fstat::Float64
+    pval::Float64
+end
+
 mutable struct FTestResult{N}
     nobs::Int
     ssr::NTuple{N, Float64}
@@ -27,6 +34,37 @@ end
 _diffn(t::NTuple{N, T}) where {N, T} = ntuple(i->t[i]-t[i+1], N-1)
 
 _diff(t::NTuple{N, T}) where {N, T} = ntuple(i->t[i+1]-t[i], N-1)
+
+"""
+    ftest(mod::LinearModel)
+
+Perform an F-test to determine whether model `mod` fits significantly better
+than the null model (i.e. which includes only the intercept).
+
+```jldoctest
+julia> dat = DataFrame(Result=[1.1, 1.2, 1, 2.2, 1.9, 2, 0.9, 1, 1, 2.2, 2, 2],
+                       Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2]);
+
+julia> model = lm(@formula(Result ~ 1 + Treatment), dat);
+
+julia> ftest(model.model)
+F-test against the null model:
+F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-07
+```
+"""
+function ftest(mod::LinearModel)
+    hasintercept(mod) || throw(ArgumentError("ftest only works for models with an intercept"))
+
+    rss = deviance(mod)
+    tss = nulldeviance(mod)
+
+    n = Int(nobs(mod))
+    p = dof(mod) - 2 # -2 for intercept and dispersion parameter
+    fstat = ((tss - rss) / rss) * ((n - p - 1) / p)
+    fdist = FDist(p, dof_residual(mod))
+
+    SingleFTestResult(n, p, promote(fstat, ccdf(fdist, abs(fstat)))...)
+end
 
 """
     ftest(mod::LinearModel...; atol::Real=0.0)
@@ -85,9 +123,6 @@ F-test: 3 models fitted on 12 observations
 ```
 """
 function ftest(mods::LinearModel...; atol::Real=0.0)
-    if length(mods) < 2
-        Base.depwarn("Passing less than two models to ftest is deprecated", :ftest)
-    end
     if !all(==(nobs(mods[1])), nobs.(mods))
         throw(ArgumentError("F test is only valid for models fitted on the same data, " *
                             "but number of observations differ"))
@@ -125,6 +160,12 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
     fstat = (NaN, (MSR1 ./ MSR2)...)
     pval = (NaN, ccdf.(FDist.(abs.(Δdf), dfr_big), abs.(fstat[2:end]))...)
     return FTestResult(Int(nobs(mods[1])), SSR, df, r2.(mods), fstat, pval)
+end
+
+function show(io::IO, ftr::SingleFTestResult)
+    print(io, "F-test against the null model:\nF-statistic: ", StatsBase.TestStat(ftr.fstat), " ")
+    print(io, "on ", ftr.nobs, " observations and ", ftr.dof, " degrees of freedom, ")
+    print(io, "p-value: ", PValue(ftr.pval))
 end
 
 function show(io::IO, ftr::FTestResult{N}) where N
