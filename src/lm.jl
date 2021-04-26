@@ -259,8 +259,9 @@ function StatsBase.cooksdistance(obj::LinearModel)
     d_res = dof_residual(obj)
     X = modelmatrix(obj)
     wts = obj.rr.wts
+    cmm = crossmodelmatrix(obj)
     if isempty(wts)
-        hii = diag(X * inv(X' * X) * X')
+        hii = diag(X * inv(cmm) * X')
     else
         throw(ArgumentError("Weighted models are not currently supported."))
     end
