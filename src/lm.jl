@@ -262,7 +262,7 @@ function StatsBase.cooksdistance(obj::LinearModel)
     if isempty(wts)
         hii = diag(X * inv(X' * X) * X')
     else
-        error("Currently only support LinearModel without weight/frequency.")
+        throw(ArgumentError("Weighted models are not currently supported."))
     end
     D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
     return D
