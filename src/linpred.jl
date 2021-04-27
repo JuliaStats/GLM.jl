@@ -42,7 +42,7 @@ A `LinPred` type with a dense, unpivoted QR decomposition of `X`
 - `X`: Model matrix of size `n` × `p` with `n ≥ p`.  Should be full column rank.
 - `beta0`: base coefficient vector of length `p`
 - `delbeta`: increment to coefficient vector, also of length `p`
-- `scratchbeta`: scratch vector of length `p`, used in [`linpred!`](@ref) method
+- `scratchbeta`: scratch vector of length `p`, used in `linpred!` method
 - `qr`: a `QRCompactWY` object created from `X`, with optional row weights.
 """
 mutable struct DensePredQR{T<:BlasReal} <: DensePred
@@ -87,7 +87,7 @@ A `LinPred` type with a dense Cholesky factorization of `X'X`
 - `X`: model matrix of size `n` × `p` with `n ≥ p`.  Should be full column rank.
 - `beta0`: base coefficient vector of length `p`
 - `delbeta`: increment to coefficient vector, also of length `p`
-- `scratchbeta`: scratch vector of length `p`, used in [`linpred!`](@ref) method
+- `scratchbeta`: scratch vector of length `p`, used in `linpred!` method
 - `chol`: a `Cholesky` object created from `X'X`, possibly using row weights.
 - `scratchm1`: scratch Matrix{T} of the same size as `X`
 - `scratchm2`: scratch Matrix{T} os the same size as `X'X`

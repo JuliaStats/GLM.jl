@@ -31,6 +31,7 @@ module GLM
         Poisson,
 
         ## Link types
+        Link,
         CauchitLink,
         CloglogLink,
         IdentityLink,
