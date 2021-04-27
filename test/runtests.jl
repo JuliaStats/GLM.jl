@@ -72,7 +72,8 @@ end
     t_lm_multi = lm(@formula(Y ~ XA + XB), st_df)
     @test isapprox(st_df.CooksD_multi, cooksdistance(t_lm_multi))
 
-    # linear regression, two full collinear variables (XC = 2 XA) hence should get the same results as base
+    # linear regression, two full collinear variables (XC = 2 XA) hence should get the same results as the original
+    # after pivoting
     t_lm_colli = lm(@formula(Y ~ XA + XC), st_df, dropcollinear=true)
     ## Currently the test fails as the collinear variable is not droped from a ```modelmatrix(obj)``` call.
     @test_throws SingularException isapprox(st_df.CooksD_base, cooksdistance(t_lm_colli))
