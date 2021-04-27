@@ -76,7 +76,7 @@ end
     # after pivoting
     t_lm_colli = lm(@formula(Y ~ XA + XC), st_df, dropcollinear=true)
     ## Currently the test fails as the collinear variable is not droped from a ```modelmatrix(obj)``` call.
-    @test_throws SingularException isapprox(st_df.CooksD_base, cooksdistance(t_lm_colli))
+    @test_throws ArgumentError isapprox(st_df.CooksD_base, cooksdistance(t_lm_colli))
 
 end
 
