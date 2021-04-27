@@ -257,7 +257,8 @@ function StatsBase.cooksdistance(obj::LinearModel)
     mse = dispersion(obj,true)
     k = dof(obj)-1
     d_res = dof_residual(obj)
-    X, XtX = crossmodelmatrix(obj)
+    X = modelmatrix(obj)
+    XtX = crossmodelmatrix(obj)
     k == size(X,2) || throw(ArgumentError("Models with collinear terms are not currently supported."))
     wts = obj.rr.wts
     if isempty(wts)
