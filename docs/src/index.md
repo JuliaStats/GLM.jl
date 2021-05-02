@@ -118,6 +118,29 @@ x: 4          0.115145    0.0823655   1.39797      0.1653  -0.0483494   0.278639
 ────────────────────────────────────────────────────────────────────────────────
 ```
 
+## Comparing models with F-test
+
+Comparisons between two or more linear models can be performed using the `ftest` function,
+which computes an F-test between each pair of subsequent models and reports fit statistics:
+```jldoctest
+julia> using DataFrames, GLM
+
+julia> data = DataFrame(y = (1:50).^2, x = 1:50);
+
+julia> ols_lin = lm(@formula(y ~ x), data);
+
+julia> ols_sq = lm(@formula(y ~ x + x^2), data);
+
+julia> ftest(ols_lin.model, ols_sq.model)
+F-test: 2 models fitted on 50 observations
+────────────────────────────────────────────────────────────────────────────────────────────────────────
+     DOF  ΔDOF           SSR           ΔSSR      R²     ΔR²                                   F*   p(>F)
+────────────────────────────────────────────────────────────────────────────────────────────────────────
+[1]    3        1732640.0000                 0.9399
+[2]    4     1        0.0000  -1732640.0000  1.0000  0.0601  323522857403545778219810553856.0000  <1e-99
+────────────────────────────────────────────────────────────────────────────────────────────────────────
+```
+
 ## Methods applied to fitted models
 
 Many of the methods provided by this package have names similar to those in [R](http://www.r-project.org).
