@@ -108,11 +108,17 @@ x: 4          0.115145    0.0823655   1.39797      0.1653  -0.0483494   0.278639
 
 ## Comparing models with F-test
 
-```
+Comparisons between two or more linear models can be performed using the `ftest` function,
+which computes an F-test and reports fit statistics for each model:
+```jldoctest
 julia> using DataFrames, GLM
-julia> data = DataFrame(y = (1:50).^2, x = 1:50)
-julia> ols_lin = lm(@formula(y ~ x), data)
-julia> ols_sq = lm(@formula(y ~ x^2 + x), data)
+
+julia> data = DataFrame(y = (1:50).^2, x = 1:50);
+
+julia> ols_lin = lm(@formula(y ~ x), data);
+
+julia> ols_sq = lm(@formula(y ~ x + x^2), data);
+
 julia> ftest(ols_lin.model, ols_sq.model)
 F-test: 2 models fitted on 50 observations
 ────────────────────────────────────────────────────────────────────────────────────────────────────────
