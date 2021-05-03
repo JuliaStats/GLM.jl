@@ -337,3 +337,7 @@ Treatment: 3   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
 julia> round(deviance(gm1), digits=5)
 5.11746
 ```
+## Using Cook's distance
+It is possible to calculate the Cook's distance on a fitted Linear Model this gives an estimate of the influence of each data points.
+
+
