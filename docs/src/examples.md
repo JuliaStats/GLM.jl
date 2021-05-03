@@ -340,6 +340,7 @@ julia> round(deviance(gm1), digits=5)
 ## Using Cook's distance
 It is possible to calculate the Cook's distance on a fitted Linear Model this gives an estimate of the influence of each data points. More information about the Cook's distance can be found on Wikipedia (https://en.wikipedia.org/wiki/Cook%27s_distance) or some original paper such as: https://conservancy.umn.edu/handle/11299/199280.
 
+### Data creation through simulation
 Let's create a function which is linear on the major part of our design space. 
 
 ```julia
@@ -358,7 +359,7 @@ Now let's assume that simulating `p(x)` add some noise. Which we can model as:
 ```julia
 simulated(f, x, ϵ) = f.(x) .+ rand(Normal(0, ϵ), length(x))
 ```
-and collect some data in a DataFrame in an interval of interest.
+and collect some data in a DataFrame for our interval of interest.
 
 ```julia
 simulated(f, x, ϵ) = f.(x) .+ rand(Normal(0, ϵ), length(x))
@@ -368,6 +369,8 @@ display(@df data plot(:x, :y, title="simulated p function with some noise"))
 
 ```
 ![Simulated P](artefacts/simulated_p.png)
+
+### Linear Regression
 
 Now we can do the linear regression on the simulated data with GLM.
 ```julia
@@ -388,7 +391,8 @@ x             2.93773   0.0332957   88.23    <1e-95    2.87167    3.0038
 ─────────────────────────────────────────────────────────────────────────
 r2(ols) = 0.9874426347136959
 ```
-Indicating a extremely good fit. We coudl contrast the output as to the output of the simulated function f alone 
+Indicating a extremely good fit. 
+We could contrast the output as to the output of the simulated function f alone 
 
 ```julia
 dataf = DataFrame(x=collect(x), y=simulated(f, x, 0.5))
@@ -410,7 +414,7 @@ x             3.00479   0.018012   166.82    <1e-99    2.96905    3.04053
 r2(olsf) = 0.9964552085765462
 0.9964552085765462
 ```
-Which output similar results. Indeed the estimates for x and the intercept are closer from the truth but we know that only because we simulated the data.
+Which are similar results. Of course the estimates for x and the intercept are closer from the truth but we know that only because we simulated the data.
 
 We could try to investigate confidence interval of the mean of the predictions on our design space.
 
@@ -425,23 +429,26 @@ Which outputs:
 
 And because of the nature of the confidence interval this will not give much information for our current purpose.
 
+### Using Cook's distance
+
 Plotting the results of the cooks distance: 
 
 ```julia
-function plotcooksdistance(lm)
-	cd = cooksdistance(lm)
-	xrange = 1:length(cd)
-	scatter(xrange, cd, label=false, ms=0, xlabel="Observations", ylabel="Cook's Distance") # did not find a better way not to have a marker.
-	hline!([4 / length(cd)], color=:lightgray, ls=:dash, label="4/n (4/$(length(cd)))")
-	for i in xrange
-		plot!([i, i], [0, cd[i]], label=false, color=1)
+function plot_x_cooksdistance(x, cooksd)
+	scatter(x, cooksd, label=false, ms=0, xlabel="x", ylabel="Cook's Distance") # I did not find a better way not to have a marker.
+	hline!([4 / length(x)], color=:lightgray, ls=:dash, label="4/n (4/$(length(x)))")
+	for i in 1:length(x)
+		plot!([x[i], x[i]], [0, cooksd[i]], label=false, color=1)
 	end
 	plot!(legend=:top)
 end
-plotcooksdistance(ols)
+plot_x_cooksdistance(data.x, data.cooksd)
 ```
 will output the following:
 
 ![Cook's distance](artefacts/cooksd.png)
 
-This gives us a view of which observations are influential and impact the estimation of the intercept and 
+This gives us a view of which observations are influential and are impacting the estimation of coefficients resulting from the linear regression. Because the plotting follows the interval of interest, it is possible to understand which zone of our interval requires more attention (here between 1 and 2).
+
+The plotting works well here because we have univariate data. In the context of higher dimension it may be useful to either make a plot per dimension or to combine two dimension through some heatmap.
+In this plot the "threshold" of n/4 with n the number of observations, is only used to enhance the display and ease the visual inspection, and not as a strict threshold.
