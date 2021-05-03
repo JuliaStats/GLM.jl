@@ -352,7 +352,7 @@ Let's plot p(x):
 x = -5:0.1:5
 display(plot(x, p.(x), xlabel="x", ylabel="y", legend=false, title="True p function"))
 ```
-![True P](true_p.png)
+![True P](artefacts/true_p.png)
 
 Now let's assume that simulating `p(x)` add some noise. Which we can model as: 
 ```julia
@@ -367,7 +367,7 @@ data = DataFrame(x=collect(x), y=simulated(p, x, 0.5))
 display(@df data plot(:x, :y, title="simulated p function with some noise"))
 
 ```
-![Simulated P](simulated_p.png)
+![Simulated P](artefacts/simulated_p.png)
 
 Now we can do the linear regression on the simulated data with GLM.
 ```julia
@@ -421,7 +421,7 @@ plot!(x, pred.lower, label="lower")
 plot!(x, pred.upper, label="lower", legend=:top)
 ```
 Which outputs:
-![Confidence](conf_interval.png)
+![Confidence](artefacts/conf_interval.png)
 
 And because of the nature of the confidence interval this will not give much information for our current purpose.
 
@@ -442,6 +442,6 @@ plotcooksdistance(ols)
 ```
 will output the following:
 
-![Cook's distance](cooksd.png)
+![Cook's distance](artefacts/cooksd.png)
 
 This gives us a view of which observations are influential and impact the estimation of the intercept and 
