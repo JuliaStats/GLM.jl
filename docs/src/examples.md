@@ -428,7 +428,7 @@ plot!(x, pred.upper, label="lower", legend=:top)
 Which outputs:
 ![Confidence](artefacts/conf_interval.png)
 
-And because of the nature of the confidence interval, this will not give much information for our current purpose.
+Nothing of interest is presented between 1 and 2, this is because of the nature of the confidence interval. Hence this will not give much information for our current purpose.
 
 ### Using Cook's distance
 
