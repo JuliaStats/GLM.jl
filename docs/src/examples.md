@@ -340,7 +340,7 @@ julia> round(deviance(gm1), digits=5)
 ## Using Cook's distance
 It is possible to calculate Cook's distance on a fitted Linear Model, and this gives an estimate of the influence of each data point. More information about Cook's distance can be found on Wikipedia (https://en.wikipedia.org/wiki/Cook%27s_distance) or relevant papers authored by R Dennis Cook himself such as: https://conservancy.umn.edu/handle/11299/199280.
 
-Here we are only going to illustrate how the distance can be used to improve the model by identifying regions of the design space which require more attention.
+Here we are only going to illustrate how the distance can be used to identify regions of the design space which require more attention.
 
 ### Data creation through simulation
 Let's create a function p(x) that is linear on the major part of the region of interest. 
