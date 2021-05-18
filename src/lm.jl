@@ -240,7 +240,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
                  interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95)
     retmean = newx * coef(mm)
     if interval === :confint
-        Base.depwarn("interval=:confint is deprecated in favor of interval=:confidence")
+        Base.depwarn("interval=:confint is deprecated in favor of interval=:confidence", :predict)
         interval = :confidence
     end
     if interval === nothing
