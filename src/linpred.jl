@@ -157,11 +157,26 @@ function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}, wt::Vector{T}) w
 end
 
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
-    cf = cholfactors(p.chol)
-    piv = p.chol.p
-    cf .= mul!(p.scratchm2, adjoint(LinearAlgebra.mul!(p.scratchm1, Diagonal(wt), p.X)), p.X)[piv, piv]
-    cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
-    ldiv!(p.chol, mul!(p.delbeta, transpose(p.scratchm1), r))
+    ch = p.chol
+    rnk = rank(ch)
+    if rnk == length(ch.p)
+        scr = mul!(p.scratchm1, Diagonal(wt), p.X)
+        cholesky!(Hermitian(mul!(cholfactors(p.chol), transpose(scr), p.X), :U))
+        mul!(p.delbeta, transpose(scr), r)
+        ldiv!(p.chol, p.delbeta)
+    else
+        xc = p.X
+        scr = mul!(p.scratchm1, Diagonal(wt), xc)
+        scr2 = mul!(p.scratchm2, adjoint(xc), scr)
+        ch2 = cholesky!(scr2, Val(true), tol = -one(T), check = false) 
+        delbeta = mul!(p.delbeta, adjoint(scr), r)
+        permute!(delbeta, ch.p)
+        for k=(rnk+1):length(delbeta)
+            delbeta[k] = -zero(T)
+        end
+        LAPACK.potrs!(ch2.uplo, view(ch2.factors, 1:rnk, 1:rnk), view(delbeta, 1:rnk))
+        invpermute!(delbeta, ch.p)
+    end
     p
 end
 
