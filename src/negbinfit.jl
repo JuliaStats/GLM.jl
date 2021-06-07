@@ -70,6 +70,7 @@ function negbin(F,
                 args...;
                 initialθ::Real=Inf,
                 maxiter::Integer=30,
+                minstepfac::Real=0.001,
                 atol::Real=1e-6,
                 rtol::Real=1.e-6,
                 verbose::Bool=false,

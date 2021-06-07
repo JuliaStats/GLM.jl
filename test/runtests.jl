@@ -459,9 +459,16 @@ end
         df = DataFrame(y = [1, 1, 0, 2, 3, 0, 0, 1, 1, 0, 2, 1, 3, 1, 1, 1, 4])
         for maxiter in [30, 50]
             try
-                negbin(@formula(y ~ 1), df, maxiter = maxiter)
+                negbin(@formula(y ~ 1), df, maxiter = maxiter,
+                    # set minstepfac to a very small value to avoid an ErrorException
+                    # instead of a ConvergenceException
+                    minstepfac=1e-20)
             catch err
-                @test err.iters == maxiter
+                if err isa ConvergenceException
+                    @test err.iters == maxiter
+                else
+                    rethrow(err)
+                end
             end
         end
     end
