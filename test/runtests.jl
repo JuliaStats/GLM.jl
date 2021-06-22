@@ -600,6 +600,23 @@ end
 
     # Deprecated argument value
     @test predict(m1, x, interval=:confint) == p1
+
+    # Prediction intervals would give incorrect results when some variables
+    # have been dropped due to collinearity (#410)
+    x = [1.0 1.0 2.0
+         1.0 2.0 3.0
+         1.0 -1.0 0.0];
+    y = [1.0, 3.0, -2.0]
+    m1 = lm(x, y)
+    m2 = lm(x[:, 1:2], y)
+
+    @test predict(m1) ≈ predict(m2)
+    @test_broken predict(m1, interval=:confidence) ≈
+        predict(m2, interval=:confidence)
+    @test_broken predict(m1, interval=:prediction) ≈
+        predict(m2, interval=:prediction)
+    @test_throws ArgumentError predict(m1, x, interval=:confidence)
+    @test_throws ArgumentError predict(m1, x, interval=:prediction)
 end
 
 @testset "GLM confidence intervals" begin
