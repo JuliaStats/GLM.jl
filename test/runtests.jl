@@ -582,6 +582,22 @@ end
     @test p1.upper ≈ p2.upper
     @test p1.lower ≈ p2.lower
 
+    # Prediction with dropcollinear and complex column permutations (#431)
+    x = [1.0 100.0 1.2
+         1.0 20000.0 2.3
+         1.0 -1000.0 4.6
+         1.0 5000 2.4]
+    y = [1.0, 3.0, -2.0, 4.5]
+    m1 = lm(x, y, dropcollinear=true)
+    m2 = lm(x, y, dropcollinear=false)
+
+    p1 = predict(m1, x, interval=:confidence)
+    p2 = predict(m2, x, interval=:confidence)
+
+    @test p1.prediction ≈ p2.prediction
+    @test p1.upper ≈ p2.upper
+    @test p1.lower ≈ p2.lower
+
     # Deprecated argument value
     @test predict(m1, x, interval=:confint) == p1
 end
