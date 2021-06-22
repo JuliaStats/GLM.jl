@@ -249,7 +249,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
         mm.pp.chol.rank < size(mm.pp.chol, 2)
         throw(ArgumentError("prediction intervals are currently not implemented " *
                             "when some independent variables have been dropped " *
-                            "from model due to collinearity"))
+                            "from the model due to collinearity"))
     end
     length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
     chol = cholesky!(mm.pp)

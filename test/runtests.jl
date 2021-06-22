@@ -605,7 +605,7 @@ end
     # have been dropped due to collinearity (#410)
     x = [1.0 1.0 2.0
          1.0 2.0 3.0
-         1.0 -1.0 0.0];
+         1.0 -1.0 0.0]
     y = [1.0, 3.0, -2.0]
     m1 = lm(x, y)
     m2 = lm(x[:, 1:2], y)
