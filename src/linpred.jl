@@ -194,6 +194,13 @@ function delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where T
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
 
+function delbeta!(p::SparsePredChol{T}, r::Vector{T}) where T
+    scr = p.scratch = p.X
+    XtWX = p.Xt*scr
+    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
+    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
+end
+
 LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)
 LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 
