@@ -507,10 +507,10 @@ end
     X = sprand(rng, 1000, 10, 0.01)
     β = randn(rng, 10)
     y = Bool[rand(rng) < logistic(x) for x in X * β]
-    gmsparsev = [fit(GeneralizedLinearModel, X, y),
-                 fit(GeneralizedLinearModel, X, sparse(y)),
-                 fit(GeneralizedLinearModel, Matrix(X), sparse(y))]
-    gmdense = fit(GeneralizedLinearModel, Matrix(X), y)
+    gmsparsev = [fit(LinearModel, X, y),
+                 fit(LinearModel, X, sparse(y)),
+                 fit(LinearModel, Matrix(X), sparse(y))]
+    gmdense = fit(LinearModel, Matrix(X), y)
 
     for gmsparse in gmsparsev
         @test isapprox(deviance(gmsparse), deviance(gmdense))
@@ -518,7 +518,6 @@ end
         @test isapprox(vcov(gmsparse), vcov(gmdense))
     end
 end
-
 
 @testset "Predict" begin
     rng = StableRNG(123)
