@@ -986,3 +986,10 @@ end
     secondcolinterceptmod = glm([randn(rng, 5) ones(5)], ones(5), Binomial(), LogitLink())
     @test hasintercept(secondcolinterceptmod)
 end
+
+@testset "Issue #444. Views" begin
+    X = randn(10, 2)
+    y = X*ones(2) + randn(10)
+    @test coef(glm(X, y, Normal(), IdentityLink())) ==
+        coef(glm(view(X, 1:10, :), view(y, 1:10), Normal(), IdentityLink()))
+end

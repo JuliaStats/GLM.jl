@@ -30,11 +30,11 @@ end
 
 function LmResp(y::AbstractVector{<:Real}, wts::Union{Nothing,AbstractVector{<:Real}}=nothing)
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
-    _y = float(convert(Vector, y))
+    _y = convert(Vector{float(eltype(y))}, y)
     _wts = if wts === nothing
         similar(_y, 0)
     else
-        float(convert(Vector, wts))
+        convert(Vector{float(eltype(wts))}, wts)
     end
     return LmResp{typeof(_y)}(zero(_y), zero(_y), _wts, _y)
 end
