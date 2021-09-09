@@ -23,7 +23,7 @@ The GLM module is licensed under the MIT License:
 > OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 > WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-Note that the GLM module has an implicit dependency on the
+Note that the GLM module has an indirect dependency on the
 [Rmath.jl](https://github.com/JuliaStats/Rmath.jl) library, which is licensed
 under the terms of the GPLv2.  See
 [here](https://github.com/JuliaStats/Rmath-julia/blob/master/COPYING).
