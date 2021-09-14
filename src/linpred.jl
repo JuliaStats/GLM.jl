@@ -162,22 +162,21 @@ function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}, wt::Vector{T}) w
 end
 
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
-    ch = p.chol
+    piv = p.chol.p # inverse vector
     delbeta = p.delbeta
-    piv = ch.piv # inverse vector
-    rnk = rank(ch)
     # p.scratchm1 = WX
     mul!(p.scratchm1, Diagonal(wt), p.X)
     # p.scratchm2 = X'WX
     mul!(p.scratchm2, adjoint(p.scratchm1), p.X)
-    # delbeta = X'Wz
+    # delbeta = X'Wr
     mul!(delbeta, transpose(p.scratchm1), r)
     # calculate delbeta = (X'WX)\X'Wr
+    rnk = rank(p.chol)
     if rnk == length(delbeta)
-        cf = cholfactors(ch)
-        cf .= p.scratchm2
-        cholesky!(Hermitian(cf, :U))
-        ldiv!(ch, delbeta)
+        cf = cholfactors(p.chol)
+        cf .= p.scratchm2[piv, piv]
+        cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
+        ldiv!(p.chol, delbeta)
     else
         permute!(delbeta, piv)
         for k=(rnk+1):length(delbeta)
@@ -185,8 +184,8 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vecto
         end
         # shift full rank column to 1:rank
         p.scratchm2 .= p.scratchm2[piv, piv]
-        cholesky!(Hermitian(view(p.scratchm2, 1:rnk, 1:rnk), :U))
-        ldiv!(Cholesky(view(p.scratchm2, 1:rnk, 1:rnk), :U, 0), view(delbeta, 1:rnk))
+        cholesky!(Hermitian(view(p.scratchm2, 1:rnk, 1:rnk), Symbol(p.chol.uplo)))
+        ldiv!(Cholesky(view(p.scratchm2, 1:rnk, 1:rnk), Symbol(p.chol.uplo), p.chol.info), view(delbeta, 1:rnk))
         invpermute!(delbeta, piv)
     end
     p
