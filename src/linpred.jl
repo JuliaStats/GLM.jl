@@ -255,3 +255,5 @@ coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
 
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
+
+hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))
