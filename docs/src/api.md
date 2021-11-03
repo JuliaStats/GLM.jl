@@ -63,6 +63,7 @@ fit
 ```@docs
 StatsBase.deviance
 GLM.dispersion
+GLM.ftest
 GLM.installbeta!
 GLM.issubmodel
 StatsBase.nobs
