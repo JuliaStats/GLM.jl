@@ -131,7 +131,7 @@ const FIT_LM_DOC = """
     values of the dependent variable.
     In the third method, `X` must be a vector holding values of the independent variable, and
     `y` must be a vector holding the values of the dependent variable. This method only
-    takes `x`and `y` as arguments.
+    takes `X`and `y` as arguments.
 
     The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
     Such weights are equivalent to repeating each observation a number of times equal
