@@ -129,6 +129,9 @@ const FIT_LM_DOC = """
     In the second method, `X` must be a matrix holding values of the independent variable(s)
     in columns (including if appropriate the intercept), and `y` must be a vector holding
     values of the dependent variable.
+    In the third method, `X` must be a vector holding values of the independent variable, and
+    `y` must be a vector holding the values of the dependent variable. This method only
+    takes `x`and `y` as arguments.
 
     The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
     Such weights are equivalent to repeating each observation a number of times equal
@@ -141,6 +144,8 @@ const FIT_LM_DOC = """
     is less-than-full rank. If `true` (the default), only the first of each set of
     linearly-dependent columns is used. The coefficient for redundant linearly dependent columns is
     `0.0` and all associated statistics are set to `NaN`.
+
+    To make a linear univariate fit without intersect (through the origin), use X\y
     """
 
 """
@@ -148,6 +153,7 @@ const FIT_LM_DOC = """
        [wts::AbstractVector], dropcollinear::Bool=true)
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
         wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
+    fit(LinearModel, X::AbstractVector, y::AbstractVector)
 
 Fit a linear model to data.
 
@@ -164,12 +170,16 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     end
     fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
 end
+function fit(::Type{LinearModel}, X::AbstractVector, y::AbstractVector)
+    return fit(LinearModel, hcat(X, ones(eltype(X), length(X))), y)
+end
 
 """
     lm(formula, data, allowrankdeficient=false;
        [wts::AbstractVector], dropcollinear::Bool=true)
     lm(X::AbstractMatrix, y::AbstractVector;
        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
+    lm(X::AbstractVector, y::AbstractVector)
 
 Fit a linear model to data.
 An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear)`
@@ -178,6 +188,7 @@ $FIT_LM_DOC
 """
 lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
     fit(LinearModel, X, y, allowrankdeficient_dep; kwargs...)
+lm(X, y) = fit(LinearModel, X, y)
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
