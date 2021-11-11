@@ -130,8 +130,7 @@ const FIT_LM_DOC = """
     in columns (including if appropriate the intercept), and `y` must be a vector holding
     values of the dependent variable.
     In the third method, `X` must be a vector holding values of the independent variable, and
-    `y` must be a vector holding the values of the dependent variable. This method only
-    takes `X`and `y` as arguments.
+    `y` must be a vector holding the values of the dependent variable.
 
     The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
     Such weights are equivalent to repeating each observation a number of times equal
@@ -145,7 +144,7 @@ const FIT_LM_DOC = """
     linearly-dependent columns is used. The coefficient for redundant linearly dependent columns is
     `0.0` and all associated statistics are set to `NaN`.
 
-    To make a linear univariate fit without intersect (through the origin), use X\y
+    `through_origin` controls if the fitted line is forced to pass through (0, 0)
     """
 
 """
@@ -153,7 +152,7 @@ const FIT_LM_DOC = """
        [wts::AbstractVector], dropcollinear::Bool=true)
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
         wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
-    fit(LinearModel, X::AbstractVector, y::AbstractVector)
+    fit(LinearModel, X::AbstractVector, y::AbstractVector, through_origin::Bool=false)
 
 Fit a linear model to data.
 
@@ -170,8 +169,12 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     end
     fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
 end
-function fit(::Type{LinearModel}, X::AbstractVector, y::AbstractVector)
-    return fit(LinearModel, hcat(X, ones(eltype(X), length(X))), y)
+function fit(::Type{LinearModel}, X::AbstractVector, y::AbstractVector, through_origin::Bool=false)
+    if through_origin
+        return fit(LinearModel, reshape(x, length(x), 1), y)
+    else
+        return fit(LinearModel, hcat(X, ones(eltype(X), length(X))), y)
+    end
 end
 
 """
@@ -179,16 +182,16 @@ end
        [wts::AbstractVector], dropcollinear::Bool=true)
     lm(X::AbstractMatrix, y::AbstractVector;
        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
-    lm(X::AbstractVector, y::AbstractVector)
+    lm(X::AbstractVector, y::AbstractVector, through_origin::Bool=false)
 
 Fit a linear model to data.
-An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear)`
+lm(args...) is an alias for `fit(LinearModel, args...)`
 
 $FIT_LM_DOC
 """
 lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
     fit(LinearModel, X, y, allowrankdeficient_dep; kwargs...)
-lm(X, y) = fit(LinearModel, X, y)
+lm(X::AbstractVector, y::AbstractVector, through_origin::Bool=false) = fit(LinearModel, X, y, through_origin)
 
 dof(x::LinearModel) = length(coef(x)) + 1
 
