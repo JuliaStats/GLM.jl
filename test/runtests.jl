@@ -141,6 +141,37 @@ end
     @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
 end
 
+@testset "saturated linear model" begin
+    df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
+    model = lm(@formula(y ~ x), df)
+    ct = coeftable(model)
+    @test dof_residual(model) == 0
+    @test dof(model) == 4
+    @test coef(model) ≈ [1, 1, 2]
+    @test all(isnan, hcat(ct.cols[2:end]...))
+
+    model = lm(@formula(y ~ 0 + x), df)
+    ct = coeftable(model)
+    @test dof_residual(model) == 0
+    @test dof(model) == 4
+    @test coef(model) ≈ [1, 2, 3]
+    @test all(isnan, hcat(ct.cols[2:end]...))
+
+    model = glm(@formula(y ~ x), df, Normal(), IdentityLink())
+    ct = coeftable(model)
+    @test dof_residual(model) == 0
+    @test dof(model) == 4
+    @test coef(model) ≈ [1, 1, 2]
+    @test all(isnan, hcat(ct.cols[2:end]...))
+
+    model = glm(@formula(y ~ 0 + x), df, Normal(), IdentityLink())
+    ct = coeftable(model)
+    @test dof_residual(model) == 0
+    @test dof(model) == 4
+    @test coef(model) ≈ [1, 2, 3]
+    @test all(isnan, hcat(ct.cols[2:end]...))
+end
+
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     Outcome = categorical(repeat(string.('A':'C'), outer = 3)),
     Treatment = categorical(repeat(string.('a':'c'), inner = 3)))

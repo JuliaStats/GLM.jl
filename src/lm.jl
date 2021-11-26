@@ -215,10 +215,18 @@ end
 
 function coeftable(mm::LinearModel; level::Real=0.95)
     cc = coef(mm)
-    se = stderror(mm)
-    tt = cc ./ se
-    p = ccdf.(Ref(FDist(1, dof_residual(mm))), abs2.(tt))
-    ci = se*quantile(TDist(dof_residual(mm)), (1-level)/2)
+    dofr = dof_residual(mm)
+    if dofr > 0
+        se = stderror(mm)
+        tt = cc ./ se
+        p = ccdf.(Ref(FDist(1, dof_residual(mm))), abs2.(tt))
+        ci = se*quantile(TDist(dof_residual(mm)), (1-level)/2)
+    else
+        se = fill(NaN, length(cc))
+        tt = fill(NaN, length(cc))
+        p = fill(NaN, length(cc))
+        ci = fill(NaN, length(cc))
+    end
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
     CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
               ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
