@@ -245,11 +245,21 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     end
     if interval === nothing
         return retmean
+    elseif mm.pp.chol isa CholeskyPivoted &&
+        mm.pp.chol.rank < size(mm.pp.chol, 2)
+        throw(ArgumentError("prediction intervals are currently not implemented " *
+                            "when some independent variables have been dropped " *
+                            "from the model due to collinearity"))
     end
     length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
     chol = cholesky!(mm.pp)
     # get the R matrix from the QR factorization
-    R = chol isa CholeskyPivoted ? chol.U[chol.p, chol.p] : chol.U
+    if chol isa CholeskyPivoted
+        ip = invperm(chol.p)
+        R = chol.U[ip, ip]
+    else
+        R = chol.U
+    end
     residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
     if interval == :confidence
         retvariance = (newx/R).^2 * residvar

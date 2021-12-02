@@ -1,7 +1,8 @@
-using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays, Random,
+using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays, StableRNGs,
       Statistics, StatsBase, Test, RDatasets
 using GLM
 using StatsFuns: logistic
+using Distributions: TDist
 
 test_show(x) = show(IOBuffer(), x)
 
@@ -103,26 +104,27 @@ end
 end
 
 @testset "rankdeficient" begin
+    rng = StableRNG(1234321)
     # an example of rank deficiency caused by a missing cell in a table
     dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
                      categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
                      [:G, :H])
     f = @formula(0 ~ 1 + G*H)
     X = ModelMatrix(ModelFrame(f, dfrm)).m
-    y = X * (1:size(X, 2)) + 0.1 * randn(MersenneTwister(1234321), size(X, 1))
+    y = X * (1:size(X, 2)) + 0.1 * randn(rng, size(X, 1))
     inds = deleteat!(collect(1:length(y)), 7:8)
     m1 = fit(LinearModel, X, y)
-    @test isapprox(deviance(m1), 0.28856700971719657)
+    @test isapprox(deviance(m1), 0.12160301538297297)
     Xmissingcell = X[inds, :]
     ymissingcell = y[inds]
     @test_throws PosDefException m2 = fit(LinearModel, Xmissingcell, ymissingcell; dropcollinear=false)
     m2p = fit(LinearModel, Xmissingcell, ymissingcell)
     @test isa(m2p.pp.chol, CholeskyPivoted)
     @test rank(m2p.pp.chol) == 11
-    @test isapprox(deviance(m2p), 0.2859221258731563)
-    @test isapprox(coef(m2p), [0.9178241203127236, 9.089883493902754, 3.01742566831296,
-                   4.108734932819495, 4.995249696954908, 6.075962907632594, 0.0, 8.038151489191618,
-                   8.848886704358202, 2.8697881579099085, 11.15107375630744, 11.8392578374927])
+    @test isapprox(deviance(m2p), 0.1215758392280204)
+    @test isapprox(coef(m2p), [0.9772643585228885, 8.903341608496437, 3.027347397503281,
+        3.9661379199401257, 5.079410103608552, 6.1944618141188625, 0.0, 7.930328728005131,
+        8.879994918604757, 2.986388408421915, 10.84972230524356, 11.844809275711485])
 
     m2p_dep_pos = fit(LinearModel, Xmissingcell, ymissingcell, true)
     @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
@@ -223,7 +225,7 @@ end
     # introduced in #187
     @testset "separated data" begin
         n   = 100
-        rng = MersenneTwister(123)
+        rng = StableRNG(127)
 
         X = [ones(n) randn(rng, n)]
         y = logistic.(X*ones(2) + 1/10*randn(rng, n)) .> 1/2
@@ -457,9 +459,16 @@ end
         df = DataFrame(y = [1, 1, 0, 2, 3, 0, 0, 1, 1, 0, 2, 1, 3, 1, 1, 1, 4])
         for maxiter in [30, 50]
             try
-                negbin(@formula(y ~ 1), df, maxiter = maxiter)
+                negbin(@formula(y ~ 1), df, maxiter = maxiter,
+                    # set minstepfac to a very small value to avoid an ErrorException
+                    # instead of a ConvergenceException
+                    minstepfac=1e-20)
             catch err
-                @test err.iters == maxiter
+                if err isa ConvergenceException
+                    @test err.iters == maxiter
+                else
+                    rethrow(err)
+                end
             end
         end
     end
@@ -481,10 +490,10 @@ end
 end
 
 @testset "Sparse GLM" begin
-    Random.seed!(1)
-    X = sprand(1000, 10, 0.01)
-    β = randn(10)
-    y = Bool[rand() < logistic(x) for x in X * β]
+    rng = StableRNG(1)
+    X = sprand(rng, 1000, 10, 0.01)
+    β = randn(rng, 10)
+    y = Bool[rand(rng) < logistic(x) for x in X * β]
     gmsparse = fit(GeneralizedLinearModel, X, y, Binomial())
     gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial())
 
@@ -494,28 +503,30 @@ end
 end
 
 @testset "Predict" begin
-    Random.seed!(1)
-    X = rand(10, 2)
+    rng = StableRNG(123)
+    X = rand(rng, 10, 2)
     Y = logistic.(X * [3; -3])
 
     gm11 = fit(GeneralizedLinearModel, X, Y, Binomial())
     @test isapprox(predict(gm11), Y)
     @test predict(gm11) == fitted(gm11)
     
-    newX = rand(5, 2)
+    newX = rand(rng, 5, 2)
     newY = logistic.(newX * coef(gm11))
     gm11_pred1 = predict(gm11, newX)
     gm11_pred2 = predict(gm11, newX; interval=:confidence, interval_method=:delta)
     gm11_pred3 = predict(gm11, newX; interval=:confidence, interval_method=:transformation)
     @test gm11_pred1 == gm11_pred2.prediction == gm11_pred3.prediction≈ newY
-    se_pred = [0.19904587484129196, 0.18029108261296775,
-               0.3290573571361879, 0.11536024793564569, 0.23972290956210984]
-    @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975).*se_pred
-    @test gm11_pred2.upper ≈ gm11_pred2.prediction .+ quantile(Normal(), 0.975).*se_pred
+    J = newX.*last.(GLM.inverselink.(LogitLink(), newX*coef(gm11)))
+    se_pred = sqrt.(diag(J*vcov(gm11)*J'))
+    @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975).*se_pred ≈
+        [0.20478201781547786, 0.2894172253195125, 0.17487705636545708, 0.024943206131575357, 0.41670326978944977]
+    @test gm11_pred2.upper ≈ gm11_pred2.prediction .+ quantile(Normal(), 0.975).*se_pred ≈
+        [0.6813754418027714, 0.9516561735593941, 1.0370309285468602, 0.5950732511233356, 1.192883895763427]
 
 
-    off = rand(10)
-    newoff = rand(5)
+    off = rand(rng, 10)
+    newoff = rand(rng, 5)
 
     @test_throws ArgumentError predict(gm11, newX, offset=newoff)
 
@@ -535,27 +546,26 @@ end
     newd = DataFrame(newX, :auto)
     predict(gm13, newd)
 
-    Ylm = X * [0.8, 1.6] + 0.8randn(10)
+    Ylm = X * [0.8, 1.6] + 0.8randn(rng, 10)
     mm = fit(LinearModel, X, Ylm)
     pred1 = predict(mm, newX)
     pred2 = predict(mm, newX, interval=:confidence)
+    se_pred = sqrt.(diag(newX*vcov(mm)*newX'))
 
     @test pred1 == pred2.prediction ≈
-        [1.6488076594462182, 0.4706674451801356, 2.5010808086024423,
-         0.3344751861490827, 1.7094233372006582]
-    @test pred2.lower ≈ [0.6122189104014528, -0.33530477814532056,
-        1.340413688904295, 0.02118806218116165, 0.8543142404183606]
-    @test pred2.upper ≈ [2.6853964084909836, 1.2766396685055916,
-        3.6617479283005894, 0.6477623101170038, 2.564532433982956]
+        [1.1382137814295972, 1.2097057044789292, 1.7983095679661645, 1.0139576473310072, 0.9738243263215998]
+    @test pred2.lower ≈ pred2.prediction - quantile(TDist(dof_residual(mm)), 0.975)*se_pred ≈
+        [0.5483482828723035, 0.3252331944785751, 0.6367574076909834, 0.34715818536935505, -0.41478974520958345]
+    @test pred2.upper ≈ pred2.prediction + quantile(TDist(dof_residual(mm)), 0.975)*se_pred ≈
+        [1.7280792799868907, 2.0941782144792835, 2.9598617282413455, 1.6807571092926594, 2.362438397852783]
 
     pred3 = predict(mm, newX, interval=:prediction)
     @test pred1 == pred3.prediction ≈
-        [1.6488076594462182, 0.4706674451801356, 2.5010808086024423,
-         0.3344751861490827, 1.7094233372006582]
-    @test pred3.lower ≈ [-0.606004481018231, -1.6878627906312276,
-        0.18660252681017786, -1.6922982042879862, -0.46793127827646197]
-    @test pred3.upper ≈ [3.9036197999106674, 2.6291976809914988,
-        4.815559090394707, 2.3612485765861515, 3.8867779526777784]
+        [1.1382137814295972, 1.2097057044789292, 1.7983095679661645, 1.0139576473310072, 0.9738243263215998]
+    @test pred3.lower ≈ pred3.prediction - quantile(TDist(dof_residual(mm)), 0.975)*sqrt.(diag(newX*vcov(mm)*newX') .+ deviance(mm)/dof_residual(mm)) ≈
+        [-1.6524055967145255, -1.6576810549645142, -1.1662846080257512, -1.7939306570282658, -2.0868723667435027]
+    @test pred3.upper ≈ pred3.prediction + quantile(TDist(dof_residual(mm)), 0.975)*sqrt.(diag(newX*vcov(mm)*newX') .+ deviance(mm)/dof_residual(mm)) ≈
+        [3.9288331595737196, 4.077092463922373, 4.762903743958081, 3.82184595169028, 4.034521019386702]
 
     # Prediction with dropcollinear (#409)
     x = [1.0 1.0
@@ -572,8 +582,41 @@ end
     @test p1.upper ≈ p2.upper
     @test p1.lower ≈ p2.lower
 
+    # Prediction with dropcollinear and complex column permutations (#431)
+    x = [1.0 100.0 1.2
+         1.0 20000.0 2.3
+         1.0 -1000.0 4.6
+         1.0 5000 2.4]
+    y = [1.0, 3.0, -2.0, 4.5]
+    m1 = lm(x, y, dropcollinear=true)
+    m2 = lm(x, y, dropcollinear=false)
+
+    p1 = predict(m1, x, interval=:confidence)
+    p2 = predict(m2, x, interval=:confidence)
+
+    @test p1.prediction ≈ p2.prediction
+    @test p1.upper ≈ p2.upper
+    @test p1.lower ≈ p2.lower
+
     # Deprecated argument value
     @test predict(m1, x, interval=:confint) == p1
+
+    # Prediction intervals would give incorrect results when some variables
+    # have been dropped due to collinearity (#410)
+    x = [1.0 1.0 2.0
+         1.0 2.0 3.0
+         1.0 -1.0 0.0]
+    y = [1.0, 3.0, -2.0]
+    m1 = lm(x, y)
+    m2 = lm(x[:, 1:2], y)
+
+    @test predict(m1) ≈ predict(m2)
+    @test_broken predict(m1, interval=:confidence) ≈
+        predict(m2, interval=:confidence)
+    @test_broken predict(m1, interval=:prediction) ≈
+        predict(m2, interval=:prediction)
+    @test_throws ArgumentError predict(m1, x, interval=:confidence)
+    @test_throws ArgumentError predict(m1, x, interval=:prediction)
 end
 
 @testset "GLM confidence intervals" begin
@@ -600,7 +643,62 @@ end
     @test preds_delta.upper .-  preds_delta.lower ≈ 2 .* 1.96 .* R_glm_se atol=1e-3
     @test_throws ArgumentError predict(gm, newX, interval=:confidence, interval_method=:undefined_method)
     @test_throws ArgumentError predict(gm, newX, interval=:undefined)
-end 
+end
+
+@testset "F test comparing to null model" begin
+    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
+                  Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
+                  Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
+    mod = lm(@formula(Result~Treatment), d).model
+    othermod = lm(@formula(Result~Other), d).model
+    nullmod = lm(@formula(Result~1), d).model
+    bothmod = lm(@formula(Result~Other+Treatment), d).model
+    nointerceptmod = lm(reshape(d.Treatment, :, 1), d.Result)
+
+    ft1 = ftest(mod)
+    ft1base = ftest(nullmod, mod)
+    @test ft1.nobs == ft1base.nobs
+    @test ft1.dof ≈ dof(mod) - dof(nullmod)
+    @test ft1.fstat ≈ ft1base.fstat[2]
+    @test ft1.pval ≈ ft1base.pval[2]
+    if VERSION >= v"1.6.0"
+        @test sprint(show, ft1) == """
+            F-test against the null model:
+            F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-07"""
+    else
+        @test sprint(show, ft1) == """
+            F-test against the null model:
+            F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-7"""
+    end
+
+    ft2 = ftest(othermod)
+    ft2base = ftest(nullmod, othermod)
+    @test ft2.nobs == ft2base.nobs
+    @test ft2.dof ≈ dof(othermod) - dof(nullmod)
+    @test ft2.fstat ≈ ft2base.fstat[2]
+    @test ft2.pval ≈ ft2base.pval[2]
+    @test sprint(show, ft2) == """
+        F-test against the null model:
+        F-statistic: 1.12 on 12 observations and 2 degrees of freedom, p-value: 0.3690"""
+
+    ft3 = ftest(bothmod)
+    ft3base = ftest(nullmod, bothmod)
+    @test ft3.nobs == ft3base.nobs
+    @test ft3.dof ≈ dof(bothmod) - dof(nullmod)
+    @test ft3.fstat ≈ ft3base.fstat[2]
+    @test ft3.pval ≈ ft3base.pval[2]
+    if VERSION >= v"1.6.0"
+        @test sprint(show, ft3) == """
+            F-test against the null model:
+            F-statistic: 81.97 on 12 observations and 3 degrees of freedom, p-value: <1e-05"""
+    else
+        @test sprint(show, ft3) == """
+            F-test against the null model:
+            F-statistic: 81.97 on 12 observations and 3 degrees of freedom, p-value: <1e-5"""
+    end
+
+    @test_throws ArgumentError ftest(nointerceptmod)
+end
 
 @testset "F test for model comparison" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
@@ -807,10 +905,10 @@ end
 end
 
 @testset "Issue 224" begin
-    Random.seed!(1009)
+    rng = StableRNG(1009)
     # Make X slightly ill conditioned to amplify rounding errors
-    X = Matrix(qr(randn(100,5)).Q)*Diagonal(10 .^ (-2.0:1.0:2.0))*Matrix(qr(randn(5,5)).Q)'
-    y = randn(100)
+    X = Matrix(qr(randn(rng, 100, 5)).Q)*Diagonal(10 .^ (-2.0:1.0:2.0))*Matrix(qr(randn(rng, 5, 5)).Q)'
+    y = randn(rng, 100)
     @test coef(glm(X, y, Normal(), IdentityLink())) ≈ coef(lm(X, y))
 end
 
@@ -851,4 +949,23 @@ end
     @test hash(GLM.LogitLink()) == hash(GLM.LogitLink())
     @test hash(NegativeBinomialLink(0.3)) == hash(NegativeBinomialLink(0.3))
     @test hash(NegativeBinomialLink(0.31)) != hash(NegativeBinomialLink(0.3))
+end
+
+@testset "hasintercept" begin
+    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
+                  Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
+                  Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
+
+    mod = lm(@formula(Result~Treatment), d).model
+    @test hasintercept(mod)
+
+    nullmod = lm(@formula(Result~1), d).model
+    @test hasintercept(nullmod)
+
+    nointerceptmod = lm(reshape(d.Treatment, :, 1), d.Result)
+    @test !hasintercept(nointerceptmod)
+
+    rng = StableRNG(1234321)
+    secondcolinterceptmod = glm([randn(rng, 5) ones(5)], ones(5), Binomial(), LogitLink())
+    @test hasintercept(secondcolinterceptmod)
 end

@@ -248,7 +248,7 @@ response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
-formula(obj::LinPredModel) = modelframe(obj).formula
+StatsModels.formula(obj::LinPredModel) = modelframe(obj).formula
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 """
@@ -270,3 +270,5 @@ coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
 
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
+
+hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))
