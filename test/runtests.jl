@@ -147,29 +147,45 @@ end
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
+    @test isinf(GLM.dispersion(model.model))
     @test coef(model) ≈ [1, 1, 2]
-    @test all(isnan, hcat(ct.cols[2:end]...))
+    @test isequal(hcat(ct.cols[2:end]...),
+                  [Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf])
 
     model = lm(@formula(y ~ 0 + x), df)
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
+    @test isinf(GLM.dispersion(model.model))
     @test coef(model) ≈ [1, 2, 3]
-    @test all(isnan, hcat(ct.cols[2:end]...))
+    @test isequal(hcat(ct.cols[2:end]...),
+                  [Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf])
 
     model = glm(@formula(y ~ x), df, Normal(), IdentityLink())
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
+    @test isinf(GLM.dispersion(model.model))
     @test coef(model) ≈ [1, 1, 2]
-    @test all(isnan, hcat(ct.cols[2:end]...))
+    @test isequal(hcat(ct.cols[2:end]...),
+                  [Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf])
 
     model = glm(@formula(y ~ 0 + x), df, Normal(), IdentityLink())
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
+    @test isinf(GLM.dispersion(model.model))
     @test coef(model) ≈ [1, 2, 3]
-    @test all(isnan, hcat(ct.cols[2:end]...))
+    @test isequal(hcat(ct.cols[2:end]...),
+                  [Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf])
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
