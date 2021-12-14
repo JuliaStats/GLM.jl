@@ -81,7 +81,7 @@ module GLM
     abstract type DensePred <: LinPred end            # linear predictor with dense X
     abstract type LinPredModel <: RegressionModel end # model based on a linear predictor
 
-    @static if VERSION < v"1.8.0-DEV.xxxx"
+    @static if VERSION < v"1.8.0-DEV.1139"
         pivoted_cholesky!(A; kwargs...) = cholesky!(A, Val(true); kwargs...)
     else
         pivoted_cholesky!(A; kwargs...) = cholesky!(A, RowNorm(); kwargs...)
