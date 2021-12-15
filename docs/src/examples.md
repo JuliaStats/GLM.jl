@@ -20,7 +20,7 @@ julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
 │ 3   │ 3     │ 7     │
 
 julia> ols = lm(@formula(Y ~ X), data)
-StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
 
 Formula: Y ~ 1 + X
 
@@ -56,7 +56,7 @@ julia> data = DataFrame(X=[1,2,2], Y=[1,0,1])
 │ 3   │ 2     │ 1     │
 
 julia> probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
-StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},Binomial{Float64},ProbitLink},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},Binomial{Float64},ProbitLink},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
 
 Formula: Y ~ 1 + X
 
@@ -96,7 +96,7 @@ julia> quine = dataset("MASS", "quine")
 │ 146 │ N            │ F            │ F3           │ AL           │ 37    │
 
 julia> nbrmodel = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
-StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},NegativeBinomial{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},NegativeBinomial{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
 
 Formula: Days ~ 1 + Eth + Sex + Age + Lrn
 
@@ -114,7 +114,7 @@ Lrn: SL       0.296768     0.185934   1.60    0.1105  -0.0676559   0.661191
 ────────────────────────────────────────────────────────────────────────────
 
 julia> nbrmodel = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink())
-StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},NegativeBinomial{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},NegativeBinomial{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
 
 Formula: Days ~ 1 + Eth + Sex + Age + Lrn
 
@@ -163,7 +163,7 @@ julia> form = dataset("datasets", "Formaldehyde")
 │ 6   │ 0.9      │ 0.782    │
 
 julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
-StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
 
 Formula: OptDen ~ 1 + Carb
 
@@ -210,7 +210,7 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
 │ 50  │ Malaysia       │ 4.71     │ 47.2     │ 0.66     │ 242.69   │ 5.08     │
 
 julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
-StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
 
 Formula: SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
 
@@ -274,17 +274,17 @@ glm> summary(glm.D93)
 Call:
 glm(formula = counts ~ outcome + treatment, family = poisson())
 
-Deviance Residuals: 
-      1        2        3        4        5        6        7        8        9  
--0.6122   1.0131  -0.2819  -0.2498  -0.9784   1.0777   0.8162  -0.1155  -0.8811  
+Deviance Residuals:
+      1        2        3        4        5        6        7        8        9
+-0.6122   1.0131  -0.2819  -0.2498  -0.9784   1.0777   0.8162  -0.1155  -0.8811
 
 Coefficients:
-            Estimate Std. Error z value Pr(>|z|)    
+            Estimate Std. Error z value Pr(>|z|)
 (Intercept)   3.0313     0.1712  17.711   <2e-16 ***
-outcome2     -0.4543     0.2022  -2.247   0.0246 *  
-outcome3     -0.2513     0.1905  -1.319   0.1870    
-treatment2    0.0198     0.1990   0.100   0.9207    
-treatment3    0.0198     0.1990   0.100   0.9207    
+outcome2     -0.4543     0.2022  -2.247   0.0246 *
+outcome3     -0.2513     0.1905  -1.319   0.1870
+treatment2    0.0198     0.1990   0.100   0.9207
+treatment3    0.0198     0.1990   0.100   0.9207
 ---
 Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
 
@@ -319,7 +319,7 @@ julia> dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
 
 
 julia> gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
-StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},Poisson{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},Poisson{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
 
 Formula: Counts ~ 1 + Outcome + Treatment
 
