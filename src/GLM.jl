@@ -84,7 +84,7 @@ module GLM
     @static if VERSION < v"1.8.0-DEV.1139"
         pivoted_cholesky!(A; kwargs...) = cholesky!(A, Val(true); kwargs...)
     else
-        pivoted_cholesky!(A; kwargs...) = cholesky!(A, RowNorm(); kwargs...)
+        pivoted_cholesky!(A; kwargs...) = cholesky!(A, RowMaximum(); kwargs...)
     end
 
     include("linpred.jl")
