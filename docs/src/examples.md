@@ -11,13 +11,13 @@ end
 julia> using DataFrames, GLM
 
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
-3×2 DataFrames.DataFrame
-│ Row │ X     │ Y     │
-│     │ Int64 │ Int64 │
-├─────┼───────┼───────┤
-│ 1   │ 1     │ 2     │
-│ 2   │ 2     │ 4     │
-│ 3   │ 3     │ 7     │
+3×2 DataFrame
+ Row │ X      Y
+     │ Int64  Int64
+─────┼──────────────
+   1 │     1      2
+   2 │     2      4
+   3 │     3      7
 
 julia> ols = lm(@formula(Y ~ X), data)
 StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
@@ -47,13 +47,13 @@ julia> round.(predict(ols), digits=5)
 ## Probit regression
 ```jldoctest
 julia> data = DataFrame(X=[1,2,2], Y=[1,0,1])
-3×2 DataFrames.DataFrame
-│ Row │ X     │ Y     │
-│     │ Int64 │ Int64 │
-├─────┼───────┼───────┤
-│ 1   │ 1     │ 1     │
-│ 2   │ 2     │ 0     │
-│ 3   │ 2     │ 1     │
+3×2 DataFrame
+ Row │ X      Y
+     │ Int64  Int64
+─────┼──────────────
+   1 │     1      1
+   2 │     2      0
+   3 │     2      1
 
 julia> probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
 StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},Binomial{Float64},ProbitLink},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
@@ -74,26 +74,27 @@ X            -4.81919     146.957  -0.03    0.9738   -292.849    283.211
 julia> using GLM, RDatasets
 
 julia> quine = dataset("MASS", "quine")
-146×5 DataFrames.DataFrame
-│ Row │ Eth          │ Sex          │ Age          │ Lrn          │ Days  │
-│     │ Categorical… │ Categorical… │ Categorical… │ Categorical… │ Int32 │
-├─────┼──────────────┼──────────────┼──────────────┼──────────────┼───────┤
-│ 1   │ A            │ M            │ F0           │ SL           │ 2     │
-│ 2   │ A            │ M            │ F0           │ SL           │ 11    │
-│ 3   │ A            │ M            │ F0           │ SL           │ 14    │
-│ 4   │ A            │ M            │ F0           │ AL           │ 5     │
-│ 5   │ A            │ M            │ F0           │ AL           │ 5     │
-│ 6   │ A            │ M            │ F0           │ AL           │ 13    │
-│ 7   │ A            │ M            │ F0           │ AL           │ 20    │
-⋮
-│ 139 │ N            │ F            │ F3           │ AL           │ 22    │
-│ 140 │ N            │ F            │ F3           │ AL           │ 3     │
-│ 141 │ N            │ F            │ F3           │ AL           │ 3     │
-│ 142 │ N            │ F            │ F3           │ AL           │ 5     │
-│ 143 │ N            │ F            │ F3           │ AL           │ 15    │
-│ 144 │ N            │ F            │ F3           │ AL           │ 18    │
-│ 145 │ N            │ F            │ F3           │ AL           │ 22    │
-│ 146 │ N            │ F            │ F3           │ AL           │ 37    │
+146×5 DataFrame
+ Row │ Eth   Sex   Age   Lrn   Days
+     │ Cat…  Cat…  Cat…  Cat…  Int32
+─────┼───────────────────────────────
+   1 │ A     M     F0    SL        2
+   2 │ A     M     F0    SL       11
+   3 │ A     M     F0    SL       14
+   4 │ A     M     F0    AL        5
+   5 │ A     M     F0    AL        5
+   6 │ A     M     F0    AL       13
+   7 │ A     M     F0    AL       20
+   8 │ A     M     F0    AL       22
+  ⋮  │  ⋮     ⋮     ⋮     ⋮      ⋮
+ 140 │ N     F     F3    AL        3
+ 141 │ N     F     F3    AL        3
+ 142 │ N     F     F3    AL        5
+ 143 │ N     F     F3    AL       15
+ 144 │ N     F     F3    AL       18
+ 145 │ N     F     F3    AL       22
+ 146 │ N     F     F3    AL       37
+                     131 rows omitted
 
 julia> nbrmodel = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
 StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},NegativeBinomial{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
@@ -152,15 +153,15 @@ julia> using GLM, RDatasets
 
 julia> form = dataset("datasets", "Formaldehyde")
 6×2 DataFrame
-│ Row │ Carb     │ OptDen   │
-│     │ Float64⍰ │ Float64⍰ │
-├─────┼──────────┼──────────┤
-│ 1   │ 0.1      │ 0.086    │
-│ 2   │ 0.3      │ 0.269    │
-│ 3   │ 0.5      │ 0.446    │
-│ 4   │ 0.6      │ 0.538    │
-│ 5   │ 0.7      │ 0.626    │
-│ 6   │ 0.9      │ 0.782    │
+ Row │ Carb     OptDen
+     │ Float64  Float64
+─────┼──────────────────
+   1 │     0.1    0.086
+   2 │     0.3    0.269
+   3 │     0.5    0.446
+   4 │     0.6    0.538
+   5 │     0.7    0.626
+   6 │     0.9    0.782
 
 julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
 StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
@@ -189,25 +190,26 @@ with the corresponding Julia code
 ```jldoctest
 julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
 50×6 DataFrame
-│ Row │ Country        │ SR       │ Pop15    │ Pop75    │ DPI      │ DDPI     │
-│     │ String⍰        │ Float64⍰ │ Float64⍰ │ Float64⍰ │ Float64⍰ │ Float64⍰ │
-├─────┼────────────────┼──────────┼──────────┼──────────┼──────────┼──────────┤
-│ 1   │ Australia      │ 11.43    │ 29.35    │ 2.87     │ 2329.68  │ 2.87     │
-│ 2   │ Austria        │ 12.07    │ 23.32    │ 4.41     │ 1507.99  │ 3.93     │
-│ 3   │ Belgium        │ 13.17    │ 23.8     │ 4.43     │ 2108.47  │ 3.82     │
-│ 4   │ Bolivia        │ 5.75     │ 41.89    │ 1.67     │ 189.13   │ 0.22     │
-│ 5   │ Brazil         │ 12.88    │ 42.19    │ 0.83     │ 728.47   │ 4.56     │
-│ 6   │ Canada         │ 8.79     │ 31.72    │ 2.85     │ 2982.88  │ 2.43     │
-│ 7   │ Chile          │ 0.6      │ 39.74    │ 1.34     │ 662.86   │ 2.67     │
-⋮
-│ 43  │ United Kingdom │ 7.81     │ 23.27    │ 4.46     │ 1813.93  │ 2.01     │
-│ 44  │ United States  │ 7.56     │ 29.81    │ 3.43     │ 4001.89  │ 2.45     │
-│ 45  │ Venezuela      │ 9.22     │ 46.4     │ 0.9      │ 813.39   │ 0.53     │
-│ 46  │ Zambia         │ 18.56    │ 45.25    │ 0.56     │ 138.33   │ 5.14     │
-│ 47  │ Jamaica        │ 7.72     │ 41.12    │ 1.73     │ 380.47   │ 10.23    │
-│ 48  │ Uruguay        │ 9.24     │ 28.13    │ 2.72     │ 766.54   │ 1.88     │
-│ 49  │ Libya          │ 8.89     │ 43.69    │ 2.07     │ 123.58   │ 16.71    │
-│ 50  │ Malaysia       │ 4.71     │ 47.2     │ 0.66     │ 242.69   │ 5.08     │
+ Row │ Country         SR       Pop15    Pop75    DPI      DDPI
+     │ String15        Float64  Float64  Float64  Float64  Float64
+─────┼─────────────────────────────────────────────────────────────
+   1 │ Australia         11.43    29.35     2.87  2329.68     2.87
+   2 │ Austria           12.07    23.32     4.41  1507.99     3.93
+   3 │ Belgium           13.17    23.8      4.43  2108.47     3.82
+   4 │ Bolivia            5.75    41.89     1.67   189.13     0.22
+   5 │ Brazil            12.88    42.19     0.83   728.47     4.56
+   6 │ Canada             8.79    31.72     2.85  2982.88     2.43
+   7 │ Chile              0.6     39.74     1.34   662.86     2.67
+   8 │ China             11.9     44.75     0.67   289.52     6.51
+  ⋮  │       ⋮            ⋮        ⋮        ⋮        ⋮        ⋮
+  44 │ United States      7.56    29.81     3.43  4001.89     2.45
+  45 │ Venezuela          9.22    46.4      0.9    813.39     0.53
+  46 │ Zambia            18.56    45.25     0.56   138.33     5.14
+  47 │ Jamaica            7.72    41.12     1.73   380.47    10.23
+  48 │ Uruguay            9.24    28.13     2.72   766.54     1.88
+  49 │ Libya              8.89    43.69     2.07   123.58    16.71
+  50 │ Malaysia           4.71    47.2      0.66   242.69     5.08
+                                                    35 rows omitted
 
 julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
 StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
@@ -304,19 +306,18 @@ julia> dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
                           Outcome   = categorical([1,2,3,1,2,3,1,2,3]),
                           Treatment = categorical([1,1,1,2,2,2,3,3,3]))
 9×3 DataFrame
-│ Row │ Counts  │ Outcome      │ Treatment    │
-│     │ Float64 │ Categorical… │ Categorical… │
-├─────┼─────────┼──────────────┼──────────────┤
-│ 1   │ 18.0    │ 1            │ 1            │
-│ 2   │ 17.0    │ 2            │ 1            │
-│ 3   │ 15.0    │ 3            │ 1            │
-│ 4   │ 20.0    │ 1            │ 2            │
-│ 5   │ 10.0    │ 2            │ 2            │
-│ 6   │ 21.0    │ 3            │ 2            │
-│ 7   │ 25.0    │ 1            │ 3            │
-│ 8   │ 13.0    │ 2            │ 3            │
-│ 9   │ 13.0    │ 3            │ 3            │
-
+ Row │ Counts   Outcome  Treatment
+     │ Float64  Cat…     Cat…
+─────┼─────────────────────────────
+   1 │    18.0  1        1
+   2 │    17.0  2        1
+   3 │    15.0  3        1
+   4 │    20.0  1        2
+   5 │    10.0  2        2
+   6 │    21.0  3        2
+   7 │    25.0  1        3
+   8 │    13.0  2        3
+   9 │    13.0  3        3
 
 julia> gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
 StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},Poisson{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
