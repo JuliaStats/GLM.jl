@@ -10,6 +10,8 @@ makedocs(
         "api.md",
     ],
     debug = false,
+    doctest = true,
+    strict = true,
 )
 
 deploydocs(
