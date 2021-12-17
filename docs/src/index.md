@@ -66,7 +66,7 @@ An intercept is included in any GLM by default.
 Categorical variables will be dummy coded by default if they are non-numeric or if they are
 [`CategoricalVector`s](https://juliadata.github.io/CategoricalArrays.jl/stable/) within a
 [Tables.jl](https://juliadata.github.io/Tables.jl/stable/) table (`DataFrame`, JuliaDB table,
-named tuple of vectors, etc). Alternatively, you can pass an explicit 
+named tuple of vectors, etc). Alternatively, you can pass an explicit
 [contrasts](https://juliastats.github.io/StatsModels.jl/stable/contrasts/) argument if you
 would like a different contrast coding system or if you are not using DataFrames.
 
@@ -75,26 +75,27 @@ The response (dependent) variable may not be categorical.
 Using a `CategoricalVector` constructed with `categorical` or `categorical!`:
 
 ```jldoctest categorical
-julia> using DataFrames, GLM, Random
+julia> using CategoricalArrays, DataFrames, GLM, StableRNGs
 
-julia> Random.seed!(1); # Ensure example can be reproduced
+julia> rng = StableRNG(1); # Ensure example can be reproduced
 
-julia> data = DataFrame(y = rand(100), x = categorical(repeat([1, 2, 3, 4], 25)));
+julia> data = DataFrame(y = rand(rng, 100), x = categorical(repeat([1, 2, 3, 4], 25)));
+
 
 julia> lm(@formula(y ~ x), data)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
 Coefficients:
-─────────────────────────────────────────────────────────────────────────────
-              Estimate  Std. Error   t value  Pr(>|t|)   Lower 95%  Upper 95%
-─────────────────────────────────────────────────────────────────────────────
-(Intercept)  0.41335     0.0548456  7.53662     <1e-10   0.304483    0.522218
-x: 2         0.172338    0.0775634  2.2219      0.0286   0.0183756   0.3263  
-x: 3         0.0422104   0.0775634  0.544205    0.5876  -0.111752    0.196172
-x: 4         0.0793591   0.0775634  1.02315     0.3088  -0.074603    0.233321
-─────────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(>|t|)   Lower 95%  Upper 95%
+───────────────────────────────────────────────────────────────────────────
+(Intercept)   0.490985    0.0564176   8.70    <1e-13   0.378997    0.602973
+x: 2          0.0527655   0.0797865   0.66    0.5100  -0.105609    0.21114
+x: 3          0.0955446   0.0797865   1.20    0.2341  -0.0628303   0.25392
+x: 4         -0.032673    0.0797865  -0.41    0.6831  -0.191048    0.125702
+───────────────────────────────────────────────────────────────────────────
 ```
 
 Using [`contrasts`](https://juliastats.github.io/StatsModels.jl/stable/contrasts/):
@@ -103,19 +104,19 @@ Using [`contrasts`](https://juliastats.github.io/StatsModels.jl/stable/contrasts
 julia> data = DataFrame(y = rand(100), x = repeat([1, 2, 3, 4], 25));
 
 julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
 Coefficients:
-────────────────────────────────────────────────────────────────────────────────
-               Estimate  Std. Error     t value  Pr(>|t|)   Lower 95%  Upper 95%
-────────────────────────────────────────────────────────────────────────────────
-(Intercept)   0.464446    0.0582412   7.97453      <1e-11   0.348838    0.580054
-x: 2         -0.0057872   0.0823655  -0.0702624    0.9441  -0.169281    0.157707
-x: 3          0.0923976   0.0823655   1.1218       0.2647  -0.0710966   0.255892
-x: 4          0.115145    0.0823655   1.39797      0.1653  -0.0483494   0.278639
-────────────────────────────────────────────────────────────────────────────────
+──────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+──────────────────────────────────────────────────────────────────────────
+(Intercept)   0.527099    0.0609244   8.65    <1e-12   0.406165   0.648033
+x: 2          0.0502629   0.0861601   0.58    0.5610  -0.120764   0.221289
+x: 3         -0.0389552   0.0861601  -0.45    0.6522  -0.209982   0.132071
+x: 4         -0.0216605   0.0861601  -0.25    0.8020  -0.192687   0.149366
+──────────────────────────────────────────────────────────────────────────
 ```
 
 ## Comparing models with F-test

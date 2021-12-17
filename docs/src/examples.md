@@ -20,9 +20,9 @@ julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
    3 │     3      7
 
 julia> ols = lm(@formula(Y ~ X), data)
-StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
 
-Formula: Y ~ 1 + X
+Y ~ 1 + X
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────────────
@@ -33,12 +33,12 @@ X             2.5         0.288675   8.66    0.0732   -1.16797    6.16797
 ─────────────────────────────────────────────────────────────────────────
 
 julia> round.(stderror(ols), digits=5)
-2-element Array{Float64,1}:
+2-element Vector{Float64}:
  0.62361
  0.28868
 
 julia> round.(predict(ols), digits=5)
-3-element Array{Float64,1}:
+3-element Vector{Float64}:
  1.83333
  4.33333
  6.83333
@@ -56,9 +56,9 @@ julia> data = DataFrame(X=[1,2,2], Y=[1,0,1])
    3 │     2      1
 
 julia> probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
-StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},Binomial{Float64},ProbitLink},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, Binomial{Float64}, ProbitLink}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}}}, Matrix{Float64}}
 
-Formula: Y ~ 1 + X
+Y ~ 1 + X
 
 Coefficients:
 ────────────────────────────────────────────────────────────────────────
@@ -97,9 +97,9 @@ julia> quine = dataset("MASS", "quine")
                      131 rows omitted
 
 julia> nbrmodel = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
-StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},NegativeBinomial{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, NegativeBinomial{Float64}, LogLink}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}}}, Matrix{Float64}}
 
-Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+Days ~ 1 + Eth + Sex + Age + Lrn
 
 Coefficients:
 ────────────────────────────────────────────────────────────────────────────
@@ -115,9 +115,9 @@ Lrn: SL       0.296768     0.185934   1.60    0.1105  -0.0676559   0.661191
 ────────────────────────────────────────────────────────────────────────────
 
 julia> nbrmodel = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink())
-StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},NegativeBinomial{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, NegativeBinomial{Float64}, LogLink}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}}}, Matrix{Float64}}
 
-Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+Days ~ 1 + Eth + Sex + Age + Lrn
 
 Coefficients:
 ────────────────────────────────────────────────────────────────────────────
@@ -164,15 +164,16 @@ julia> form = dataset("datasets", "Formaldehyde")
    6 │     0.9    0.782
 
 julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
-StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
 
-Formula: OptDen ~ 1 + Carb
+OptDen ~ 1 + Carb
 
+Coefficients:
 ───────────────────────────────────────────────────────────────────────────
                   Coef.  Std. Error      t  Pr(>|t|)   Lower 95%  Upper 95%
 ───────────────────────────────────────────────────────────────────────────
 (Intercept)  0.00508571  0.00783368   0.65    0.5516  -0.0166641  0.0268355
-Carb         0.876286    0.0135345   64.74    <1e-6    0.838708   0.913864
+Carb         0.876286    0.0135345   64.74    <1e-06   0.838708   0.913864
 ───────────────────────────────────────────────────────────────────────────
 ```
 
@@ -212,9 +213,9 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
                                                     35 rows omitted
 
 julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
-StatsModels.DataFrameRegressionModel{LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
 
-Formula: SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
+SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────────────────────
@@ -320,9 +321,9 @@ julia> dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
    9 │    13.0  3        3
 
 julia> gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
-StatsModels.DataFrameRegressionModel{GeneralizedLinearModel{GlmResp{Array{Float64,1},Poisson{Float64},LogLink},DensePredChol{Float64,LinearAlgebra.CholeskyPivoted{Float64,Array{Float64,2}}}},Array{Float64,2}}
+StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, Poisson{Float64}, LogLink}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}}}, Matrix{Float64}}
 
-Formula: Counts ~ 1 + Outcome + Treatment
+Counts ~ 1 + Outcome + Treatment
 
 Coefficients:
 ────────────────────────────────────────────────────────────────────────────
