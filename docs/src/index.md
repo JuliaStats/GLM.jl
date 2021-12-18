@@ -101,7 +101,9 @@ x: 4         -0.032673    0.0797865  -0.41    0.6831  -0.191048    0.125702
 Using [`contrasts`](https://juliastats.github.io/StatsModels.jl/stable/contrasts/):
 
 ```jldoctest categorical
-julia> data = DataFrame(y = rand(100), x = repeat([1, 2, 3, 4], 25));
+julia> using StableRNGs
+
+julia> data = DataFrame(y = rand(StableRNG(1), 100), x = repeat([1, 2, 3, 4], 25));
 
 julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
 StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
@@ -109,14 +111,14 @@ StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.De
 y ~ 1 + x
 
 Coefficients:
-─────────────────────────────────────────────────────────────────────────
-                 Coef.  Std. Error     t  Pr(>|t|)   Lower 95%  Upper 95%
-─────────────────────────────────────────────────────────────────────────
-(Intercept)  0.4342      0.0577365  7.52    <1e-10   0.319594    0.548806
-x: 2         0.0363378   0.0816518  0.45    0.6573  -0.12574     0.198415
-x: 3         0.0910412   0.0816518  1.11    0.2676  -0.0710363   0.253119
-x: 4         0.0250551   0.0816518  0.31    0.7596  -0.137022    0.187133
-─────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(>|t|)   Lower 95%  Upper 95%
+───────────────────────────────────────────────────────────────────────────
+(Intercept)   0.490985    0.0564176   8.70    <1e-13   0.378997    0.602973
+x: 2          0.0527655   0.0797865   0.66    0.5100  -0.105609    0.21114
+x: 3          0.0955446   0.0797865   1.20    0.2341  -0.0628303   0.25392
+x: 4         -0.032673    0.0797865  -0.41    0.6831  -0.191048    0.125702
+───────────────────────────────────────────────────────────────────────────
 ```
 
 ## Comparing models with F-test
