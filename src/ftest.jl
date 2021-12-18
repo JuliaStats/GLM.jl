@@ -41,11 +41,13 @@ _diff(t::NTuple{N, T}) where {N, T} = ntuple(i->t[i+1]-t[i], N-1)
 Perform an F-test to determine whether model `mod` fits significantly better
 than the null model (i.e. which includes only the intercept).
 
-```jldoctest
+```jldoctest; setup = :(using DataFrames, GLM)
 julia> dat = DataFrame(Result=[1.1, 1.2, 1, 2.2, 1.9, 2, 0.9, 1, 1, 2.2, 2, 2],
                        Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2]);
 
+
 julia> model = lm(@formula(Result ~ 1 + Treatment), dat);
+
 
 julia> ftest(model.model)
 F-test against the null model:
@@ -91,35 +93,39 @@ Suppose we want to compare the effects of two or more treatments on some result.
 this is an ANOVA, our null hypothesis is that `Result ~ 1` fits the data as well as
 `Result ~ 1 + Treatment`.
 
-```jldoctest
+```jldoctest ; setup = :(using CategoricalArrays, DataFrames, GLM)
 julia> dat = DataFrame(Result=[1.1, 1.2, 1, 2.2, 1.9, 2, 0.9, 1, 1, 2.2, 2, 2],
                        Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2],
                        Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]));
 
+
 julia> nullmodel = lm(@formula(Result ~ 1), dat);
+
 
 julia> model = lm(@formula(Result ~ 1 + Treatment), dat);
 
+
 julia> bigmodel = lm(@formula(Result ~ 1 + Treatment + Other), dat);
+
 
 julia> ftest(nullmodel.model, model.model)
 F-test: 2 models fitted on 12 observations
 ─────────────────────────────────────────────────────────────────
-     DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*  p(>F)
+     DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
 ─────────────────────────────────────────────────────────────────
-[1]    2        3.2292           -0.0000                         
-[2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234  <1e-7
+[1]    2        3.2292           0.0000
+[2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
 ─────────────────────────────────────────────────────────────────
 
 julia> ftest(nullmodel.model, model.model, bigmodel.model)
 F-test: 3 models fitted on 12 observations
-──────────────────────────────────────────────────────────────────
-     DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)
-──────────────────────────────────────────────────────────────────
-[1]    2        3.2292           -0.0000                          
-[2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234   <1e-7
-[3]    5     2  0.1017  -0.0266   0.9685  0.0082    1.0456  0.3950
-──────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────
+     DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
+─────────────────────────────────────────────────────────────────
+[1]    2        3.2292           0.0000
+[2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
+[3]    5     2  0.1017  -0.0266  0.9685  0.0082    1.0456  0.3950
+─────────────────────────────────────────────────────────────────
 ```
 """
 function ftest(mods::LinearModel...; atol::Real=0.0)
