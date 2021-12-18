@@ -11,7 +11,7 @@ makedocs(
     ],
     debug = false,
     doctest = true,
-    strict = true,
+    strict = :doctest,
 )
 
 deploydocs(
