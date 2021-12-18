@@ -166,11 +166,12 @@ Return a 3-tuple of the inverse link, the derivative of the inverse link, and wh
 The variance function is returned as NaN unless the range of μ is (0, 1)
 
 # Examples
-```jldoctest; setup = :(using GLM: LogitLink, inverselink, CloglogLink)
-julia> inverselink(LogitLink(), 0.0)
+```jldoctest; setup = :(using GLM)
+julia> GLM.inverselink(LogitLink(), 0.0)
 (0.5, 0.5, 0.25)
 
-julia> μ, oneminusμ, variance = inverselink(CloglogLink(), 0.0);
+julia> μ, oneminusμ, variance = GLM.inverselink(CloglogLink(), 0.0);
+
 
 
 julia> μ + oneminusμ ≈ 1
@@ -179,7 +180,7 @@ true
 julia> μ*(1 - μ) ≈ variance
 false
 
-julia> isnan(last(inverselink(LogLink(), 2.0)))
+julia> isnan(last(GLM.inverselink(LogLink(), 2.0)))
 true
 ```
 """
@@ -191,7 +192,7 @@ function inverselink end
 Return the canonical link for distribution `D`, which must be in the exponential family.
 
 # Examples
-```jldoctest; setup = :(using GLM: canonicallink, Bernoulli)
+```jldoctest; setup = :(using GLM)
 julia> canonicallink(Bernoulli())
 LogitLink()
 ```
@@ -342,17 +343,17 @@ for others, notably the Bernoulli, the values of `y` are not allowed as values o
 must be modified.
 
 # Examples
-```jldoctest; setup = :(using GLM: Bernoulli, mustart, Normal)
-julia> mustart(Bernoulli(), 0.0, 1) ≈ 1/4
+```jldoctest; setup = :(using GLM)
+julia> GLM.mustart(Bernoulli(), 0.0, 1) ≈ 1/4
 true
 
-julia> mustart(Bernoulli(), 1.0, 1) ≈ 3/4
+julia> GLM.mustart(Bernoulli(), 1.0, 1) ≈ 3/4
 true
 
-julia> mustart(Binomial(), 0.0, 10) ≈ 1/22
+julia> GLM.mustart(Binomial(), 0.0, 10) ≈ 1/22
 true
 
-julia> mustart(Normal(), 0.0, 1) ≈ 0
+julia> GLM.mustart(Normal(), 0.0, 1) ≈ 0
 true
 ```
 """
@@ -435,7 +436,7 @@ Does distribution `D` have a separate dispersion parameter, ϕ?
 Returns `false` for the `Bernoulli`, `Binomial` and `Poisson` distributions, `true` otherwise.
 
 # Examples
-```jldoctest; setup = :(using GLM: dispersion_parameter, Bernoulli, Normal)
+```jldoctest; setup = :(using GLM)
 julia> show(GLM.dispersion_parameter(Normal()))
 true
 julia> show(GLM.dispersion_parameter(Bernoulli()))
