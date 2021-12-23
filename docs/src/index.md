@@ -156,6 +156,7 @@ Many of the methods provided by this package have names similar to those in [R](
 - `stderror`: standard errors of the coefficients
 - `vcov`: estimated variance-covariance matrix of the coefficient estimates
 - `predict` : obtain predicted values of the dependent variable from the fitted model
+- `residuals`: get the vector of residuals from the fitted model
 
 Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
 in practice one typically uses `LogLink`.
