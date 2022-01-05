@@ -65,7 +65,7 @@ StatsBase.deviance
 GLM.dispersion
 GLM.ftest
 GLM.installbeta!
-GLM.issubmodel
+StatsModels.isnested
 StatsBase.nobs
 StatsBase.nulldeviance
 StatsBase.predict
