@@ -14,7 +14,7 @@ mutable struct FTestResult{N}
     pval::NTuple{N, Float64}
 end
 
-@deprecate issubmodel(mod1::LinPredModel, mod2::LinPredModel; atol::Real=0.0) StatsModels.isnested(mod1, mod2; atol)
+@deprecate issubmodel(mod1::LinPredModel, mod2::LinPredModel; atol::Real=0.0) StatsModels.isnested(mod1, mod2; atol=atol)
 
 """A helper function to determine if mod1 is nested in mod2"""
 function StatsModels.isnested(mod1::LinPredModel, mod2::LinPredModel; atol::Real=0.0)
