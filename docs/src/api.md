@@ -65,10 +65,10 @@ StatsBase.deviance
 GLM.dispersion
 GLM.ftest
 GLM.installbeta!
-GLM.issubmodel
 StatsBase.nobs
 StatsBase.nulldeviance
 StatsBase.predict
+StatsModels.isnested
 ```
 
 ## Links and methods applied to them

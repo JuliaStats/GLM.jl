@@ -14,8 +14,9 @@ mutable struct FTestResult{N}
     pval::NTuple{N, Float64}
 end
 
-"""A helper function to determine if mod1 is nested in mod2"""
-function issubmodel(mod1::LinPredModel, mod2::LinPredModel; atol::Real=0.0)
+@deprecate issubmodel(mod1::LinPredModel, mod2::LinPredModel; atol::Real=0.0) StatsModels.isnested(mod1, mod2; atol=atol)
+
+function StatsModels.isnested(mod1::LinPredModel, mod2::LinPredModel; atol::Real=0.0)
     mod1.rr.y != mod2.rr.y && return false # Response variables must be equal
 
     # Test that models are nested
@@ -136,13 +137,13 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
     forward = length(mods) == 1 || dof(mods[1]) <= dof(mods[2])
     if forward
         for i in 2:length(mods)
-            if dof(mods[i-1]) >= dof(mods[i]) || !issubmodel(mods[i-1], mods[i], atol=atol)
+            if dof(mods[i-1]) >= dof(mods[i]) || !StatsModels.isnested(mods[i-1], mods[i], atol=atol)
                 throw(ArgumentError("F test is only valid for nested models"))
             end
         end
     else
         for i in 2:length(mods)
-            if dof(mods[i]) >= dof(mods[i-1]) || !issubmodel(mods[i], mods[i-1], atol=atol)
+            if dof(mods[i]) >= dof(mods[i-1]) || !StatsModels.isnested(mods[i], mods[i-1], atol=atol)
                 throw(ArgumentError("F test is only valid for nested models"))
             end
         end

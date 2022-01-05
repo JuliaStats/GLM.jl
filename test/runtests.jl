@@ -708,15 +708,15 @@ end
     othermod = lm(@formula(Result~Other), d).model
     nullmod = lm(@formula(Result~1), d).model
     bothmod = lm(@formula(Result~Other+Treatment), d).model
-    @test GLM.issubmodel(nullmod, mod)
-    @test !GLM.issubmodel(othermod, mod)
-    @test GLM.issubmodel(mod, bothmod)
-    @test !GLM.issubmodel(bothmod, mod)
-    @test GLM.issubmodel(othermod, bothmod)
+    @test StatsModels.isnested(nullmod, mod)
+    @test !StatsModels.isnested(othermod, mod)
+    @test StatsModels.isnested(mod, bothmod)
+    @test !StatsModels.isnested(bothmod, mod)
+    @test StatsModels.isnested(othermod, bothmod)
 
     d.Sum = d.Treatment + (d.Other .== 1)
     summod = lm(@formula(Result~Sum), d).model
-    @test GLM.issubmodel(summod, bothmod)
+    @test StatsModels.isnested(summod, bothmod)
 
     ft1a = ftest(mod, nullmod)
     @test isnan(ft1a.pval[1])
@@ -851,7 +851,7 @@ end
     # Fit 2 (both)
     Xc2 = RL\X
     mod2 = lm(Xc2, Yc)
-    @test GLM.issubmodel(mod1, mod2)
+    @test StatsModels.isnested(mod1, mod2)
 end
 
 @testset "coeftable" begin
