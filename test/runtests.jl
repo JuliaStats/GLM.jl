@@ -904,6 +904,36 @@ end
     Test.@inferred cholesky(GLM.DensePredQR{Float64}(X))
 end
 
+@testset "Issue 213" begin
+    x, y, w = rand(100, 2), rand(100), rand(100)
+    lm1 = lm(x, y)
+    lm2 = lm(x, view(y, :))
+    lm3 = lm(view(x, :, :), y)
+    lm4 = lm(view(x, :, :), view(y, :))
+    @test coef(lm1) ≈ coef(lm2) ≈ coef(lm3) ≈ coef(lm4)
+
+    lm5 = lm(x, y, wts=w)
+    lm6 = lm(x, view(y, :), wts=w)
+    lm7 = lm(view(x, :, :), y, wts=w)
+    lm8 = lm(view(x, :, :), view(y, :), wts=w)
+    lm9 = lm(x, y, wts=view(w, :))
+    lm10 = lm(x, view(y, :), wts=view(w, :))
+    lm11 = lm(view(x, :, :), y, wts=view(w, :))
+    lm12 = lm(view(x, :, :), view(y, :), wts=view(w, :))
+    @test coef(lm5) ≈ coef(lm6) ≈ coef(lm7) ≈ coef(lm8) ≈ coef(lm9) ≈ coef(lm10) ≈ coef(lm11) ≈ coef(lm12)
+
+    x, y, w = rand(100, 2), rand(Bool, 100), rand(100)
+    glm1 = glm(x, y, Binomial())
+    glm2 = glm(x, view(y, :), Binomial())
+    @test coef(glm1) ≈ coef(glm2)
+
+    glm3 = glm(x, y, Binomial(), wts=w)
+    glm4 = glm(x, view(y, :), Binomial(), wts=w)
+    glm5 = glm(x, y, Binomial(), wts=view(w, :))
+    glm6 = glm(x, view(y, :), Binomial(), wts=view(w, :))
+    @test coef(glm3) ≈ coef(glm4) ≈ coef(glm5) ≈ coef(glm6)
+end
+
 @testset "Issue 224" begin
     rng = StableRNG(1009)
     # Make X slightly ill conditioned to amplify rounding errors
