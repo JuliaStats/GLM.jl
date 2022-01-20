@@ -485,12 +485,15 @@ function fit(::Type{M},
     return dofit ? fit!(res; fitargs...) : res
 end
 
-fit(::Type{M},
-    X::Union{Matrix,SparseMatrixCSC},
-    y::AbstractVector,
-    d::UnivariateDistribution,
-    l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
-        fit(M, float(X), float(y), d, l; kwargs...)
+function fit(::Type{M},
+             X::AbstractMatrix,
+             y::AbstractVector,
+             d::UnivariateDistribution,
+             l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM}
+    T = float(eltype(X))
+    U = issparse(X) ? SparseMatrixCSC{T} : Matrix{T}
+    return fit(M, convert(U, X), float(y), d, l; kwargs...)
+end
 
 """
     glm(formula, data,

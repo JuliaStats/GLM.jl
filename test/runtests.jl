@@ -920,18 +920,26 @@ end
     lm10 = lm(x, view(y, :), wts=view(w, :))
     lm11 = lm(view(x, :, :), y, wts=view(w, :))
     lm12 = lm(view(x, :, :), view(y, :), wts=view(w, :))
-    @test coef(lm5) ≈ coef(lm6) ≈ coef(lm7) ≈ coef(lm8) ≈ coef(lm9) ≈ coef(lm10) ≈ coef(lm11) ≈ coef(lm12)
+    @test coef(lm5) ≈ coef(lm6) ≈ coef(lm7) ≈ coef(lm8) ≈ coef(lm9) ≈ coef(lm10) ≈
+        coef(lm11) ≈ coef(lm12)
 
     x, y, w = rand(100, 2), rand(Bool, 100), rand(100)
     glm1 = glm(x, y, Binomial())
     glm2 = glm(x, view(y, :), Binomial())
-    @test coef(glm1) ≈ coef(glm2)
+    glm3 = glm(view(x, :, :), y, Binomial())
+    glm4 = glm(view(x, :, :), view(y, :), Binomial())
+    @test coef(glm1) ≈ coef(glm2) ≈ coef(glm3) ≈ coef(glm4)
 
-    glm3 = glm(x, y, Binomial(), wts=w)
-    glm4 = glm(x, view(y, :), Binomial(), wts=w)
-    glm5 = glm(x, y, Binomial(), wts=view(w, :))
-    glm6 = glm(x, view(y, :), Binomial(), wts=view(w, :))
-    @test coef(glm3) ≈ coef(glm4) ≈ coef(glm5) ≈ coef(glm6)
+    glm5 = glm(x, y, Binomial(), wts=w)
+    glm6 = glm(x, view(y, :), Binomial(), wts=w)
+    glm7 = glm(view(x, :, :), y, Binomial(), wts=w)
+    glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=w)
+    glm9 = glm(x, y, Binomial(), wts=view(w, :))
+    glm10 = glm(x, view(y, :), Binomial(), wts=view(w, :))
+    glm11 = glm(view(x, :, :), y, Binomial(), wts=view(w, :))
+    glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=view(w, :))
+    @test coef(glm5) ≈ coef(glm6) ≈ coef(glm7) ≈ coef(glm8) ≈ coef(glm9) ≈ coef(glm10) ≈
+        coef(glm11) ≈ coef(glm12)
 end
 
 @testset "Issue 224" begin
