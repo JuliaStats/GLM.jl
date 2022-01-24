@@ -236,7 +236,7 @@ end
 
 If `interval` is `nothing` (the default), return a vector with the predicted values
 for model `mm` and new data `newx`.
-Otherwise, return a 3-column matrix with the prediction and
+Otherwise, return a vector with the predicted values as well as
 the lower and upper confidence bounds for a given `level` (0.95 equates alpha = 0.05).
 Valid values of `interval` are `:confidence` delimiting the  uncertainty of the
 predicted relationship, and `:prediction` delimiting estimated bounds for new data points.
@@ -265,7 +265,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     else
         R = chol.U
     end
-    residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
+    residvar = ones(size(newx,2)) * deviance(mm)/dof_residual(mm)
     if interval == :confidence
         retvariance = (newx/R).^2 * residvar
     elseif interval == :prediction
