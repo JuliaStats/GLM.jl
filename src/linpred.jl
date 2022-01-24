@@ -185,10 +185,17 @@ function SparsePredChol(X::SparseMatrixCSC{T}) where T
         similar(X))
 end
 
-cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
+cholpred(X::SparseMatrixCSC, pivot::Bool=false) = SparsePredChol(X)
 
 function delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where T
     scr = mul!(p.scratch, Diagonal(wt), p.X)
+    XtWX = p.Xt*scr
+    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
+    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
+end
+
+function delbeta!(p::SparsePredChol{T}, r::Vector{T}) where T
+    scr = p.scratch = p.X
     XtWX = p.Xt*scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
