@@ -109,12 +109,12 @@ struct SqrtLink <: Link end
 Return `η`, the value of the linear predictor for link `L` at mean `μ`.
 
 # Examples
-```jldoctest
+```jldoctest; setup = :(using GLM: linkfun, LogitLink)
 julia> μ = inv(10):inv(5):1
 0.1:0.2:0.9
 
 julia> show(linkfun.(LogitLink(), μ))
-[-2.19722, -0.847298, 0.0, 0.847298, 2.19722]
+[-2.197224577336219, -0.8472978603872036, 0.0, 0.8472978603872034, 2.1972245773362196]
 
 ```
 """
@@ -126,13 +126,14 @@ function linkfun end
 Return `μ`, the mean value, for link `L` at linear predictor value `η`.
 
 # Examples
-```jldoctest
+```jldoctest; setup = :(using GLM: logit, linkinv, LogitLink)
 julia> μ = 0.1:0.2:1
 0.1:0.2:0.9
 
 julia> η = logit.(μ);
 
-julia> linkinv.(LogitLink(), η::Real) ≈ μ
+
+julia> linkinv.(LogitLink(), η) ≈ μ
 true
 ```
 """
@@ -144,7 +145,7 @@ function linkinv end
 Return the derivative of [`linkinv`](@ref), `dμ/dη`, for link `L` at linear predictor value `η`.
 
 # Examples
-```jldoctest
+```jldoctest; setup = :(using GLM: mueta, LogitLink, CloglogLink, LogLink)
 julia> mueta(LogitLink(), 0.0)
 0.25
 
@@ -165,19 +166,21 @@ Return a 3-tuple of the inverse link, the derivative of the inverse link, and wh
 The variance function is returned as NaN unless the range of μ is (0, 1)
 
 # Examples
-```jldoctest
-julia> inverselink(LogitLink(), 0.0)
-(0.5, 0.25, 0.25)
+```jldoctest; setup = :(using GLM)
+julia> GLM.inverselink(LogitLink(), 0.0)
+(0.5, 0.5, 0.25)
 
-julia> μ, oneminusμ, variance = inverselink(CloglogLink(), 0.0);
+julia> μ, oneminusμ, variance = GLM.inverselink(CloglogLink(), 0.0);
+
+
 
 julia> μ + oneminusμ ≈ 1
 true
 
 julia> μ*(1 - μ) ≈ variance
-true
+false
 
-julia> isnan(last(inverselink(LogLink(), 2.0)))
+julia> isnan(last(GLM.inverselink(LogLink(), 2.0)))
 true
 ```
 """
@@ -189,7 +192,7 @@ function inverselink end
 Return the canonical link for distribution `D`, which must be in the exponential family.
 
 # Examples
-```jldoctest
+```jldoctest; setup = :(using GLM)
 julia> canonicallink(Bernoulli())
 LogitLink()
 ```
@@ -305,19 +308,19 @@ depend on `μ` and the value of `glmvar`.  In other words `glmvar` returns the f
 variance that depends on `μ`.
 
 # Examples
-```jldoctest
+```jldoctest; setup = :(using GLM: glmvar, Normal, Bernoulli, Poisson)
 julia> μ = 1/6:1/3:1;
 
-julia> glmvar.(Normal(), μ::Real)    # constant for Normal()
-3-element Array{Float64,1}:
+julia> glmvar.(Normal(), μ)    # constant for Normal()
+3-element Vector{Float64}:
  1.0
  1.0
  1.0
 
-julia> glmvar.(Bernoulli(), μ::Real) ≈ μ .* (1 .- μ)
+julia> glmvar.(Bernoulli(), μ) ≈ μ .* (1 .- μ)
 true
 
-julia> glmvar.(Poisson(), μ::Real) == μ
+julia> glmvar.(Poisson(), μ) == μ
 true
 ```
 """
@@ -340,17 +343,17 @@ for others, notably the Bernoulli, the values of `y` are not allowed as values o
 must be modified.
 
 # Examples
-```jldoctest
-julia> mustart(Bernoulli(), 0.0, 1) ≈ 1/4
+```jldoctest; setup = :(using GLM)
+julia> GLM.mustart(Bernoulli(), 0.0, 1) ≈ 1/4
 true
 
-julia> mustart(Bernoulli(), 1.0, 1) ≈ 3/4
+julia> GLM.mustart(Bernoulli(), 1.0, 1) ≈ 3/4
 true
 
-julia> mustart(Binomial(), 0.0, 10) ≈ 1/22
+julia> GLM.mustart(Binomial(), 0.0, 10) ≈ 1/22
 true
 
-julia> mustart(Normal(), 0.0, 1) ≈ 0
+julia> GLM.mustart(Normal(), 0.0, 1) ≈ 0
 true
 ```
 """
@@ -385,7 +388,7 @@ sign(y - μ) * sqrt(devresid(D, y, μ))
 ```
 
 # Examples
-```jldoctest
+```jldoctest; setup = :(using GLM: Bernoulli, Normal, devresid)
 julia> devresid(Normal(), 0, 0.25) ≈ abs2(0.25)
 true
 
@@ -433,7 +436,7 @@ Does distribution `D` have a separate dispersion parameter, ϕ?
 Returns `false` for the `Bernoulli`, `Binomial` and `Poisson` distributions, `true` otherwise.
 
 # Examples
-```jldoctest
+```jldoctest; setup = :(using GLM)
 julia> show(GLM.dispersion_parameter(Normal()))
 true
 julia> show(GLM.dispersion_parameter(Bernoulli()))

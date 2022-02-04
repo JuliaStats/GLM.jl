@@ -49,11 +49,15 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVec
     return GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y))
 end
 
-function GlmResp(y::V, d::D, l::L, off::V, wts::V) where {V<:FPVector,D,L}
-    η   = similar(y)
-    μ   = similar(y)
-    r   = GlmResp(y, d, l, η, μ, off, wts)
-    initialeta!(r.eta, d, l, y, wts, off)
+function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::FPVector)
+    # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
+    _y   = convert(Vector{float(eltype(y))}, y)
+    _off = convert(Vector{float(eltype(off))}, off)
+    _wts = convert(Vector{float(eltype(wts))}, wts)
+    η    = similar(_y)
+    μ    = similar(_y)
+    r    = GlmResp(_y, d, l, η, μ, _off, _wts)
+    initialeta!(r.eta, d, l, _y, _wts, _off)
     updateμ!(r, r.eta)
     return r
 end
@@ -465,14 +469,14 @@ Fit a generalized linear model to data.
 $FIT_GLM_DOC
 """
 function fit(::Type{M},
-    X::Union{Matrix{T},SparseMatrixCSC{T}},
+    X::AbstractMatrix{<:FP},
     y::AbstractVector{<:Real},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
     dofit::Bool = true,
     wts::AbstractVector{<:Real}      = similar(y, 0),
     offset::AbstractVector{<:Real}   = similar(y, 0),
-    fitargs...) where {M<:AbstractGLM,T<:FP}
+    fitargs...) where {M<:AbstractGLM}
 
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
@@ -485,7 +489,7 @@ function fit(::Type{M},
 end
 
 fit(::Type{M},
-    X::Union{Matrix,SparseMatrixCSC},
+    X::AbstractMatrix,
     y::AbstractVector,
     d::UnivariateDistribution,
     l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
