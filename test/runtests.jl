@@ -520,6 +520,23 @@ end
     @test isapprox(vcov(gmsparse), vcov(gmdense))
 end
 
+@testset "Sparse LM" begin
+    rng = StableRNG(1)
+    X = sprand(rng, 1000, 10, 0.01)
+    β = randn(rng, 10)
+    y = Bool[rand(rng) < logistic(x) for x in X * β]
+    gmsparsev = [fit(LinearModel, X, y),
+                 fit(LinearModel, X, sparse(y)),
+                 fit(LinearModel, Matrix(X), sparse(y))]
+    gmdense = fit(LinearModel, Matrix(X), y)
+
+    for gmsparse in gmsparsev
+        @test isapprox(deviance(gmsparse), deviance(gmdense))
+        @test isapprox(coef(gmsparse), coef(gmdense))
+        @test isapprox(vcov(gmsparse), vcov(gmdense))
+    end
+end
+
 @testset "Predict" begin
     rng = StableRNG(123)
     X = rand(rng, 10, 2)
@@ -726,15 +743,15 @@ end
     othermod = lm(@formula(Result~Other), d).model
     nullmod = lm(@formula(Result~1), d).model
     bothmod = lm(@formula(Result~Other+Treatment), d).model
-    @test GLM.issubmodel(nullmod, mod)
-    @test !GLM.issubmodel(othermod, mod)
-    @test GLM.issubmodel(mod, bothmod)
-    @test !GLM.issubmodel(bothmod, mod)
-    @test GLM.issubmodel(othermod, bothmod)
+    @test StatsModels.isnested(nullmod, mod)
+    @test !StatsModels.isnested(othermod, mod)
+    @test StatsModels.isnested(mod, bothmod)
+    @test !StatsModels.isnested(bothmod, mod)
+    @test StatsModels.isnested(othermod, bothmod)
 
     d.Sum = d.Treatment + (d.Other .== 1)
     summod = lm(@formula(Result~Sum), d).model
-    @test GLM.issubmodel(summod, bothmod)
+    @test StatsModels.isnested(summod, bothmod)
 
     ft1a = ftest(mod, nullmod)
     @test isnan(ft1a.pval[1])
@@ -869,7 +886,7 @@ end
     # Fit 2 (both)
     Xc2 = RL\X
     mod2 = lm(Xc2, Yc)
-    @test GLM.issubmodel(mod1, mod2)
+    @test StatsModels.isnested(mod1, mod2)
 end
 
 @testset "coeftable" begin
@@ -986,4 +1003,47 @@ end
     rng = StableRNG(1234321)
     secondcolinterceptmod = glm([randn(rng, 5) ones(5)], ones(5), Binomial(), LogitLink())
     @test hasintercept(secondcolinterceptmod)
+end
+
+@testset "Issue #444. Views" begin
+    X = randn(10, 2)
+    y = X*ones(2) + randn(10)
+    @test coef(glm(X, y, Normal(), IdentityLink())) ==
+        coef(glm(view(X, 1:10, :), view(y, 1:10), Normal(), IdentityLink()))
+
+    x, y, w = rand(100, 2), rand(100), rand(100)
+    lm1 = lm(x, y)
+    lm2 = lm(x, view(y, :))
+    lm3 = lm(view(x, :, :), y)
+    lm4 = lm(view(x, :, :), view(y, :))
+    @test coef(lm1) == coef(lm2) == coef(lm3) == coef(lm4)
+
+    lm5 = lm(x, y, wts=w)
+    lm6 = lm(x, view(y, :), wts=w)
+    lm7 = lm(view(x, :, :), y, wts=w)
+    lm8 = lm(view(x, :, :), view(y, :), wts=w)
+    lm9 = lm(x, y, wts=view(w, :))
+    lm10 = lm(x, view(y, :), wts=view(w, :))
+    lm11 = lm(view(x, :, :), y, wts=view(w, :))
+    lm12 = lm(view(x, :, :), view(y, :), wts=view(w, :))
+    @test coef(lm5) == coef(lm6) == coef(lm7) == coef(lm8) == coef(lm9) == coef(lm10) ==
+        coef(lm11) == coef(lm12)
+
+    x, y, w = rand(100, 2), rand(Bool, 100), rand(100)
+    glm1 = glm(x, y, Binomial())
+    glm2 = glm(x, view(y, :), Binomial())
+    glm3 = glm(view(x, :, :), y, Binomial())
+    glm4 = glm(view(x, :, :), view(y, :), Binomial())
+    @test coef(glm1) == coef(glm2) == coef(glm3) == coef(glm4)
+
+    glm5 = glm(x, y, Binomial(), wts=w)
+    glm6 = glm(x, view(y, :), Binomial(), wts=w)
+    glm7 = glm(view(x, :, :), y, Binomial(), wts=w)
+    glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=w)
+    glm9 = glm(x, y, Binomial(), wts=view(w, :))
+    glm10 = glm(x, view(y, :), Binomial(), wts=view(w, :))
+    glm11 = glm(view(x, :, :), y, Binomial(), wts=view(w, :))
+    glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=view(w, :))
+    @test coef(glm5) == coef(glm6) == coef(glm7) == coef(glm8) == coef(glm9) == coef(glm10) ==
+        coef(glm11) == coef(glm12)
 end

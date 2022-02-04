@@ -25,7 +25,7 @@ The most general approach to fitting a model is with the `fit` function, as in
 julia> using Random
 
 julia> fit(LinearModel, hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
-LinearModel{GLM.LmResp{Array{Float64,1}},GLM.DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
+LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}:
 
 Coefficients:
 ────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ This model can also be fit as
 julia> using Random
 
 julia> lm(hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
-LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
+LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}:
 
 Coefficients:
 ────────────────────────────────────────────────────────────────
@@ -65,10 +65,10 @@ StatsBase.deviance
 GLM.dispersion
 GLM.ftest
 GLM.installbeta!
-GLM.issubmodel
 StatsBase.nobs
 StatsBase.nulldeviance
 StatsBase.predict
+StatsModels.isnested
 ```
 
 ## Links and methods applied to them
