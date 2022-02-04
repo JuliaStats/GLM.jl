@@ -160,10 +160,11 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vecto
     ch = p.chol
     rnk = rank(ch)
     if rnk == length(ch.p)
-        scr = mul!(p.scratchm1, Diagonal(wt), p.X)
-        cholesky!(Hermitian(mul!(cholfactors(p.chol), transpose(scr), p.X), :U))
-        mul!(p.delbeta, transpose(scr), r)
-        ldiv!(p.chol, p.delbeta)
+        cf = cholfactors(ch)
+        piv = ch.p
+        cf .= mul!(p.scratchm2, adjoint(LinearAlgebra.mul!(p.scratchm1, Diagonal(wt), p.X)), p.X)[piv, piv]
+        cholesky!(Hermitian(cf, Symbol(ch.uplo)))
+        ldiv!(ch, mul!(p.delbeta, transpose(p.scratchm1), r))
     else
         xc = p.X
         scr = mul!(p.scratchm1, Diagonal(wt), xc)
