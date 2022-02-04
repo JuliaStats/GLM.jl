@@ -1,5 +1,5 @@
 """
-    linpred!(out, p::LinPred, f::Real=1.0)
+linpred!(out, p::LinPred, f::Real=1.0)
 
 Overwrite `out` with the linear predictor from `p` with factor `f`
 
@@ -11,14 +11,14 @@ function linpred!(out, p::LinPred, f::Real=1.)
 end
 
 """
-    linpred(p::LinPred, f::Read=1.0)
+linpred(p::LinPred, f::Read=1.0)
 
 Return the linear predictor `p.X * (p.beta0 .+ f * p.delbeta)`
 """
 linpred(p::LinPred, f::Real=1.) = linpred!(Vector{eltype(p.X)}(undef, size(p.X, 1)), p, f)
 
 """
-    installbeta!(p::LinPred, f::Real=1.0)
+installbeta!(p::LinPred, f::Real=1.0)
 
 Install `pbeta0 .+= f * p.delbeta` and zero out `p.delbeta`.  Return the updated `p.beta0`.
 """
@@ -33,7 +33,7 @@ function installbeta!(p::LinPred, f::Real=1.)
 end
 
 """
-    DensePredQR
+DensePredQR
 
 A `LinPred` type with a dense, unpivoted QR decomposition of `X`
 
@@ -66,7 +66,7 @@ DensePredQR(X::Matrix{T}) where T = DensePredQR{T}(X, zeros(T, size(X,2)))
 convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
 """
-    delbeta!(p::LinPred, r::Vector)
+delbeta!(p::LinPred, r::Vector)
 
 Evaluate and return `p.delbeta` the increment to the coefficient vector from residual `r`
 """
@@ -78,7 +78,7 @@ function delbeta!(p::DensePredQR{T}, r::Vector{T}) where T<:BlasReal
 end
 
 """
-    DensePredChol{T}
+DensePredChol{T}
 
 A `LinPred` type with a dense Cholesky factorization of `X'X`
 
@@ -106,12 +106,12 @@ function DensePredChol(X::StridedMatrix, pivot::Bool)
     T = eltype(F)
     F = pivot ? cholesky!(F, Val(true), tol = -one(T), check = false) : cholesky!(F)
     DensePredChol(AbstractMatrix{T}(X),
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        F,
-        similar(X, T),
-        similar(cholfactors(F)))
+    zeros(T, size(X, 2)),
+    zeros(T, size(X, 2)),
+    zeros(T, size(X, 2)),
+    F,
+    similar(X, T),
+    similar(cholfactors(F)))
 end
 
 cholpred(X::StridedMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
@@ -160,10 +160,11 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vecto
     ch = p.chol
     rnk = rank(ch)
     if rnk == length(ch.p)
-        scr = mul!(p.scratchm1, Diagonal(wt), p.X)
-        cholesky!(Hermitian(mul!(cholfactors(p.chol), transpose(scr), p.X), :U))
-        mul!(p.delbeta, transpose(scr), r)
-        ldiv!(p.chol, p.delbeta)
+        cf = cholfactors(ch)
+        piv = ch.p
+        cf .= mul!(p.scratchm2, adjoint(LinearAlgebra.mul!(p.scratchm1, Diagonal(wt), p.X)), p.X)[piv, piv]
+        cholesky!(Hermitian(cf, Symbol(ch.uplo)))
+        ldiv!(ch, mul!(p.delbeta, transpose(p.scratchm1), r))
     else
         xc = p.X
         scr = mul!(p.scratchm1, Diagonal(wt), xc)
@@ -192,12 +193,12 @@ end
 function SparsePredChol(X::SparseMatrixCSC{T}) where T
     chol = cholesky(sparse(I, size(X, 2), size(X,2)))
     return SparsePredChol{eltype(X),typeof(X),typeof(chol)}(X,
-        X',
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        chol,
-        similar(X))
+    X',
+    zeros(T, size(X, 2)),
+    zeros(T, size(X, 2)),
+    zeros(T, size(X, 2)),
+    chol,
+    similar(X))
 end
 
 cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
@@ -252,8 +253,8 @@ StatsModels.formula(obj::LinPredModel) = modelframe(obj).formula
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 """
-    nobs(obj::LinearModel)
-    nobs(obj::GLM)
+nobs(obj::LinearModel)
+nobs(obj::GLM)
 
 For linear and generalized linear models, returns the number of rows, or,
 when prior weights are specified, the sum of weights.
