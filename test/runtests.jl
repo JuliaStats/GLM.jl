@@ -1044,6 +1044,7 @@ end
         ys_altview = @view ys[rows]
         glm_dense_alt = GLM.lm(xs_altcopy, ys_altcopy)
         glm_views_alt = GLM.lm(xs_altview, ys_altview)
-        @test coef(glm_dense_alt) == coef(glm_views_alt)
+        # exact equality fails in the final decimal digit for Julia 1.9
+        @test coef(glm_dense_alt) ≈ coef(glm_views_alt)
     end
 end
