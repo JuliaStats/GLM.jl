@@ -987,45 +987,63 @@ end
     @test hasintercept(secondcolinterceptmod)
 end
 
-@testset "Issue #444. Views" begin
-    X = randn(10, 2)
-    y = X*ones(2) + randn(10)
-    @test coef(glm(X, y, Normal(), IdentityLink())) ==
-        coef(glm(view(X, 1:10, :), view(y, 1:10), Normal(), IdentityLink()))
+@testset "Views" begin
+    @testset "#444" begin
+        X = randn(10, 2)
+        y = X*ones(2) + randn(10)
+        @test coef(glm(X, y, Normal(), IdentityLink())) ==
+            coef(glm(view(X, 1:10, :), view(y, 1:10), Normal(), IdentityLink()))
 
-    x, y, w = rand(100, 2), rand(100), rand(100)
-    lm1 = lm(x, y)
-    lm2 = lm(x, view(y, :))
-    lm3 = lm(view(x, :, :), y)
-    lm4 = lm(view(x, :, :), view(y, :))
-    @test coef(lm1) == coef(lm2) == coef(lm3) == coef(lm4)
+        x, y, w = rand(100, 2), rand(100), rand(100)
+        lm1 = lm(x, y)
+        lm2 = lm(x, view(y, :))
+        lm3 = lm(view(x, :, :), y)
+        lm4 = lm(view(x, :, :), view(y, :))
+        @test coef(lm1) == coef(lm2) == coef(lm3) == coef(lm4)
 
-    lm5 = lm(x, y, wts=w)
-    lm6 = lm(x, view(y, :), wts=w)
-    lm7 = lm(view(x, :, :), y, wts=w)
-    lm8 = lm(view(x, :, :), view(y, :), wts=w)
-    lm9 = lm(x, y, wts=view(w, :))
-    lm10 = lm(x, view(y, :), wts=view(w, :))
-    lm11 = lm(view(x, :, :), y, wts=view(w, :))
-    lm12 = lm(view(x, :, :), view(y, :), wts=view(w, :))
-    @test coef(lm5) == coef(lm6) == coef(lm7) == coef(lm8) == coef(lm9) == coef(lm10) ==
-        coef(lm11) == coef(lm12)
+        lm5 = lm(x, y, wts=w)
+        lm6 = lm(x, view(y, :), wts=w)
+        lm7 = lm(view(x, :, :), y, wts=w)
+        lm8 = lm(view(x, :, :), view(y, :), wts=w)
+        lm9 = lm(x, y, wts=view(w, :))
+        lm10 = lm(x, view(y, :), wts=view(w, :))
+        lm11 = lm(view(x, :, :), y, wts=view(w, :))
+        lm12 = lm(view(x, :, :), view(y, :), wts=view(w, :))
+        @test coef(lm5) == coef(lm6) == coef(lm7) == coef(lm8) == coef(lm9) == coef(lm10) ==
+            coef(lm11) == coef(lm12)
 
-    x, y, w = rand(100, 2), rand(Bool, 100), rand(100)
-    glm1 = glm(x, y, Binomial())
-    glm2 = glm(x, view(y, :), Binomial())
-    glm3 = glm(view(x, :, :), y, Binomial())
-    glm4 = glm(view(x, :, :), view(y, :), Binomial())
-    @test coef(glm1) == coef(glm2) == coef(glm3) == coef(glm4)
+        x, y, w = rand(100, 2), rand(Bool, 100), rand(100)
+        glm1 = glm(x, y, Binomial())
+        glm2 = glm(x, view(y, :), Binomial())
+        glm3 = glm(view(x, :, :), y, Binomial())
+        glm4 = glm(view(x, :, :), view(y, :), Binomial())
+        @test coef(glm1) == coef(glm2) == coef(glm3) == coef(glm4)
 
-    glm5 = glm(x, y, Binomial(), wts=w)
-    glm6 = glm(x, view(y, :), Binomial(), wts=w)
-    glm7 = glm(view(x, :, :), y, Binomial(), wts=w)
-    glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=w)
-    glm9 = glm(x, y, Binomial(), wts=view(w, :))
-    glm10 = glm(x, view(y, :), Binomial(), wts=view(w, :))
-    glm11 = glm(view(x, :, :), y, Binomial(), wts=view(w, :))
-    glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=view(w, :))
-    @test coef(glm5) == coef(glm6) == coef(glm7) == coef(glm8) == coef(glm9) == coef(glm10) ==
-        coef(glm11) == coef(glm12)
+        glm5 = glm(x, y, Binomial(), wts=w)
+        glm6 = glm(x, view(y, :), Binomial(), wts=w)
+        glm7 = glm(view(x, :, :), y, Binomial(), wts=w)
+        glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=w)
+        glm9 = glm(x, y, Binomial(), wts=view(w, :))
+        glm10 = glm(x, view(y, :), Binomial(), wts=view(w, :))
+        glm11 = glm(view(x, :, :), y, Binomial(), wts=view(w, :))
+        glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=view(w, :))
+        @test coef(glm5) == coef(glm6) == coef(glm7) == coef(glm8) == coef(glm9) == coef(glm10) ==
+            coef(glm11) == coef(glm12)
+    end
+    @testset "Views: #213, #470" begin
+        xs = randn(46, 3)
+        ys = randn(46)
+        glm_dense = GLM.lm(xs, ys)
+        glm_views = GLM.lm(@view(xs[1:end, 1:end]), ys)
+        @test coef(glm_dense) == coef(glm_views)
+        rows = 1:2:size(xs,1)
+        cols = 1:2:size(xs,2)
+        xs_altcopy = xs[rows, cols]
+        xs_altview = @view xs[rows, cols]
+        ys_altcopy = ys[rows]
+        ys_altview = @view ys[rows]
+        glm_dense_alt = GLM.lm(xs_altcopy, ys_altcopy)
+        glm_views_alt = GLM.lm(xs_altview, ys_altview)
+        @test coef(glm_dense_alt) == coef(glm_views_alt)
+    end
 end
