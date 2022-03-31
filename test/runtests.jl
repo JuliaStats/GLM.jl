@@ -1033,8 +1033,8 @@ end
     @testset "Views: #213, #470" begin
         xs = randn(46, 3)
         ys = randn(46)
-        glm_dense = GLM.lm(xs, ys)
-        glm_views = GLM.lm(@view(xs[1:end, 1:end]), ys)
+        glm_dense = lm(xs, ys)
+        glm_views = lm(@view(xs[1:end, 1:end]), ys)
         @test coef(glm_dense) == coef(glm_views)
         rows = 1:2:size(xs,1)
         cols = 1:2:size(xs,2)
@@ -1042,8 +1042,8 @@ end
         xs_altview = @view xs[rows, cols]
         ys_altcopy = ys[rows]
         ys_altview = @view ys[rows]
-        glm_dense_alt = GLM.lm(xs_altcopy, ys_altcopy)
-        glm_views_alt = GLM.lm(xs_altview, ys_altview)
+        glm_dense_alt = lm(xs_altcopy, ys_altcopy)
+        glm_views_alt = lm(xs_altview, ys_altview)
         # exact equality fails in the final decimal digit for Julia 1.9
         @test coef(glm_dense_alt) ≈ coef(glm_views_alt)
     end
