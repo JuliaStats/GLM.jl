@@ -125,6 +125,7 @@ end
     @test isapprox(coef(m2p), [0.9772643585228885, 8.903341608496437, 3.027347397503281,
         3.9661379199401257, 5.079410103608552, 6.1944618141188625, 0.0, 7.930328728005131,
         8.879994918604757, 2.986388408421915, 10.84972230524356, 11.844809275711485])
+    @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7,:])
 
     m2p_dep_pos = fit(LinearModel, Xmissingcell, ymissingcell, true)
     @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
@@ -186,6 +187,24 @@ end
                   [Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf])
+
+    # Saturated and rank-deficient model
+    df = DataFrame(x1=["a", "b", "c"], x2=["a", "b", "c"], y=[1, 2, 3])
+    model = lm(@formula(y ~ x1 + x2), df)
+    ct = coeftable(model)
+    @test dof_residual(model) == 0
+    @test dof(model) == 4
+    @test isinf(GLM.dispersion(model.model))
+    @test coef(model) ≈ [1, 1, 2, 0, 0]
+    @test isequal(hcat(ct.cols[2:end]...),
+                  [Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf
+                   NaN NaN NaN  NaN NaN
+                   NaN NaN NaN  NaN NaN])
+
+    # TODO: add tests similar to the one above once this model can be fitted
+    @test_broken glm(@formula(y ~ x1 + x2), df, Normal(), IdentityLink())
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],

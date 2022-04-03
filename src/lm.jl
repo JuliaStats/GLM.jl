@@ -224,8 +224,8 @@ function coeftable(mm::LinearModel; level::Real=0.95)
         p = ccdf.(Ref(FDist(1, dofr)), abs2.(tt))
         ci = se*quantile(TDist(dofr), (1-level)/2)
     else
-        p = fill(1.0, length(cc))
-        ci = fill(-Inf, length(cc))
+        p = [isnan(t) ? NaN : 1.0 for t in tt]
+        ci = [isnan(t) ? NaN : -Inf for t in tt]
     end
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
     CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
