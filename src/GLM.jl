@@ -15,10 +15,11 @@ module GLM
                       fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², PValue
     import StatsFuns: xlogy
     import SpecialFunctions: erfc, erfcinv, digamma, trigamma
+    import StatsModels: hasintercept
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
-           fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr², 
-           cooksdistance
+           fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
+           cooksdistance, hasintercept
 
     export
         # types
@@ -79,6 +80,12 @@ module GLM
     abstract type LinPred end                         # linear predictor in statistical models
     abstract type DensePred <: LinPred end            # linear predictor with dense X
     abstract type LinPredModel <: RegressionModel end # model based on a linear predictor
+
+    @static if VERSION < v"1.8.0-DEV.1139"
+        pivoted_cholesky!(A; kwargs...) = cholesky!(A, Val(true); kwargs...)
+    else
+        pivoted_cholesky!(A; kwargs...) = cholesky!(A, RowMaximum(); kwargs...)
+    end
 
     include("linpred.jl")
     include("lm.jl")

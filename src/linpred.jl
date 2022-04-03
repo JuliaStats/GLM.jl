@@ -101,11 +101,11 @@ mutable struct DensePredChol{T<:BlasReal,C} <: DensePred
     scratchm1::Matrix{T}
     scratchm2::Matrix{T}
 end
-function DensePredChol(X::StridedMatrix, pivot::Bool)
+function DensePredChol(X::AbstractMatrix, pivot::Bool)
     F = Hermitian(float(X'X))
     T = eltype(F)
-    F = pivot ? cholesky!(F, Val(true), tol = -one(T), check = false) : cholesky!(F)
-    DensePredChol(AbstractMatrix{T}(X),
+    F = pivot ? pivoted_cholesky!(F, tol = -one(T), check = false) : cholesky!(F)
+    DensePredChol(Matrix{T}(X),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
@@ -114,7 +114,7 @@ function DensePredChol(X::StridedMatrix, pivot::Bool)
         similar(cholfactors(F)))
 end
 
-cholpred(X::StridedMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
+cholpred(X::AbstractMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
@@ -185,10 +185,17 @@ function SparsePredChol(X::SparseMatrixCSC{T}) where T
         similar(X))
 end
 
-cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
+cholpred(X::SparseMatrixCSC, pivot::Bool=false) = SparsePredChol(X)
 
 function delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where T
     scr = mul!(p.scratch, Diagonal(wt), p.X)
+    XtWX = p.Xt*scr
+    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
+    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
+end
+
+function delbeta!(p::SparsePredChol{T}, r::Vector{T}) where T
+    scr = p.scratch = p.X
     XtWX = p.Xt*scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
@@ -233,7 +240,7 @@ response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
-formula(obj::LinPredModel) = modelframe(obj).formula
+StatsModels.formula(obj::LinPredModel) = modelframe(obj).formula
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 """
@@ -255,3 +262,5 @@ coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
 
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
+
+hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))

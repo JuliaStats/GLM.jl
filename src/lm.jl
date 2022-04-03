@@ -28,11 +28,16 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     end
 end
 
-LmResp(y::FPVector, wts::FPVector=similar(y, 0)) = 
-    LmResp{typeof(y)}(fill!(similar(y), 0), similar(y, 0), wts, y)
-
-LmResp(y::AbstractVector{<:Real}, wts::AbstractVector{<:Real}=similar(y, 0)) = 
-    LmResp(float(y), float(wts))
+function LmResp(y::AbstractVector{<:Real}, wts::Union{Nothing,AbstractVector{<:Real}}=nothing)
+    # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
+    _y = convert(Vector{float(eltype(y))}, y)
+    _wts = if wts === nothing
+        similar(_y, 0)
+    else
+        convert(Vector{float(eltype(wts))}, wts)
+    end
+    return LmResp{typeof(_y)}(zero(_y), zero(_y), _wts, _y)
+end
 
 function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
     n = length(linPr)
