@@ -7,6 +7,11 @@ The effective coefficient vector, `p.scratchbeta`, is evaluated as `p.beta0 .+ f
 and `out` is updated to `p.X * p.scratchbeta`
 """
 function linpred!(out, p::LinPred, f::Real=1.)
+    for i in eachindex(p.delbeta)
+        if isnan(p.delbeta[i]) || isinf(p.delbeta[i])
+            p.delbeta[i] = 0
+        end
+    end
     mul!(out, p.X, iszero(f) ? p.beta0 : broadcast!(muladd, p.scratchbeta, f, p.delbeta, p.beta0))
 end
 
@@ -157,11 +162,32 @@ function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}, wt::Vector{T}) w
 end
 
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
-    cf = cholfactors(p.chol)
-    piv = p.chol.p
-    cf .= mul!(p.scratchm2, adjoint(LinearAlgebra.mul!(p.scratchm1, Diagonal(wt), p.X)), p.X)[piv, piv]
-    cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
-    ldiv!(p.chol, mul!(p.delbeta, transpose(p.scratchm1), r))
+    piv = p.chol.p # inverse vector
+    delbeta = p.delbeta
+    # p.scratchm1 = WX
+    mul!(p.scratchm1, Diagonal(wt), p.X)
+    # p.scratchm2 = X'WX
+    mul!(p.scratchm2, adjoint(p.scratchm1), p.X)
+    # delbeta = X'Wr
+    mul!(delbeta, transpose(p.scratchm1), r)
+    # calculate delbeta = (X'WX)\X'Wr
+    rnk = rank(p.chol)
+    if rnk == length(delbeta)
+        cf = cholfactors(p.chol)
+        cf .= p.scratchm2[piv, piv]
+        cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
+        ldiv!(p.chol, delbeta)
+    else
+        permute!(delbeta, piv)
+        for k=(rnk+1):length(delbeta)
+            delbeta[k] = -zero(T)
+        end
+        # shift full rank column to 1:rank
+        p.scratchm2 .= p.scratchm2[piv, piv]
+        cholesky!(Hermitian(view(p.scratchm2, 1:rnk, 1:rnk), Symbol(p.chol.uplo)))
+        ldiv!(Cholesky(view(p.scratchm2, 1:rnk, 1:rnk), Symbol(p.chol.uplo), p.chol.info), view(delbeta, 1:rnk))
+        invpermute!(delbeta, piv)
+    end
     p
 end
 
