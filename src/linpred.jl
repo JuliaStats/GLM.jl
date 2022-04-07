@@ -11,7 +11,7 @@ function linpred!(out, p::LinPred, f::Real=1.)
 end
 
 """
-    linpred(p::LinPred, f::Read=1.0)
+    linpred(p::LinPred, f::Real=1.0)
 
 Return the linear predictor `p.X * (p.beta0 .+ f * p.delbeta)`
 """
