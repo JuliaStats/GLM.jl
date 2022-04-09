@@ -541,6 +541,15 @@ end
     @test gm11_pred2.upper ≈ gm11_pred2.prediction .+ quantile(Normal(), 0.975).*se_pred ≈
         [0.6813754418027714, 0.9516561735593941, 1.0370309285468602, 0.5950732511233356, 1.192883895763427]
 
+    @test ndims(gm11_pred1) == 1
+
+    @test ndims(gm11_pred2.prediction) == 1
+    @test ndims(gm11_pred2.upper) == 1
+    @test ndims(gm11_pred2.lower) == 1
+
+    @test ndims(gm11_pred3.prediction) == 1
+    @test ndims(gm11_pred3.upper) == 1
+    @test ndims(gm11_pred3.lower) == 1
 
     off = rand(rng, 10)
     newoff = rand(rng, 5)
@@ -575,6 +584,12 @@ end
         [0.5483482828723035, 0.3252331944785751, 0.6367574076909834, 0.34715818536935505, -0.41478974520958345]
     @test pred2.upper ≈ pred2.prediction + quantile(TDist(dof_residual(mm)), 0.975)*se_pred ≈
         [1.7280792799868907, 2.0941782144792835, 2.9598617282413455, 1.6807571092926594, 2.362438397852783]
+
+    @test ndims(pred1) == 1
+
+    @test ndims(pred2.prediction) == 1
+    @test ndims(pred2.lower) == 1
+    @test ndims(pred2.upper) == 1
 
     pred3 = predict(mm, newX, interval=:prediction)
     @test pred1 == pred3.prediction ≈
