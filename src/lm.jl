@@ -214,16 +214,24 @@ function adjr2(obj::LinearModel)
 end
 
 function dispersion(x::LinearModel, sqr::Bool=false)
-    ssqr = deviance(x.rr)/dof_residual(x)
+    dofr = dof_residual(x)
+    ssqr = deviance(x.rr)/dofr
+    dofr > 0 || return oftype(ssqr, Inf)
     return sqr ? ssqr : sqrt(ssqr)
 end
 
 function coeftable(mm::LinearModel; level::Real=0.95)
     cc = coef(mm)
+    dofr = dof_residual(mm)
     se = stderror(mm)
     tt = cc ./ se
-    p = ccdf.(Ref(FDist(1, dof_residual(mm))), abs2.(tt))
-    ci = se*quantile(TDist(dof_residual(mm)), (1-level)/2)
+    if dofr > 0
+        p = ccdf.(Ref(FDist(1, dofr)), abs2.(tt))
+        ci = se*quantile(TDist(dofr), (1-level)/2)
+    else
+        p = [isnan(t) ? NaN : 1.0 for t in tt]
+        ci = [isnan(t) ? NaN : -Inf for t in tt]
+    end
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
     CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
               ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],

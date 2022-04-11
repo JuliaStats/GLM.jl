@@ -528,7 +528,9 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
     r = m.rr
     if dispersion_parameter(r.d)
         wrkwt, wrkresid = r.wrkwt, r.wrkresid
-        s = sum(i -> wrkwt[i] * abs2(wrkresid[i]), eachindex(wrkwt, wrkresid)) / dof_residual(m)
+        dofr = dof_residual(m)
+        s = sum(i -> wrkwt[i] * abs2(wrkresid[i]), eachindex(wrkwt, wrkresid)) / dofr
+        dofr > 0 || return oftype(s, Inf)
         sqr ? s : sqrt(s)
     else
         one(eltype(r.mu))
