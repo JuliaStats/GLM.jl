@@ -339,3 +339,84 @@ Treatment: 3   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
 julia> round(deviance(gm1), digits=5)
 5.11746
 ```
+## Linear regression with PowerLink.
+## Choose the best model from a set of λs, based on minimum BIC
+
+```jldoctest
+julia> using GLM, RDatasets, StatsBase, DataFrames
+
+julia> trees = DataFrame(dataset("datasets", "trees"))
+31×3 typename(DataFrame)
+│ Row │ Girth   │ Height │ Volume  │
+│     │ Float64 │ Int64  │ Float64 │
+├─────┼─────────┼────────┼─────────┤
+│ 1   │ 8.3     │ 70     │ 10.3    │
+│ 2   │ 8.6     │ 65     │ 10.3    │
+│ 3   │ 8.8     │ 63     │ 10.2    │
+│ 4   │ 10.5    │ 72     │ 16.4    │
+│ 5   │ 10.7    │ 81     │ 18.8    │
+│ 6   │ 10.8    │ 83     │ 19.7    │
+│ 7   │ 11.0    │ 66     │ 15.6    │
+│ 8   │ 11.0    │ 75     │ 18.2    │
+│ 9   │ 11.1    │ 80     │ 22.6    │
+│ 10  │ 11.2    │ 75     │ 19.9    │
+│ 11  │ 11.3    │ 79     │ 24.2    │
+│ 12  │ 11.4    │ 76     │ 21.0    │
+│ 13  │ 11.4    │ 76     │ 21.4    │
+│ 14  │ 11.7    │ 69     │ 21.3    │
+│ 15  │ 12.0    │ 75     │ 19.1    │
+│ 16  │ 12.9    │ 74     │ 22.2    │
+│ 17  │ 12.9    │ 85     │ 33.8    │
+│ 18  │ 13.3    │ 86     │ 27.4    │
+│ 19  │ 13.7    │ 71     │ 25.7    │
+│ 20  │ 13.8    │ 64     │ 24.9    │
+│ 21  │ 14.0    │ 78     │ 34.5    │
+│ 22  │ 14.2    │ 80     │ 31.7    │
+│ 23  │ 14.5    │ 74     │ 36.3    │
+│ 24  │ 16.0    │ 72     │ 38.3    │
+│ 25  │ 16.3    │ 77     │ 42.6    │
+│ 26  │ 17.3    │ 81     │ 55.4    │
+│ 27  │ 17.5    │ 82     │ 55.7    │
+│ 28  │ 17.9    │ 80     │ 58.3    │
+│ 29  │ 18.0    │ 80     │ 51.5    │
+│ 30  │ 18.0    │ 80     │ 51.0    │
+│ 31  │ 20.6    │ 87     │ 77.0    │
+
+julia> min_bic = Inf
+Inf
+
+julia> min_λ = -1
+-1
+
+julia> best_glm = Nothing
+Nothing
+
+julia> for λ = -1:0.05:1
+           mdl = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(λ))
+           current_bic = bic(mdl)
+           if current_bic < min_bic
+                   min_bic = current_bic
+               min_λ = λ
+               best_glm = mdl
+           end
+       end
+julia> println("Best λ = ", min_λ)
+Best λ = 0.4
+
+julia> println(best_glm)
+StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, Normal{Float64}, PowerLink}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}}}, Matrix{Float64}}
+
+Volume ~ 1 + Height + Girth
+
+Coefficients:
+────────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      z  Pr(>|z|)   Lower 95%   Upper 95%
+────────────────────────────────────────────────────────────────────────────
+(Intercept)  -0.921422   0.333867    -2.76    0.0058  -1.57579    -0.267055
+Height        0.0219293  0.00495871   4.42    <1e-05   0.0122104   0.0316482
+Girth         0.229436   0.00873054  26.28    <1e-99   0.212325    0.246548
+────────────────────────────────────────────────────────────────────────────
+
+julia> println("BIC = ", min_bic)
+BIC = 156.3851822437326
+```

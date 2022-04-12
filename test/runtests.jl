@@ -1129,3 +1129,60 @@ end
         @test coef(glm_dense_alt) ≈ coef(glm_views_alt)
     end
 end
+
+@testset "PowerLink" begin
+    @testset "Functions related to PowerLink" begin
+        @test GLM.linkfun(IdentityLink(), 10) == GLM.linkfun(PowerLink(1), 10)
+        @test GLM.linkfun(SqrtLink(), 10) == GLM.linkfun(PowerLink(0.5), 10)
+        @test GLM.linkfun(LogLink(), 10) == GLM.linkfun(PowerLink(0), 10)
+        @test GLM.linkfun(InverseLink(), 10) == GLM.linkfun(PowerLink(-1), 10)
+        @test GLM.linkfun(InverseSquareLink(), 10) == GLM.linkfun(PowerLink(-2), 10)
+        @test isapprox(GLM.linkfun(PowerLink(1 / 3), 10), 2.154434690031884)
+
+        @test GLM.linkinv(IdentityLink(), 10) == GLM.linkinv(PowerLink(1), 10)
+        @test GLM.linkinv(SqrtLink(), 10) == GLM.linkinv(PowerLink(0.5), 10)
+        @test GLM.linkinv(LogLink(), 10) == GLM.linkinv(PowerLink(0), 10)
+        @test GLM.linkinv(InverseLink(), 10) == GLM.linkinv(PowerLink(-1), 10)
+        @test GLM.linkinv(InverseSquareLink(), 10) == GLM.linkinv(PowerLink(-2), 10)
+        @test isapprox(GLM.linkinv(PowerLink(1 / 3), 10), 1000.0)
+
+        @test GLM.mueta(IdentityLink(), 10) == GLM.mueta(PowerLink(1), 10)
+        @test GLM.mueta(SqrtLink(), 10) == GLM.mueta(PowerLink(0.5), 10)
+        @test GLM.mueta(LogLink(), 10) == GLM.mueta(PowerLink(0), 10)
+        @test GLM.mueta(InverseLink(), 10) == GLM.mueta(PowerLink(-1), 10)
+        @test GLM.mueta(InverseSquareLink(), 10) == GLM.mueta(PowerLink(-2), 10)
+        @test isapprox(GLM.mueta(PowerLink(1 / 3), 10), 300.0)
+
+        @test PowerLink(1 / 3) == PowerLink(1 / 3)
+        @test isequal(PowerLink(1 / 3), PowerLink(1 / 3))
+        @test !isequal(PowerLink(1 / 3), PowerLink(0.33))
+        @test hash(PowerLink(1 / 3)) == hash(PowerLink(1 / 3))
+        @test hash(PowerLink(1 / 3)) != hash(PowerLink(0.33))
+    end
+    trees = dataset("datasets", "trees")
+    @testset "GLM with PowerLink" begin
+        # Corresponding R code 
+        # mdl = glm(Volume ~ Height + Girth, data = trees, family=gaussian(link=power(1/3)))
+        # Output:
+        # Call: 
+        # glm(formula = Volume ~ Height + Girth, family = gaussian(link = power(1/3)), data = trees)  
+        # Coefficients:
+        #    Estimate Std. Error t value Pr(>|t|)    
+        #    (Intercept) -0.051322   0.224095  -0.229 0.820518    
+        #    Height       0.014287   0.003342   4.274 0.000201 ***
+        #    Girth        0.150331   0.005838  25.749  < 2e-16 ***
+        #
+        # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+        #
+        # (Dispersion parameter for gaussian family taken to be 6.577063)
+
+        # Null deviance: 8106.08  on 30  degrees of freedom
+        # Residual deviance:  184.16  on 28  degrees of freedom
+        # AIC: 151.21
+        #
+        mdl = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1 / 3))
+        @test isapprox(coef(mdl), [-0.05132238692134761, 0.01428684676273272, 0.15033126098228242], atol=1.0e-5)
+        @test isapprox(aic(mdl), 151.21015973975, atol=1.0e-5)
+        @test isapprox(predict(mdl)[1], 10.59735275421753, atol=1.0e-5)
+    end
+end
