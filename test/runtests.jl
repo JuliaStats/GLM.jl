@@ -1180,9 +1180,30 @@ end
         # Residual deviance:  184.16  on 28  degrees of freedom
         # AIC: 151.21
         #
-        mdl = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1 / 3))
-        @test isapprox(coef(mdl), [-0.05132238692134761, 0.01428684676273272, 0.15033126098228242], atol=1.0e-5)
-        @test isapprox(aic(mdl), 151.21015973975, atol=1.0e-5)
-        @test isapprox(predict(mdl)[1], 10.59735275421753, atol=1.0e-5)
+        mdl = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1 / 3); atol=1.0e-12, rtol=1.0e-12)
+        @test isapprox(coef(mdl), [-0.05132238692134761, 0.01428684676273272, 0.15033126098228242])
+        @test isapprox(aic(mdl), 151.21015973975)
+        @test isapprox(predict(mdl)[1], 10.59735275421753)
+    end
+    @testset "Compare PowerLink(0) and LogLink" begin
+        mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(0))
+        mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), LogLink())
+        @test isapprox(coef(mdl1), coef(mdl2))
+        @test isapprox(aic(mdl1), aic(mdl2))
+        @test isapprox(predict(mdl1), predict(mdl2))
+    end
+    @testset "Compare PowerLink(0.5) and SqrtLink" begin
+        mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(0.5))
+        mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), SqrtLink())
+        @test isapprox(coef(mdl1), coef(mdl2))
+        @test isapprox(aic(mdl1), aic(mdl2))
+        @test isapprox(predict(mdl1), predict(mdl2))
+    end
+    @testset "Compare PowerLink(1) and IdentityLink" begin
+        mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1))
+        mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), IdentityLink())
+        @test isapprox(coef(mdl1), coef(mdl2))
+        @test isapprox(aic(mdl1), aic(mdl2))
+        @test isapprox(predict(mdl1), predict(mdl2))
     end
 end
