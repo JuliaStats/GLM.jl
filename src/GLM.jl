@@ -31,6 +31,8 @@ module GLM
         NegativeBinomial,
         Normal,
         Poisson,
+        # The following is the proposed new distribution
+        Geometric,
 
         ## Link types
         Link,

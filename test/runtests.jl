@@ -555,6 +555,37 @@ end
          0.01582155341041012, 0.029074956147127032, 0.023628812427424876])
 end
 
+@testset "Geometric LogLink" begin
+    # the default/canonical link is LogLink
+    gm22 = fit(GeneralizedLinearModel, @formula(Days ~ Eth + Sex + Age + Lrn), quine, Geometric())
+    test_show(gm22)
+    @test dof(gm22) == 8
+    @test isapprox(deviance(gm22), 137.8781581814965, rtol=1e-7)
+    @test isapprox(loglikelihood(gm22), -548.3711276642073, rtol=1e-7)
+    @test isapprox(aic(gm22), 1112.7422553284146)
+    @test isapprox(aicc(gm22), 1113.7933502189255)
+    @test isapprox(bic(gm22), 1136.6111083020812)
+    @test isapprox(coef(gm22)[1:7],
+        [2.8978546663153897, -0.5701067649409168, 0.08040181505082235, -0.4497584898742737,
+            0.08622664933901254, 0.3558996662512287, 0.29016080736927813,
+        ])
+end
+
+@testset "Geometric InverseLink" begin
+    gm23 = fit(GeneralizedLinearModel, @formula(Days ~ Eth + Sex + Age + Lrn), quine, Geometric(), InverseLink())
+    test_show(gm23)
+    @test dof(gm23) == 8
+    @test isapprox(deviance(gm23), 138.31325752962942, rtol=1e-7)
+    @test isapprox(loglikelihood(gm23), -548.5886773382734, rtol=1e-7)
+    @test isapprox(aic(gm23), 1113.1773546765469)
+    @test isapprox(aicc(gm23), 1114.2284495670579)
+    @test isapprox(bic(gm23), 1137.0462076502135)
+    @test isapprox(coef(gm23)[1:7],
+        [0.0686014067706592, 0.03110421546111565, -0.008803721994361538, 0.02296131481351284,
+            -0.0138102120385737, -0.02481504581603011, -0.019940984882130395,
+        ])
+end
+
 @testset "Sparse GLM" begin
     rng = StableRNG(1)
     X = sprand(rng, 1000, 10, 0.01)

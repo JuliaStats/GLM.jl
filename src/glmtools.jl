@@ -297,6 +297,8 @@ canonicallink(::InverseGaussian) = InverseSquareLink()
 canonicallink(d::NegativeBinomial) = NegativeBinomialLink(d.r)
 canonicallink(::Normal) = IdentityLink()
 canonicallink(::Poisson) = LogLink()
+## the canonical link function for Geometric distribution is the LogLink
+canonicallink(::Geometric) = LogLink()
 
 """
     GLM.glmvar(D::Distribution, μ::Real)
@@ -322,6 +324,9 @@ true
 
 julia> glmvar.(Poisson(), μ) == μ
 true
+
+julia> glmvar.(Geometric(), μ) == μ * (1 + μ)
+true
 ```
 """
 function glmvar end
@@ -332,6 +337,7 @@ glmvar(::InverseGaussian, μ::Real) = μ^3
 glmvar(d::NegativeBinomial, μ::Real) = μ * (1 + μ/d.r)
 glmvar(::Normal, μ::Real) = one(μ)
 glmvar(::Poisson, μ::Real) = μ
+glmvar(::Geometric, μ::Real) = μ * (1 + μ)
 
 """
     GLM.mustart(D::Distribution, y, wt)
@@ -355,6 +361,9 @@ true
 
 julia> GLM.mustart(Normal(), 0.0, 1) ≈ 0
 true
+
+julia> GLM.mustart(Geometric(), 4, 1) ≈ 4
+true
 ```
 """
 function mustart end
@@ -373,6 +382,10 @@ mustart(::Normal, y, wt) = y
 function mustart(::Poisson, y, wt)
     fy = float(y)
     fy + oftype(fy, 1/10)
+end
+function mustart(::Geometric, y, wt)
+    fy = float(y)
+    iszero(y) ? fy + oftype(fy, 1 / 6) : fy
 end
 
 """
@@ -427,6 +440,11 @@ function devresid(d::NegativeBinomial, y, μ::Real)
 end
 devresid(::Normal, y, μ::Real) = abs2(y - μ)
 devresid(::Poisson, y, μ::Real) = 2 * (xlogy(y, y / μ) - (y - μ))
+function devresid(::Geometric, y, μ::Real)
+    θ = 1
+    v = 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ) / (y + θ)))
+    return μ == 0 ? oftype(v, NaN) : v
+end
 
 """
     GLM.dispersion_parameter(D)
@@ -470,3 +488,8 @@ loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 #    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
 # Hence, p = θ/(μ+θ)
 loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
+# In Julia, a Geometric distribution characterizes the number of failures before 
+# the first success in a sequence of independent Bernoulli trials with success rate p.
+# The mean of Geometric distribution is (1 - p) / p.
+# Hence, p = 1 / (1 + μ).
+loglik_obs(::Geometric, y, μ, wt, ϕ) = wt * logpdf(Geometric(1 / (μ + 1)), y)
