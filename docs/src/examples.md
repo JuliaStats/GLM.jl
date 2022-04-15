@@ -340,7 +340,7 @@ julia> round(deviance(gm1), digits=5)
 5.11746
 ```
 ## Linear regression with PowerLink.
-## Choose the best model from a set of λs, based on minimum BIC
+### Choose the best model from a set of λs, based on minimum BIC
 
 ```jldoctest
 julia> using GLM, RDatasets, StatsBase, DataFrames, Optim;
