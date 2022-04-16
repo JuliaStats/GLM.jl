@@ -12,4 +12,4 @@ StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
 [compat]
 DataFrames = "1"
 Documenter = "0.27"
-Optim = "1.6"
+Optim = "1.6.2"
