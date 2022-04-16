@@ -1135,8 +1135,8 @@ end
         @test GLM.linkfun(IdentityLink(), 10) == GLM.linkfun(PowerLink(1), 10)
         @test GLM.linkfun(SqrtLink(), 10) == GLM.linkfun(PowerLink(0.5), 10)
         @test GLM.linkfun(LogLink(), 10) == GLM.linkfun(PowerLink(0), 10)
-        @test GLM.linkfun(InverseLink(), 10) == GLM.linkfun(PowerLink(-1), 10)
-        @test GLM.linkfun(InverseSquareLink(), 10) == GLM.linkfun(PowerLink(-2), 10)
+        @test GLM.linkfun(InverseLink(), 10) == round(GLM.linkfun(PowerLink(-1), 10), digits = 2)
+        @test GLM.linkfun(InverseSquareLink(), 10) == round(GLM.linkfun(PowerLink(-2), 10), digits = 2)
         @test isapprox(GLM.linkfun(PowerLink(1 / 3), 10), 2.154434690031884)
 
         @test GLM.linkinv(IdentityLink(), 10) == GLM.linkinv(PowerLink(1), 10)
