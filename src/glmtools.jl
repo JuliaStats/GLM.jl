@@ -7,7 +7,7 @@ GLM currently supports the following links:
 [`CauchitLink`](@ref), [`CloglogLink`](@ref), [`IdentityLink`](@ref),
 [`InverseLink`](@ref), [`InverseSquareLink`](@ref), [`LogitLink`](@ref),
 [`LogLink`](@ref), [`NegativeBinomialLink`](@ref), [`ProbitLink`](@ref),
-[`SqrtLink`](@ref).
+[`SqrtLink`](@ref), [`PowerLink`](@ref).
 
 Subtypes of `Link` are required to implement methods for
 [`GLM.linkfun`](@ref), [`GLM.linkinv`](@ref), [`GLM.mueta`](@ref),
@@ -102,6 +102,25 @@ struct ProbitLink <: Link01 end
 A [`Link`](@ref) defined as `η = √μ`
 """
 struct SqrtLink <: Link end
+
+"""
+    PowerLink
+
+A [`Link`](@ref) defined as `η = log(μ)` when `λ = 0`, otherwise `η = μ^λ`.
+
+PowerLink refers to a class of techniques that use a power function
+(like a logarithm or exponent) to transform the responses to
+Gaussian or more-Gaussian like.
+
+IdentityLink is a special case of PowerLink when λ = 1.
+SqrtLink is a spacial case of PowerLink when λ = 0.5.
+LogLink is a spacial case of PowerLink when λ = 0.
+InverseLink is a special case of PowerLink when λ = -1.
+InverseSquareLink is a special case of PowerLink when λ = -2.
+"""
+struct PowerLink <: Link
+    λ::Float64
+end
 
 """
     GLM.linkfun(L::Link, μ::Real)
@@ -289,6 +308,19 @@ linkfun(::SqrtLink, μ::Real) = sqrt(μ)
 linkinv(::SqrtLink, η::Real) = abs2(η)
 mueta(::SqrtLink, η::Real) = 2η
 inverselink(::SqrtLink, η::Real) = abs2(η), 2η, oftype(η, NaN)
+
+linkfun(pl::PowerLink, μ::Real) = pl.λ == 0 ? log(μ) : μ^pl.λ
+linkinv(pl::PowerLink, η::Real) = pl.λ == 0 ? exp(η) : η^(1 / pl.λ)
+function mueta(pl::PowerLink, η::Real)
+    if pl.λ == 0
+        return exp(η)
+    end
+    _1byλ = inv(pl.λ)
+    return _1byλ * η^(_1byλ - 1)
+end
+function inverselink(pl::PowerLink, η::Real)
+    linkinv(pl, η), mueta(pl, η), oftype(float(η), NaN)
+end
 
 canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()

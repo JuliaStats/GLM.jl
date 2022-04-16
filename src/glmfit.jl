@@ -21,6 +21,8 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     wrkwt::V
     "`wrkresid`: working residuals for IRLS"
     wrkresid::V
+    "`link`: to get the link function with relevant parameters"
+    link::L
 end
 
 function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVector, D, L}
@@ -46,7 +48,7 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVec
         throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
     end
 
-    return GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y))
+    return GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y), l)
 end
 
 function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::FPVector)
@@ -201,6 +203,19 @@ function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:NegativeBinomial,L<:
         yi = y[i]
         wrkres[i] = (yi - μi) / dμdη
         wrkwt[i] = dμdη
+        dres[i] = devresid(r.d, yi, μi)
+    end
+end
+
+function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L<:PowerLink}
+    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
+    pl = r.link
+    @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
+        μi, dμdη = inverselink(L(pl.λ), η[i])
+        μ[i] = μi
+        yi = y[i]
+        wrkres[i] = (yi - μi) / dμdη
+        wrkwt[i] = cancancel(r) ? dμdη : abs2(dμdη) / glmvar(r.d, μi)
         dres[i] = devresid(r.d, yi, μi)
     end
 end
@@ -510,6 +525,7 @@ glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwarg
 GLM.Link(mm::AbstractGLM) = mm.l
 GLM.Link(r::GlmResp{T,D,L}) where {T,D,L} = L()
 GLM.Link(r::GlmResp{T,D,L}) where {T,D<:NegativeBinomial,L<:NegativeBinomialLink} = L(r.d.r)
+GLM.Link(r::GlmResp{T,D,L}) where {T,D,L<:PowerLink} = r.link
 GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
 
 Distributions.Distribution(r::GlmResp{T,D,L}) where {T,D,L} = D

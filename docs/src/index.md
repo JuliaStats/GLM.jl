@@ -51,6 +51,7 @@ Currently the available Link types are
     NegativeBinomialLink
     ProbitLink
     SqrtLink
+    PowerLink
 
 Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
 in practice one typically uses `LogLink`.
