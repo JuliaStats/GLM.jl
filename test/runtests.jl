@@ -1149,7 +1149,7 @@ end
         @test GLM.mueta(IdentityLink(), 10) == GLM.mueta(PowerLink(1), 10)
         @test GLM.mueta(SqrtLink(), 10) == GLM.mueta(PowerLink(0.5), 10)
         @test GLM.mueta(LogLink(), 10) == GLM.mueta(PowerLink(0), 10)
-        @test GLM.mueta(InverseLink(), 10) == GLM.mueta(PowerLink(-1), 10)
+        @test GLM.mueta(InverseLink(), 10) == round(GLM.mueta(PowerLink(-1), 10), digits = 2)
         @test GLM.mueta(InverseSquareLink(), 10) == GLM.mueta(PowerLink(-2), 10)
         @test isapprox(GLM.mueta(PowerLink(1 / 3), 10), 300.0)
 
