@@ -147,16 +147,31 @@ F-test: 2 models fitted on 50 observations
 ## Methods applied to fitted models
 
 Many of the methods provided by this package have names similar to those in [R](http://www.r-project.org).
+- `adjr2`:  adjusted R² for a linear model
+- `bic`: Bayesian Information Criterion, defined as ``-2 \\log L + k \\log n``, with ``L``
+the likelihood of the model, ``k`` is the number of consumed degrees of freedom
 - `coef`: extract the estimates of the coefficients in the model
+- `confint`: compute confidence intervals for coefficients, with confidence level `level` (by default 95%)
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
+- `dof`: return the number of degrees of freedom consumed in the model, including
+when applicable the intercept and the distribution's dispersion parameter
 - `dof_residual`: degrees of freedom for residuals, when meaningful
+- `fitted`: return the fitted values of the model
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
+- `aic`: Akaike's Information Criterion, defined as ``-2 \\log L + 2k``, with ``L`` the likelihood of the model, and `k` it the number of consumed degrees of freedom
+- `aicc`: corrected Akaike's Information Criterion for small sample sizes (Hurvich and Tsai 1989)
 - `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
-- `r2`: R² of a linear model or pseudo-R² of a generalized linear model
+- `loglikelihood`: return the log-likelihood of the model
+- `modelmatrix`: return the design matrix
+- `nobs`: return the number of rows, or sum of the weights when prior weights are specified
+- `nulldeviance`: return the deviance of the linear model which includs the intercept only
+- `nullloglikelihood`: return the log-likelihood of the null model corresponding to the fitted linear model
+- `predict` : obtain predicted values of the dependent variable from the fitted model
+- `r2`: R² of a linear model
+- `residuals`: get the vector of residuals from the fitted model
+- `response`: return the model response (a.k.a the dependent variable)
 - `stderror`: standard errors of the coefficients
 - `vcov`: estimated variance-covariance matrix of the coefficient estimates
-- `predict` : obtain predicted values of the dependent variable from the fitted model
-- `residuals`: get the vector of residuals from the fitted model
 
 Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
 in practice one typically uses `LogLink`.
