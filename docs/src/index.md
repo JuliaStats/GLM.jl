@@ -152,6 +152,7 @@ Many of the methods provided by this package have names similar to those in [R](
 the likelihood of the model, ``k`` is the number of consumed degrees of freedom
 - `coef`: extract the estimates of the coefficients in the model
 - `confint`: compute confidence intervals for coefficients, with confidence level `level` (by default 95%)
+- `cooksdistance`: compute [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation in linear model `obj`, giving an estimate of the influence of each data point. Currently only implemented for linear models without weights.
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
 - `dof`: return the number of degrees of freedom consumed in the model, including
 when applicable the intercept and the distribution's dispersion parameter
@@ -173,8 +174,83 @@ when applicable the intercept and the distribution's dispersion parameter
 - `stderror`: standard errors of the coefficients
 - `vcov`: estimated variance-covariance matrix of the coefficient estimates
 
+
 Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
 in practice one typically uses `LogLink`.
+
+```jldoctest methods
+julia> using GLM, DataFrames
+julia> data = DataFrame(X=[1,2,3], y=[2,4,7])
+julia> test_data = DataFrame(X=[4])
+julia> mdl = lm(@formula(y ~  X), data)
+julia> r2(mdl)
+0.9868421052631579
+
+julia> adjr2(mdl)
+0.9736842105263157
+
+julia> bic(mdl)
+3.1383527915438716
+
+julia> coef(mdl)
+2-element Vector{Float64}:
+ -0.6666666666666728
+  2.500000000000003
+
+julia> confint(mdl, level=0.90)
+2×2 Matrix{Float64}:
+ -4.60398   3.27065
+  0.677377  4.32262
+
+julia> deviance(mdl)
+0.16666666666666666
+
+julia> dof(mdl)
+3
+
+julia> dof_residual(mdl)
+1.0
+
+julia> aic(mdl)
+5.8425159255395425
+
+julia> aicc(mdl)
+-18.157484074460456
+
+julia> loglikelihood(mdl)
+0.07874203723022877
+
+julia> nullloglikelihood(mdl)
+-6.417357973199268
+```
+`predict` method returns predicted values of response variable from covariate values `newX`.
+If you ommit `newX` then it return fitted response values.
+
+```jldoctest methods
+julia> predict(mdl)
+3-element Vector{Float64}:
+ 1.8333333333333304
+ 4.333333333333333
+ 6.833333333333336
+
+julia> predict(mdl, test_data)
+1-element Vector{Union{Missing, Float64}}:
+ 9.33333333333334
+
+julia> stderror(mdl)
+2-element Vector{Float64}:
+ 0.6236095644623237
+ 0.2886751345948129
+```
+`cooksdistance` method computes [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation in linear model `obj`, giving an estimate of the influence of each data point. Currently only implemented for linear models without weights.
+
+```jldoctest methods
+julia> cooksdistance(mdl)
+3-element Vector{Float64}:
+ 2.500000000000079
+ 0.2499999999999991
+ 2.499999999999919
+```
 
 ## Separation of response object and predictor object
 
