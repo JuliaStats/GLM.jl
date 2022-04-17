@@ -35,7 +35,7 @@ functions are
             Binomial (LogitLink)
                Gamma (InverseLink)
      InverseGaussian (InverseSquareLink)
-    NegativeBinomial (LogLink)
+    NegativeBinomial (NegativeBinomialLink, often used with LogLink)
               Normal (IdentityLink)
              Poisson (LogLink)
 
