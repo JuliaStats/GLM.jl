@@ -1161,25 +1161,6 @@ end
     end
     trees = dataset("datasets", "trees")
     @testset "GLM with PowerLink" begin
-        # Corresponding R code 
-        # mdl = glm(Volume ~ Height + Girth, data = trees, family=gaussian(link=power(1/3)))
-        # Output:
-        # Call: 
-        # glm(formula = Volume ~ Height + Girth, family = gaussian(link = power(1/3)), data = trees)  
-        # Coefficients:
-        #    Estimate Std. Error t value Pr(>|t|)    
-        #    (Intercept) -0.051322   0.224095  -0.229 0.820518    
-        #    Height       0.014287   0.003342   4.274 0.000201 ***
-        #    Girth        0.150331   0.005838  25.749  < 2e-16 ***
-        #
-        # Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
-        #
-        # (Dispersion parameter for gaussian family taken to be 6.577063)
-
-        # Null deviance: 8106.08  on 30  degrees of freedom
-        # Residual deviance:  184.16  on 28  degrees of freedom
-        # AIC: 151.21
-        #
         mdl = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1 / 3); atol=1.0e-12, rtol=1.0e-12)
         @test isapprox(coef(mdl), [-0.05132238692134761, 0.01428684676273272, 0.15033126098228242])
         @test isapprox(aic(mdl), 151.21015973975)
