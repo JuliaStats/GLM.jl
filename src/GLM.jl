@@ -42,10 +42,9 @@ module GLM
         LogitLink,
         LogLink,
         NegativeBinomialLink,
-        ProbitLink,
-        SqrtLink,
-        # The proposed new link function: PowerLink
         PowerLink,
+        ProbitLink,
+        SqrtLink
 
         # Model types
         GeneralizedLinearModel,

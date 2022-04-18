@@ -83,9 +83,9 @@ InverseSquareLink
 LogitLink
 LogLink
 NegativeBinomialLink
+PowerLink
 ProbitLink
 SqrtLink
-PowerLink
 GLM.linkfun
 GLM.linkinv
 GLM.mueta
