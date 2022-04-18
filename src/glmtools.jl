@@ -106,17 +106,18 @@ struct SqrtLink <: Link end
 """
     PowerLink
 
-A [`Link`](@ref) defined as `η = log(μ)` when `λ = 0`, otherwise `η = μ^λ`.
+A [`Link`](@ref) defined as `η = μ^λ` when `λ ≠ 0`, and to `η = log(μ)` when `λ = 0`.
 
 PowerLink refers to a class of techniques that use a power function
 (like a logarithm or exponent) to transform the responses to
 Gaussian or more-Gaussian like.
 
-IdentityLink is a special case of PowerLink when λ = 1.
-SqrtLink is a spacial case of PowerLink when λ = 0.5.
-LogLink is a spacial case of PowerLink when λ = 0.
-InverseLink is a special case of PowerLink when λ = -1.
-InverseSquareLink is a special case of PowerLink when λ = -2.
+Many other links are special cases of `PowerLink`:
+- [`IdentityLink`](@ref) when λ = 1.
+- [`SqrtLink`](@ref) when λ = 0.5.
+- [`LogLink`](@ref) when λ = 0.
+- [`InverseLink`](@ref) when λ = -1.
+- [`InverseSquareLink`](@ref) when λ = -2.
 """
 struct PowerLink <: Link
     λ::Float64
