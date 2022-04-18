@@ -320,9 +320,8 @@ function mueta(pl::PowerLink, η::Real)
         return invλ * η^(invλ - 1)
     end
 end
-function inverselink(pl::PowerLink, η::Real)
+inverselink(pl::PowerLink, η::Real) =
     linkinv(pl, η), mueta(pl, η), oftype(float(η), NaN)
-end
 
 canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()
