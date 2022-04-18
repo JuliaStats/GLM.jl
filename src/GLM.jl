@@ -44,7 +44,7 @@ module GLM
         NegativeBinomialLink,
         PowerLink,
         ProbitLink,
-        SqrtLink
+        SqrtLink,
 
         # Model types
         GeneralizedLinearModel,
