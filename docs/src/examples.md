@@ -385,7 +385,7 @@ julia> print(trees)
   30 │    18.0      80     51.0
   31 │    20.6      87     77.0
 
-julia> bic_glm(λ)  = bic(glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(λ)));
+julia> bic_glm(λ) = bic(glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(λ)));
 
 julia> optimal_bic = optimize(bic_glm, -1.0, 1.0);
 
