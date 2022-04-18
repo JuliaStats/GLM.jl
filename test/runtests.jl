@@ -1137,21 +1137,21 @@ end
         @test GLM.linkfun(LogLink(), 10) == GLM.linkfun(PowerLink(0), 10)
         @test GLM.linkfun(InverseLink(), 10) ≈ GLM.linkfun(PowerLink(-1), 10)
         @test GLM.linkfun(InverseSquareLink(), 10) ≈ GLM.linkfun(PowerLink(-2), 10)
-        @test isapprox(GLM.linkfun(PowerLink(1 / 3), 10), 2.154434690031884)
+        @test GLM.linkfun(PowerLink(1 / 3), 10) ≈ 2.154434690031884
 
         @test GLM.linkinv(IdentityLink(), 10) == GLM.linkinv(PowerLink(1), 10)
         @test GLM.linkinv(SqrtLink(), 10) == GLM.linkinv(PowerLink(0.5), 10)
         @test GLM.linkinv(LogLink(), 10) == GLM.linkinv(PowerLink(0), 10)
         @test GLM.linkinv(InverseLink(), 10) ≈ GLM.linkinv(PowerLink(-1), 10)
         @test GLM.linkinv(InverseSquareLink(), 10) ≈ GLM.linkinv(PowerLink(-2), 10)
-        @test isapprox(GLM.linkinv(PowerLink(1 / 3), 10), 1000.0)
+        @test GLM.linkinv(PowerLink(1 / 3), 10) ≈ 1000.0
 
         @test GLM.mueta(IdentityLink(), 10) == GLM.mueta(PowerLink(1), 10)
         @test GLM.mueta(SqrtLink(), 10) == GLM.mueta(PowerLink(0.5), 10)
         @test GLM.mueta(LogLink(), 10) == GLM.mueta(PowerLink(0), 10)
         @test GLM.mueta(InverseLink(), 10) ≈ GLM.mueta(PowerLink(-1), 10)
         @test GLM.mueta(InverseSquareLink(), 10) == GLM.mueta(PowerLink(-2), 10)
-        @test isapprox(GLM.mueta(PowerLink(1 / 3), 10), 300.0)
+        @test GLM.mueta(PowerLink(1 / 3), 10) ≈ 300.0
 
         @test PowerLink(1 / 3) == PowerLink(1 / 3)
         @test isequal(PowerLink(1 / 3), PowerLink(1 / 3))
