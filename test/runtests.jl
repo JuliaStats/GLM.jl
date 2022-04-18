@@ -1132,23 +1132,23 @@ end
 
 @testset "PowerLink" begin
     @testset "Functions related to PowerLink" begin
-        @test GLM.linkfun(IdentityLink(), 10) == GLM.linkfun(PowerLink(1), 10)
-        @test GLM.linkfun(SqrtLink(), 10) == GLM.linkfun(PowerLink(0.5), 10)
-        @test GLM.linkfun(LogLink(), 10) == GLM.linkfun(PowerLink(0), 10)
+        @test GLM.linkfun(IdentityLink(), 10) ≈ GLM.linkfun(PowerLink(1), 10)
+        @test GLM.linkfun(SqrtLink(), 10) ≈ GLM.linkfun(PowerLink(0.5), 10)
+        @test GLM.linkfun(LogLink(), 10) ≈ GLM.linkfun(PowerLink(0), 10)
         @test GLM.linkfun(InverseLink(), 10) ≈ GLM.linkfun(PowerLink(-1), 10)
         @test GLM.linkfun(InverseSquareLink(), 10) ≈ GLM.linkfun(PowerLink(-2), 10)
         @test GLM.linkfun(PowerLink(1 / 3), 10) ≈ 2.154434690031884
 
-        @test GLM.linkinv(IdentityLink(), 10) == GLM.linkinv(PowerLink(1), 10)
-        @test GLM.linkinv(SqrtLink(), 10) == GLM.linkinv(PowerLink(0.5), 10)
-        @test GLM.linkinv(LogLink(), 10) == GLM.linkinv(PowerLink(0), 10)
+        @test GLM.linkinv(IdentityLink(), 10) ≈ GLM.linkinv(PowerLink(1), 10)
+        @test GLM.linkinv(SqrtLink(), 10) ≈ GLM.linkinv(PowerLink(0.5), 10)
+        @test GLM.linkinv(LogLink(), 10) ≈ GLM.linkinv(PowerLink(0), 10)
         @test GLM.linkinv(InverseLink(), 10) ≈ GLM.linkinv(PowerLink(-1), 10)
         @test GLM.linkinv(InverseSquareLink(), 10) ≈ GLM.linkinv(PowerLink(-2), 10)
         @test GLM.linkinv(PowerLink(1 / 3), 10) ≈ 1000.0
 
-        @test GLM.mueta(IdentityLink(), 10) == GLM.mueta(PowerLink(1), 10)
-        @test GLM.mueta(SqrtLink(), 10) == GLM.mueta(PowerLink(0.5), 10)
-        @test GLM.mueta(LogLink(), 10) == GLM.mueta(PowerLink(0), 10)
+        @test GLM.mueta(IdentityLink(), 10) ≈ GLM.mueta(PowerLink(1), 10)
+        @test GLM.mueta(SqrtLink(), 10) ≈ GLM.mueta(PowerLink(0.5), 10)
+        @test GLM.mueta(LogLink(), 10) ≈ GLM.mueta(PowerLink(0), 10)
         @test GLM.mueta(InverseLink(), 10) ≈ GLM.mueta(PowerLink(-1), 10)
         @test GLM.mueta(InverseSquareLink(), 10) == GLM.mueta(PowerLink(-2), 10)
         @test GLM.mueta(PowerLink(1 / 3), 10) ≈ 300.0
@@ -1160,30 +1160,46 @@ end
     end
     trees = dataset("datasets", "trees")
     @testset "GLM with PowerLink" begin
-        mdl = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1 / 3); atol=1.0e-12, rtol=1.0e-12)
-        @test isapprox(coef(mdl), [-0.05132238692134761, 0.01428684676273272, 0.15033126098228242])
-        @test isapprox(aic(mdl), 151.21015973975)
-        @test isapprox(predict(mdl)[1], 10.59735275421753)
+        mdl = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1 / 3))
+        @test coef(mdl) ≈ [-0.051323413605527, 0.014286863108177, 0.150331244093515]
+        @test isapprox(stderror(mdl), [0.22409428535, 0.00334243140, 0.00583824078], atol=1.0e-5)
+        @test isapprox(confint(mdl), [-0.492662575350799992 0.38142669625130310;
+        0.007782050247944785 0.02082315251811211; 0.139020340418155641 0.16184256030515429], atol=1.0e-2)
+        @test dof(mdl) == 4
+        @test isapprox(GLM.dispersion(mdl.model, true), 6.577133411105055, atol=1.0e-4)
+        @test loglikelihood(mdl) ≈ -71.60507986988925
+        @test deviance(mdl) ≈ 184.15774688122
+        @test aic(mdl) ≈ 151.21015973978
+        @test predict(mdl)[1] ≈ 10.59735242595150
     end
     @testset "Compare PowerLink(0) and LogLink" begin
         mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(0))
         mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), LogLink())
-        @test isapprox(coef(mdl1), coef(mdl2))
-        @test isapprox(aic(mdl1), aic(mdl2))
-        @test isapprox(predict(mdl1), predict(mdl2))
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test confint(mdl1) ≈ confint(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+        @test GLM.dispersion(mdl1.model) ≈ GLM.dispersion(mdl2.model)
     end
     @testset "Compare PowerLink(0.5) and SqrtLink" begin
         mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(0.5))
         mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), SqrtLink())
-        @test isapprox(coef(mdl1), coef(mdl2))
-        @test isapprox(aic(mdl1), aic(mdl2))
-        @test isapprox(predict(mdl1), predict(mdl2))
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test confint(mdl1) ≈ confint(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+        @test GLM.dispersion(mdl1.model) ≈ GLM.dispersion(mdl2.model)
     end
     @testset "Compare PowerLink(1) and IdentityLink" begin
         mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1))
         mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), IdentityLink())
-        @test isapprox(coef(mdl1), coef(mdl2))
-        @test isapprox(aic(mdl1), aic(mdl2))
-        @test isapprox(predict(mdl1), predict(mdl2))
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test confint(mdl1) ≈ confint(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
     end
 end
