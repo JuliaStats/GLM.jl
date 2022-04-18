@@ -1157,7 +1157,6 @@ end
         @test isequal(PowerLink(1 / 3), PowerLink(1 / 3))
         @test !isequal(PowerLink(1 / 3), PowerLink(0.33))
         @test hash(PowerLink(1 / 3)) == hash(PowerLink(1 / 3))
-        @test hash(PowerLink(1 / 3)) != hash(PowerLink(0.33))
     end
     trees = dataset("datasets", "trees")
     @testset "GLM with PowerLink" begin
