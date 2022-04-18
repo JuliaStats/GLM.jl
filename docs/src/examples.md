@@ -344,11 +344,9 @@ julia> round(deviance(gm1), digits=5)
 In this example, we choose the best model from a set of λs, based on minimum BIC.
 
 ```jldoctest
-julia> using GLM, RDatasets, StatsBase, DataFrames, Optim;
+julia> using GLM, RDatasets, StatsBase, DataFrames, Optim
 
-julia> trees = DataFrame(dataset("datasets", "trees"));
-
-julia> print(trees)
+julia> trees = DataFrame(dataset("datasets", "trees"))
 31×3 DataFrame
  Row │ Girth    Height  Volume  
      │ Float64  Int64   Float64 
@@ -389,14 +387,9 @@ julia> bic_glm(λ) = bic(glm(@formula(Volume ~ Height + Girth), trees, Normal(),
 
 julia> optimal_bic = optimize(bic_glm, -1.0, 1.0);
 
-julia> min_λ = optimal_bic.minimizer;
+julia> optimal_bic.minimizer # Optimal λ
 
-julia> best_glm = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(min_λ));
-
-julia> println("Best λ = ", round(min_λ, digits = 5))
-Best λ = 0.40935
-
-julia> println(best_glm)
+julia> glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(min_λ)) # Best model
 StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, Normal{Float64}, PowerLink}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}}}, Matrix{Float64}}
 
 Volume ~ 1 + Height + Girth
