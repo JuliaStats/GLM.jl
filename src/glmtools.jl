@@ -315,9 +315,10 @@ linkinv(pl::PowerLink, η::Real) = pl.λ == 0 ? exp(η) : η^(1 / pl.λ)
 function mueta(pl::PowerLink, η::Real)
     if pl.λ == 0
         return exp(η)
+    else
+        invλ = inv(pl.λ)
+        return invλ * η^(invλ - 1)
     end
-    _1byλ = inv(pl.λ)
-    return _1byλ * η^(_1byλ - 1)
 end
 function inverselink(pl::PowerLink, η::Real)
     linkinv(pl, η), mueta(pl, η), oftype(float(η), NaN)
