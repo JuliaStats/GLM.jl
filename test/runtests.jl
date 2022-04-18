@@ -219,6 +219,7 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     @test dof(gm1) == 5
     @test isapprox(deviance(gm1), 5.12914107700115, rtol = 1e-7)
     @test isapprox(loglikelihood(gm1), -23.380659200978837, rtol = 1e-7)
+    @test isapprox(nullloglikelihood(gm1), -26.10681159435372, rtol = 1e-7)
     @test isapprox(aic(gm1), 56.76131840195767)
     @test isapprox(aicc(gm1), 76.76131840195768)
     @test isapprox(bic(gm1), 57.74744128863877)
@@ -237,6 +238,7 @@ admit.rank = categorical(admit.rank)
     @test dof(gm2) == 6
     @test deviance(gm2) ≈ 458.5174924758994
     @test loglikelihood(gm2) ≈ -229.25874623794968
+    @test nullloglikelihood(gm2) ≈ -249.9882587774585
     @test isapprox(aic(gm2), 470.51749247589936)
     @test isapprox(aicc(gm2), 470.7312329339146)
     @test isapprox(bic(gm2), 494.4662797585473)
@@ -253,6 +255,7 @@ end
     @test dof(gm3) == 6
     @test isapprox(deviance(gm3), 458.4131713833386)
     @test isapprox(loglikelihood(gm3), -229.20658569166932)
+    @test isapprox(nullloglikelihood(gm3), -249.9882587774585)
     @test isapprox(aic(gm3), 470.41317138333864)
     @test isapprox(aicc(gm3), 470.6269118413539)
     @test isapprox(bic(gm3), 494.36195866598655)
@@ -269,6 +272,7 @@ end
     @test dof(gm4) == 6
     @test isapprox(deviance(gm4), 459.3401112751141)
     @test isapprox(loglikelihood(gm4), -229.6700556375571)
+    @test isapprox(nullloglikelihood(gm4), -249.9882587774585)
     @test isapprox(aic(gm4), 471.3401112751142)
     @test isapprox(aicc(gm4), 471.5538517331295)
     @test isapprox(bic(gm4), 495.28889855776214)
@@ -282,6 +286,7 @@ end
     @test dof(gm5) == 6
     @test isapprox(deviance(gm5), 458.89439629612616)
     @test isapprox(loglikelihood(gm5), -229.44719814806314)
+    @test isapprox(nullloglikelihood(gm5), -249.9882587774585)
     @test isapprox(aic(gm5), 470.8943962961263)
     @test isapprox(aicc(gm5), 471.1081367541415)
     @test isapprox(bic(gm5), 494.8431835787742)
@@ -309,7 +314,9 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
     test_show(gm6)
     @test dof(gm6) == 5
     @test isapprox(deviance(gm6), 3311.262619919613)
+    @test_throws ErrorException nulldeviance(gm6)
     @test isapprox(loglikelihood(gm6), -239.9866487711122)
+    @test_throws ErrorException nullloglikelihood(gm6)
     @test isapprox(aic(gm6), 489.9732975422244)
     @test isapprox(aicc(gm6), 490.8823884513153)
     @test isapprox(bic(gm6), 501.35662813730465)
@@ -326,6 +333,9 @@ end
     @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
+    @test_throws ErrorException nulldeviance(gm7)
+    @test isapprox(loglikelihood(gm7), -239.48242060326643)
+    @test_throws ErrorException nullloglikelihood(gm7)
     @test isapprox(coef(gm7),
         [3.99232679, -0.99445269, -0.05069826, 0.05149403])
     @test isapprox(GLM.dispersion(gm7.model, true), 48.017753573192266)
@@ -345,7 +355,9 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
     test_show(gm8)
     @test dof(gm8) == 3
     @test isapprox(deviance(gm8), 0.016729715178484157)
+    @test isapprox(nulldeviance(gm8), 3.5128262638285594)
     @test isapprox(loglikelihood(gm8), -15.994961974777247)
+    @test isapprox(nullloglikelihood(gm8), -40.34632899455258)
     @test isapprox(aic(gm8), 37.989923949554495)
     @test isapprox(aicc(gm8), 42.78992394955449)
     @test isapprox(bic(gm8), 38.58159768156315)
@@ -361,7 +373,9 @@ end
     test_show(gm8a)
     @test dof(gm8a) == 3
     @test isapprox(deviance(gm8a), 0.006931128347234519)
+    @test isapprox(nulldeviance(gm8a), 0.08779963125372384)
     @test isapprox(loglikelihood(gm8a), -27.787426008849867)
+    @test isapprox(nullloglikelihood(gm8a), -39.213082069623105)
     @test isapprox(aic(gm8a), 61.57485201769973)
     @test isapprox(aicc(gm8a), 66.37485201769974)
     @test isapprox(bic(gm8a), 62.16652574970839)
@@ -377,7 +391,9 @@ end
     test_show(gm9)
     @test dof(gm9) == 3
     @test deviance(gm9) ≈ 0.16260829451739
+    @test nulldeviance(gm9) ≈ 3.512826263828517
     @test loglikelihood(gm9) ≈ -26.24082810384911
+    @test nullloglikelihood(gm9) ≈ -40.34632899455252
     @test aic(gm9) ≈ 58.48165620769822
     @test aicc(gm9) ≈ 63.28165620769822
     @test bic(gm9) ≈ 59.07332993970688
@@ -393,7 +409,9 @@ end
     test_show(gm10)
     @test dof(gm10) == 3
     @test isapprox(deviance(gm10), 0.60845414895344)
+    @test isapprox(nulldeviance(gm10), 3.512826263828517)
     @test isapprox(loglikelihood(gm10), -32.216072437284176)
+    @test isapprox(nullloglikelihood(gm10), -40.346328994552515)
     @test isapprox(aic(gm10), 70.43214487456835)
     @test isapprox(aicc(gm10), 75.23214487456835)
     @test isapprox(bic(gm10), 71.02381860657701)
@@ -414,7 +432,9 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
         @test isapprox(deviance(gm14), 474.9667184280627)
+        @test isapprox(nulldeviance(gm14), 499.97651755491546)
         @test isapprox(loglikelihood(gm14), -237.48335921403134)
+        @test isapprox(nullloglikelihood(gm14), -249.98825877745773)
         @test isapprox(aic(gm14), 482.96671842822883)
         @test isapprox(aicc(gm14), 483.0679842510136)
         @test isapprox(bic(gm14), 498.9325766164946)
@@ -436,7 +456,9 @@ admit_agr2.p = admit_agr2.admit ./ admit_agr2.count
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
     @test deviance(gm15) ≈ -2.4424906541753456e-15 atol = 1e-13
+    @test nulldeviance(gm15) ≈ 25.009799126861324
     @test loglikelihood(gm15) ≈ -9.50254433604239
+    @test nullloglikelihood(gm15) ≈ -22.007443899473067
     @test aic(gm15) ≈ 27.00508867208478
     @test aicc(gm15) ≈ 27.106354494869592
     @test bic(gm15) ≈ 42.970946860516705
@@ -451,7 +473,9 @@ end
     @test dof(gm16) == 3
     @test nobs(gm16) == 32.7
     @test isapprox(deviance(gm16), 0.03933389380881689)
+    @test isapprox(nulldeviance(gm16), 9.26580653637595)
     @test isapprox(loglikelihood(gm16), -43.35907878769152)
+    @test isapprox(nullloglikelihood(gm16), -133.42962325047895)
     @test isapprox(aic(gm16), 92.71815757538305)
     @test isapprox(aicc(gm16), 93.55439450918095)
     @test isapprox(bic(gm16), 97.18028280909267)
@@ -465,7 +489,9 @@ end
     test_show(gm17)
     @test dof(gm17) == 5
     @test isapprox(deviance(gm17), 17.699857821414266)
+    @test isapprox(nulldeviance(gm17), 47.37955120289139)
     @test isapprox(loglikelihood(gm17), -84.57429468506352)
+    @test isapprox(nullloglikelihood(gm17), -99.41414137580216)
     @test isapprox(aic(gm17), 179.14858937012704)
     @test isapprox(aicc(gm17), 181.39578038136298)
     @test isapprox(bic(gm17), 186.5854647596431)
@@ -481,7 +507,9 @@ quine = dataset("MASS", "quine")
     test_show(gm18)
     @test dof(gm18) == 8
     @test isapprox(deviance(gm18), 239.11105911824325, rtol = 1e-7)
+    @test isapprox(nulldeviance(gm18), 280.1806722491237, rtol = 1e-7)
     @test isapprox(loglikelihood(gm18), -553.2596040803376, rtol = 1e-7)
+    @test isapprox(nullloglikelihood(gm18), -573.7944106457778, rtol = 1e-7)
     @test isapprox(aic(gm18), 1122.5192081606751)
     @test isapprox(aicc(gm18), 1123.570303051186)
     @test isapprox(bic(gm18), 1146.3880611343418)
@@ -497,7 +525,9 @@ end
     test_show(gm19)
     @test dof(gm19) == 8
     @test isapprox(deviance(gm19), 239.68562048977307, rtol = 1e-7)
+    @test isapprox(nulldeviance(gm19), 280.18067224912204, rtol = 1e-7)
     @test isapprox(loglikelihood(gm19), -553.5468847661017, rtol = 1e-7)
+    @test isapprox(nullloglikelihood(gm19), -573.7944106457775, rtol = 1e-7)
     @test isapprox(aic(gm19), 1123.0937695322034)
     @test isapprox(aicc(gm19), 1124.1448644227144)
     @test isapprox(bic(gm19), 1146.96262250587)
@@ -512,7 +542,9 @@ end
     test_show(gm20)
     @test dof(gm20) == 8
     @test isapprox(deviance(gm20), 167.9518430624193, rtol = 1e-7)
+    @test isapprox(nulldeviance(gm20), 195.28668602703388, rtol = 1e-7)
     @test isapprox(loglikelihood(gm20), -546.57550938017, rtol = 1e-7)
+    @test isapprox(nullloglikelihood(gm20), -560.2429308624774, rtol = 1e-7)
     @test isapprox(aic(gm20), 1109.15101876034)
     @test isapprox(aicc(gm20), 1110.202113650851)
     @test isapprox(bic(gm20), 1133.0198717340068)
@@ -546,7 +578,9 @@ end
     test_show(gm21)
     @test dof(gm21) == 8
     @test isapprox(deviance(gm21), 168.0465485656672, rtol = 1e-7)
+    @test isapprox(nulldeviance(gm21), 194.85525025005109, rtol = 1e-7)
     @test isapprox(loglikelihood(gm21), -546.8048603957335, rtol = 1e-7)
+    @test isapprox(nullloglikelihood(gm21), -560.2092112379252, rtol = 1e-7)
     @test isapprox(aic(gm21), 1109.609720791467)
     @test isapprox(aicc(gm21), 1110.660815681978)
     @test isapprox(bic(gm21), 1133.4785737651337)

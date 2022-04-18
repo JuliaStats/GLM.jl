@@ -248,6 +248,30 @@ end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
+function nulldeviance(m::AbstractGLM)
+    r   = m.rr
+    wts = r.wts
+    y   = r.y
+    d   = r.d
+
+    isempty(r.offset) ||
+        throw(ErrorException("models with offsets are currently not supported"))
+
+    dev = zero(eltype(y))
+    if length(wts) == length(y)
+        mu = mean(y, weights(wts))
+        @inbounds for i in eachindex(y, wts)
+            dev += wts[i] * devresid(d, y[i], mu)
+        end
+    else
+        mu = mean(y)
+        @inbounds for i in eachindex(y)
+            dev += devresid(d, y[i], mu)
+        end
+    end
+    return dev
+end
+
 function loglikelihood(m::AbstractGLM)
     r   = m.rr
     wts = r.wts
@@ -267,6 +291,32 @@ function loglikelihood(m::AbstractGLM)
         end
     end
     ll
+end
+
+function nullloglikelihood(m::AbstractGLM)
+    r   = m.rr
+    wts = r.wts
+    y   = r.y
+    d   = r.d
+
+    isempty(r.offset) ||
+        throw(ErrorException("models with offsets are currently not supported"))
+
+    ll  = zero(eltype(y))
+    if length(wts) == length(y)
+        mu = mean(r.y, weights(wts))
+        ϕ = nulldeviance(m)/sum(wts)
+        @inbounds for i in eachindex(y, wts)
+            ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
+        end
+    else
+        mu = mean(r.y)
+        ϕ = nulldeviance(m)/length(y)
+        @inbounds for i in eachindex(y)
+            ll += loglik_obs(d, y[i], mu, 1, ϕ)
+        end
+    end
+    return ll
 end
 
 dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
