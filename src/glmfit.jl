@@ -523,9 +523,7 @@ $FIT_GLM_DOC
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
 GLM.Link(mm::AbstractGLM) = mm.l
-GLM.Link(r::GlmResp{T,D,L}) where {T,D,L} = L()
-GLM.Link(r::GlmResp{T,D,L}) where {T,D<:NegativeBinomial,L<:NegativeBinomialLink} = L(r.d.r)
-GLM.Link(r::GlmResp{T,D,L}) where {T,D,L<:PowerLink} = r.link
+GLM.Link(r::GlmResp) = r.link
 GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
 
 Distributions.Distribution(r::GlmResp{T,D,L}) where {T,D,L} = D
