@@ -21,7 +21,7 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     wrkwt::V
     "`wrkresid`: working residuals for IRLS"
     wrkresid::V
-    "`link`: to get the link function with relevant parameters"
+    "`link`: link function with relevant parameters"
     link::L
 end
 
