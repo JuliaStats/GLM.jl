@@ -1162,11 +1162,11 @@ end
     @testset "GLM with PowerLink" begin
         mdl = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1 / 3))
         @test coef(mdl) ≈ [-0.051323413605527, 0.014286863108177, 0.150331244093515]
-        @test isapprox(stderror(mdl), [0.22409428535, 0.00334243140, 0.00583824078], atol=1.0e-5)
-        @test isapprox(confint(mdl), [-0.492662575350799992 0.38142669625130310;
-        0.007782050247944785 0.02082315251811211; 0.139020340418155641 0.16184256030515429], atol=1.0e-2)
+        @test stderror(mdl) ≈ [0.22409428535, 0.00334243140, 0.00583824078] atol=1.0e-5
+        @test confint(mdl) ≈ [-0.492662575350799992 0.38142669625130310;
+        0.007782050247944785 0.02082315251811211; 0.139020340418155641 0.16184256030515429] atol=1.0e-2
         @test dof(mdl) == 4
-        @test isapprox(GLM.dispersion(mdl.model, true), 6.577133411105055, atol=1.0e-4)
+        @test GLM.dispersion(mdl.model, true) ≈ 6.577133411105055 atol=1.0e-4
         @test loglikelihood(mdl) ≈ -71.60507986988925
         @test deviance(mdl) ≈ 184.15774688122
         @test aic(mdl) ≈ 151.21015973978

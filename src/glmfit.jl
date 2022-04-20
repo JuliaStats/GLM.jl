@@ -7,6 +7,8 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     "`y`: response vector"
     y::V
     d::D
+    "`link`: link function with relevant parameters"
+    link::L
     "`devresid`: the squared deviance residuals"
     devresid::V
     "`eta`: the linear predictor"
@@ -21,8 +23,6 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     wrkwt::V
     "`wrkresid`: working residuals for IRLS"
     wrkresid::V
-    "`link`: link function with relevant parameters"
-    link::L
 end
 
 function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVector, D, L}
@@ -48,7 +48,7 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVec
         throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
     end
 
-    return GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y), l)
+    return GlmResp{V,D,L}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
 end
 
 function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::FPVector)
@@ -108,7 +108,7 @@ function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
-        μi, dμdη = inverselink(L(), η[i])
+        μi, dμdη = inverselink(r.link, η[i])
         μ[i] = μi
         yi = y[i]
         wrkres[i] = (yi - μi) / dμdη
@@ -203,19 +203,6 @@ function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:NegativeBinomial,L<:
         yi = y[i]
         wrkres[i] = (yi - μi) / dμdη
         wrkwt[i] = dμdη
-        dres[i] = devresid(r.d, yi, μi)
-    end
-end
-
-function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L<:PowerLink}
-    y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
-    pl = r.link
-    @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
-        μi, dμdη = inverselink(L(pl.λ), η[i])
-        μ[i] = μi
-        yi = y[i]
-        wrkres[i] = (yi - μi) / dμdη
-        wrkwt[i] = cancancel(r) ? dμdη : abs2(dμdη) / glmvar(r.d, μi)
         dres[i] = devresid(r.d, yi, μi)
     end
 end

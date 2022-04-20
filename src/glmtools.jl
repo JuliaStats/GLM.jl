@@ -89,6 +89,24 @@ struct NegativeBinomialLink  <: Link
 end
 
 """
+    PowerLink
+
+A [`Link`](@ref) defined as `η = μ^λ` when `λ ≠ 0`, and to `η = log(μ)` when `λ = 0`.
+
+PowerLink refers to the class of transforms that use a power function to transform responses into a Gaussian or a Gaussian-like.
+
+Many other links are special cases of `PowerLink`:
+- [`IdentityLink`](@ref) when λ = 1.
+- [`SqrtLink`](@ref) when λ = 0.5.
+- [`LogLink`](@ref) when λ = 0.
+- [`InverseLink`](@ref) when λ = -1.
+- [`InverseSquareLink`](@ref) when λ = -2.
+"""
+struct PowerLink <: Link
+    λ::Float64
+end
+
+"""
     ProbitLink
 
 A [`Link01`](@ref) whose [`linkinv`](@ref) is the c.d.f. of the standard normal
@@ -102,26 +120,6 @@ struct ProbitLink <: Link01 end
 A [`Link`](@ref) defined as `η = √μ`
 """
 struct SqrtLink <: Link end
-
-"""
-    PowerLink
-
-A [`Link`](@ref) defined as `η = μ^λ` when `λ ≠ 0`, and to `η = log(μ)` when `λ = 0`.
-
-PowerLink refers to a class of techniques that use a power function
-(like a logarithm or exponent) to transform the responses to
-Gaussian or more-Gaussian like.
-
-Many other links are special cases of `PowerLink`:
-- [`IdentityLink`](@ref) when λ = 1.
-- [`SqrtLink`](@ref) when λ = 0.5.
-- [`LogLink`](@ref) when λ = 0.
-- [`InverseLink`](@ref) when λ = -1.
-- [`InverseSquareLink`](@ref) when λ = -2.
-"""
-struct PowerLink <: Link
-    λ::Float64
-end
 
 """
     GLM.linkfun(L::Link, μ::Real)
@@ -296,6 +294,19 @@ function inverselink(nbl::NegativeBinomialLink, η::Real)
     return μ, deriv, oftype(μ, NaN)
 end
 
+linkfun(pl::PowerLink, μ::Real) = pl.λ == 0 ? log(μ) : μ^pl.λ
+linkinv(pl::PowerLink, η::Real) = pl.λ == 0 ? exp(η) : η^(1 / pl.λ)
+function mueta(pl::PowerLink, η::Real)
+    if pl.λ == 0
+        return exp(η)
+    else
+        invλ = inv(pl.λ)
+        return invλ * η^(invλ - 1)
+    end
+end
+inverselink(pl::PowerLink, η::Real) =
+    linkinv(pl, η), mueta(pl, η), oftype(float(η), NaN)
+
 linkfun(::ProbitLink, μ::Real) = -sqrt2 * erfcinv(2μ)
 linkinv(::ProbitLink, η::Real) = erfc(-η / sqrt2) / 2
 mueta(::ProbitLink, η::Real) = exp(-abs2(η) / 2) / sqrt2π
@@ -309,19 +320,6 @@ linkfun(::SqrtLink, μ::Real) = sqrt(μ)
 linkinv(::SqrtLink, η::Real) = abs2(η)
 mueta(::SqrtLink, η::Real) = 2η
 inverselink(::SqrtLink, η::Real) = abs2(η), 2η, oftype(η, NaN)
-
-linkfun(pl::PowerLink, μ::Real) = pl.λ == 0 ? log(μ) : μ^pl.λ
-linkinv(pl::PowerLink, η::Real) = pl.λ == 0 ? exp(η) : η^(1 / pl.λ)
-function mueta(pl::PowerLink, η::Real)
-    if pl.λ == 0
-        return exp(η)
-    else
-        invλ = inv(pl.λ)
-        return invλ * η^(invλ - 1)
-    end
-end
-inverselink(pl::PowerLink, η::Real) =
-    linkinv(pl, η), mueta(pl, η), oftype(float(η), NaN)
 
 canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()
