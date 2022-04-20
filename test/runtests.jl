@@ -310,6 +310,11 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
 @testset "Offset" begin
     gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
               Normal(), IdentityLink(), offset=Array{Float64}(anorexia.Prewt))
+    gm6n = fit(GeneralizedLinearModel, @formula(Postwt ~ 1), anorexia,
+               Normal(), IdentityLink(), offset=Array{Float64}(anorexia.Prewt))
+    gm6.model.rr.eta - gm6.model.rr.offset
+    mean(gm6.model.rr.y - gm6n.model.rr.offset)
+
     @test GLM.cancancel(gm6.model.rr)
     test_show(gm6)
     @test dof(gm6) == 5
@@ -328,8 +333,17 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
 end
 
 @testset "Normal LogLink offset" begin
-    gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), LogLink(), offset=Array{Float64}(anorexia.Prewt), rtol=1e-8)
+    gm7 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat), anorexia,
+              Poisson(), LogLink(), offset=log.(Array{Float64}(anorexia.Prewt)), rtol=1e-8)
+    gm7n = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1), anorexia,
+               Poisson(), LogLink(), offset=log.(anorexia.Prewt), rtol=1e-8)
+    log(mean(exp.(log.(gm7.model.rr.y) .- gm7n.model.rr.offset)))
+    log(mean(gm7n.model.rr.y ./ exp.(gm7n.model.rr.offset)))
+    mean(gm7n.model.rr.eta .- gm7n.model.rr.offset)
+    log(mean(gm7n.model.rr.y) / mean(exp.(gm7n.model.rr.offset)))
+    mean(gm7n.model.rr.eta) - mean(gm7n.model.rr.offset)
+    exp.(log(mean(gm7n.model.rr.y) / mean(exp.(gm7n.model.rr.offset))) .+ gm7n.model.rr.offset) ≈ gm7n.model.rr.mu
+
     @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)

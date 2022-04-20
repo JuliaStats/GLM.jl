@@ -248,25 +248,39 @@ end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
-function nulldeviance(m::AbstractGLM)
+function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any, L}}) where L
     r   = m.rr
     wts = r.wts
     y   = r.y
     d   = r.d
-
-    isempty(r.offset) ||
-        throw(ErrorException("models with offsets are currently not supported"))
+    offset = r.offset
 
     dev = zero(eltype(y))
-    if length(wts) == length(y)
-        mu = mean(y, weights(wts))
-        @inbounds for i in eachindex(y, wts)
-            dev += wts[i] * devresid(d, y[i], mu)
+    if isempty(offset)
+        if length(wts) == length(y)
+            mu = mean(y, weights(wts))
+            @inbounds for i in eachindex(y, wts)
+                dev += wts[i] * devresid(d, y[i], mu)
+            end
+        else
+            mu = mean(y)
+            @inbounds for i in eachindex(y)
+                dev += devresid(d, y[i], mu)
+            end
         end
     else
-        mu = mean(y)
-        @inbounds for i in eachindex(y)
-            dev += devresid(d, y[i], mu)
+        if length(wts) == length(y)
+            # FIXME
+            mu = mean(y, weights(wts))
+            @inbounds for i in eachindex(y, wts)
+                dev += wts[i] * devresid(d, y[i], mu)
+            end
+        else
+            eta = linkfun(L(), mean(y) / mean(x -> linkinv(L(), x), offset))
+            @inbounds for i in eachindex(y, offset)
+                mui = linkinv(L(), eta + offset[i])
+                dev += devresid(d, y[i], mui)
+            end
         end
     end
     return dev
