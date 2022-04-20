@@ -93,7 +93,7 @@ end
 
 A [`Link`](@ref) defined as `η = μ^λ` when `λ ≠ 0`, and to `η = log(μ)` when `λ = 0`.
 
-PowerLink refers to the class of transforms that use a power function to transform responses into a Gaussian or a Gaussian-like.
+PowerLink refers to the class of transforms that use a power function or logarithmic function to transform responses into a Gaussian or a Gaussian-like.
 
 Many other links are special cases of `PowerLink`:
 - [`IdentityLink`](@ref) when λ = 1.
