@@ -339,7 +339,8 @@ Treatment: 3   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
 julia> round(deviance(gm1), digits=5)
 5.11746
 ```
-## Linear regression with PowerLink.
+
+## Linear regression with PowerLink
 
 In this example, we choose the best model from a set of λs, based on minimum BIC.
 
