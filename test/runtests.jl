@@ -570,7 +570,7 @@ end
                             0.29016080736927813]
 end
 
-@testset "Geometric is a special case of Negative with θ = 1" begin
+@testset "Geometric is a special case of NegativeBinomial with θ = 1" begin
     gm23 = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, Geometric(), InverseLink())
     gm24 = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(1), InverseLink())
     @test coef(gm23) ≈ coef(gm24)
