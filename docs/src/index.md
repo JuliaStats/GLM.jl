@@ -25,7 +25,7 @@ Their arguments must be:
 - `X` a matrix holding values of the dependent variable(s) in columns
 - `y` a vector holding values of the independent variable
   (including if appropriate the intercept)
-- `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Normal()`, `Poisson()`, `NegativeBinomial(θ)`, or `Geometric()`
+- `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Geometric()`, `Normal()`, `Poisson()`, or `NegativeBinomial(θ)`
 - `link`: chosen from the list below, for example, `LogitLink()` is a valid link for the `Binomial()` family
 
 Typical distributions for use with `glm` and their canonical link
@@ -34,11 +34,11 @@ functions are
            Bernoulli (LogitLink)
             Binomial (LogitLink)
                Gamma (InverseLink)
+               Geometric (LogLink)
      InverseGaussian (InverseSquareLink)
-    NegativeBinomial (LogLink)
+    NegativeBinomial (NegativeBinomialLink, often used with LogLink)
               Normal (IdentityLink)
              Poisson (LogLink)
-             Geometric (LogLink)
 
 Currently the available Link types are
 

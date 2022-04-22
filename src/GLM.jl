@@ -27,12 +27,11 @@ module GLM
         Bernoulli,
         Binomial,
         Gamma,
+        Geometric,
         InverseGaussian,
         NegativeBinomial,
         Normal,
         Poisson,
-        # The following is the proposed new distribution
-        Geometric,
 
         ## Link types
         Link,
