@@ -309,7 +309,7 @@ depend on `μ` and the value of `glmvar`.  In other words `glmvar` returns the f
 variance that depends on `μ`.
 
 # Examples
-```jldoctest; setup = :(using GLM: glmvar, Normal, Bernoulli, Poisson)
+```jldoctest; setup = :(using GLM: glmvar, Normal, Bernoulli, Poisson, Geometric)
 julia> μ = 1/6:1/3:1;
 
 julia> glmvar.(Normal(), μ)    # constant for Normal()
@@ -324,7 +324,7 @@ true
 julia> glmvar.(Poisson(), μ) == μ
 true
 
-julia> glmvar.(Geometric(), μ) == μ * (1 + μ)
+julia> glmvar.(Geometric(), μ) ≈ μ .* (1 .+ μ)
 true
 ```
 """
