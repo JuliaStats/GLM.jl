@@ -315,9 +315,9 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
     test_show(gm6)
     @test dof(gm6) == 5
     @test isapprox(deviance(gm6), 3311.262619919613)
-    @test_throws ErrorException nulldeviance(gm6)
+    @test isapprox(nulldeviance(gm6), 4525.386111111112)
     @test isapprox(loglikelihood(gm6), -239.9866487711122)
-    @test_throws ErrorException nullloglikelihood(gm6)
+    @test isapprox(nullloglikelihood(gm6), -251.2320886191385)
     @test isapprox(aic(gm6), 489.9732975422244)
     @test isapprox(aicc(gm6), 490.8823884513153)
     @test isapprox(bic(gm6), 501.35662813730465)
@@ -329,17 +329,15 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
 end
 
 @testset "Normal LogLink offset" begin
-    gm7 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat), anorexia,
-              Normal(), LogLink(), offset=Array{Float64}(anorexia.Prewt), rtol=1e-8)
-    gm7n = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1), anorexia,
-               Normal(), LogLink(), offset=Array{Float64}(anorexia.Prewt), rtol=1e-8)
+    gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
+              Normal(), LogLink(), offset=anorexia.Prewt, rtol=1e-8)
 
     @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
-    @test_throws ErrorException nulldeviance(gm7)
+    @test isapprox(nulldeviance(gm7), 507625.1718547432)
     @test isapprox(loglikelihood(gm7), -239.48242060326643)
-    @test_throws ErrorException nullloglikelihood(gm7)
+    @test isapprox(nullloglikelihood(gm7), -421.1535438334255)
     @test isapprox(coef(gm7),
         [3.99232679, -0.99445269, -0.05069826, 0.05149403])
     @test isapprox(GLM.dispersion(gm7.model, true), 48.017753573192266)
@@ -376,25 +374,9 @@ end
     @test loglikelihood(gm7pw) ≈ -610.3058020030296
     @test nullloglikelihood(gm7pw) ≈ -635.0394727915523
     @test coef(gm7pw) ≈
-        [0.61587278, -0.00700535, -0.048518903, 0.05331228]
+        [0.6038154675, -0.0070083965, -0.038390455, 0.0893445315]
     @test stderror(gm7pw) ≈
-        [0.2091138392, 0.0025136984, 0.0297381842, 0.0324618795]
-end
-
-@testset "Binomial offset" begin
-    gm7b = fit(GeneralizedLinearModel, @formula(Postwt > 85 ~ 1 + Prewt + Treat), anorexia,
-               Bernoulli(), LogitLink(), offset=anorexia.Prewt, rtol=1e-8)
-
-    @test GLM.cancancel(gm7b.model.rr)
-    test_show(gm7b)
-    @test deviance(gm7b) ≈ 84.22197576656897
-    @test nulldeviance(gm7b) ≈ 234.09870393456322
-    @test loglikelihood(gm7b) ≈ -245.92639857546905
-    @test nullloglikelihood(gm7b) ≈ -253.4578465241127
-    @test coef(gm7b) ≈
-        [0.61587278, -0.00700535, -0.048518903, 0.05331228]
-    @test stderror(gm7b) ≈
-        [0.2091138392, 0.0025136984, 0.0297381842, 0.0324618795]
+        [0.1318509718, 0.0015910084, 0.0190289059, 0.0202335849]
 end
 
 ## Gamma example from McCullagh & Nelder (1989, pp. 300-2)

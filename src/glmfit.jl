@@ -228,7 +228,14 @@ mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     rr::G
     pp::L
     fit::Bool
+    maxiter::Int
+    minstepfac::Float64
+    atol::Float64
+    rtol::Float64
 end
+
+GeneralizedLinearModel(rr::GlmResp, pp::LinPred, fit::Bool) =
+    GeneralizedLinearModel(rr, pp, fit, 0, NaN, NaN, NaN)
 
 function coeftable(mm::AbstractGLM; level::Real=0.95)
     cc = coef(mm)
@@ -248,21 +255,16 @@ end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
-function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any, L}}) where L
+function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) where L
     r      = m.rr
     wts    = weights(r.wts)
     y      = r.y
     d      = r.d
     offset = r.offset
 
-    if !(d isa Union{Bernoulli, Binomial, Poisson}) && !isempty(offset)
-        throw(ArgumentError("only Bernoulli, Binomial and Poisson distributions " *
-                            "are currently supported with offset"))
-    end
-
     dev = zero(eltype(y))
-    if isempty(offset)
-        if length(wts) == length(y)
+    if isempty(offset) # Faster method
+        if !isempty(wts)
             mu = mean(y, weights(wts))
             @inbounds for i in eachindex(y, wts)
                 dev += wts[i] * devresid(d, y[i], mu)
@@ -274,27 +276,11 @@ function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any, L}}) wher
             end
         end
     else
-        if length(wts) == length(y)
-            # TODO: ratio of means is equal to ratio of sums
-            my = mean(y, wts)
-            moffset = sum(Base.broadcasted((x, w) -> linkinv(L(), x) * w, offset, wts))/sum(wts)
-            eta = linkfun(L(), my/moffset)
-            @inbounds for i in eachindex(y, wts)
-                mui = linkinv(L(), eta + offset[i])
-                dev += wts[i] * devresid(d, y[i], mui)
-            end
-        else
-            my = mean(y)
-            moffset = mean(x -> linkinv(L(), x), big.(offset))
-            @show my, moffset
-
-            eta = linkfun(L(), my/moffset)
-            @inbounds for i in eachindex(y, offset)
-                mui = linkinv(L(), eta + offset[i])
-                @show devresid(d, y[i], mui)
-                dev += devresid(d, y[i], mui)
-            end
-        end
+        nullm = fit(GeneralizedLinearModel,
+                    fill(1.0, length(y), 1), y, d, L(), wts=wts, offset=offset,
+                    maxiter=m.maxiter, minstepfac=m.minstepfac,
+                    atol=m.atol, rtol=m.rtol)
+        dev = deviance(nullm)
     end
     return dev
 end
@@ -306,7 +292,7 @@ function loglikelihood(m::AbstractGLM)
     mu  = r.mu
     d   = r.d
     ll  = zero(eltype(mu))
-    if length(wts) == length(y)
+    if !isempty(wts)
         ϕ = deviance(m)/sum(wts)
         @inbounds for i in eachindex(y, mu, wts)
             ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
@@ -320,22 +306,17 @@ function loglikelihood(m::AbstractGLM)
     ll
 end
 
-function nullloglikelihood(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any, L}}) where L
+function nullloglikelihood(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) where L
     r      = m.rr
-    wts    = weights(r.wts)
+    wts    = r.wts
     y      = r.y
     d      = r.d
     offset = r.offset
 
-    if !(L <: Union{Bernoulli, Binomial, Poisson}) && !isempty(offset)
-        throw(ArgumentError("only Bernoulli, Binomial and Poisson distributions " *
-                            "are currently supported with offset"))
-    end
-
     ll  = zero(eltype(y))
 
-    if isempty(r.offset)
-        if length(wts) == length(y)
+    if isempty(r.offset) # Faster method
+        if !isempty(wts)
             mu = mean(r.y, weights(wts))
             ϕ = nulldeviance(m)/sum(wts)
             @inbounds for i in eachindex(y, wts)
@@ -349,23 +330,11 @@ function nullloglikelihood(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any, L}})
             end
         end
     else
-        if length(wts) == length(y)
-            my = mean(y, wts)
-            moffset = sum(Base.broadcasted((x, w) -> linkinv(L(), x) * w, offset, wts))/sum(wts)
-            eta = linkfun(L(), my/moffset)
-            ϕ = nulldeviance(m)/sum(wts)
-            @inbounds for i in eachindex(y, wts)
-                mui = linkinv(L(), eta + offset[i])
-                ll += loglik_obs(d, y[i], mui, wts[i], ϕ)
-            end
-        else
-            eta = linkfun(L(), mean(y) / mean(x -> linkinv(L(), x), offset))
-            ϕ = nulldeviance(m)/length(y)
-            @inbounds for i in eachindex(y, offset)
-                mui = linkinv(L(), eta + offset[i])
-                ll += loglik_obs(d, y[i], mui, 1, ϕ)
-            end
-        end
+        nullm = fit(GeneralizedLinearModel,
+                    fill(1.0, length(y), 1), y, d, L(), wts=wts, offset=offset,
+                    maxiter=m.maxiter, minstepfac=m.minstepfac,
+                    atol=m.atol, rtol=m.rtol)
+        ll = loglikelihood(nullm)
     end
     return ll
 end
@@ -475,6 +444,11 @@ function StatsBase.fit!(m::AbstractGLM;
         rtol = kwargs[:tol]
     end
 
+    m.maxiter = maxiter
+    m.minstepfac = minstepfac
+    m.atol = atol
+    m.rtol = rtol
+
     _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
 end
 
@@ -519,6 +493,10 @@ function StatsBase.fit!(m::AbstractGLM,
     updateμ!(r, r.eta)
     fill!(m.pp.beta0, 0)
     m.fit = false
+    m.maxiter = maxiter
+    m.minstepfac = minstepfac
+    m.atol = atol
+    m.rtol = rtol
     if dofit
         _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
     else
