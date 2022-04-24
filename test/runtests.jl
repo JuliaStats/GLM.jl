@@ -1164,7 +1164,8 @@ end
         @test coef(mdl) ≈ [-0.051323413605527, 0.014286863108177, 0.150331244093515]
         @test stderror(mdl) ≈ [0.22409428535, 0.00334243140, 0.00583824078] atol=1.0e-5
         @test confint(mdl) ≈ [-0.492662575350799992 0.38142669625130310;
-        0.007782050247944785 0.02082315251811211; 0.139020340418155641 0.16184256030515429] atol=1.0e-2
+                               0.007782050247944785 0.02082315251811211;
+                               0.139020340418155641 0.16184256030515429] atol=1.0e-2
         @test dof(mdl) == 4
         @test GLM.dispersion(mdl.model, true) ≈ 6.577133411105055 atol=1.0e-4
         @test loglikelihood(mdl) ≈ -71.60507986988925
@@ -1177,29 +1178,41 @@ end
         mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), LogLink())
         @test coef(mdl1) ≈ coef(mdl2)
         @test stderror(mdl1) ≈ stderror(mdl2)
+        @test dof(mdl1) == dof(mdl2)
+        @test dof_residual(mdl1) == dof_residual(mdl2)
+        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
         @test confint(mdl1) ≈ confint(mdl2)
         @test aic(mdl1) ≈ aic(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
-        @test GLM.dispersion(mdl1.model) ≈ GLM.dispersion(mdl2.model)
     end
     @testset "Compare PowerLink(0.5) and SqrtLink" begin
         mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(0.5))
         mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), SqrtLink())
         @test coef(mdl1) ≈ coef(mdl2)
         @test stderror(mdl1) ≈ stderror(mdl2)
+        @test dof(mdl1) == dof(mdl2)
+        @test dof_residual(mdl1) == dof_residual(mdl2)
+        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
         @test confint(mdl1) ≈ confint(mdl2)
         @test aic(mdl1) ≈ aic(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
-        @test GLM.dispersion(mdl1.model) ≈ GLM.dispersion(mdl2.model)
     end
     @testset "Compare PowerLink(1) and IdentityLink" begin
         mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1))
         mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), IdentityLink())
         @test coef(mdl1) ≈ coef(mdl2)
         @test stderror(mdl1) ≈ stderror(mdl2)
+        @test dof(mdl1) == dof(mdl2)
+        @test dof_residual(mdl1) == dof_residual(mdl2)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
         @test confint(mdl1) ≈ confint(mdl2)
         @test aic(mdl1) ≈ aic(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
-        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
     end
 end

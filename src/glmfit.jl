@@ -509,7 +509,6 @@ $FIT_GLM_DOC
 """
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
-GLM.Link(mm::AbstractGLM) = mm.l
 GLM.Link(r::GlmResp) = r.link
 GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
 
