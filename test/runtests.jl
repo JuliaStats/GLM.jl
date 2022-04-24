@@ -218,6 +218,7 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     test_show(gm1)
     @test dof(gm1) == 5
     @test isapprox(deviance(gm1), 5.12914107700115, rtol = 1e-7)
+    @test isapprox(nulldeviance(gm1), 10.581445863750867, rtol = 1e-7)
     @test isapprox(loglikelihood(gm1), -23.380659200978837, rtol = 1e-7)
     @test isapprox(nullloglikelihood(gm1), -26.10681159435372, rtol = 1e-7)
     @test isapprox(aic(gm1), 56.76131840195767)
@@ -237,6 +238,7 @@ admit.rank = categorical(admit.rank)
     test_show(gm2)
     @test dof(gm2) == 6
     @test deviance(gm2) ≈ 458.5174924758994
+    @test nulldeviance(gm2) ≈ 499.9765175549154
     @test loglikelihood(gm2) ≈ -229.25874623794968
     @test nullloglikelihood(gm2) ≈ -249.9882587774585
     @test isapprox(aic(gm2), 470.51749247589936)
@@ -254,6 +256,7 @@ end
     @test !GLM.cancancel(gm3.model.rr)
     @test dof(gm3) == 6
     @test isapprox(deviance(gm3), 458.4131713833386)
+    @test isapprox(nulldeviance(gm3), 499.9765175549236)
     @test isapprox(loglikelihood(gm3), -229.20658569166932)
     @test isapprox(nullloglikelihood(gm3), -249.9882587774585)
     @test isapprox(aic(gm3), 470.41317138333864)
@@ -271,6 +274,7 @@ end
     test_show(gm4)
     @test dof(gm4) == 6
     @test isapprox(deviance(gm4), 459.3401112751141)
+    @test isapprox(nulldeviance(gm4), 499.9765175549311)
     @test isapprox(loglikelihood(gm4), -229.6700556375571)
     @test isapprox(nullloglikelihood(gm4), -249.9882587774585)
     @test isapprox(aic(gm4), 471.3401112751142)
@@ -285,6 +289,7 @@ end
     test_show(gm5)
     @test dof(gm5) == 6
     @test isapprox(deviance(gm5), 458.89439629612616)
+    @test isapprox(nulldeviance(gm5), 499.97651755491677)
     @test isapprox(loglikelihood(gm5), -229.44719814806314)
     @test isapprox(nullloglikelihood(gm5), -249.9882587774585)
     @test isapprox(aic(gm5), 470.8943962961263)
