@@ -249,11 +249,16 @@ end
 deviance(m::AbstractGLM) = deviance(m.rr)
 
 function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any, L}}) where L
-    r   = m.rr
-    wts = r.wts
-    y   = r.y
-    d   = r.d
+    r      = m.rr
+    wts    = weights(r.wts)
+    y      = r.y
+    d      = r.d
     offset = r.offset
+
+    if !(d isa Union{Bernoulli, Binomial, Poisson}) && !isempty(offset)
+        throw(ArgumentError("only Bernoulli, Binomial and Poisson distributions " *
+                            "are currently supported with offset"))
+    end
 
     dev = zero(eltype(y))
     if isempty(offset)
@@ -270,15 +275,23 @@ function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any, L}}) wher
         end
     else
         if length(wts) == length(y)
-            # FIXME
-            mu = mean(y, weights(wts))
+            # TODO: ratio of means is equal to ratio of sums
+            my = mean(y, wts)
+            moffset = sum(Base.broadcasted((x, w) -> linkinv(L(), x) * w, offset, wts))/sum(wts)
+            eta = linkfun(L(), my/moffset)
             @inbounds for i in eachindex(y, wts)
-                dev += wts[i] * devresid(d, y[i], mu)
+                mui = linkinv(L(), eta + offset[i])
+                dev += wts[i] * devresid(d, y[i], mui)
             end
         else
-            eta = linkfun(L(), mean(y) / mean(x -> linkinv(L(), x), offset))
+            my = mean(y)
+            moffset = mean(x -> linkinv(L(), x), big.(offset))
+            @show my, moffset
+
+            eta = linkfun(L(), my/moffset)
             @inbounds for i in eachindex(y, offset)
                 mui = linkinv(L(), eta + offset[i])
+                @show devresid(d, y[i], mui)
                 dev += devresid(d, y[i], mui)
             end
         end
@@ -307,27 +320,51 @@ function loglikelihood(m::AbstractGLM)
     ll
 end
 
-function nullloglikelihood(m::AbstractGLM)
-    r   = m.rr
-    wts = r.wts
-    y   = r.y
-    d   = r.d
+function nullloglikelihood(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any, L}}) where L
+    r      = m.rr
+    wts    = weights(r.wts)
+    y      = r.y
+    d      = r.d
+    offset = r.offset
 
-    isempty(r.offset) ||
-        throw(ErrorException("models with offsets are currently not supported"))
+    if !(L <: Union{Bernoulli, Binomial, Poisson}) && !isempty(offset)
+        throw(ArgumentError("only Bernoulli, Binomial and Poisson distributions " *
+                            "are currently supported with offset"))
+    end
 
     ll  = zero(eltype(y))
-    if length(wts) == length(y)
-        mu = mean(r.y, weights(wts))
-        ϕ = nulldeviance(m)/sum(wts)
-        @inbounds for i in eachindex(y, wts)
-            ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
+
+    if isempty(r.offset)
+        if length(wts) == length(y)
+            mu = mean(r.y, weights(wts))
+            ϕ = nulldeviance(m)/sum(wts)
+            @inbounds for i in eachindex(y, wts)
+                ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
+            end
+        else
+            mu = mean(r.y)
+            ϕ = nulldeviance(m)/length(y)
+            @inbounds for i in eachindex(y)
+                ll += loglik_obs(d, y[i], mu, 1, ϕ)
+            end
         end
     else
-        mu = mean(r.y)
-        ϕ = nulldeviance(m)/length(y)
-        @inbounds for i in eachindex(y)
-            ll += loglik_obs(d, y[i], mu, 1, ϕ)
+        if length(wts) == length(y)
+            my = mean(y, wts)
+            moffset = sum(Base.broadcasted((x, w) -> linkinv(L(), x) * w, offset, wts))/sum(wts)
+            eta = linkfun(L(), my/moffset)
+            ϕ = nulldeviance(m)/sum(wts)
+            @inbounds for i in eachindex(y, wts)
+                mui = linkinv(L(), eta + offset[i])
+                ll += loglik_obs(d, y[i], mui, wts[i], ϕ)
+            end
+        else
+            eta = linkfun(L(), mean(y) / mean(x -> linkinv(L(), x), offset))
+            ϕ = nulldeviance(m)/length(y)
+            @inbounds for i in eachindex(y, offset)
+                mui = linkinv(L(), eta + offset[i])
+                ll += loglik_obs(d, y[i], mui, 1, ϕ)
+            end
         end
     end
     return ll

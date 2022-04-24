@@ -307,13 +307,9 @@ end
 ## Example with offsets from Venables & Ripley (2002, p.189)
 anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
 
-@testset "Offset" begin
+@testset "Normal offset" begin
     gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
               Normal(), IdentityLink(), offset=Array{Float64}(anorexia.Prewt))
-    gm6n = fit(GeneralizedLinearModel, @formula(Postwt ~ 1), anorexia,
-               Normal(), IdentityLink(), offset=Array{Float64}(anorexia.Prewt))
-    gm6.model.rr.eta - gm6.model.rr.offset
-    mean(gm6.model.rr.y - gm6n.model.rr.offset)
 
     @test GLM.cancancel(gm6.model.rr)
     test_show(gm6)
@@ -334,15 +330,9 @@ end
 
 @testset "Normal LogLink offset" begin
     gm7 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat), anorexia,
-              Poisson(), LogLink(), offset=log.(Array{Float64}(anorexia.Prewt)), rtol=1e-8)
+              Normal(), LogLink(), offset=Array{Float64}(anorexia.Prewt), rtol=1e-8)
     gm7n = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1), anorexia,
-               Poisson(), LogLink(), offset=log.(anorexia.Prewt), rtol=1e-8)
-    log(mean(exp.(log.(gm7.model.rr.y) .- gm7n.model.rr.offset)))
-    log(mean(gm7n.model.rr.y ./ exp.(gm7n.model.rr.offset)))
-    mean(gm7n.model.rr.eta .- gm7n.model.rr.offset)
-    log(mean(gm7n.model.rr.y) / mean(exp.(gm7n.model.rr.offset)))
-    mean(gm7n.model.rr.eta) - mean(gm7n.model.rr.offset)
-    exp.(log(mean(gm7n.model.rr.y) / mean(exp.(gm7n.model.rr.offset))) .+ gm7n.model.rr.offset) ≈ gm7n.model.rr.mu
+               Normal(), LogLink(), offset=Array{Float64}(anorexia.Prewt), rtol=1e-8)
 
     @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
@@ -356,6 +346,55 @@ end
     @test isapprox(stderror(gm7),
         [0.157167944, 0.001886286, 0.022584069, 0.023882826],
         atol=1e-6)
+end
+
+@testset "Poisson LogLink offset" begin
+    gm7p = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat), anorexia,
+               Poisson(), LogLink(), offset=log.(anorexia.Prewt), rtol=1e-8)
+
+    @test GLM.cancancel(gm7p.model.rr)
+    test_show(gm7p)
+    @test deviance(gm7p) ≈ 39.686114742427705
+    @test nulldeviance(gm7p) ≈ 54.749010639715294
+    @test loglikelihood(gm7p) ≈ -245.92639857546905
+    @test nullloglikelihood(gm7p) ≈ -253.4578465241127
+    @test coef(gm7p) ≈
+        [0.61587278, -0.00700535, -0.048518903, 0.05331228]
+    @test stderror(gm7p) ≈
+        [0.2091138392, 0.0025136984, 0.0297381842, 0.0324618795]
+end
+
+@testset "Poisson LogLink offset with weights" begin
+    gm7pw = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat), anorexia,
+                Poisson(), LogLink(), offset=log.(anorexia.Prewt),
+                wts=repeat(1:4, outer=18), rtol=1e-8)
+
+    @test GLM.cancancel(gm7pw.model.rr)
+    test_show(gm7pw)
+    @test deviance(gm7pw) ≈ 90.17048668870225
+    @test nulldeviance(gm7pw) ≈ 139.63782826574652
+    @test loglikelihood(gm7pw) ≈ -610.3058020030296
+    @test nullloglikelihood(gm7pw) ≈ -635.0394727915523
+    @test coef(gm7pw) ≈
+        [0.61587278, -0.00700535, -0.048518903, 0.05331228]
+    @test stderror(gm7pw) ≈
+        [0.2091138392, 0.0025136984, 0.0297381842, 0.0324618795]
+end
+
+@testset "Binomial offset" begin
+    gm7b = fit(GeneralizedLinearModel, @formula(Postwt > 85 ~ 1 + Prewt + Treat), anorexia,
+               Bernoulli(), LogitLink(), offset=anorexia.Prewt, rtol=1e-8)
+
+    @test GLM.cancancel(gm7b.model.rr)
+    test_show(gm7b)
+    @test deviance(gm7b) ≈ 84.22197576656897
+    @test nulldeviance(gm7b) ≈ 234.09870393456322
+    @test loglikelihood(gm7b) ≈ -245.92639857546905
+    @test nullloglikelihood(gm7b) ≈ -253.4578465241127
+    @test coef(gm7b) ≈
+        [0.61587278, -0.00700535, -0.048518903, 0.05331228]
+    @test stderror(gm7b) ≈
+        [0.2091138392, 0.0025136984, 0.0297381842, 0.0324618795]
 end
 
 ## Gamma example from McCullagh & Nelder (1989, pp. 300-2)
