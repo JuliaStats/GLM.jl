@@ -1131,6 +1131,17 @@ end
 
     nointerceptmod = lm(reshape(d.Treatment, :, 1), d.Result)
     @test !hasintercept(nointerceptmod)
+    @test_logs((:warn,
+                "model does not have an intercept, null deviance cannot be interpreted"),
+                nulldeviance(nointerceptmod))
+    @test_logs((:warn,
+                "model does not have an intercept, null log-likelihood cannot be interpreted"),
+                nullloglikelihood(nointerceptmod))
+
+    nointerceptmod2 = glm(reshape(d.Treatment, :, 1), d.Result, Normal(), IdentityLink())
+    @test !hasintercept(nointerceptmod2)
+    @test_throws ArgumentError nulldeviance(nointerceptmod2)
+    @test_throws ArgumentError nullloglikelihood(nointerceptmod2)
 
     rng = StableRNG(1234321)
     secondcolinterceptmod = glm([randn(rng, 5) ones(5)], ones(5), Binomial(), LogitLink())

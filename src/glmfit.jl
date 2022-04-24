@@ -256,12 +256,14 @@ end
 deviance(m::AbstractGLM) = deviance(m.rr)
 
 function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) where L
+    hasintercept(m) ||
+        throw(ArgumentError("model does not have an intercept, " *
+                            "null deviance cannot be interpreted"))
     r      = m.rr
     wts    = weights(r.wts)
     y      = r.y
     d      = r.d
     offset = r.offset
-
     dev = zero(eltype(y))
     if isempty(offset) # Faster method
         if !isempty(wts)
@@ -307,14 +309,16 @@ function loglikelihood(m::AbstractGLM)
 end
 
 function nullloglikelihood(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) where L
+    hasintercept(m) ||
+        throw(ArgumentError("model does not have an intercept, " *
+                            "null log-likelihood cannot be interpreted"))
+
     r      = m.rr
     wts    = r.wts
     y      = r.y
     d      = r.d
     offset = r.offset
-
     ll  = zero(eltype(y))
-
     if isempty(r.offset) # Faster method
         if !isempty(wts)
             mu = mean(r.y, weights(wts))

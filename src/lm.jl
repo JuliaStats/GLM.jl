@@ -195,14 +195,26 @@ For linear models, the deviance is equal to the residual sum of squares (RSS).
 """
 deviance(obj::LinearModel) = deviance(obj.rr)
 
+loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
+
 """
     nulldeviance(obj::LinearModel)
 
 For linear models, the deviance of the null model is equal to the total sum of squares (TSS).
 """
-nulldeviance(obj::LinearModel) = nulldeviance(obj.rr)
-loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
-nullloglikelihood(obj::LinearModel) = nullloglikelihood(obj.rr)
+function nulldeviance(obj::LinearModel)
+    hasintercept(obj) ||
+        @warn("model does not have an intercept, null deviance cannot be interpreted")
+
+    return nulldeviance(obj.rr)
+end
+
+function nullloglikelihood(obj::LinearModel)
+    hasintercept(obj) ||
+        @warn("model does not have an intercept, null log-likelihood cannot be interpreted")
+
+    return nullloglikelihood(obj.rr)
+end
 
 r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
 
