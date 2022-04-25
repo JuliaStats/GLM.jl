@@ -147,7 +147,9 @@ F-test: 2 models fitted on 50 observations
 ## Methods applied to fitted models
 
 Many of the methods provided by this package have names similar to those in [R](http://www.r-project.org).
-- `adjr2`:  adjusted R² for a linear model
+- `adjr2`:  adjusted R² for a linear model (an alias for `adjr²`)
+- `aic`: Akaike's Information Criterion, defined as ``-2 \\log L + 2k``, with ``L`` the likelihood of the model, and `k` it the number of consumed degrees of freedom
+- `aicc`: corrected Akaike's Information Criterion for small sample sizes (Hurvich and Tsai 1989)
 - `bic`: Bayesian Information Criterion, defined as ``-2 \\log L + k \\log n``, with ``L``
 the likelihood of the model, ``k`` is the number of consumed degrees of freedom
 - `coef`: extract the estimates of the coefficients in the model
@@ -159,8 +161,6 @@ when applicable the intercept and the distribution's dispersion parameter
 - `dof_residual`: degrees of freedom for residuals, when meaningful
 - `fitted`: return the fitted values of the model
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
-- `aic`: Akaike's Information Criterion, defined as ``-2 \\log L + 2k``, with ``L`` the likelihood of the model, and `k` it the number of consumed degrees of freedom
-- `aicc`: corrected Akaike's Information Criterion for small sample sizes (Hurvich and Tsai 1989)
 - `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
 - `loglikelihood`: return the log-likelihood of the model
 - `modelmatrix`: return the design matrix
@@ -168,7 +168,7 @@ when applicable the intercept and the distribution's dispersion parameter
 - `nulldeviance`: return the deviance of the linear model which includs the intercept only
 - `nullloglikelihood`: return the log-likelihood of the null model corresponding to the fitted linear model
 - `predict` : obtain predicted values of the dependent variable from the fitted model
-- `r2`: R² of a linear model
+- `r2`: R² of a linear model (an alias for `r²`)
 - `residuals`: get the vector of residuals from the fitted model
 - `response`: return the model response (a.k.a the dependent variable)
 - `stderror`: standard errors of the coefficients
@@ -179,23 +179,29 @@ Note that the canonical link for negative binomial regression is `NegativeBinomi
 in practice one typically uses `LogLink`.
 
 ```jldoctest methods
-julia> using GLM, DataFrames
-julia> data = DataFrame(X=[1,2,3], y=[2,4,7])
-julia> test_data = DataFrame(X=[4])
-julia> mdl = lm(@formula(y ~  X), data)
-julia> r2(mdl)
-0.9868421052631579
+julia> using GLM, DataFrames;
 
-julia> adjr2(mdl)
-0.9736842105263157
+julia> data = DataFrame(X=[1,2,3], y=[2,4,7]);
 
-julia> bic(mdl)
-3.1383527915438716
+julia> test_data = DataFrame(X=[4]);
+
+julia> mdl = lm(@formula(y ~  X), data);
 
 julia> coef(mdl)
 2-element Vector{Float64}:
  -0.6666666666666728
   2.500000000000003
+  
+julia> stderror(mdl)
+2-element Vector{Float64}:
+ 0.6236095644623237
+ 0.2886751345948129
+
+julia> r2(mdl)
+0.9868421052631579
+
+julia> adjr2(mdl)
+0.9736842105263157
 
 julia> confint(mdl, level=0.90)
 2×2 Matrix{Float64}:
@@ -217,6 +223,9 @@ julia> aic(mdl)
 julia> aicc(mdl)
 -18.157484074460456
 
+julia> bic(mdl)
+3.1383527915438716
+
 julia> loglikelihood(mdl)
 0.07874203723022877
 
@@ -236,11 +245,6 @@ julia> predict(mdl)
 julia> predict(mdl, test_data)
 1-element Vector{Union{Missing, Float64}}:
  9.33333333333334
-
-julia> stderror(mdl)
-2-element Vector{Float64}:
- 0.6236095644623237
- 0.2886751345948129
 ```
 `cooksdistance` method computes [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation in linear model `obj`, giving an estimate of the influence of each data point. Currently only implemented for linear models without weights.
 
