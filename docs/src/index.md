@@ -34,7 +34,7 @@ functions are
            Bernoulli (LogitLink)
             Binomial (LogitLink)
                Gamma (InverseLink)
-               Geometric (LogLink)
+           Geometric (LogLink)
      InverseGaussian (InverseSquareLink)
     NegativeBinomial (NegativeBinomialLink, often used with LogLink)
               Normal (IdentityLink)
