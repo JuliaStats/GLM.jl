@@ -477,7 +477,7 @@ function loglik_obs end
 loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
 loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), Int(y*wt))
 loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
-# In Julia, a Geometric distribution characterizes the number of failures before 
+# In Distributions.jl, a Geometric distribution characterizes the number of failures before 
 # the first success in a sequence of independent Bernoulli trials with success rate p.
 # The mean of Geometric distribution is (1 - p) / p.
 # Hence, p = 1 / (1 + μ).
