@@ -65,13 +65,16 @@ function deviance(r::LmResp)
     v
 end
 
-function nulldeviance(r::LmResp)
+function nulldeviance(r::LmResp, hasintercept::Bool=true)
     y = r.y
     wts = r.wts
-    if isempty(wts)
-        m = mean(y)
-    else 
-        m = mean(r.y, weights(r.wts))
+    m = 0.0
+    if(hasintercept)
+        if isempty(wts)
+            m = mean(y)
+        else 
+            m = mean(r.y, weights(r.wts))
+        end
     end
 
     v = zero(eltype(y))*zero(eltype(wts))
@@ -200,7 +203,7 @@ deviance(obj::LinearModel) = deviance(obj.rr)
 
 For linear models, the deviance of the null model is equal to the total sum of squares (TSS).
 """
-nulldeviance(obj::LinearModel) = nulldeviance(obj.rr)
+nulldeviance(obj::LinearModel) = nulldeviance(obj.rr, hasintercept(obj))
 loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
 nullloglikelihood(obj::LinearModel) = nullloglikelihood(obj.rr)
 

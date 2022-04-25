@@ -207,6 +207,18 @@ end
     @test_broken glm(@formula(y ~ x1 + x2), df, Normal(), IdentityLink())
 end
 
+@testset "Linear model with no intercept" begin
+    # test case to test r2 for no intercept model
+    # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt1.dat
+
+    data = DataFrame(x = 60:70, y = 130:140)
+    mdl = lm(@formula(y ~ 0 + x), data)
+    @test coef(mdl) ≈ [2.07438016528926]
+    @test stderror(mdl) ≈ [0.165289256198347E-01]
+    @test GLM.dispersion(mdl.model) ≈ 3.56753034006338
+    @test r2(mdl) ≈ 0.999365492298663
+end
+
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     Outcome = categorical(repeat(string.('A':'C'), outer = 3)),
     Treatment = categorical(repeat(string.('a':'c'), inner = 3)))
