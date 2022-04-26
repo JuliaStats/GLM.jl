@@ -432,8 +432,8 @@ function devresid(::Binomial, y, μ::Real)
 end
 devresid(::Gamma, y, μ::Real) = -2 * (log(y / μ) - (y - μ) / μ)
 function devresid(::Geometric, y, μ::Real)
-    v = 2 * (xlogy(y, y / μ) + xlogy(y + 1, (μ + 1) / (y + 1)))
-    return μ == 0 ? oftype(v, NaN) : v
+    μ == 0 && return oftype(μ, NaN)
+    return 2 * (xlogy(y, y / μ) - xlogy(y + 1, (y + 1) / (μ + 1)))
 end
 devresid(::InverseGaussian, y, μ::Real) = abs2(y - μ) / (y * abs2(μ))
 function devresid(d::NegativeBinomial, y, μ::Real)
