@@ -35,7 +35,7 @@ functions are
             Binomial (LogitLink)
                Gamma (InverseLink)
      InverseGaussian (InverseSquareLink)
-    NegativeBinomial (LogLink)
+    NegativeBinomial (NegativeBinomialLink, often used with LogLink)
               Normal (IdentityLink)
              Poisson (LogLink)
 
@@ -156,6 +156,7 @@ the likelihood of the model, ``k`` is the number of consumed degrees of freedom
 - `confint`: compute confidence intervals for coefficients, with confidence level `level` (by default 95%)
 - `cooksdistance`: compute [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation in linear model `obj`, giving an estimate of the influence of each data point. Currently only implemented for linear models without weights.
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
+- `dispersion`: return the estimated dispersion (or scale) parameter for a model's distribution
 - `dof`: return the number of degrees of freedom consumed in the model, including
 when applicable the intercept and the distribution's dispersion parameter
 - `dof_residual`: degrees of freedom for residuals, when meaningful
@@ -197,16 +198,16 @@ julia> stderror(mdl)
  0.6236095644623237
  0.2886751345948129
 
+julia> confint(mdl, level=0.90)
+2×2 Matrix{Float64}:
+ -4.60398   3.27065
+  0.677377  4.32262
+  
 julia> r2(mdl)
 0.9868421052631579
 
 julia> adjr2(mdl)
 0.9736842105263157
-
-julia> confint(mdl, level=0.90)
-2×2 Matrix{Float64}:
- -4.60398   3.27065
-  0.677377  4.32262
 
 julia> deviance(mdl)
 0.16666666666666666
@@ -226,14 +227,22 @@ julia> aicc(mdl)
 julia> bic(mdl)
 3.1383527915438716
 
+julia> dispersion(mdl.model)
+0.408248290463863
+
 julia> loglikelihood(mdl)
 0.07874203723022877
 
 julia> nullloglikelihood(mdl)
 -6.417357973199268
+
+julia> vcov(mdl)
+2×2 Matrix{Float64}:
+  0.388889  -0.166667
+ -0.166667   0.0833333
 ```
 `predict` method returns predicted values of response variable from covariate values `newX`.
-If you ommit `newX` then it return fitted response values.
+If you ommit `newX` then it return fitted response values. You will find more about [predict](https://juliastats.org/GLM.jl/stable/api/#StatsBase.predict) in the API docuemnt.
 
 ```jldoctest methods
 julia> predict(mdl)
@@ -241,6 +250,9 @@ julia> predict(mdl)
  1.8333333333333304
  4.333333333333333
  6.833333333333336
+
+julia> fitted(mdl) ≈ predict(mdl)
+true
 
 julia> predict(mdl, test_data)
 1-element Vector{Union{Missing, Float64}}:
