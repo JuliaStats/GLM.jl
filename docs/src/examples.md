@@ -339,3 +339,120 @@ Treatment: 3   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
 julia> round(deviance(gm1), digits=5)
 5.11746
 ```
+## Using Cook's distance
+It is possible to calculate Cook's distance on a fitted Linear Model, and this gives an estimate of the influence of each data point. More information about Cook's distance can be found on Wikipedia (https://en.wikipedia.org/wiki/Cook%27s_distance) or relevant papers authored by R Dennis Cook himself such as: https://conservancy.umn.edu/handle/11299/199280.
+
+Here we are only going to illustrate how the distance can be used to identify regions of the design space which require more attention.
+
+### Data creation through simulation
+Let's create a function p(x) that is linear on the major part of the region of interest. 
+
+```julia
+f(x) = @. 3x - 4  # linear function 
+h(x) = @. x^2 - 5 # non linear but relatively close to f when x is between 1 and 2
+p(x) = (x < 1 || x > 2) ? f.(x) : h.(x) # piecewise function
+```
+Let's plot p(x):
+```julia
+x = -5:0.1:5
+display(plot(x, p.(x), xlabel="x", ylabel="y", legend=false, title="True p function"))
+```
+![True P](artefacts/true_p.png)
+
+Now let's assume that observing/simulating `p(x)` add some noise (distributed according to a Normal distribution). Which we can model as: 
+```julia
+simulated(f, x, ϵ) = f.(x) .+ rand(Normal(0, ϵ), length(x))
+```
+and collect some data in a DataFrame in an interval/region of interest.
+
+```julia
+simulated(f, x, ϵ) = f.(x) .+ rand(Normal(0, ϵ), length(x))
+
+data = DataFrame(x=collect(x), y=simulated(p, x, 0.5))
+display(@df data plot(:x, :y, title="simulated p function with some noise"))
+
+```
+![Simulated P](artefacts/simulated_p.png)
+
+### Linear Regression
+
+Now we can do the linear regression on the collected data using the GLM package.
+```julia
+ols = lm(@formula(y ~ 1 + x), df)
+@show(ols)
+@show(r2(ols))
+```
+which outputs:
+```
+y ~ 1 + x
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────
+                Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
+─────────────────────────────────────────────────────────────────────────
+(Intercept)  -4.32483   0.0970727  -44.55    <1e-66   -4.51744   -4.13222
+x             2.93773   0.0332957   88.23    <1e-95    2.87167    3.0038
+─────────────────────────────────────────────────────────────────────────
+r2(ols) = 0.9874426347136959
+```
+Indicating an extremely good fit, which is to be expected given how we created the data. We can contrast this output to the output resulting from the simulated function f alone. 
+
+```julia
+dataf = DataFrame(x=collect(x), y=simulated(f, x, 0.5))
+olsf = lm(@formula(y ~ 1 + x), dataf)
+@show(olsf)
+@show(r2(olsf))
+```
+which would output:
+```
+y ~ 1 + x
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────
+                Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
+─────────────────────────────────────────────────────────────────────────
+(Intercept)  -4.02288   0.0525136  -76.61    <1e-89   -4.12708   -3.91869
+x             3.00479   0.018012   166.82    <1e-99    2.96905    3.04053
+─────────────────────────────────────────────────────────────────────────
+r2(olsf) = 0.9964552085765462
+0.9964552085765462
+```
+Which gives similar results. Indeed the estimates for x and the intercept are closer to the truth but we know that only because we know how the data was made.
+
+We could try to investigate the confidence interval for the mean of the predictions on the region of interest.
+
+```julia
+pred = predict(ols, data, interval=:confidence)
+plot(x, pred.prediction, label="prediction")
+plot!(x, pred.lower, label="lower")
+plot!(x, pred.upper, label="lower", legend=:top)
+```
+Which outputs:
+![Confidence](artefacts/conf_interval.png)
+
+Nothing of interest is presented between 1 and 2, this is because of the nature of the confidence interval. Hence this will not give much information for our current purpose.
+
+### Using Cook's distance
+
+Plotting the results of the cooks distance: 
+
+```julia
+function plot_x_cooksdistance(x, cooksd)
+	scatter(x, cooksd, label=false, ms=0, xlabel="x", ylabel="Cook's Distance") # I did not find a better way not to have a marker.
+	hline!([4 / length(x)], color=:lightgray, ls=:dash, label="4/n (4/$(length(x)))")
+	for i in 1:length(x)
+		plot!([x[i], x[i]], [0, cooksd[i]], label=false, color=1)
+	end
+	plot!(legend=:top)
+end
+plot_x_cooksdistance(data.x, data.cooksd)
+```
+will output the following:
+
+![Cook's distance](artefacts/cooksd.png)
+
+This gives us a view of which observations are influential and are impacting the estimation of coefficients resulting from the linear regression. Because the plotting follows the interval of interest, it is possible to understand which zone of our interval requires more attention (here between 1 and 2).
+
+The plotting works well here because we have univariate data. In the context of higher dimensions, it may be useful to either make a plot per dimension or to combine two-dimension through some heatmap.
+In this plot, the "threshold" of n/4 with n the number of observations, is only used to enhance the display and ease the visual inspection, and not as a strict threshold.
+
