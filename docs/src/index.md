@@ -188,29 +188,29 @@ julia> test_data = DataFrame(X=[4]);
 
 julia> mdl = lm(@formula(y ~  X), data);
 
-julia> coef(mdl)
+julia> round.(coef(mdl); digits=8)
 2-element Vector{Float64}:
- -0.6666666666666728
-  2.500000000000003
+ -0.66666667
+  2.5
   
-julia> stderror(mdl)
+julia> round.(stderror(mdl); digits=8)
 2-element Vector{Float64}:
- 0.6236095644623237
- 0.2886751345948129
+ 0.62360956
+ 0.28867513
 
-julia> confint(mdl, level=0.90)
+julia> round.(confint(mdl); digits=8)
 2×2 Matrix{Float64}:
- -4.60398   3.27065
-  0.677377  4.32262
+ -8.59038  7.25704
+ -1.16797  6.16797
   
-julia> r2(mdl)
-0.9868421052631579
+julia> round(r2(mdl); digits=8)
+0.98684211
 
-julia> adjr2(mdl)
-0.9736842105263157
+julia> round(adjr2(mdl); digits=8)
+0.97368421
 
-julia> deviance(mdl)
-0.16666666666666666
+julia> round(deviance(mdl); digits=8)
+0.16666667
 
 julia> dof(mdl)
 3
@@ -218,25 +218,25 @@ julia> dof(mdl)
 julia> dof_residual(mdl)
 1.0
 
-julia> aic(mdl)
-5.8425159255395425
+julia> round(aic(mdl); digits=8)
+5.84251593
 
-julia> aicc(mdl)
--18.157484074460456
+julia> round(aicc(mdl); digits=8)
+-18.15748407
 
-julia> bic(mdl)
-3.1383527915438716
+julia> round(bic(mdl); digits=8)
+3.13835279
 
-julia> dispersion(mdl.model)
-0.408248290463863
+julia> round(dispersion(mdl.model); digits=8)
+0.40824829
 
-julia> loglikelihood(mdl)
-0.07874203723022877
+julia> round(loglikelihood(mdl); digits=8)
+0.07874204
 
-julia> nullloglikelihood(mdl)
--6.417357973199268
+julia> round(nullloglikelihood(mdl); digits=8)
+-6.41735797
 
-julia> vcov(mdl)
+julia> round.(vcov(mdl); digits=8)
 2×2 Matrix{Float64}:
   0.388889  -0.166667
  -0.166667   0.0833333
@@ -245,27 +245,27 @@ julia> vcov(mdl)
 If you ommit `newX` then it return fitted response values. You will find more about [predict](https://juliastats.org/GLM.jl/stable/api/#StatsBase.predict) in the API docuemnt.
 
 ```jldoctest methods
-julia> predict(mdl)
+julia> round.(predict(mdl); digits=8)
 3-element Vector{Float64}:
- 1.8333333333333304
- 4.333333333333333
- 6.833333333333336
+ 1.83333333
+ 4.33333333
+ 6.83333333
 
 julia> fitted(mdl) ≈ predict(mdl)
 true
 
-julia> predict(mdl, test_data)
-1-element Vector{Union{Missing, Float64}}:
- 9.33333333333334
+julia> round.(predict(mdl, test_data); digits=8)
+1-element Vector{Float64}:
+ 9.33333333
 ```
 `cooksdistance` method computes [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation in linear model `obj`, giving an estimate of the influence of each data point. Currently only implemented for linear models without weights.
 
 ```jldoctest methods
-julia> cooksdistance(mdl)
+julia> round.(cooksdistance(mdl); digits=8)
 3-element Vector{Float64}:
- 2.500000000000079
- 0.2499999999999991
- 2.499999999999919
+ 2.5
+ 0.25
+ 2.5
 ```
 
 ## Separation of response object and predictor object
