@@ -65,39 +65,9 @@ function deviance(r::LmResp)
     v
 end
 
-function nulldeviance(r::LmResp, hasintercept::Bool=true)
-    y = r.y
-    wts = r.wts
-    m = 0.0
-    if(hasintercept)
-        if isempty(wts)
-            m = mean(y)
-        else 
-            m = mean(r.y, weights(r.wts))
-        end
-    end
-
-    v = zero(eltype(y))*zero(eltype(wts))
-    if isempty(wts)
-        @inbounds @simd for i = 1:length(y)
-            v += abs2(y[i] - m)
-        end
-    else
-        @inbounds @simd for i = 1:length(y)
-            v += abs2(y[i] - m)*wts[i]
-        end
-    end
-    v
-end
-
 function loglikelihood(r::LmResp)
     n = isempty(r.wts) ? length(r.y) : sum(r.wts)
     -n/2 * (log(2π * deviance(r)/n) + 1)
-end
-
-function nullloglikelihood(r::LmResp)
-    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
-    -n/2 * (log(2π * nulldeviance(r)/n) + 1) 
 end
 
 residuals(r::LmResp) = r.y - r.mu
@@ -203,18 +173,43 @@ deviance(obj::LinearModel) = deviance(obj.rr)
 
 For linear models, the deviance of the null model is equal to the total sum of squares (TSS).
 """
-nulldeviance(obj::LinearModel) = nulldeviance(obj.rr, hasintercept(obj))
+function nulldeviance(obj::LinearModel) 
+    y = obj.rr.y
+    wts = obj.rr.wts
+    
+    if(hasintercept(obj))
+        if isempty(wts)
+            m = mean(y)
+        else 
+            m = mean(y, weights(wts))
+        end
+    else
+        m = zero(eltype(y))
+    end
+
+    v = zero(eltype(y))*zero(eltype(wts))
+    if isempty(wts)
+        @inbounds @simd for i = 1:length(y)
+            v += abs2(y[i] - m)
+        end
+    else
+        @inbounds @simd for i = 1:length(y)
+            v += abs2(y[i] - m)*wts[i]
+        end
+    end
+    v
+end
+
 loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
-nullloglikelihood(obj::LinearModel) = nullloglikelihood(obj.rr)
+
+function nullloglikelihood(obj::LinearModel)
+    r = obj.rr
+    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+    -n/2 * (log(2π * nulldeviance(obj)/n) + 1) 
+end
 
 r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
-
-function adjr2(obj::LinearModel)
-    n = nobs(obj)
-    # dof() includes the dispersion parameter
-    p = dof(obj) - 1
-    1 - (1 - r²(obj))*(n-1)/(n-p)
-end
+adjr2(obj::LinearModel) = 1 - (1 - r²(obj))*(nobs(obj)-hasintercept(obj))/dof_residual(obj)
 
 function dispersion(x::LinearModel, sqr::Bool=false)
     dofr = dof_residual(x)
