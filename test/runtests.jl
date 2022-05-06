@@ -1160,18 +1160,15 @@ end
     end
     trees = dataset("datasets", "trees")
     @testset "GLM with PowerLink" begin
-        mdl = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1 / 3))
-        @test coef(mdl) ≈ [-0.051323413605527, 0.014286863108177, 0.150331244093515]
-        @test stderror(mdl) ≈ [0.22409428535, 0.00334243140, 0.00583824078] atol=1.0e-5
-        @test confint(mdl) ≈ [-0.492662575350799992 0.38142669625130310;
-                               0.007782050247944785 0.02082315251811211;
-                               0.139020340418155641 0.16184256030515429] atol=1.0e-2
+        mdl = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1 / 3);  rtol=1.0e-12, atol=1.0e-12)
+        @test coef(mdl) ≈ [-0.05132238692134761, 0.01428684676273272, 0.15033126098228242]
+        @test stderror(mdl) ≈ [0.224095414423756, 0.003342439119757, 0.005838227761632] atol=1.0e-8
         @test dof(mdl) == 4
-        @test GLM.dispersion(mdl.model, true) ≈ 6.577133411105055 atol=1.0e-4
-        @test loglikelihood(mdl) ≈ -71.60507986988925
-        @test deviance(mdl) ≈ 184.15774688122
-        @test aic(mdl) ≈ 151.21015973978
-        @test predict(mdl)[1] ≈ 10.59735242595150
+        @test GLM.dispersion(mdl.model, true) ≈ 6.577062388609384
+        @test loglikelihood(mdl) ≈ -71.60507986987612
+        @test deviance(mdl) ≈ 184.15774688106
+        @test aic(mdl) ≈ 151.21015973975
+        @test predict(mdl)[1] ≈ 10.59735275421753
     end
     @testset "Compare PowerLink(0) and LogLink" begin
         mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(0))
