@@ -189,8 +189,8 @@ function nulldeviance(obj::LinearModel)
 
     v = zero(eltype(y))*zero(eltype(wts))
     if isempty(wts)
-        @inbounds @simd for i = 1:length(y)
-            v += abs2(y[i] - m)
+        @inbounds @simd for yi in y
+            v += abs2(yi - m)
         end
     else
         @inbounds @simd for i = 1:length(y)
