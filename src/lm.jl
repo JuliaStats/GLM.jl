@@ -177,7 +177,7 @@ function nulldeviance(obj::LinearModel)
     y = obj.rr.y
     wts = obj.rr.wts
     
-    if(hasintercept(obj))
+    if hasintercept(obj)
         if isempty(wts)
             m = mean(y)
         else 
