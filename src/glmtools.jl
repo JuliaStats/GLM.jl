@@ -222,14 +222,14 @@ end
 linkfun(::IdentityLink, μ::Real) = μ
 linkinv(::IdentityLink, η::Real) = η
 mueta(::IdentityLink, η::Real) = one(η)
-inverselink(::IdentityLink, η::Real) = η, one(η), oftype(η, NaN)
+inverselink(::IdentityLink, η::Real) = η, one(η), convert(float(typeof(η)), NaN)
 
 linkfun(::InverseLink, μ::Real) = inv(μ)
 linkinv(::InverseLink, η::Real) = inv(η)
 mueta(::InverseLink, η::Real) = -inv(abs2(η))
 function inverselink(::InverseLink, η::Real)
     μ = inv(η)
-    return μ, -abs2(μ), oftype(μ, NaN)
+    return μ, -abs2(μ), convert(float(typeof(μ)), NaN)
 end
 
 linkfun(::InverseSquareLink, μ::Real) = inv(abs2(μ))
@@ -237,7 +237,7 @@ linkinv(::InverseSquareLink, η::Real) = inv(sqrt(η))
 mueta(::InverseSquareLink, η::Real) = -inv(2η*sqrt(η))
 function inverselink(::InverseSquareLink, η::Real)
     μ = inv(sqrt(η))
-    return μ, -μ / (2η), oftype(μ, NaN)
+    return μ, -μ / (2η), convert(float(typeof(μ)), NaN)
 end
 
 linkfun(::LogitLink, μ::Real) = logit(μ)
@@ -264,7 +264,7 @@ linkinv(::LogLink, η::Real) = exp(η)
 mueta(::LogLink, η::Real) = exp(η)
 function inverselink(::LogLink, η::Real)
     μ = exp(η)
-    return μ, μ, oftype(μ, NaN)
+    return μ, μ, convert(float(typeof(μ)), NaN)
 end
 
 linkfun(nbl::NegativeBinomialLink, μ::Real) = log(μ / (μ + nbl.θ))
@@ -273,7 +273,7 @@ mueta(nbl::NegativeBinomialLink, η::Real) = -exp(η) * nbl.θ / expm1(η)
 function inverselink(nbl::NegativeBinomialLink, η::Real)
     μ = -exp(η) * nbl.θ / expm1(η)
     deriv = μ * (1 + μ / nbl.θ)
-    return μ, deriv, oftype(μ, NaN)
+    return μ, deriv, convert(float(typeof(μ)), NaN)
 end
 
 linkfun(::ProbitLink, μ::Real) = -sqrt2 * erfcinv(2μ)
@@ -288,11 +288,12 @@ end
 linkfun(::SqrtLink, μ::Real) = sqrt(μ)
 linkinv(::SqrtLink, η::Real) = abs2(η)
 mueta(::SqrtLink, η::Real) = 2η
-inverselink(::SqrtLink, η::Real) = abs2(η), 2η, oftype(η, NaN)
+inverselink(::SqrtLink, η::Real) = abs2(η), 2η, convert(float(typeof(η)), NaN)
 
 canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()
 canonicallink(::Gamma) = InverseLink()
+canonicallink(::Geometric) = LogLink()
 canonicallink(::InverseGaussian) = InverseSquareLink()
 canonicallink(d::NegativeBinomial) = NegativeBinomialLink(d.r)
 canonicallink(::Normal) = IdentityLink()
@@ -308,7 +309,7 @@ depend on `μ` and the value of `glmvar`.  In other words `glmvar` returns the f
 variance that depends on `μ`.
 
 # Examples
-```jldoctest; setup = :(using GLM: glmvar, Normal, Bernoulli, Poisson)
+```jldoctest; setup = :(using GLM: glmvar, Normal, Bernoulli, Poisson, Geometric)
 julia> μ = 1/6:1/3:1;
 
 julia> glmvar.(Normal(), μ)    # constant for Normal()
@@ -322,12 +323,16 @@ true
 
 julia> glmvar.(Poisson(), μ) == μ
 true
+
+julia> glmvar.(Geometric(), μ) ≈ μ .* (1 .+ μ)
+true
 ```
 """
 function glmvar end
 
 glmvar(::Union{Bernoulli,Binomial}, μ::Real) = μ * (1 - μ)
 glmvar(::Gamma, μ::Real) = abs2(μ)
+glmvar(::Geometric, μ::Real) = μ * (1 + μ)
 glmvar(::InverseGaussian, μ::Real) = μ^3
 glmvar(d::NegativeBinomial, μ::Real) = μ * (1 + μ/d.r)
 glmvar(::Normal, μ::Real) = one(μ)
@@ -355,6 +360,9 @@ true
 
 julia> GLM.mustart(Normal(), 0.0, 1) ≈ 0
 true
+
+julia> GLM.mustart(Geometric(), 4, 1) ≈ 4
+true
 ```
 """
 function mustart end
@@ -364,6 +372,10 @@ mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1/2)) / (wt + one(y))
 function mustart(::Union{Gamma, InverseGaussian}, y, wt)
     fy = float(y)
     iszero(y) ? oftype(y, 1/10) : fy
+end
+function mustart(::Geometric, y, wt)
+    fy = float(y)
+    iszero(y) ? fy + oftype(fy, 1 / 6) : fy
 end
 function mustart(::NegativeBinomial, y, wt)
     fy = float(y)
@@ -419,11 +431,15 @@ function devresid(::Binomial, y, μ::Real)
     end
 end
 devresid(::Gamma, y, μ::Real) = -2 * (log(y / μ) - (y - μ) / μ)
+function devresid(::Geometric, y, μ::Real)
+    μ == 0 && return convert(float(promote_type(typeof(μ), typeof(y))), NaN)
+    return 2 * (xlogy(y, y / μ) - xlogy(y + 1, (y + 1) / (μ + 1)))
+end
 devresid(::InverseGaussian, y, μ::Real) = abs2(y - μ) / (y * abs2(μ))
 function devresid(d::NegativeBinomial, y, μ::Real)
+    μ == 0 && return convert(float(promote_type(typeof(μ), typeof(y))), NaN)
     θ = d.r
-    v = 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
-    return μ == 0 ? oftype(v, NaN) : v
+    return 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
 end
 devresid(::Normal, y, μ::Real) = abs2(y - μ)
 devresid(::Poisson, y, μ::Real) = 2 * (xlogy(y, y / μ) - (y - μ))
@@ -461,6 +477,11 @@ function loglik_obs end
 loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
 loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), Int(y*wt))
 loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
+# In Distributions.jl, a Geometric distribution characterizes the number of failures before 
+# the first success in a sequence of independent Bernoulli trials with success rate p.
+# The mean of Geometric distribution is (1 - p) / p.
+# Hence, p = 1 / (1 + μ).
+loglik_obs(::Geometric, y, μ, wt, ϕ) = wt * logpdf(Geometric(1 / (μ + 1)), y)
 loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt*logpdf(InverseGaussian(μ, inv(ϕ)), y)
 loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
 loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)

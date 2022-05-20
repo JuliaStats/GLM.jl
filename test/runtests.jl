@@ -555,6 +555,39 @@ end
          0.01582155341041012, 0.029074956147127032, 0.023628812427424876])
 end
 
+@testset "Geometric LogLink" begin
+    # the default/canonical link is LogLink
+    gm22 = fit(GeneralizedLinearModel, @formula(Days ~ Eth + Sex + Age + Lrn), quine, Geometric())
+    test_show(gm22)
+    @test dof(gm22) == 8
+    @test deviance(gm22) ≈ 137.8781581814965
+    @test loglikelihood(gm22) ≈ -548.3711276642073
+    @test aic(gm22) ≈ 1112.7422553284146
+    @test aicc(gm22) ≈ 1113.7933502189255
+    @test bic(gm22) ≈ 1136.6111083020812
+    @test coef(gm22)[1:7] ≈ [2.8978546663153897, -0.5701067649409168, 0.08040181505082235, 
+                            -0.4497584898742737, 0.08622664933901254, 0.3558996662512287, 
+                             0.29016080736927813]
+    @test stderror(gm22) ≈ [0.22754287093719366, 0.15274755092180423, 0.15928431669166637,
+                            0.23853372776980591, 0.2354231414867577, 0.24750780320597515,
+                            0.18553339017028742]
+end
+
+@testset "Geometric is a special case of NegativeBinomial with θ = 1" begin
+    gm23 = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, Geometric(), InverseLink())
+    gm24 = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(1), InverseLink())
+    @test coef(gm23) ≈ coef(gm24)
+    @test stderror(gm23) ≈ stderror(gm24)
+    @test confint(gm23) ≈ confint(gm24)
+    @test dof(gm23) ≈ dof(gm24)
+    @test deviance(gm23) ≈ deviance(gm24)
+    @test loglikelihood(gm23) ≈ loglikelihood(gm24)
+    @test aic(gm23) ≈ aic(gm24)
+    @test aicc(gm23) ≈ aicc(gm24)
+    @test bic(gm23) ≈ bic(gm24)
+    @test predict(gm23) ≈ predict(gm24)
+end
+
 @testset "Sparse GLM" begin
     rng = StableRNG(1)
     X = sprand(rng, 1000, 10, 0.01)
