@@ -193,7 +193,7 @@ function nulldeviance(obj::LinearModel)
             v += abs2(yi - m)
         end
     else
-        @inbounds @simd for i = 1:length(y)
+        @inbounds @simd for i = eachindex(y,wts)
             v += abs2(y[i] - m)*wts[i]
         end
     end

@@ -251,6 +251,28 @@ end
         @test nullloglikelihood(mdl) ≈ -8.179255266668315
         @test predict(mdl) ≈ [2.909090909090908, 3.636363636363635, 4.363636363636362]
     end
+    @testset "Test with without formula" begin
+        X = [4 5 6;]'
+        y = [3, 4, 4]
+
+        data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
+        mdl1 = lm(@formula(y ~ 0 + x), data)
+        mdl2 = lm(X, y)
+
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test GLM.dispersion(mdl1.model) ≈ GLM.dispersion(mdl2)
+        @test dof(mdl1) ≈ dof(mdl2)
+        @test dof_residual(mdl1) ≈ dof_residual(mdl2)
+        @test r2(mdl1) ≈ r2(mdl2)
+        @test adjr2(mdl1) ≈ adjr2(mdl2)
+        @test nulldeviance(mdl1) ≈ nulldeviance(mdl2)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test nullloglikelihood(mdl1) ≈ nullloglikelihood(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+    end
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
