@@ -222,14 +222,14 @@ end
 linkfun(::IdentityLink, μ::Real) = μ
 linkinv(::IdentityLink, η::Real) = η
 mueta(::IdentityLink, η::Real) = one(η)
-inverselink(::IdentityLink, η::Real) = η, one(η), oftype(η, NaN)
+inverselink(::IdentityLink, η::Real) = η, one(η), convert(float(typeof(η)), NaN)
 
 linkfun(::InverseLink, μ::Real) = inv(μ)
 linkinv(::InverseLink, η::Real) = inv(η)
 mueta(::InverseLink, η::Real) = -inv(abs2(η))
 function inverselink(::InverseLink, η::Real)
     μ = inv(η)
-    return μ, -abs2(μ), oftype(μ, NaN)
+    return μ, -abs2(μ), convert(float(typeof(μ)), NaN)
 end
 
 linkfun(::InverseSquareLink, μ::Real) = inv(abs2(μ))
@@ -237,7 +237,7 @@ linkinv(::InverseSquareLink, η::Real) = inv(sqrt(η))
 mueta(::InverseSquareLink, η::Real) = -inv(2η*sqrt(η))
 function inverselink(::InverseSquareLink, η::Real)
     μ = inv(sqrt(η))
-    return μ, -μ / (2η), oftype(μ, NaN)
+    return μ, -μ / (2η), convert(float(typeof(μ)), NaN)
 end
 
 linkfun(::LogitLink, μ::Real) = logit(μ)
@@ -264,7 +264,7 @@ linkinv(::LogLink, η::Real) = exp(η)
 mueta(::LogLink, η::Real) = exp(η)
 function inverselink(::LogLink, η::Real)
     μ = exp(η)
-    return μ, μ, oftype(μ, NaN)
+    return μ, μ, convert(float(typeof(μ)), NaN)
 end
 
 linkfun(nbl::NegativeBinomialLink, μ::Real) = log(μ / (μ + nbl.θ))
@@ -273,7 +273,7 @@ mueta(nbl::NegativeBinomialLink, η::Real) = -exp(η) * nbl.θ / expm1(η)
 function inverselink(nbl::NegativeBinomialLink, η::Real)
     μ = -exp(η) * nbl.θ / expm1(η)
     deriv = μ * (1 + μ / nbl.θ)
-    return μ, deriv, oftype(μ, NaN)
+    return μ, deriv, convert(float(typeof(μ)), NaN)
 end
 
 linkfun(::ProbitLink, μ::Real) = -sqrt2 * erfcinv(2μ)
@@ -288,7 +288,7 @@ end
 linkfun(::SqrtLink, μ::Real) = sqrt(μ)
 linkinv(::SqrtLink, η::Real) = abs2(η)
 mueta(::SqrtLink, η::Real) = 2η
-inverselink(::SqrtLink, η::Real) = abs2(η), 2η, oftype(η, NaN)
+inverselink(::SqrtLink, η::Real) = abs2(η), 2η, convert(float(typeof(η)), NaN)
 
 canonicallink(::Bernoulli) = LogitLink()
 canonicallink(::Binomial) = LogitLink()
@@ -437,9 +437,9 @@ function devresid(::Geometric, y, μ::Real)
 end
 devresid(::InverseGaussian, y, μ::Real) = abs2(y - μ) / (y * abs2(μ))
 function devresid(d::NegativeBinomial, y, μ::Real)
+    μ == 0 && return convert(float(promote_type(typeof(μ), typeof(y))), NaN)
     θ = d.r
-    v = 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
-    return μ == 0 ? oftype(v, NaN) : v
+    return 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
 end
 devresid(::Normal, y, μ::Real) = abs2(y - μ)
 devresid(::Poisson, y, μ::Real) = 2 * (xlogy(y, y / μ) - (y - μ))
