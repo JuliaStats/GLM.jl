@@ -303,8 +303,15 @@ function mueta(pl::PowerLink, η::Real)
         return invλ * η^(invλ - 1)
     end
 end
-inverselink(pl::PowerLink, η::Real) =
-    linkinv(pl, η), mueta(pl, η), oftype(float(η), NaN)
+function inverselink(pl::PowerLink, η::Real)
+    if pl.λ == 0
+        μ = exp(η)
+        return μ, μ, convert(float(typeof(η)), NaN)
+    else
+        invλ = inv(pl.λ)
+        return η^invλ, invλ * η^(invλ - 1), convert(float(typeof(η)), NaN)
+    end
+end
 
 linkfun(::ProbitLink, μ::Real) = -sqrt2 * erfcinv(2μ)
 linkinv(::ProbitLink, η::Real) = erfc(-η / sqrt2) / 2
