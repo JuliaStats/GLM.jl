@@ -6,7 +6,7 @@ An abstract type whose subtypes refer to link functions.
 GLM currently supports the following links:
 [`CauchitLink`](@ref), [`CloglogLink`](@ref), [`IdentityLink`](@ref),
 [`InverseLink`](@ref), [`InverseSquareLink`](@ref), [`LogitLink`](@ref),
-[`LogLink`](@ref), [`NegativeBinomialLink`](@ref), [`ProbitLink`](@ref),
+[`LogLink`](@ref), [`NegativeBinomialLink`](@ref), [`PowerLink`](@ref), [`ProbitLink`](@ref),
 [`SqrtLink`](@ref).
 
 Subtypes of `Link` are required to implement methods for
@@ -86,6 +86,23 @@ The shape parameter θ has to be fixed for the distribution to belong to the exp
 """
 struct NegativeBinomialLink  <: Link
     θ::Float64
+end
+
+"""
+    PowerLink
+
+A [`Link`](@ref) defined as `η = μ^λ` when `λ ≠ 0`, and to `η = log(μ)` when `λ = 0`,
+i.e. the class of transforms that use a power function or logarithmic function.
+
+Many other links are special cases of `PowerLink`:
+- [`IdentityLink`](@ref) when λ = 1.
+- [`SqrtLink`](@ref) when λ = 0.5.
+- [`LogLink`](@ref) when λ = 0.
+- [`InverseLink`](@ref) when λ = -1.
+- [`InverseSquareLink`](@ref) when λ = -2.
+"""
+struct PowerLink <: Link
+    λ::Float64
 end
 
 """
@@ -274,6 +291,26 @@ function inverselink(nbl::NegativeBinomialLink, η::Real)
     μ = -exp(η) * nbl.θ / expm1(η)
     deriv = μ * (1 + μ / nbl.θ)
     return μ, deriv, convert(float(typeof(μ)), NaN)
+end
+
+linkfun(pl::PowerLink, μ::Real) = pl.λ == 0 ? log(μ) : μ^pl.λ
+linkinv(pl::PowerLink, η::Real) = pl.λ == 0 ? exp(η) : η^(1 / pl.λ)
+function mueta(pl::PowerLink, η::Real)
+    if pl.λ == 0
+        return exp(η)
+    else
+        invλ = inv(pl.λ)
+        return invλ * η^(invλ - 1)
+    end
+end
+function inverselink(pl::PowerLink, η::Real)
+    if pl.λ == 0
+        μ = exp(η)
+        return μ, μ, convert(float(typeof(η)), NaN)
+    else
+        invλ = inv(pl.λ)
+        return η^invλ, invλ * η^(invλ - 1), convert(float(typeof(η)), NaN)
+    end
 end
 
 linkfun(::ProbitLink, μ::Real) = -sqrt2 * erfcinv(2μ)

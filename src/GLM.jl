@@ -43,6 +43,7 @@ module GLM
         LogitLink,
         LogLink,
         NegativeBinomialLink,
+        PowerLink,
         ProbitLink,
         SqrtLink,
 

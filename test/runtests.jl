@@ -1162,3 +1162,87 @@ end
         @test coef(glm_dense_alt) ≈ coef(glm_views_alt)
     end
 end
+
+@testset "PowerLink" begin
+    @testset "Functions related to PowerLink" begin
+        @test GLM.linkfun(IdentityLink(), 10) ≈ GLM.linkfun(PowerLink(1), 10)
+        @test GLM.linkfun(SqrtLink(), 10) ≈ GLM.linkfun(PowerLink(0.5), 10)
+        @test GLM.linkfun(LogLink(), 10) ≈ GLM.linkfun(PowerLink(0), 10)
+        @test GLM.linkfun(InverseLink(), 10) ≈ GLM.linkfun(PowerLink(-1), 10)
+        @test GLM.linkfun(InverseSquareLink(), 10) ≈ GLM.linkfun(PowerLink(-2), 10)
+        @test GLM.linkfun(PowerLink(1 / 3), 10) ≈ 2.154434690031884
+
+        @test GLM.linkinv(IdentityLink(), 10) ≈ GLM.linkinv(PowerLink(1), 10)
+        @test GLM.linkinv(SqrtLink(), 10) ≈ GLM.linkinv(PowerLink(0.5), 10)
+        @test GLM.linkinv(LogLink(), 10) ≈ GLM.linkinv(PowerLink(0), 10)
+        @test GLM.linkinv(InverseLink(), 10) ≈ GLM.linkinv(PowerLink(-1), 10)
+        @test GLM.linkinv(InverseSquareLink(), 10) ≈ GLM.linkinv(PowerLink(-2), 10)
+        @test GLM.linkinv(PowerLink(1 / 3), 10) ≈ 1000.0
+
+        @test GLM.mueta(IdentityLink(), 10) ≈ GLM.mueta(PowerLink(1), 10)
+        @test GLM.mueta(SqrtLink(), 10) ≈ GLM.mueta(PowerLink(0.5), 10)
+        @test GLM.mueta(LogLink(), 10) ≈ GLM.mueta(PowerLink(0), 10)
+        @test GLM.mueta(InverseLink(), 10) ≈ GLM.mueta(PowerLink(-1), 10)
+        @test GLM.mueta(InverseSquareLink(), 10) == GLM.mueta(PowerLink(-2), 10)
+        @test GLM.mueta(PowerLink(1 / 3), 10) ≈ 300.0
+
+        @test PowerLink(1 / 3) == PowerLink(1 / 3)
+        @test isequal(PowerLink(1 / 3), PowerLink(1 / 3))
+        @test !isequal(PowerLink(1 / 3), PowerLink(0.33))
+        @test hash(PowerLink(1 / 3)) == hash(PowerLink(1 / 3))
+    end
+    trees = dataset("datasets", "trees")
+    @testset "GLM with PowerLink" begin
+        mdl = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1 / 3);  rtol=1.0e-12, atol=1.0e-12)
+        @test coef(mdl) ≈ [-0.05132238692134761, 0.01428684676273272, 0.15033126098228242]
+        @test stderror(mdl) ≈ [0.224095414423756, 0.003342439119757, 0.005838227761632] atol=1.0e-8
+        @test dof(mdl) == 4
+        @test GLM.dispersion(mdl.model, true) ≈ 6.577062388609384
+        @test loglikelihood(mdl) ≈ -71.60507986987612
+        @test deviance(mdl) ≈ 184.15774688106
+        @test aic(mdl) ≈ 151.21015973975
+        @test predict(mdl)[1] ≈ 10.59735275421753
+    end
+    @testset "Compare PowerLink(0) and LogLink" begin
+        mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(0))
+        mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), LogLink())
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test dof(mdl1) == dof(mdl2)
+        @test dof_residual(mdl1) == dof_residual(mdl2)
+        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test confint(mdl1) ≈ confint(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+    end
+    @testset "Compare PowerLink(0.5) and SqrtLink" begin
+        mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(0.5))
+        mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), SqrtLink())
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test dof(mdl1) == dof(mdl2)
+        @test dof_residual(mdl1) == dof_residual(mdl2)
+        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test confint(mdl1) ≈ confint(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+    end
+    @testset "Compare PowerLink(1) and IdentityLink" begin
+        mdl1 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(1))
+        mdl2 = glm(@formula(Volume ~ Height + Girth), trees, Normal(), IdentityLink())
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test dof(mdl1) == dof(mdl2)
+        @test dof_residual(mdl1) == dof_residual(mdl2)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test confint(mdl1) ≈ confint(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+    end
+end

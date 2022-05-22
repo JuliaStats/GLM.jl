@@ -50,6 +50,7 @@ Currently the available Link types are
     LogitLink
     LogLink
     NegativeBinomialLink
+    PowerLink
     ProbitLink
     SqrtLink
 

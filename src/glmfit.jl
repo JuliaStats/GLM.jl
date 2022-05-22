@@ -7,6 +7,8 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     "`y`: response vector"
     y::V
     d::D
+    "`link`: link function with relevant parameters"
+    link::L
     "`devresid`: the squared deviance residuals"
     devresid::V
     "`eta`: the linear predictor"
@@ -46,7 +48,7 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVec
         throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
     end
 
-    return GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y))
+    return GlmResp{V,D,L}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
 end
 
 function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::FPVector)
@@ -106,7 +108,7 @@ function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
-        μi, dμdη = inverselink(L(), η[i])
+        μi, dμdη = inverselink(r.link, η[i])
         μ[i] = μi
         yi = y[i]
         wrkres[i] = (yi - μi) / dμdη
@@ -507,9 +509,7 @@ $FIT_GLM_DOC
 """
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
-GLM.Link(mm::AbstractGLM) = mm.l
-GLM.Link(r::GlmResp{T,D,L}) where {T,D,L} = L()
-GLM.Link(r::GlmResp{T,D,L}) where {T,D<:NegativeBinomial,L<:NegativeBinomialLink} = L(r.d.r)
+GLM.Link(r::GlmResp) = r.link
 GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
 
 Distributions.Distribution(r::GlmResp{T,D,L}) where {T,D,L} = D

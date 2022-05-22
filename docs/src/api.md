@@ -83,6 +83,7 @@ InverseSquareLink
 LogitLink
 LogLink
 NegativeBinomialLink
+PowerLink
 ProbitLink
 SqrtLink
 GLM.linkfun
