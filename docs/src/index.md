@@ -150,8 +150,7 @@ Many of the methods provided by this package have names similar to those in [R](
 - `adjr2`:  adjusted R² for a linear model (an alias for `adjr²`)
 - `aic`: Akaike's Information Criterion, defined as ``-2 \\log L + 2k``, with ``L`` the likelihood of the model, and `k` it the number of consumed degrees of freedom
 - `aicc`: corrected Akaike's Information Criterion for small sample sizes (Hurvich and Tsai 1989)
-- `bic`: Bayesian Information Criterion, defined as ``-2 \\log L + k \\log n``, with ``L``
-the likelihood of the model, ``k`` is the number of consumed degrees of freedom
+- `bic`: Bayesian Information Criterion
 - `coef`: extract the estimates of the coefficients in the model
 - `confint`: compute confidence intervals for coefficients, with confidence level `level` (by default 95%)
 - `cooksdistance`: compute [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation in linear model `obj`, giving an estimate of the influence of each data point. Currently only implemented for linear models without weights.
