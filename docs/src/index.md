@@ -156,8 +156,7 @@ Many of the methods provided by this package have names similar to those in [R](
 - `cooksdistance`: compute [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation in linear model `obj`, giving an estimate of the influence of each data point. Currently only implemented for linear models without weights.
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
 - `dispersion`: return the estimated dispersion (or scale) parameter for a model's distribution
-- `dof`: return the number of degrees of freedom consumed in the model, including
-when applicable the intercept and the distribution's dispersion parameter
+- `dof`: return the number of degrees of freedom consumed in the model
 - `dof_residual`: degrees of freedom for residuals, when meaningful
 - `fitted`: return the fitted values of the model
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
