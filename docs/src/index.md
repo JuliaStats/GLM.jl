@@ -149,7 +149,7 @@ F-test: 2 models fitted on 50 observations
 Many of the methods provided by this package have names similar to those in [R](http://www.r-project.org).
 - `adjr2`:  adjusted R² for a linear model (an alias for `adjr²`)
 - `aic`: Akaike's Information Criterion
-- `aicc`: corrected Akaike's Information Criterion for small sample sizes (Hurvich and Tsai 1989)
+- `aicc`: corrected Akaike's Information Criterion for small sample sizes
 - `bic`: Bayesian Information Criterion
 - `coef`: extract the estimates of the coefficients in the model
 - `confint`: compute confidence intervals for coefficients, with confidence level `level` (by default 95%)
