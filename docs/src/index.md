@@ -166,7 +166,7 @@ when applicable the intercept and the distribution's dispersion parameter
 - `loglikelihood`: return the log-likelihood of the model
 - `modelmatrix`: return the design matrix
 - `nobs`: return the number of rows, or sum of the weights when prior weights are specified
-- `nulldeviance`: return the deviance of the linear model which includs the intercept only
+- `nulldeviance`: return the deviance of the linear model which includes the intercept only
 - `nullloglikelihood`: return the log-likelihood of the null model corresponding to the fitted linear model
 - `predict` : obtain predicted values of the dependent variable from the fitted model
 - `r2`: R² of a linear model (an alias for `r²`)
