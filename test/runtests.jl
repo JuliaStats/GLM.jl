@@ -252,7 +252,7 @@ end
         @test predict(mdl) ≈ [2.909090909090908, 3.636363636363635, 4.363636363636362]
     end
     @testset "Test with without formula" begin
-        X = [4 5 6;]'
+        X = [4 5 6]'
         y = [3, 4, 4]
 
         data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
