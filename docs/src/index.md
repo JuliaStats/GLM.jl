@@ -147,29 +147,29 @@ F-test: 2 models fitted on 50 observations
 ## Methods applied to fitted models
 
 Many of the methods provided by this package have names similar to those in [R](http://www.r-project.org).
-- `adjr2`:  adjusted R² for a linear model (an alias for `adjr²`)
+- `adjr2`: adjusted R² for a linear model (an alias for `adjr²`)
 - `aic`: Akaike's Information Criterion
 - `aicc`: corrected Akaike's Information Criterion for small sample sizes
 - `bic`: Bayesian Information Criterion
-- `coef`: extract the estimates of the coefficients in the model
-- `confint`: compute confidence intervals for coefficients, with confidence level `level` (by default 95%)
-- `cooksdistance`: compute [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation in linear model `obj`, giving an estimate of the influence of each data point. Currently only implemented for linear models without weights.
+- `coef`: estimates of the coefficients in the model
+- `confint`: confidence intervals for coefficients
+- `cooksdistance`: [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation, giving an estimate of the influence of each data point. Currently only implemented for linear models without weights.
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
-- `dispersion`: return the estimated dispersion (or scale) parameter for a model's distribution
+- `dispersion`: estimated dispersion (or scale) parameter for a model's distribution
 - `dof`: return the number of degrees of freedom consumed in the model
 - `dof_residual`: degrees of freedom for residuals, when meaningful
 - `fitted`: return the fitted values of the model
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
 - `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
-- `loglikelihood`: return the log-likelihood of the model
-- `modelmatrix`: return the design matrix
-- `nobs`: return the number of rows, or sum of the weights when prior weights are specified
-- `nulldeviance`: return the deviance of the linear model which includes the intercept only
-- `nullloglikelihood`: return the log-likelihood of the linear model which includes the intercept only
-- `predict` : obtain predicted values of the dependent variable from the fitted model
+- `loglikelihood`: log-likelihood of the model
+- `modelmatrix`: design matrix
+- `nobs`: number of rows, or sum of the weights when prior weights are specified
+- `nulldeviance`: deviance of the linear model which includes the intercept only
+- `nullloglikelihood`: log-likelihood of the linear model which includes the intercept only
+- `predict`: obtain predicted values of the dependent variable from the fitted model
 - `r2`: R² of a linear model (an alias for `r²`)
-- `residuals`: get the vector of residuals from the fitted model
-- `response`: return the model response (a.k.a the dependent variable)
+- `residuals`: vector of residuals from the fitted model
+- `response`: model response (a.k.a the dependent variable)
 - `stderror`: standard errors of the coefficients
 - `vcov`: estimated variance-covariance matrix of the coefficient estimates
 
