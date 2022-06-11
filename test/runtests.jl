@@ -629,6 +629,58 @@ end
          0.01582155341041012, 0.029074956147127032, 0.023628812427424876])
 end
 
+@testset "GLM with no intercept" begin
+    # Gamma with single numeric predictor
+    nointglm1 = fit(GeneralizedLinearModel, @formula(lot1 ~ 0 + u), clotting, Gamma())
+    @test !hasintercept(nointglm1.model)
+    @test !GLM.cancancel(nointglm1.model.rr)
+    @test isa(GLM.Link(nointglm1.model), InverseLink)
+    test_show(nointglm1)
+    @test dof(nointglm1) == 2
+    @test deviance(nointglm1) ≈ 0.6629903395245351
+    @test isnan(nulldeviance(nointglm1))
+    @test loglikelihood(nointglm1) ≈ -32.60688972888763
+    @test_throws DomainError nullloglikelihood(nointglm1)
+    @test aic(nointglm1) ≈ 69.21377945777526
+    @test aicc(nointglm1) ≈ 71.21377945777526
+    @test bic(nointglm1) ≈ 69.6082286124477
+    @test coef(nointglm1) ≈ [0.009200201253724151]
+    @test GLM.dispersion(nointglm1.model, true) ≈ 0.10198331431820506
+    @test stderror(nointglm1) ≈ [0.000979309363228589]
+
+    # Bernoulli with numeric predictors
+    nointglm2 = fit(GeneralizedLinearModel, @formula(admit ~ 0 + gre + gpa), admit, Bernoulli())
+    @test !hasintercept(nointglm2.model)
+    @test GLM.cancancel(nointglm2.model.rr)
+    test_show(nointglm2)
+    @test dof(nointglm2) == 2
+    @test deviance(nointglm2) ≈ 503.5584368354113
+    @test nulldeviance(nointglm2) ≈ 554.5177444479574
+    @test loglikelihood(nointglm2) ≈ -251.77921841770578
+    @test nullloglikelihood(nointglm2) ≈ -277.2588722239787
+    @test aic(nointglm2) ≈ 507.55843683541156
+    @test aicc(nointglm2) ≈ 507.58866353566344
+    @test bic(nointglm2) ≈ 515.5413659296275
+    @test coef(nointglm2) ≈ [0.0015622695743609228, -0.4822556276412118]
+    @test stderror(nointglm2) ≈ [0.000987218133602179, 0.17522675354523715]
+
+    # Poisson with categorical predictors, weights and offset
+    nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat), anorexia,
+                    Poisson(), LogLink(), offset=log.(anorexia.Prewt),
+                    wts=repeat(1:4, outer=18), rtol=1e-8)
+    @test !hasintercept(nointglm3.model)
+    @test GLM.cancancel(nointglm3.model.rr)
+    test_show(nointglm3)
+    @test deviance(nointglm3) ≈ 90.17048668870225
+    @test nulldeviance(nointglm3) ≈ 159.32999067102548
+    @test loglikelihood(nointglm3) ≈ -610.3058020030296
+    @test nullloglikelihood(nointglm3) ≈ -644.885553994191
+    @test coef(nointglm3) ≈
+        [-0.007008396492196935, 0.6038154674863438, 0.5654250124481003, 0.6931599989992452]
+    @test stderror(nointglm3) ≈
+        [0.0015910084415445974, 0.13185097176418983, 0.13016395889443858, 0.1336778089431681]
+end
+
 @testset "Sparse GLM" begin
     rng = StableRNG(1)
     X = sprand(rng, 1000, 10, 0.01)
@@ -1136,17 +1188,9 @@ end
 
     nointerceptmod = lm(reshape(d.Treatment, :, 1), d.Result)
     @test !hasintercept(nointerceptmod)
-    @test_logs((:warn,
-                "model does not have an intercept, null deviance cannot be interpreted"),
-                nulldeviance(nointerceptmod))
-    @test_logs((:warn,
-                "model does not have an intercept, null log-likelihood cannot be interpreted"),
-                nullloglikelihood(nointerceptmod))
 
     nointerceptmod2 = glm(reshape(d.Treatment, :, 1), d.Result, Normal(), IdentityLink())
     @test !hasintercept(nointerceptmod2)
-    @test_throws ArgumentError nulldeviance(nointerceptmod2)
-    @test_throws ArgumentError nullloglikelihood(nointerceptmod2)
 
     rng = StableRNG(1234321)
     secondcolinterceptmod = glm([randn(rng, 5) ones(5)], ones(5), Binomial(), LogitLink())

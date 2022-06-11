@@ -65,36 +65,9 @@ function deviance(r::LmResp)
     v
 end
 
-function nulldeviance(r::LmResp)
-    y = r.y
-    wts = r.wts
-    if isempty(wts)
-        m = mean(y)
-    else 
-        m = mean(r.y, weights(r.wts))
-    end
-
-    v = zero(eltype(y))*zero(eltype(wts))
-    if isempty(wts)
-        @inbounds @simd for i = 1:length(y)
-            v += abs2(y[i] - m)
-        end
-    else
-        @inbounds @simd for i = 1:length(y)
-            v += abs2(y[i] - m)*wts[i]
-        end
-    end
-    v
-end
-
 function loglikelihood(r::LmResp)
     n = isempty(r.wts) ? length(r.y) : sum(r.wts)
     -n/2 * (log(2π * deviance(r)/n) + 1)
-end
-
-function nullloglikelihood(r::LmResp)
-    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
-    -n/2 * (log(2π * nulldeviance(r)/n) + 1) 
 end
 
 residuals(r::LmResp) = r.y - r.mu
@@ -203,17 +176,33 @@ loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
 For linear models, the deviance of the null model is equal to the total sum of squares (TSS).
 """
 function nulldeviance(obj::LinearModel)
-    hasintercept(obj) ||
-        @warn("model does not have an intercept, null deviance cannot be interpreted")
+    r = obj.rr
+    y = r.y
+    wts = r.wts
+    v = zero(eltype(y))*zero(eltype(wts))
 
-    return nulldeviance(obj.rr)
+    if isempty(wts)
+        m = hasintercept(obj) ? mean(y) : zero(v)/1
+    else
+        m = hasintercept(obj) ? mean(y, weights(wts)) : zero(v)/1
+    end
+
+    if isempty(wts)
+        @inbounds @simd for i = 1:length(y)
+            v += abs2(y[i] - m)
+        end
+    else
+        @inbounds @simd for i = 1:length(y)
+            v += abs2(y[i] - m)*wts[i]
+        end
+    end
+    v
 end
 
 function nullloglikelihood(obj::LinearModel)
-    hasintercept(obj) ||
-        @warn("model does not have an intercept, null log-likelihood cannot be interpreted")
-
-    return nullloglikelihood(obj.rr)
+    r = obj.rr
+    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+    -n/2 * (log(2π * nulldeviance(obj)/n) + 1)
 end
 
 r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)

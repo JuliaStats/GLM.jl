@@ -256,30 +256,31 @@ end
 deviance(m::AbstractGLM) = deviance(m.rr)
 
 function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) where L
-    hasintercept(m) ||
-        throw(ArgumentError("model does not have an intercept, " *
-                            "null deviance cannot be interpreted"))
     r      = m.rr
     wts    = weights(r.wts)
     y      = r.y
     d      = r.d
     offset = r.offset
+    hasint = hasintercept(m)
     dev = zero(eltype(y))
     if isempty(offset) # Faster method
         if !isempty(wts)
-            mu = mean(y, weights(wts))
+            mu = hasint ?
+                mean(y, weights(wts)) :
+                linkinv(L(), zero(eltype(y))*zero(eltype(wts))/1)
             @inbounds for i in eachindex(y, wts)
                 dev += wts[i] * devresid(d, y[i], mu)
             end
         else
-            mu = mean(y)
+            mu = hasint ? mean(y) : linkinv(L(), zero(eltype(y))/1)
             @inbounds for i in eachindex(y)
                 dev += devresid(d, y[i], mu)
             end
         end
     else
+        X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    fill(1.0, length(y), 1), y, d, L(), wts=wts, offset=offset,
+                    X, y, d, L(), wts=wts, offset=offset,
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         dev = deviance(nullm)
@@ -309,33 +310,31 @@ function loglikelihood(m::AbstractGLM)
 end
 
 function nullloglikelihood(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) where L
-    hasintercept(m) ||
-        throw(ArgumentError("model does not have an intercept, " *
-                            "null log-likelihood cannot be interpreted"))
-
     r      = m.rr
     wts    = r.wts
     y      = r.y
     d      = r.d
     offset = r.offset
+    hasint = hasintercept(m)
     ll  = zero(eltype(y))
     if isempty(r.offset) # Faster method
         if !isempty(wts)
-            mu = mean(r.y, weights(wts))
+            mu = hasint ? mean(y, weights(wts)) : linkinv(L(), zero(ll)/1)
             ϕ = nulldeviance(m)/sum(wts)
             @inbounds for i in eachindex(y, wts)
                 ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
             end
         else
-            mu = mean(r.y)
+            mu = hasint ? mean(y) : linkinv(L(), zero(ll)/1)
             ϕ = nulldeviance(m)/length(y)
             @inbounds for i in eachindex(y)
                 ll += loglik_obs(d, y[i], mu, 1, ϕ)
             end
         end
     else
+        X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    fill(1.0, length(y), 1), y, d, L(), wts=wts, offset=offset,
+                    X, y, d, L(), wts=wts, offset=offset,
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         ll = loglikelihood(nullm)
