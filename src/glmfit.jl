@@ -266,7 +266,7 @@ function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) where
     if isempty(offset) # Faster method
         if !isempty(wts)
             mu = hasint ?
-                mean(y, weights(wts)) :
+                mean(y, wts) :
                 linkinv(L(), zero(eltype(y))*zero(eltype(wts))/1)
             @inbounds for i in eachindex(y, wts)
                 dev += wts[i] * devresid(d, y[i], mu)
