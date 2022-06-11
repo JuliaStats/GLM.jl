@@ -174,10 +174,8 @@ deviance(obj::LinearModel) = deviance(obj.rr)
 For linear models, the deviance of the null model is equal to the total sum of squares (TSS).
 """
 function nulldeviance(obj::LinearModel)
-    r = obj.rr
-    y = r.y
-    wts = r.wts
-    v = zero(eltype(y))*zero(eltype(wts))
+    y = obj.rr.y
+    wts = obj.rr.wts
 
     if hasintercept(obj)
         if isempty(wts)
@@ -191,12 +189,13 @@ function nulldeviance(obj::LinearModel)
         m = zero(eltype(y))
     end
 
+    v = zero(eltype(y))*zero(eltype(wts))
     if isempty(wts)
-        @inbounds @simd for i = 1:length(y)
-            v += abs2(y[i] - m)
+        @inbounds @simd for yi in y
+            v += abs2(yi - m)
         end
     else
-        @inbounds @simd for i = 1:length(y)
+        @inbounds @simd for i = eachindex(y,wts)
             v += abs2(y[i] - m)*wts[i]
         end
     end
