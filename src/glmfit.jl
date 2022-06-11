@@ -257,7 +257,7 @@ end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
-function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) where L
+function nulldeviance(m::GeneralizedLinearModel)
     r      = m.rr
     wts    = weights(r.wts)
     y      = r.y
@@ -269,12 +269,12 @@ function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) where
         if !isempty(wts)
             mu = hasint ?
                 mean(y, wts) :
-                linkinv(L(), zero(eltype(y))*zero(eltype(wts))/1)
+                linkinv(r.link, zero(eltype(y))*zero(eltype(wts))/1)
             @inbounds for i in eachindex(y, wts)
                 dev += wts[i] * devresid(d, y[i], mu)
             end
         else
-            mu = hasint ? mean(y) : linkinv(L(), zero(eltype(y))/1)
+            mu = hasint ? mean(y) : linkinv(r.link, zero(eltype(y))/1)
             @inbounds for i in eachindex(y)
                 dev += devresid(d, y[i], mu)
             end
@@ -282,7 +282,7 @@ function nulldeviance(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) where
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, L(), wts=wts, offset=offset,
+                    X, y, d, r.link, wts=wts, offset=offset,
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         dev = deviance(nullm)
@@ -311,7 +311,7 @@ function loglikelihood(m::AbstractGLM)
     ll
 end
 
-function nullloglikelihood(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) where L
+function nullloglikelihood(m::GeneralizedLinearModel)
     r      = m.rr
     wts    = r.wts
     y      = r.y
@@ -321,13 +321,13 @@ function nullloglikelihood(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) 
     ll  = zero(eltype(y))
     if isempty(r.offset) # Faster method
         if !isempty(wts)
-            mu = hasint ? mean(y, weights(wts)) : linkinv(L(), zero(ll)/1)
+            mu = hasint ? mean(y, weights(wts)) : linkinv(r.link, zero(ll)/1)
             ϕ = nulldeviance(m)/sum(wts)
             @inbounds for i in eachindex(y, wts)
                 ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
             end
         else
-            mu = hasint ? mean(y) : linkinv(L(), zero(ll)/1)
+            mu = hasint ? mean(y) : linkinv(r.link, zero(ll)/1)
             ϕ = nulldeviance(m)/length(y)
             @inbounds for i in eachindex(y)
                 ll += loglik_obs(d, y[i], mu, 1, ϕ)
@@ -336,7 +336,7 @@ function nullloglikelihood(m::GeneralizedLinearModel{<:GlmResp{<:Any,<:Any,L}}) 
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, L(), wts=wts, offset=offset,
+                    X, y, d, r.link, wts=wts, offset=offset,
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         ll = loglikelihood(nullm)
