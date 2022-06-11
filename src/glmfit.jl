@@ -264,7 +264,7 @@ function nulldeviance(m::GeneralizedLinearModel)
     d      = r.d
     offset = r.offset
     hasint = hasintercept(m)
-    dev = zero(eltype(y))
+    dev    = zero(eltype(y))
     if isempty(offset) # Faster method
         if !isempty(wts)
             mu = hasint ?

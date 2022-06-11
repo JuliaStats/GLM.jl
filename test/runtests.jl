@@ -776,6 +776,9 @@ end
     @test nulldeviance(nointglm3) ≈ 159.32999067102548
     @test loglikelihood(nointglm3) ≈ -610.3058020030296
     @test nullloglikelihood(nointglm3) ≈ -644.885553994191
+    @test aic(nointglm3) ≈ 1228.6116040060592
+    @test aicc(nointglm3) ≈ 1228.8401754346307
+    @test bic(nointglm3) ≈ 1241.38343140962
     @test coef(nointglm3) ≈
         [-0.007008396492196935, 0.6038154674863438, 0.5654250124481003, 0.6931599989992452]
     @test stderror(nointglm3) ≈
