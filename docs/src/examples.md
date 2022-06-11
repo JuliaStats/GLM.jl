@@ -2,7 +2,7 @@
 
 ```@meta
 DocTestSetup = quote
-    using CategoricalArrays, DataFrames, Distributions, GLM, RDatasets
+    using CategoricalArrays, DataFrames, Distributions, GLM, RDatasets, Optim
 end
 ```
 
@@ -338,4 +338,59 @@ Treatment: 3   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
 
 julia> round(deviance(gm1), digits=5)
 5.11746
+```
+
+## Linear regression with PowerLink
+
+In this example, we choose the best model from a set of λs, based on minimum BIC.
+
+```jldoctest
+julia> using GLM, RDatasets, StatsBase, DataFrames, Optim
+
+julia> trees = DataFrame(dataset("datasets", "trees"))
+31×3 DataFrame
+ Row │ Girth    Height  Volume  
+     │ Float64  Int64   Float64 
+─────┼──────────────────────────
+   1 │     8.3      70     10.3
+   2 │     8.6      65     10.3
+   3 │     8.8      63     10.2
+   4 │    10.5      72     16.4
+   5 │    10.7      81     18.8
+   6 │    10.8      83     19.7
+   7 │    11.0      66     15.6
+   8 │    11.0      75     18.2
+  ⋮  │    ⋮       ⋮        ⋮
+  25 │    16.3      77     42.6
+  26 │    17.3      81     55.4
+  27 │    17.5      82     55.7
+  28 │    17.9      80     58.3
+  29 │    18.0      80     51.5
+  30 │    18.0      80     51.0
+  31 │    20.6      87     77.0
+                 16 rows omitted
+                 
+julia> bic_glm(λ) = bic(glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(λ)));
+
+julia> optimal_bic = optimize(bic_glm, -1.0, 1.0);
+
+julia> round(optimal_bic.minimizer, digits = 5) # Optimal λ
+0.40935
+
+julia> glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(optimal_bic.minimizer)) # Best model
+StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, Normal{Float64}, PowerLink}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}}}, Matrix{Float64}}
+
+Volume ~ 1 + Height + Girth
+
+Coefficients:
+────────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      z  Pr(>|z|)   Lower 95%   Upper 95%
+────────────────────────────────────────────────────────────────────────────
+(Intercept)  -1.07586    0.352543    -3.05    0.0023  -1.76684    -0.384892
+Height        0.0232172  0.00523331   4.44    <1e-05   0.0129601   0.0334743
+Girth         0.242837   0.00922555  26.32    <1e-99   0.224756    0.260919
+────────────────────────────────────────────────────────────────────────────
+
+julia> round(optimal_bic.minimum, digits=5)
+156.37638
 ```

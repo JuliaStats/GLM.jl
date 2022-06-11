@@ -27,6 +27,7 @@ module GLM
         Bernoulli,
         Binomial,
         Gamma,
+        Geometric,
         InverseGaussian,
         NegativeBinomial,
         Normal,
@@ -42,6 +43,7 @@ module GLM
         LogitLink,
         LogLink,
         NegativeBinomialLink,
+        PowerLink,
         ProbitLink,
         SqrtLink,
 

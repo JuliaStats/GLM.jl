@@ -168,8 +168,6 @@ For linear models, the deviance is equal to the residual sum of squares (RSS).
 """
 deviance(obj::LinearModel) = deviance(obj.rr)
 
-loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
-
 """
     nulldeviance(obj::LinearModel)
 
@@ -181,10 +179,16 @@ function nulldeviance(obj::LinearModel)
     wts = r.wts
     v = zero(eltype(y))*zero(eltype(wts))
 
-    if isempty(wts)
-        m = hasintercept(obj) ? mean(y) : zero(v)/1
+    if hasintercept(obj)
+        if isempty(wts)
+            m = mean(y)
+        else
+            m = mean(y, weights(wts))
+        end
     else
-        m = hasintercept(obj) ? mean(y, weights(wts)) : zero(v)/1
+        @warn("Starting from GLM.jl 1.8, null model is defined as having no predictor at all " *
+              "when a model without an intercept is passed.")
+        m = zero(eltype(y))
     end
 
     if isempty(wts)
@@ -199,6 +203,8 @@ function nulldeviance(obj::LinearModel)
     v
 end
 
+loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
+
 function nullloglikelihood(obj::LinearModel)
     r = obj.rr
     n = isempty(r.wts) ? length(r.y) : sum(r.wts)
@@ -206,13 +212,7 @@ function nullloglikelihood(obj::LinearModel)
 end
 
 r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
-
-function adjr2(obj::LinearModel)
-    n = nobs(obj)
-    # dof() includes the dispersion parameter
-    p = dof(obj) - 1
-    1 - (1 - r²(obj))*(n-1)/(n-p)
-end
+adjr2(obj::LinearModel) = 1 - (1 - r²(obj))*(nobs(obj)-hasintercept(obj))/dof_residual(obj)
 
 function dispersion(x::LinearModel, sqr::Bool=false)
     dofr = dof_residual(x)
