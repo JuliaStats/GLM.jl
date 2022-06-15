@@ -3,7 +3,7 @@
 
 The response vector and various derived vectors in a generalized linear model.
 """
-struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
+struct GlmResp{V<:FPVector, D<:UnivariateDistribution,L<:Link,W<:AbstractWeights{<:Real}} <: ModResp
     "`y`: response vector"
     y::V
     d::D
@@ -18,14 +18,14 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     "`offset:` offset added to `Xβ` to form `eta`.  Can be of length 0"
     offset::V
     "`wts:` prior case weights.  Can be of length 0."
-    wts::V
+    wts::W
     "`wrkwt`: working case weights for the Iteratively Reweighted Least Squares (IRLS) algorithm"
     wrkwt::V
     "`wrkresid`: working residuals for IRLS"
     wrkresid::V
 end
 
-function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVector, D, L}
+function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVector, D, L, W}
     n  = length(y)
     nη = length(η)
     nμ = length(μ)
@@ -48,14 +48,23 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVec
         throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
     end
 
-    return GlmResp{V,D,L}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
+    return GlmResp{V,D,L,W}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
 end
 
-function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::FPVector)
+function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::AbstractVector{<:Real})
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
     _y   = convert(Vector{float(eltype(y))}, y)
     _off = convert(Vector{float(eltype(off))}, off)
-    _wts = convert(Vector{float(eltype(wts))}, wts)
+    _wts = if wts === nothing
+        ## This should be removed - here for allowing
+        ## passing a vector (deprecated) 
+        aweights(similar(_y, 0))
+    elseif isa(wts, AbstractWeights)   
+        wts
+    elseif isa(wts, AbstractVector)
+        ## for backward compatibility
+        fweights(wts)
+    end
     η    = similar(_y)
     μ    = similar(_y)
     r    = GlmResp(_y, d, l, η, μ, _off, _wts)
@@ -64,13 +73,12 @@ function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::FPVe
     return r
 end
 
-function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
-                 wts::AbstractVector{<:Real}) where {D, L}
-        GlmResp(float(y), d, l, float(off), float(wts))
+function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real}, wts::AbstractVector{<:Real}) where {D, L}
+    GlmResp(float(y), d, l, float(off), wts)
 end
 
 deviance(r::GlmResp) = sum(r.devresid)
-
+weights(r::GlmResp) = r.wts
 """
     cancancel(r::GlmResp{V,D,L})
 
@@ -374,7 +382,7 @@ function StatsBase.fit!(m::AbstractGLM;
     if haskey(kwargs, :tol)
         Base.depwarn("`tol` argument is deprecated, use `atol` and `rtol` instead", :fit!)
         rtol = kwargs[:tol]
-    end
+    end    
 
     _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
 end
@@ -440,12 +448,9 @@ const FIT_GLM_DOC = """
 
     # Keyword Arguments
     - `dofit::Bool=true`: Determines whether model will be fit
-    - `wts::Vector=similar(y,0)`: Prior frequency (a.k.a. case) weights of observations.
-      Such weights are equivalent to repeating each observation a number of times equal
-      to its weight. Do note that this interpretation gives equal point estimates but
-      different standard errors from analytical (a.k.a. inverse variance) weights and
-      from probability (a.k.a. sampling) weights which are the default in some other
-      software.
+    - `wts::AbstractWeights=aweights(similar(y,0))`: Weights of observations. 
+      Allowed weights are `AnalyticalWeights`, `FrequencyWeights`, or `ProbabilityWeights`.        
+      If a vector is passed (deprecated) it is coerced to FrequencyWeights. 
       Can be length 0 to indicate no weighting (default).
     - `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
       length 0
@@ -476,7 +481,7 @@ function fit(::Type{M},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
     dofit::Bool = true,
-    wts::AbstractVector{<:Real}      = similar(y, 0),
+    wts::Union{AbstractWeights{<:Real}, AbstractVector{<:Real}} = aweights(similar(y, 0)),
     offset::AbstractVector{<:Real}   = similar(y, 0),
     fitargs...) where {M<:AbstractGLM}
 
@@ -536,6 +541,7 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
         one(eltype(r.mu))
     end
 end
+
 
 """
     predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=eltype(newX)[],
@@ -649,3 +655,19 @@ function checky(y, d::Binomial)
     end
     return nothing
 end
+
+"""
+    nobs(obj::LinearModel)
+    nobs(obj::GLM)
+
+For linear and generalized linear models, returns the number of rows, or,
+when prior weights of type FrequencyWeights are specified, the sum of weights.
+"""
+nobs(obj::LinPredModel) = nobs(obj.rr)
+
+nobs(r::LmResp{V,W}) where {V,W} = oftype(sum(one(eltype(r.wts))), length(r.y))
+nobs(r::LmResp{V,W}) where {V,W<:FrequencyWeights} = r.wts.sum
+
+nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = r.wts.sum
+nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W} = oftype(sum(one(eltype(r.wts))), length(r.y))
+

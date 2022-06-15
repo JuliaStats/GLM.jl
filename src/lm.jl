@@ -7,46 +7,48 @@ Encapsulates the response for a linear model
 
 - `mu`: current value of the mean response vector or fitted value
 - `offset`: optional offset added to the linear predictor to form `mu`
-- `wts`: optional vector of prior frequency (a.k.a. case) weights for observations
+- `wts`: optional weights for observations (AbstractWeights)
 - `y`: observed response vector
 
 Either or both `offset` and `wts` may be of length 0
 """
-mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
+mutable struct LmResp{V<:FPVector, W<:Union{AbstractWeights{<:Real}, AbstractVector{<:Real}}} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
-    wts::V                                 # prior weights (may have length 0)
+    wts::W                                 # prior weights (may have length 0)
     y::V                                   # response
-    function LmResp{V}(mu::V, off::V, wts::V, y::V) where V
+    function LmResp{V, W}(mu::V, off::V, wts::W, y::V) where {V, W}
         n = length(y)
         length(mu) == n || error("mismatched lengths of mu and y")
         ll = length(off)
         ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
         ll = length(wts)
         ll == 0 || ll == n || error("length of wts is $ll, must be $n or 0")
-        new{V}(mu, off, wts, y)
+        new{V,W}(mu, off, wts, y)
     end
 end
 
-function LmResp(y::AbstractVector{<:Real}, wts::Union{Nothing,AbstractVector{<:Real}}=nothing)
+function LmResp(y::AbstractVector{<:Real}, wts::Union{Nothing,AbstractVector{<:Real}, AbstractWeights{<:Real}}=nothing)
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
     _y = convert(Vector{float(eltype(y))}, y)
-    _wts = if wts === nothing
-        similar(_y, 0)
+    _wts = if wts === nothing         
+        aweights(similar(_y, 0))
+    elseif isa(wts, Vector)
+        fweights(wts)
     else
-        convert(Vector{float(eltype(wts))}, wts)
+        wts
     end
-    return LmResp{typeof(_y)}(zero(_y), zero(_y), _wts, _y)
+    return LmResp{typeof(_y), typeof(_wts)}(zero(_y), zero(_y), _wts, _y)
 end
 
-function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
+function updateμ!(r::LmResp{V, W}, linPr::V) where {V<:FPVector, W}
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copyto!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
     deviance(r)
 end
 
-updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
+updateμ!(r::LmResp{V, W}, linPr) where {V<:FPVector, W} = updateμ!(r, convert(V, vec(linPr)))
 
 function deviance(r::LmResp)
     y = r.y
@@ -97,7 +99,19 @@ function nullloglikelihood(r::LmResp)
     -n/2 * (log(2π * nulldeviance(r)/n) + 1) 
 end
 
-residuals(r::LmResp) = r.y - r.mu
+function residuals(r::LmResp; weighted=false) 
+    wts = weights(r)
+    res = r.y - r.mu
+    if !weighted 
+        res 
+    elseif !isempty(wts)
+        sqrt.(wts).*res
+    else
+        throw(ArgumentError("`weighted=true` allowed only for weighted models."))
+    end
+end
+
+weights(r::LmResp) = r.wts
 
 """
     LinearModel
@@ -120,7 +134,7 @@ function StatsBase.fit!(obj::LinearModel)
     if isempty(obj.rr.wts)
         delbeta!(obj.pp, obj.rr.y)
     else 
-        delbeta!(obj.pp, obj.rr.y, obj.rr.wts)
+        delbeta!(obj.pp, obj.rr.y, convert(Vector{eltype(obj.rr.y)}, obj.rr.wts))
     end
     installbeta!(obj.pp)     
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
@@ -135,12 +149,15 @@ const FIT_LM_DOC = """
     in columns (including if appropriate the intercept), and `y` must be a vector holding
     values of the dependent variable.
 
-    The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
-    Such weights are equivalent to repeating each observation a number of times equal
-    to its weight. Do note that this interpretation gives equal point estimates but
-    different standard errors from analytical (a.k.a. inverse variance) weights and
-    from probability (a.k.a. sampling) weights which are the default in some other
-    software.
+    The keyword argument `wts` can be an `AbstractWeights` specifying frequency weights for observations.
+    Weights allowed are: 
+    - `AnalyticaWeights`: describe a non-random relative importance (usually between 0 and 1)
+    for each observation.
+    - `FrequencyWeights`: describe the number of times (or frequency) each observation was observed.
+    - `ProbabilityWeights`: represent the inverse of the sampling probability for each observation,
+    providing a correction mechanism for under- or over-sampling certain population groups
+    These weights gives equal point estimates but different standard errors. 
+    If a vector is passed (deprecated), it is coerced to `FrequencyWeights`. 
 
     `dropcollinear` controls whether or not `lm` accepts a model matrix which
     is less-than-full rank. If `true` (the default), only the first of each set of
@@ -166,6 +183,9 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
         dropcollinear = allowrankdeficient_dep
+    end    
+    if isa(wts, Vector)
+        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using AnalyticalWeights, ProbabilityWeights, or FrequencyWeights.", :fit)
     end
     fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
 end
@@ -205,6 +225,7 @@ loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
 nullloglikelihood(obj::LinearModel) = nullloglikelihood(obj.rr)
 
 r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
+
 
 function adjr2(obj::LinearModel)
     n = nobs(obj)
@@ -299,19 +320,15 @@ of each data point.
 Currently only implemented for linear models without weights.
 """
 function StatsBase.cooksdistance(obj::LinearModel)
-    u = residuals(obj)
-    mse = dispersion(obj,true)
+    wts = weights(obj)
+    u = residuals(obj; weighted=!isempty(wts))
+    mse = GLM.dispersion(obj,true)
     k = dof(obj)-1
     d_res = dof_residual(obj)
-    X = modelmatrix(obj)
-    XtX = crossmodelmatrix(obj)
+    X = modelmatrix(obj; weighted=!isempty(wts))
+    XtX = crossmodelmatrix(obj; weighted=!isempty(wts))
     k == size(X,2) || throw(ArgumentError("Models with collinear terms are not currently supported."))
-    wts = obj.rr.wts
-    if isempty(wts)
-        hii = diag(X * inv(XtX) * X')
-    else
-        throw(ArgumentError("Weighted models are not currently supported."))
-    end
+    hii = diag(X * inv(XtX) * X')
     D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
     return D
 end

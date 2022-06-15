@@ -83,12 +83,13 @@ end
 end
 
 @testset "linear model with weights" begin 
+
     df = dataset("quantreg", "engel")
     N = nrow(df)
     df.weights = repeat(1:5, Int(N/5))
     f = @formula(FoodExp ~ Income)
-    lm_model = lm(f, df, wts = df.weights)
-    glm_model = glm(f, df, Normal(), wts = df.weights)
+    lm_model = lm(f, df, wts = FrequencyWeights(df.weights))
+    glm_model = glm(f, df, Normal(), wts = FrequencyWeights(df.weights))
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
@@ -96,6 +97,29 @@ end
     @test isapprox(adjr2(lm_model), 0.832788298242634)
     @test isapprox(vcov(lm_model), [88.02760245551447 -0.06772589439264813; 
                                     -0.06772589439264813 6.670664781664879e-5])
+    @test isapprox(first(predict(lm_model)), 357.57694841780994)
+    @test isapprox(loglikelihood(lm_model), -4353.946729075838)
+    @test isapprox(loglikelihood(glm_model), -4353.946729075838)
+    @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
+    @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
+    
+    lm_model = lm(f, df, wts = df.weights)
+    glm_model = glm(f, df, Normal(), wts = df.weights)
+    @test isa(weights(lm_model), FrequencyWeights)
+    @test isa(weights(glm_model), FrequencyWeights)
+    
+    
+    
+    
+    lm_model = lm(f, df, wts = aweights(df.weights))
+    glm_model = glm(f, df, Normal(), wts = aweights(df.weights))
+    @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(stderror(lm_model), [16.297055281313032, 0.014186793927918842])
+    @test isapprox(r2(lm_model), 0.8330258148644486)
+    @test isapprox(adjr2(lm_model), 0.8323091874604334)
+    @test isapprox(vcov(lm_model), [265.59401084217296   -0.20434035947652907; 
+                                     -0.20434035947652907 0.00020126512195323495])
     @test isapprox(first(predict(lm_model)), 357.57694841780994)
     @test isapprox(loglikelihood(lm_model), -4353.946729075838)
     @test isapprox(loglikelihood(glm_model), -4353.946729075838)
@@ -128,8 +152,9 @@ end
     @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7,:])
 
     m2p_dep_pos = fit(LinearModel, Xmissingcell, ymissingcell, true)
-    @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
-                "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
+    @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " * "argument `dropcollinear` instead. Proceeding with positional argument value: true")  (:warn, "Passing weights as vector is deprecated in favor of explicitely using " * "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights.") fit(LinearModel, Xmissingcell, ymissingcell, true)
+    # @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
+    #             "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
     @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
     @test rank(m2p_dep_pos.pp.chol) == rank(m2p.pp.chol)
     @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
@@ -407,10 +432,10 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
                       admit = repeat([false, true], inner=[4]),
                       rank = categorical(repeat(1:4, outer=2)))
 
-@testset "Aggregated Binomial LogitLink" begin
+@testset "Aggregated Binomial LogitLink (FrequencyWeights)" begin
     for distr in (Binomial, Bernoulli)
         gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
-                   wts=Array(admit_agr.count))
+                   wts=fweights(admit_agr.count))
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
         @test isapprox(deviance(gm14), 474.9667184280627)
@@ -421,8 +446,25 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
         @test isapprox(coef(gm14),
             [0.164303051291, -0.7500299832, -1.36469792994, -1.68672866457], atol=1e-5)
     end
+    
 end
 
+@testset "Aggregated Binomial LogitLink (AnalyticWeights)" begin
+    for distr in (Binomial, Bernoulli)
+        gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
+                   wts=aweights(admit_agr.count))
+        @test dof(gm14) == 4
+        @test nobs(gm14) == 8
+        @test isapprox(deviance(gm14), 474.9667184280627)
+        @test isapprox(loglikelihood(gm14), -237.48335921403134)
+        @test isapprox(aic(gm14), 482.96671842822883)
+        @test isapprox(aicc(gm14), 496.3000517613874)
+        @test isapprox(bic(gm14), 483.28448459477346)
+        @test isapprox(coef(gm14),
+            [0.164303051291, -0.7500299832, -1.36469792994, -1.68672866457], atol=1e-5)
+    end
+    
+end
 # Logistic regression using aggregated data with proportions of successes and weights
 admit_agr2 = DataFrame(Any[[61., 151, 121, 67], [33., 54, 28, 12], categorical(1:4)],
     [:count, :admit, :rank])
@@ -431,7 +473,7 @@ admit_agr2.p = admit_agr2.admit ./ admit_agr2.count
 ## The model matrix here is singular so tests like the deviance are just round off error
 @testset "Binomial LogitLink aggregated" begin
     gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial(),
-               wts=admit_agr2.count)
+               wts=fweights(admit_agr2.count))
     test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
@@ -446,7 +488,7 @@ end
 # Weighted Gamma example (weights are totally made up)
 @testset "Gamma InverseLink Weights" begin
     gm16 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(),
-               wts=[1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
+               wts=fweights([1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7]))
     test_show(gm16)
     @test dof(gm16) == 3
     @test nobs(gm16) == 32.7
@@ -461,7 +503,7 @@ end
 # Weighted Poisson example (weights are totally made up)
 @testset "Poisson LogLink Weights" begin
     gm17 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson(),
-        wts = [1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
+        wts = fweights([1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7]))
     test_show(gm17)
     @test dof(gm17) == 5
     @test isapprox(deviance(gm17), 17.699857821414266)
@@ -615,6 +657,37 @@ end
         @test isapprox(deviance(gmsparse), deviance(gmdense))
         @test isapprox(coef(gmsparse), coef(gmdense))
         @test isapprox(vcov(gmsparse), vcov(gmdense))
+    end
+end
+
+@testset "Sparse LM (weighted)" begin
+    rng = StableRNG(1)
+    X = sprand(rng, 1000, 10, 0.01)
+    β = randn(rng, 10)
+    y = Bool[rand(rng) < logistic(x) for x in X * β]
+    wts = rand(1000)
+    gmsparsev = [fit(LinearModel, X, y; wts=fweights(wts)),
+                 fit(LinearModel, X, sparse(y); wts=fweights(wts)),
+                 fit(LinearModel, Matrix(X), sparse(y); wts=fweights(wts))]
+    gmdense = fit(LinearModel, Matrix(X), y; wts=fweights(wts))
+
+    for gmsparse in gmsparsev
+        @test isapprox(deviance(gmsparse), deviance(gmdense))
+        @test isapprox(coef(gmsparse), coef(gmdense))
+        @test isapprox(vcov(gmsparse), vcov(gmdense))
+        @test isapprox(Matrix(modelmatrix(gmsparse; weighted=true)), modelmatrix(gmdense; weighted=true))
+    end
+
+    gmsparsev = [fit(LinearModel, X, y; wts=aweights(wts)),
+                 fit(LinearModel, X, sparse(y); wts=aweights(wts)),
+                 fit(LinearModel, Matrix(X), sparse(y); wts=aweights(wts))]
+    gmdense = fit(LinearModel, Matrix(X), y; wts=aweights(wts))
+
+    for gmsparse in gmsparsev
+        @test isapprox(deviance(gmsparse), deviance(gmdense))
+        @test isapprox(coef(gmsparse), coef(gmdense))
+        @test isapprox(vcov(gmsparse), vcov(gmdense))
+        @test isapprox(Matrix(modelmatrix(gmsparse; weighted=true)), modelmatrix(gmdense; weighted=true))
     end
 end
 

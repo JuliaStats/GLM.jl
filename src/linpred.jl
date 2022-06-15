@@ -1,5 +1,5 @@
 """
-    linpred!(out, p::LinPred, f::Real=1.0)
+linpred!(out, p::LinPred, f::Real=1.0)
 
 Overwrite `out` with the linear predictor from `p` with factor `f`
 
@@ -11,14 +11,14 @@ function linpred!(out, p::LinPred, f::Real=1.)
 end
 
 """
-    linpred(p::LinPred, f::Real=1.0)
+linpred(p::LinPred, f::Real=1.0)
 
 Return the linear predictor `p.X * (p.beta0 .+ f * p.delbeta)`
 """
 linpred(p::LinPred, f::Real=1.) = linpred!(Vector{eltype(p.X)}(undef, size(p.X, 1)), p, f)
 
 """
-    installbeta!(p::LinPred, f::Real=1.0)
+installbeta!(p::LinPred, f::Real=1.0)
 
 Install `pbeta0 .+= f * p.delbeta` and zero out `p.delbeta`.  Return the updated `p.beta0`.
 """
@@ -33,7 +33,7 @@ function installbeta!(p::LinPred, f::Real=1.)
 end
 
 """
-    DensePredQR
+DensePredQR
 
 A `LinPred` type with a dense, unpivoted QR decomposition of `X`
 
@@ -66,7 +66,7 @@ DensePredQR(X::Matrix{T}) where T = DensePredQR{T}(X, zeros(T, size(X,2)))
 convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
 """
-    delbeta!(p::LinPred, r::Vector)
+delbeta!(p::LinPred, r::Vector)
 
 Evaluate and return `p.delbeta` the increment to the coefficient vector from residual `r`
 """
@@ -78,7 +78,7 @@ function delbeta!(p::DensePredQR{T}, r::Vector{T}) where T<:BlasReal
 end
 
 """
-    DensePredChol{T}
+DensePredChol{T}
 
 A `LinPred` type with a dense Cholesky factorization of `X'X`
 
@@ -106,12 +106,12 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool)
     T = eltype(F)
     F = pivot ? pivoted_cholesky!(F, tol = -one(T), check = false) : cholesky!(F)
     DensePredChol(Matrix{T}(X),
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        F,
-        similar(X, T),
-        similar(cholfactors(F)))
+    zeros(T, size(X, 2)),
+    zeros(T, size(X, 2)),
+    zeros(T, size(X, 2)),
+    F,
+    similar(X, T),
+    similar(cholfactors(F)))
 end
 
 cholpred(X::AbstractMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
@@ -177,12 +177,12 @@ end
 function SparsePredChol(X::SparseMatrixCSC{T}) where T
     chol = cholesky(sparse(I, size(X, 2), size(X,2)))
     return SparsePredChol{eltype(X),typeof(X),typeof(chol)}(X,
-        X',
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        chol,
-        similar(X))
+    X',
+    zeros(T, size(X, 2)),
+    zeros(T, size(X, 2)),
+    zeros(T, size(X, 2)),
+    chol,
+    similar(X))
 end
 
 cholpred(X::SparseMatrixCSC, pivot::Bool=false) = SparsePredChol(X)
@@ -220,6 +220,7 @@ function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
     res[ipiv, ipiv]
 end
 invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
+## For ProbabilityWeights the variance is diferent
 vcov(x::LinPredModel) = rmul!(invchol(x.pp), dispersion(x, true))
 
 function cor(x::LinPredModel)
@@ -235,28 +236,42 @@ function show(io::IO, obj::LinPredModel)
 end
 
 modelframe(obj::LinPredModel) = obj.fr
-modelmatrix(obj::LinPredModel) = obj.pp.X
+
+function modelmatrix(obj::LinPredModel; weighted=false)  
+    wts = weights(obj)
+    X = obj.pp.X
+    if !weighted 
+        X
+    elseif !isempty(wts)
+        wts_times_X(X, wts)
+    else
+        throw(ArgumentError("`weighted=true` allowed only for weighted models."))
+    end
+end
+
+function wts_times_X(X::AbstractSparseMatrix, wts::AbstractArray)
+    Z = copy(X)
+    rows = rowvals(Z)
+    vals = nonzeros(Z)
+    m, n = size(Z)
+    for j = 1:n
+        for i in nzrange(Z, j)
+            r = rows[i]         
+            vals[i] *= sqrt(wts[r])
+        end
+    end 
+    return Z
+end
+
+wts_times_X(X::AbstractMatrix, wts::AbstractArray) = sqrt.(wts).*X
+    
 response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
 StatsModels.formula(obj::LinPredModel) = modelframe(obj).formula
-residuals(obj::LinPredModel) = residuals(obj.rr)
-
-"""
-    nobs(obj::LinearModel)
-    nobs(obj::GLM)
-
-For linear and generalized linear models, returns the number of rows, or,
-when prior weights are specified, the sum of weights.
-"""
-function nobs(obj::LinPredModel)
-    if isempty(obj.rr.wts)
-        oftype(sum(one(eltype(obj.rr.wts))), length(obj.rr.y))
-    else
-        sum(obj.rr.wts)
-    end
-end
+residuals(obj::LinPredModel; kwarg...) = residuals(obj.rr; kwarg...)
+weights(obj::LinPredModel) = weights(obj.rr)
 
 coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
@@ -264,3 +279,4 @@ coef(obj::LinPredModel) = coef(obj.pp)
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
 
 hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))
+    
