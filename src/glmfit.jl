@@ -666,8 +666,8 @@ when prior weights of type FrequencyWeights are specified, the sum of weights.
 nobs(obj::LinPredModel) = nobs(obj.rr)
 
 nobs(r::LmResp{V,W}) where {V,W} = oftype(sum(one(eltype(r.wts))), length(r.y))
-nobs(r::LmResp{V,W}) where {V,W<:FrequencyWeights} = r.wts.sum
+nobs(r::LmResp{V,W}) where {V,W<:FrequencyWeights} = isempty(r.wts) ? oftype(sum(one(eltype(r.wts))), length(r.y)) : r.wts.sum
 
-nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = r.wts.sum
+nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = isempty(r.wts) ? oftype(sum(one(eltype(r.wts))), length(r.y)) : r.wts.sum
 nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W} = oftype(sum(one(eltype(r.wts))), length(r.y))
 
