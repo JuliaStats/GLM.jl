@@ -155,10 +155,10 @@ Many of the methods provided by this package have names similar to those in [R](
 - `confint`: confidence intervals for coefficients
 - `cooksdistance`: [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation, giving an estimate of the influence of each data point. Currently only implemented for linear models without weights.
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
-- `dispersion`: estimated dispersion (or scale) parameter for a model's distribution
-- `dof`: return the number of degrees of freedom consumed in the model
+- `dispersion`: dispersion (or scale) parameter for a model's distribution
+- `dof`: the number of degrees of freedom consumed in the model
 - `dof_residual`: degrees of freedom for residuals, when meaningful
-- `fitted`: return the fitted values of the model
+- `fitted`: the fitted values of the model
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
 - `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
 - `loglikelihood`: log-likelihood of the model
@@ -171,7 +171,7 @@ Many of the methods provided by this package have names similar to those in [R](
 - `residuals`: vector of residuals from the fitted model
 - `response`: model response (a.k.a the dependent variable)
 - `stderror`: standard errors of the coefficients
-- `vcov`: estimated variance-covariance matrix of the coefficient estimates
+- `vcov`: variance-covariance matrix of the coefficient estimates
 
 
 Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
@@ -190,68 +190,17 @@ julia> round.(coef(mdl); digits=8)
 2-element Vector{Float64}:
  -0.66666667
   2.5
-  
-julia> round.(stderror(mdl); digits=8)
-2-element Vector{Float64}:
- 0.62360956
- 0.28867513
 
-julia> round.(confint(mdl); digits=8)
-2×2 Matrix{Float64}:
- -8.59038  7.25704
- -1.16797  6.16797
-  
 julia> round(r2(mdl); digits=8)
 0.98684211
 
-julia> round(adjr2(mdl); digits=8)
-0.97368421
-
-julia> round(deviance(mdl); digits=8)
-0.16666667
-
-julia> dof(mdl)
-3
-
-julia> dof_residual(mdl)
-1.0
-
 julia> round(aic(mdl); digits=8)
 5.84251593
-
-julia> round(aicc(mdl); digits=8)
--18.15748407
-
-julia> round(bic(mdl); digits=8)
-3.13835279
-
-julia> round(dispersion(mdl.model); digits=8)
-0.40824829
-
-julia> round(loglikelihood(mdl); digits=8)
-0.07874204
-
-julia> round(nullloglikelihood(mdl); digits=8)
--6.41735797
-
-julia> round.(vcov(mdl); digits=8)
-2×2 Matrix{Float64}:
-  0.388889  -0.166667
- -0.166667   0.0833333
 ```
 `predict` method returns predicted values of response variable from covariate values `newX`.
 If you ommit `newX` then it return fitted response values. You will find more about [predict](https://juliastats.org/GLM.jl/stable/api/#StatsBase.predict) in the API docuemnt.
 
 ```jldoctest methods
-julia> round.(predict(mdl); digits=8)
-3-element Vector{Float64}:
- 1.83333333
- 4.33333333
- 6.83333333
-
-julia> fitted(mdl) ≈ predict(mdl)
-true
-
 julia> round.(predict(mdl, test_data); digits=8)
 1-element Vector{Float64}:
  9.33333333
