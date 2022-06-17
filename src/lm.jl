@@ -30,15 +30,8 @@ end
 
 function LmResp(y::AbstractVector{<:Real}, wts::Union{Nothing,AbstractVector{<:Real}, AbstractWeights{<:Real}}=nothing)
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
-    _y = convert(Vector{float(eltype(y))}, y)
-    _wts = if wts === nothing         
-        aweights(similar(_y, 0))
-    elseif isa(wts, Vector)
-        fweights(wts)
-    else
-        wts
-    end
-    return LmResp{typeof(_y), typeof(_wts)}(zero(_y), zero(_y), _wts, _y)
+    _y = convert(Vector{float(eltype(y))}, y)    
+    return LmResp{typeof(_y), typeof(wts)}(zero(_y), zero(_y), wts, _y)
 end
 
 function updateμ!(r::LmResp{V, W}, linPr::V) where {V<:FPVector, W}
@@ -187,7 +180,17 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     if isa(wts, Vector)
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using AnalyticalWeights, ProbabilityWeights, or FrequencyWeights.", :fit)
     end
-    fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
+    _wts = if wts === nothing
+        uweights(0)
+    elseif isa(wts, AbstractWeights)
+        wts
+    elseif isa(wts, AbstractVector)
+        fweights(wts)
+    else
+        throw(ArgumentError("`wts` should be an AbstractVector coercible to an AbstractWeights"))
+    end
+
+    fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts)))
 end
 
 """
