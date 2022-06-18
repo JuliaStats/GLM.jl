@@ -112,7 +112,7 @@ mutable struct DensePredChol{T<:BlasReal,W<:AbstractVector{<:Real},C} <: DensePr
     scratchm1::Matrix{T}
     scratchm2::Matrix{T}
 end
-function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights{<:Real}=uweights(0))
+function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights{<:Real})
     Xw = isempty(wts) ? Matrix{eltype(X)}(undef, 0, 0) : sqrt.(wts).*X
     F = isempty(wts) ? Hermitian(float(X'X)) : Hermitian(float(Xw'Xw))
     T = eltype(F)
@@ -128,7 +128,8 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights{<:Re
     similar(cholfactors(F)))
 end
 
-cholpred(X::AbstractMatrix, pivot::Bool, wts) = DensePredChol(X, pivot, wts)
+cholpred(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights) = DensePredChol(X, pivot, wts)
+cholpred(X::AbstractMatrix, pivot::Bool=false) = DensePredChol(X, pivot, uweights(0))
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
@@ -163,22 +164,21 @@ function delbeta!(p::DensePredChol{T,<:AbstractWeights,<:CholeskyPivoted}, r::Ve
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:AbstractWeights,<:Cholesky}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
-    Z = isempty(p.wts) ? X : Xw
-    scr = mul!(p.scratchm1, Diagonal(wt), Z)
-    cholesky!(Hermitian(mul!(cholfactors(p.chol), transpose(scr), Z), :U))
-    mul!(p.delbeta, transpose(scr), r)
+function delbeta!(p::DensePredChol{T,<:AbstractWeights,<:Cholesky}, r::Vector{T}) where T<:BlasReal
+    Z = isempty(p.wts) ? p.X : p.Xw
+    cholesky!(Hermitian(mul!(cholfactors(p.chol), transpose(Z), Z), :U))
+    mul!(p.delbeta, transpose(Z), r)
     ldiv!(p.chol, p.delbeta)
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:AbstractWeights,<:CholeskyPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:AbstractWeights,<:CholeskyPivoted}, r::Vector{T}) where T<:BlasReal   
     Z = isempty(p.wts) ? p.X : p.Xw
     cf = cholfactors(p.chol)
     piv = p.chol.p
-    cf .= mul!(p.scratchm2, adjoint(LinearAlgebra.mul!(p.scratchm1, Diagonal(wt), Z)), Z)[piv, piv]
+    cf .= mul!(p.scratchm2, adjoint(Z), Z)[piv, piv]
     cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
-    ldiv!(p.chol, mul!(p.delbeta, transpose(p.scratchm1), r))
+    ldiv!(p.chol, mul!(p.delbeta, transpose(Z), r))
     p
 end
 
@@ -243,8 +243,36 @@ function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
     res[ipiv, ipiv]
 end
 invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
-## For ProbabilityWeights the variance is diferent
-vcov(x::LinPredModel) = rmul!(invchol(x.pp), dispersion(x, true))
+
+function vcov(x::LinPredModel) 
+    d = dispersion(x, true)
+    B = _covm(x.pp)
+    rmul!(B, dispersion(x, true))
+end
+
+_covm(pp::DensePredChol{T, W}) where {T,W} = invchol(pp)
+
+function _covm(pp::DensePredChol{T, <:ProbabilityWeights, <:Cholesky}) where {T} 
+    wts = pp.wts
+    Z = pp.scratchm1 .= pp.X.*wts
+    XtW2X = Z'Z
+    invXtWX = invchol(pp)
+    invXtWX*XtW2X*invXtWX
+end
+
+function _covm(pp::DensePredChol{T, <:ProbabilityWeights, <:CholeskyPivoted}) where {T} 
+    wts = pp.wts
+    Z = pp.scratchm1 .= pp.X.*wts
+    rnk = rank(pp.chol)
+    p = length(pp.delbeta)
+    if rnk == p
+        XtW2X = Z'Z
+    else
+        ## no idea
+    end
+    invXtWX = invchol(pp)
+    invXtWX*XtW2X*invXtWX
+end
 
 function cor(x::LinPredModel)
     Σ = vcov(x)

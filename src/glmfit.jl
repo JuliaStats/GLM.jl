@@ -481,7 +481,7 @@ function fit(::Type{M},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
     dofit::Bool = true,
-    wts::Union{AbstractWeights{<:Real}, AbstractVector{<:Real}} = aweights(similar(y, 0)),
+    wts::AbstractWeights{<:Real},
     offset::AbstractVector{<:Real}   = similar(y, 0),
     fitargs...) where {M<:AbstractGLM}
 
@@ -491,7 +491,7 @@ function fit(::Type{M},
     end
 
     rr = GlmResp(y, d, l, offset, wts)
-    res = M(rr, cholpred(X), false)
+    res = M(rr, cholpred(X, false, wts), false)
     return dofit ? fit!(res; fitargs...) : res
 end
 

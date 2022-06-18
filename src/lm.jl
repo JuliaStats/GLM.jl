@@ -124,11 +124,7 @@ end
 LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 
 function StatsBase.fit!(obj::LinearModel)
-    if isempty(obj.rr.wts)
-        delbeta!(obj.pp, obj.rr.y)
-    else 
-        delbeta!(obj.pp, obj.rr.y, convert(Vector{eltype(obj.rr.y)}, obj.rr.wts))
-    end
+    delbeta!(obj.pp, obj.rr.y)    
     installbeta!(obj.pp)     
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
     return obj
@@ -177,17 +173,15 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
         dropcollinear = allowrankdeficient_dep
     end    
-    if isa(wts, Vector)
-        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using AnalyticalWeights, ProbabilityWeights, or FrequencyWeights.", :fit)
-    end
     _wts = if wts === nothing
         uweights(0)
     elseif isa(wts, AbstractWeights)
         wts
     elseif isa(wts, AbstractVector)
+        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using AnalyticalWeights, ProbabilityWeights, or FrequencyWeights", :fit)
         fweights(wts)
     else
-        throw(ArgumentError("`wts` should be an AbstractVector coercible to an AbstractWeights"))
+        throw(ArgumentError("`wts` should be an AbstractVector coercible to AbstractWeights"))
     end
 
     fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts)))
