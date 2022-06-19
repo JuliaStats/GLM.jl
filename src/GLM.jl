@@ -16,6 +16,7 @@ module GLM
     import StatsFuns: xlogy
     import SpecialFunctions: erfc, erfcinv, digamma, trigamma
     import StatsModels: hasintercept
+    import Tables
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
            fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²,

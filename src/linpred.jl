@@ -288,7 +288,7 @@ function StatsBase.predict(mm::LinPredModel, data;
     t = columntable(data)
     cols, nonmissings = StatsModels.missing_omit(t, f.rhs)
     newx = modelcols(f.rhs, cols)
-    prediction = Tables.allocatecolumn(Union{_coltype(f.lhs), Missing}, Tables.rowcount(t))
+    prediction = Tables.allocatecolumn(Union{_coltype(f.lhs), Missing}, length(nonmissings))
     fill!(prediction, missing)
     if interval === nothing
         predict!(view(prediction, nonmissings), mm, newx; kwargs...)
