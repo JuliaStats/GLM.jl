@@ -89,52 +89,6 @@ module GLM
         pivoted_cholesky!(A; kwargs...) = cholesky!(A, RowMaximum(); kwargs...)
     end
 
-    ## TODO: define these in StatsModels
-    using Tables
-
-    function StatsModels.modelmatrix(f::FormulaTerm, data, contrasts;
-                                     model::Type{M}=StatisticalModel) where M
-        Tables.istable(data) ||
-            throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
-        data, _ = StatsModels.missing_omit(Tables.columntable(data), f)
-        sch = schema(f, data, contrasts)
-        f = apply_schema(f, sch, M)
-        f, modelcols(f, data)
-    end
-
-    formula(x::StatisticalModel) =
-        throw(ArgumentError("formula not implemented for $(nameof(typeof(x)))"))
-
-    StatsBase.coefnames(x::StatisticalModel) = coefnames(formula(x).rhs)
-
-    get_type(::ContinuousTerm{T}) where {T} = T
-
-    function StatsBase.predict(mm::StatisticalModel, data;
-                               interval::Union{Symbol,Nothing}=nothing, level::Real=0.95,
-                               kwargs...)
-        Tables.istable(data) ||
-            throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
-
-        f = formula(mm)
-        cols, nonmissings = StatsModels.missing_omit(columntable(data), f.rhs)
-        new_x = modelcols(f.rhs, cols)
-        nr = size(new_x, 1)
-        y_pred = Tables.allocatecolumn(Union{get_type(f.lhs), Missing}, nr)
-        fill!(y_pred, missing)
-        if interval === nothing
-            predict!(view(y_pred, nonmissings), mm, reshape(new_x, nr, :); kwargs...)
-            return y_pred
-        else
-            lower = Vector{Union{Float64, Missing}}(missing, nr)
-            upper = Vector{Union{Float64, Missing}}(missing, nr)
-            tup = (prediction=view(y_pred, nonmissings),
-                   lower=view(lower, nonmissings),
-                   upper=view(upper, nonmissings))
-            predict!(tup, mm, reshape(new_x, nr, :); kwargs...)
-            return (prediction=y_pred, lower=lower, upper=upper)
-        end
-    end
-
     include("linpred.jl")
     include("lm.jl")
     include("glmtools.jl")

@@ -234,13 +234,21 @@ function show(io::IO, obj::LinPredModel)
     println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
 end
 
-modelframe(obj::LinPredModel) = obj.fr
+function modelframe(f::FormulaTerm, data, contrasts::AbstractDict)
+    Tables.istable(data) ||
+        throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
+    data, _ = StatsModels.missing_omit(Tables.columntable(data), f)
+    sch = schema(f, data, contrasts)
+    f = apply_schema(f, sch, LinPredModel)
+    f, modelcols(f, data)
+end
+
 modelmatrix(obj::LinPredModel) = obj.pp.X
 response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
-StatsModels.formula(obj::LinPredModel) = obj.formula
+formula(obj::LinPredModel) = obj.formula
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 """
@@ -260,7 +268,40 @@ end
 
 coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
+coefnames(x::LinPredModel) = coefnames(formula(x).rhs)
 
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
 
 hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))
+
+_coltype(::ContinuousTerm{T}) where {T} = T
+
+# Function common to all LinPred models, but documented separately
+# for LinearModel and GeneralizedLinearModel
+function StatsBase.predict(mm::LinPredModel, data;
+                           interval::Union{Symbol,Nothing}=nothing, level::Real=0.95,
+                           kwargs...)
+    Tables.istable(data) ||
+        throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
+
+    f = formula(mm)
+    t = columntable(data)
+    cols, nonmissings = StatsModels.missing_omit(t, f.rhs)
+    newx = modelcols(f.rhs, cols)
+    prediction = Tables.allocatecolumn(Union{_coltype(f.lhs), Missing}, Tables.rowcount(t))
+    fill!(prediction, missing)
+    if interval === nothing
+        predict!(view(prediction, nonmissings), mm, newx; kwargs...)
+        return prediction
+    else
+        # Finding integer indices once is faster
+        nonmissinginds = findall(nonmissings)
+        lower = Vector{Union{Float64, Missing}}(missing, nr)
+        upper = Vector{Union{Float64, Missing}}(missing, nr)
+        tup = (prediction=view(prediction, nonmissinginds),
+                lower=view(lower, nonmissinginds),
+                upper=view(upper, nonmissinginds))
+        predict!(tup, mm, new_x; kwargs...)
+        return (prediction=prediction, lower=lower, upper=upper)
+    end
+end

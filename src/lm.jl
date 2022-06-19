@@ -152,7 +152,7 @@ function fit(::Type{LinearModel}, f::FormulaTerm, data,
              wts::Union{AbstractVector{<:Real}, Nothing}=nothing,
              dropcollinear::Bool=true,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
-    f, (y, X) = StatsModels.modelmatrix(f, data, contrasts, model=LinearModel)
+    f, (y, X) = modelframe(f, data, contrasts)
     wts === nothing && (wts = similar(y, 0))
     fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), f))
 end
@@ -277,50 +277,57 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     return res
 end
 
-StatsModels.predict!(y::AbstractVector, mm::LinearModel, newx::AbstractMatrix) =
-    y .= newx * coef(mm)
-
-function StatsModels.predict!(res::NamedTuple{(:prediction, :lower, :upper),
-                                              <:NTuple{3, AbstractVector}},
+function StatsModels.predict!(res::Union{AbstractVector,
+                                         NamedTuple{(:prediction, :lower, :upper),
+                                                    <:NTuple{3, AbstractVector}}},
                               mm::LinearModel, newx::AbstractMatrix;
-                              interval::Symbol, level::Real=0.95)
-    res.prediction .= newx * coef(mm)
+                              interval::Union{Symbol, Nothing}=nothing,
+                              level::Real=0.95)
     if interval === :confint
         Base.depwarn("interval=:confint is deprecated in favor of interval=:confidence", :predict)
         interval = :confidence
     end
     if interval === nothing
-        return retmean
+        res isa AbstractVector ||
+            throw(ArgumentError("`res` must be a vector when `interval == nothing` or is omitted"))
+        length(res) == size(newx, 1) ||
+            throw(DimensionMismatch("length of `res` must equal the number of rows in `newx`"))
+        res .= newx * coef(mm)
     elseif mm.pp.chol isa CholeskyPivoted &&
         mm.pp.chol.rank < size(mm.pp.chol, 2)
         throw(ArgumentError("prediction intervals are currently not implemented " *
                             "when some independent variables have been dropped " *
                             "from the model due to collinearity"))
-    end
-    res isa NamedTuple ||
-        throw(ArgumentError("`res` must be a `NamedTuple` when `interval` is " *
-                            "`:confidence` or `:prediction`"))
-    length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
-    chol = cholesky!(mm.pp)
-    # get the R matrix from the QR factorization
-    if chol isa CholeskyPivoted
-        ip = invperm(chol.p)
-        R = chol.U[ip, ip]
     else
-        R = chol.U
+        res isa NamedTuple ||
+            throw(ArgumentError("`res` must be a `NamedTuple` when `interval` is " *
+                                "`:confidence` or `:prediction`"))
+        prediction, lower, upper = res
+        length(prediction) == length(lower) == length(upper) == size(newx, 1) ||
+            throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newx`"))
+        length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
+        chol = cholesky!(mm.pp)
+        # get the R matrix from the QR factorization
+        if chol isa CholeskyPivoted
+            ip = invperm(chol.p)
+            R = chol.U[ip, ip]
+        else
+            R = chol.U
+        end
+        dev = deviance(mm)
+        dofr = dof_residual(mm)
+        residvar = fill(dev/dofr, size(newx, 2), 1)
+        ret = dropdims((newx/R).^2 * residvar, dims=2)
+        if interval == :prediction
+            ret .+= dev/dofr
+        elseif interval != :confidence
+            error("only :confidence and :prediction intervals are defined")
+        end
+        ret .= quantile(TDist(dofr), (1 - level)/2) .* sqrt.(ret)
+        prediction .= newx * coef(mm)
+        lower .= prediction .+ ret
+        upper .= prediction -+ ret
     end
-    dev = deviance(mm)
-    dofr = dof_residual(mm)
-    residvar = fill(dev/dofr, size(newx, 2), 1)
-    ret = dropdims((newx/R).^2 * residvar, dims=2)
-    if interval == :prediction
-        ret .+= dev/dofr
-    elseif interval != :confidence
-        error("only :confidence and :prediction intervals are defined")
-    end
-    ret .= quantile(TDist(dofr), (1 - level)/2) .* sqrt.(ret)
-    res.lower .= res.prediction .+ ret
-    res.upper .= res.prediction -+ ret
     return res
 end
 

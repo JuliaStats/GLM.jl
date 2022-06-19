@@ -512,7 +512,7 @@ function fit(::Type{M},
              dofit::Bool = true,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
              fitargs...) where {M<:AbstractGLM}
-    f, (y, X) = StatsModels.modelmatrix(f, data, contrasts, model=M)
+    f, (y, X) = modelframe(f, data, contrasts)
 
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
@@ -568,13 +568,12 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
     end
 end
 
+const PREDICT_COMMON =
 """
-    predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=eltype(newX)[],
-            interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95,
-            interval_method::Symbol = :transformation)
-
-Return the predicted response of model `mm` from covariate values `newX` and,
-optionally, an `offset`.
+`newX` must be either a table (in the [Tables.jl]((https://tables.juliadata.org/stable/)
+definition) containing all columns used in the model formula, or a matrix with one column
+for each predictor in the model. In both cases, each row represents an observation for
+which a prediction will be returned.
 
 If `interval=:confidence`, also return upper and lower bounds for a given coverage `level`.
 By default (`interval_method = :transformation`) the intervals are constructed by applying
@@ -584,12 +583,23 @@ response around the linear predictor. The `:delta` method intervals are symmetri
 the point estimates, but do not respect natural parameter constraints
 (e.g., the lower bound for a probability could be negative).
 """
+
+"""
+    predict(mm::AbstractGLM, newX;
+            offset::FPVector=[],
+            interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95,
+            interval_method::Symbol = :transformation)
+
+Return the predicted response of model `mm` from covariate values `newX` and,
+optionally, an `offset`.
+
+$PREDICT_COMMON
+"""
 function predict(mm::AbstractGLM, newX::AbstractMatrix;
                  offset::FPVector=eltype(newX)[],
                  interval::Union{Symbol,Nothing}=nothing,
                  level::Real=0.95,
-                 interval_method=:transformation,
-                 skipmissing::Bool=false)
+                 interval_method=:transformation)
     r = response(mm)
     len = size(newX, 1)
     res = interval === nothing ?
@@ -600,15 +610,27 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
              interval_method=interval_method)
 end
 
-# TODO: add docstring
-function StatsModels.predict!(res::Union{AbstractVector,
-                                         NamedTuple{(:prediction, :lower, :upper),
-                                                    <: NTuple{3, AbstractVector}}},
-                              mm::AbstractGLM, newX::AbstractMatrix;
-                              offset::FPVector=eltype(newX)[],
-                              interval::Union{Symbol,Nothing}=nothing,
-                              level::Real=0.95,
-                              interval_method=:transformation)
+"""
+    predict!(res, mm::AbstractGLM, newX::AbstractMatrix;
+             offset::FPVector=eltype(newX)[],
+             interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95,
+             interval_method::Symbol = :transformation)
+
+Store in `res` the predicted response of model `mm` from covariate values `newX`
+and, optionally, an `offset`. `res` must be a vector with a length equal to the number
+of rows in `newX` if `interval=nothing` (the default), and otherwise a `NamedTuple`
+of vectors with names `prediction`, `lower` and `upper`.
+
+$PREDICT_COMMON
+"""
+function predict!(res::Union{AbstractVector,
+                             NamedTuple{(:prediction, :lower, :upper),
+                                        <: NTuple{3, AbstractVector}}},
+                  mm::AbstractGLM, newX::AbstractMatrix;
+                  offset::FPVector=eltype(newX)[],
+                  interval::Union{Symbol,Nothing}=nothing,
+                  level::Real=0.95,
+                  interval_method=:transformation)
     eta = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||
@@ -619,11 +641,17 @@ function StatsModels.predict!(res::Union{AbstractVector,
     end
 
     if interval === nothing
+        res isa AbstractVector ||
+            throw(ArgumentError("`res` must be a vector when `interval == nothing` or is omitted"))
+        length(res) == size(newX, 1) ||
+            throw(DimensionMismatch("length of `res` must equal the number of rows in `newX`"))
         res .= linkinv.(Link(mm), eta)
     elseif interval == :confidence
         res isa NamedTuple ||
             throw(ArgumentError("`res` must be a `NamedTuple` when `interval == :confidence`"))
         mu, lower, upper = res
+        length(mu) == length(lower) == length(upper) == size(newX, 1) ||
+            throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newX`"))
         mu .= linkinv.(Link(mm), eta)
         normalquantile = quantile(Normal(), (1 + level)/2)
         # Compute confidence intervals in two steps
