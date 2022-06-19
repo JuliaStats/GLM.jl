@@ -45,9 +45,6 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isa(lm2.pp.chol, CholeskyPivoted)
     @test lm2.pp.chol.piv == [2, 1]
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
-    lm3 = lm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), contrasts=Dict(:x=>DummyCoding()))
-    lm4 = lm(@formula(y~x), (y=1:25, x=categorical(repeat(1:5, 5))))
-    @test coef(lm3) == coef(lm4) ≈ [11, 1, 2, 3, 4]
     # Deprecated method
     @test lm1.model === lm1
 end
@@ -780,8 +777,12 @@ end
     @test isequal(predict(gm13m, dm), predict(gm13, dm))
     expected = allowmissing(predict(gm13m, drep))
     expected[3] = missing
-    @test isequal(predict(gm13m, dm), expected)
-    @test isequal(predict(gm13, dm), expected)
+    @test collect(skipmissing(predict(gm13m, dm))) ≈
+        collect(skipmissing(predict(gm13, dm))) ≈
+        collect(skipmissing(expected))
+    @test ismissing.(predict(gm13m, dm)) ==
+        ismissing.(predict(gm13, dm)) ==
+        ismissing.(expected)
 
 
     # Linear Model
@@ -1382,4 +1383,28 @@ end
         @test aic(mdl1) ≈ aic(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
     end
+end
+
+@testset "contrasts argument" begin
+    m = lm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)),
+           contrasts=Dict(:x=>DummyCoding()))
+    mcat = lm(@formula(y~x), (y=1:25, x=categorical(repeat(1:5, 5))))
+    gm = glm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+             contrasts=Dict(:x=>DummyCoding()))
+    gmcat = glm(@formula(y~x), (y=1:25, x=categorical(repeat(1:5, 5))),
+                Normal(), IdentityLink())
+    @test coef(m) == coef(mcat) ≈ [11, 1, 2, 3, 4]
+    @test coef(gm) == coef(gmcat) ≈ [11, 1, 2, 3, 4]
+
+    m = fit(LinearModel, @formula(y~x), (y=1:25, x=repeat(1:5, 5)),
+           contrasts=Dict(:x=>DummyCoding()))
+    mcat = fit(LinearModel, @formula(y~x), (y=1:25, x=categorical(repeat(1:5, 5))))
+    gm = fit(GeneralizedLinearModel, @formula(y~x),
+             (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+             contrasts=Dict(:x=>DummyCoding()))
+    gmcat = fit(GeneralizedLinearModel, @formula(y~x),
+                (y=1:25, x=categorical(repeat(1:5, 5))),
+                Normal(), IdentityLink())
+    @test coef(m) == coef(mcat) ≈ [11, 1, 2, 3, 4]
+    @test coef(gm) == coef(gmcat) ≈ [11, 1, 2, 3, 4]
 end

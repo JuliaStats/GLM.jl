@@ -25,7 +25,7 @@ The most general approach to fitting a model is with the `fit` function, as in
 julia> using Random
 
 julia> fit(LinearModel, hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
-LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, CholeskyPivoted{Float64, Matrix{Float64}}}}:
+LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}:
 
 Coefficients:
 ────────────────────────────────────────────────────────────────
@@ -41,7 +41,7 @@ This model can also be fit as
 julia> using Random
 
 julia> lm(hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
-LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, CholeskyPivoted{Float64, Matrix{Float64}}}}:
+LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}:
 
 Coefficients:
 ────────────────────────────────────────────────────────────────

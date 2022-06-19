@@ -460,6 +460,11 @@ const FIT_GLM_DOC = """
     - `minstepfac::Real=0.001`: Minimum line step fraction. Must be between 0 and 1.
     - `start::AbstractVector=nothing`: Starting values for beta. Should have the
       same length as the number of columns in the model matrix.
+    - `contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}()`: a `Dict` mapping term names
+      (as `Symbol`s) to term or contrast types. If a contrast is not provided
+      for a variable, the appropriate term type will be guessed based on the data type
+      from the data column: any numeric data is assumed to be continuous, and any
+      non-numeric data is assumed to be categorical.
     """
 
 """

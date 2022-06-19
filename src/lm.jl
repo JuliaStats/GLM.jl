@@ -122,12 +122,18 @@ const FIT_LM_DOC = """
     is less-than-full rank. If `true` (the default), only the first of each set of
     linearly-dependent columns is used. The coefficient for redundant linearly dependent columns is
     `0.0` and all associated statistics are set to `NaN`.
+
+    `contrasts` may optionally be supplied in the form of a `Dict` mapping term names
+    (as `Symbol`s) to term or contrast types. If a contrast is not provided
+    for a variable, the appropriate term type will be guessed based on the data type
+    from the data column: any numeric data is assumed to be continuous, and any
+    non-numeric data is assumed to be categorical.
     """
 
-# TODO: document contrasts keyword argument
 """
     fit(LinearModel, formula::FormulaTerm, data, allowrankdeficient=false;
-        [wts::AbstractVector], dropcollinear::Bool=true)
+        [wts::AbstractVector], dropcollinear::Bool=true,
+        contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
         wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
 
@@ -159,7 +165,8 @@ end
 
 """
     lm(formula, data, allowrankdeficient=false;
-       [wts::AbstractVector], dropcollinear::Bool=true)
+       [wts::AbstractVector], dropcollinear::Bool=true,
+       contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     lm(X::AbstractMatrix, y::AbstractVector;
        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
 
