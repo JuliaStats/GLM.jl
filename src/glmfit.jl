@@ -233,8 +233,6 @@ mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred,F<:Union{FormulaTerm
     fit::Bool
 end
 
-formula(obj::GeneralizedLinearModel) = obj.f
-
 function coeftable(mm::AbstractGLM; level::Real=0.95)
     cc = coef(mm)
     se = stderror(mm)

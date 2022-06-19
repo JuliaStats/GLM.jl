@@ -10,8 +10,9 @@ module GLM
     import Base: (\), convert, show, size
     import LinearAlgebra: cholesky, cholesky!
     import Statistics: cor
-    import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
-                      loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
+    import StatsBase: coef, coeftable, coefnames, confint, deviance, nulldeviance, dof, dof_residual,
+                      loglikelihood, nullloglikelihood, nobs, stderror, vcov,
+                      residuals, predict, predict!,
                       fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², PValue
     import StatsFuns: xlogy
     import SpecialFunctions: erfc, erfcinv, digamma, trigamma

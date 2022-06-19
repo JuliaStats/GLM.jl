@@ -3,12 +3,13 @@
 @deprecate confint(obj::LinearModel, level::Real) confint(obj, level=level)
 @deprecate confint(obj::AbstractGLM, level::Real) confint(obj, level=level)
 
-function getproperty(m::AbstractGLM, field)
-    if field === :model
-        Base.depwarn("accessing the `model` field of `AbstractGLM` objects is deprecated, " *
-                     "as it now returns its parent object", :getproperty)
-        return m
+function Base.getproperty(mm::LinPredModel, f::Symbol)
+    if f === :model
+        Base.depwarn("accessing the `model` field of GLM.jl models is deprecated, " *
+                     "as they are no longer wrapped in a `TableRegressionModel` " *
+                     "and can be used directly now", :getproperty)
+        return mm
     else
-        return getfield(m, field)
+        return getfield(mm, f)
     end
 end

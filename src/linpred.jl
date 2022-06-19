@@ -248,7 +248,7 @@ response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
-formula(obj::LinPredModel) = obj.formula
+formula(obj::LinPredModel) = obj.f
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 """
@@ -285,7 +285,7 @@ function StatsBase.predict(mm::LinPredModel, data;
         throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
 
     f = formula(mm)
-    t = columntable(data)
+    t = Tables.columntable(data)
     cols, nonmissings = StatsModels.missing_omit(t, f.rhs)
     newx = modelcols(f.rhs, cols)
     prediction = Tables.allocatecolumn(Union{_coltype(f.lhs), Missing}, length(nonmissings))

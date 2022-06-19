@@ -90,8 +90,6 @@ end
 
 LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 
-formula(obj::LinearModel) = obj.f
-
 function StatsBase.fit!(obj::LinearModel)
     if isempty(obj.rr.wts)
         delbeta!(obj.pp, obj.rr.y)

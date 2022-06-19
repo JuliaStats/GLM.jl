@@ -48,6 +48,8 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     lm3 = lm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), contrasts=Dict(:x=>DummyCoding()))
     lm4 = lm(@formula(y~x), (y=1:25, x=categorical(repeat(1:5, 5))))
     @test coef(lm3) == coef(lm4) ≈ [11, 1, 2, 3, 4]
+    # Deprecated method
+    @test lm1.model === lm1
 end
 
 @testset "Linear Model Cook's Distance" begin
@@ -292,6 +294,8 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     @test isapprox(bic(gm1), 57.74744128863877)
     @test isapprox(coef(gm1)[1:3],
         [3.044522437723423,-0.45425527227759555,-0.29298712468147375])
+    # Deprecated method
+    @test gm1.model === gm1
 end
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
