@@ -730,8 +730,8 @@ end
                    gm11, newX, interval=:confidence, interval_method=:delta) ==
         predict(gm11, newX, interval=:confidence, interval_method=:delta)
    @test predict!((prediction=similar(Y, size(newX, 1)),
-                    lower=similar(Y, size(newX, 1)),
-                    upper=similar(Y, size(newX, 1))),
+                   lower=similar(Y, size(newX, 1)),
+                   upper=similar(Y, size(newX, 1))),
                    gm11, newX, interval=:confidence, interval_method=:transformation) ==
         predict(gm11, newX, interval=:confidence, interval_method=:transformation)
     @test_throws ArgumentError predict!((prediction=similar(Y, size(newX, 1)),
@@ -819,8 +819,8 @@ end
                     mm, newX, interval=:confidence) ==
         predict(mm, newX, interval=:confidence)
    @test predict!((prediction=similar(Y, size(newX, 1)),
-                    lower=similar(Y, size(newX, 1)),
-                    upper=similar(Y, size(newX, 1))),
+                   lower=similar(Y, size(newX, 1)),
+                   upper=similar(Y, size(newX, 1))),
                     mm, newX, interval=:prediction) ==
         predict(mm, newX, interval=:prediction)
     @test_throws ArgumentError predict!((prediction=similar(Y, size(newX, 1)),

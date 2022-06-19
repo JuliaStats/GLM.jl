@@ -226,10 +226,10 @@ end
 
 abstract type AbstractGLM <: LinPredModel end
 
-mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred,F<:Union{FormulaTerm,Nothing}} <: AbstractGLM
+mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     rr::G
     pp::L
-    f::F
+    f::Union{FormulaTerm,Nothing}
     fit::Bool
 end
 
@@ -504,7 +504,6 @@ function fit(::Type{M},
              data,
              d::UnivariateDistribution,
              l::Link=canonicallink(d);
-             # TODO: support passing wts and offset as symbols
              offset::Union{AbstractVector, Nothing} = nothing,
              wts::Union{AbstractVector, Nothing} = nothing,
              dofit::Bool = true,
@@ -517,11 +516,9 @@ function fit(::Type{M},
         throw(DimensionMismatch("number of rows in X and y must match"))
     end
 
-    # TODO: allocate right type upfront
-    yf = float(y)
-    off = offset === nothing ? similar(yf, 0) : offset
-    wts = wts === nothing ? similar(yf, 0) : wts
-    rr = GlmResp(yf, d, l, off, wts)
+    off = offset === nothing ? similar(y, 0) : offset
+    wts = wts === nothing ? similar(y, 0) : wts
+    rr = GlmResp(y, d, l, off, wts)
     res = M(rr, cholpred(X), f, false)
     return dofit ? fit!(res; fitargs...) : res
 end

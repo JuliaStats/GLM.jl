@@ -237,7 +237,10 @@ end
 function modelframe(f::FormulaTerm, data, contrasts::AbstractDict)
     Tables.istable(data) ||
         throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
-    data, _ = StatsModels.missing_omit(Tables.columntable(data), f)
+    t = Tables.columntable(data)
+    msg = StatsModels.checknamesexist(f, t)
+    msg != "" && throw(ArgumentError(msg))
+    data, _ = StatsModels.missing_omit(t, f)
     sch = schema(f, data, contrasts)
     f = apply_schema(f, sch, LinPredModel)
     f, modelcols(f, data)
@@ -299,8 +302,8 @@ function StatsBase.predict(mm::LinPredModel, data;
         lower = Vector{Union{Float64, Missing}}(missing, nr)
         upper = Vector{Union{Float64, Missing}}(missing, nr)
         tup = (prediction=view(prediction, nonmissinginds),
-                lower=view(lower, nonmissinginds),
-                upper=view(upper, nonmissinginds))
+               lower=view(lower, nonmissinginds),
+               upper=view(upper, nonmissinginds))
         predict!(tup, mm, new_x; kwargs...)
         return (prediction=prediction, lower=lower, upper=upper)
     end

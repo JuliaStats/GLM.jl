@@ -75,17 +75,19 @@ residuals(r::LmResp) = r.y - r.mu
 """
     LinearModel
 
-A combination of a [`LmResp`](@ref) and a [`LinPred`](@ref)
+A combination of a [`LmResp`](@ref), a [`LinPred`](@ref),
+and possibly a `FormulaTerm`
 
 # Members
 
 - `rr`: a `LmResp` object
 - `pp`: a `LinPred` object
+- `f`: either a `FormulaTerm` object or `nothing`
 """
-struct LinearModel{L<:LmResp,T<:LinPred,F<:Union{FormulaTerm,Nothing}} <: LinPredModel
+struct LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
     rr::L
     pp::T
-    f::F
+    f::Union{FormulaTerm,Nothing}
 end
 
 LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
