@@ -687,68 +687,7 @@ end
 end
 
 @testset "Predict" begin
-    # Linear model
-    rng = StableRNG(123)
-    X = rand(rng, 10, 2)
-    Y = rand(rng, 10)
-
-    lmpred = fit(LinearModel, X, Y)
-    @test predict(lmpred) == fitted(lmpred)
-
-    newX = rand(rng, 5, 2)
-    newY = newX * coef(lmpred)
-    lmpred_pred1 = predict(lmpred, newX)
-    lmpred_pred2 = predict(lmpred, newX; interval=:confidence)
-    lmpred_pred3 = predict(lmpred, newX; interval=:prediction)
-    @test lmpred_pred1 == lmpred_pred2.prediction == lmpred_pred3.prediction ≈ newY
-    @test lmpred_pred2.upper ≈
-        [0.6170432517234414, 0.6857915349758823, 0.8644361267055548,
-         0.2510551586658352, 0.6280144618607879]
-    @test lmpred_pred2.lower ≈
-        [0.32609178249933063, 0.41055748807994336, 0.5523913320342061,
-         0.14588615084888942, 0.2619696605732852]
-    @test lmpred_pred3.upper ≈
-        [0.8217622514968357, 0.8951782691056336, 1.0631194540216677,
-         0.5213302104184558, 0.8123751878951413]
-    @test lmpred_pred3.lower ≈
-        [0.12137278272593627, 0.20117075395019213, 0.35370800471809305,
-        -0.12438890090373123, 0.07760893453893175]
-
-    @test ndims(lmpred_pred1) == 1
-
-    @test ndims(lmpred_pred2.prediction) == 1
-    @test ndims(lmpred_pred2.upper) == 1
-    @test ndims(lmpred_pred2.lower) == 1
-
-    @test ndims(lmpred_pred3.prediction) == 1
-    @test ndims(lmpred_pred3.upper) == 1
-    @test ndims(lmpred_pred3.lower) == 1
-
-    @test predict!(similar(Y, size(newX, 1)), lmpred, newX) == predict(lmpred, newX)
-    @test predict!((prediction=similar(Y, size(newX, 1)),
-                    lower=similar(Y, size(newX, 1)),
-                    upper=similar(Y, size(newX, 1))),
-                    lmpred, newX, interval=:confidence) ==
-        predict(lmpred, newX, interval=:confidence)
-   @test predict!((prediction=similar(Y, size(newX, 1)),
-                    lower=similar(Y, size(newX, 1)),
-                    upper=similar(Y, size(newX, 1))),
-                    lmpred, newX, interval=:prediction) ==
-        predict(lmpred, newX, interval=:prediction)
-    @test_throws ArgumentError predict!((prediction=similar(Y, size(newX, 1)),
-                                         lower=similar(Y, size(newX, 1)),
-                                         upper=similar(Y, size(newX, 1))), lmpred, newX)
-    @test_throws ArgumentError predict!(similar(Y, size(newX, 1)), lmpred, newX,
-                                        interval=:confidence)
-    @test_throws ArgumentError predict!(similar(Y, size(newX, 1)), lmpred, newX,
-                                        interval=:prediction)
-    @test_throws DimensionMismatch predict!([1], lmpred, newX)
-    @test_throws DimensionMismatch predict!((prediction=similar(Y, size(newX, 1)),
-                                             lower=similar(Y, size(newX, 1)),
-                                             upper=[1]),
-                                             lmpred, newX, interval=:confidence)
-
-    # Binomial GLM with perfect fit
+    # Binomial GLM
     rng = StableRNG(123)
     X = rand(rng, 10, 2)
     Y = logistic.(X * [3; -3])
@@ -756,7 +695,7 @@ end
     gm11 = fit(GeneralizedLinearModel, X, Y, Binomial())
     @test isapprox(predict(gm11), Y)
     @test predict(gm11) == fitted(gm11)
-    
+
     newX = rand(rng, 5, 2)
     newY = logistic.(newX * coef(gm11))
     gm11_pred1 = predict(gm11, newX)
@@ -811,6 +750,7 @@ end
     @test_throws ArgumentError predict(gm12, newX)
     @test isapprox(predict(gm12, newX, offset=newoff),
         logistic.(newX * coef(gm12) .+ newoff))
+
 
     # Prediction from DataFrames
     d = DataFrame(X, :auto)
@@ -867,6 +807,31 @@ end
         [-1.6524055967145255, -1.6576810549645142, -1.1662846080257512, -1.7939306570282658, -2.0868723667435027]
     @test pred3.upper ≈ pred3.prediction + quantile(TDist(dof_residual(mm)), 0.975)*sqrt.(diag(newX*vcov(mm)*newX') .+ deviance(mm)/dof_residual(mm)) ≈
         [3.9288331595737196, 4.077092463922373, 4.762903743958081, 3.82184595169028, 4.034521019386702]
+
+    @test predict!(similar(Y, size(newX, 1)), mm, newX) == predict(mm, newX)
+    @test predict!((prediction=similar(Y, size(newX, 1)),
+                    lower=similar(Y, size(newX, 1)),
+                    upper=similar(Y, size(newX, 1))),
+                    mm, newX, interval=:confidence) ==
+        predict(mm, newX, interval=:confidence)
+   @test predict!((prediction=similar(Y, size(newX, 1)),
+                    lower=similar(Y, size(newX, 1)),
+                    upper=similar(Y, size(newX, 1))),
+                    mm, newX, interval=:prediction) ==
+        predict(mm, newX, interval=:prediction)
+    @test_throws ArgumentError predict!((prediction=similar(Y, size(newX, 1)),
+                                         lower=similar(Y, size(newX, 1)),
+                                         upper=similar(Y, size(newX, 1))), mm, newX)
+    @test_throws ArgumentError predict!(similar(Y, size(newX, 1)), mm, newX,
+                                        interval=:confidence)
+    @test_throws ArgumentError predict!(similar(Y, size(newX, 1)), mm, newX,
+                                        interval=:prediction)
+    @test_throws DimensionMismatch predict!([1], mm, newX)
+    @test_throws DimensionMismatch predict!((prediction=similar(Y, size(newX, 1)),
+                                             lower=similar(Y, size(newX, 1)),
+                                             upper=[1]),
+                                             mm, newX, interval=:confidence)
+
 
     # Prediction with dropcollinear (#409)
     x = [1.0 1.0
