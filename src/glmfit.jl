@@ -41,8 +41,8 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
     end
 
     # Lengths of wts and off can be either n or 0
-    if lw != 0 && lw != n
-        throw(DimensionMismatch("wts must have length $n or length 0 but was $lw"))
+    if lw != n
+        throw(DimensionMismatch("wts must have length $n but was $lw"))
     end
     if lo != 0 && lo != n
         throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
@@ -51,29 +51,19 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
     return GlmResp{V,D,L,W}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
 end
 
-function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::AbstractVector{<:Real})
+function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::AbstractWeights{<:Real})
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
     _y   = convert(Vector{float(eltype(y))}, y)
     _off = convert(Vector{float(eltype(off))}, off)
-    _wts = if wts === nothing
-        ## This should be removed - here for allowing
-        ## passing a vector (deprecated) 
-        aweights(similar(_y, 0))
-    elseif isa(wts, AbstractWeights)   
-        wts
-    elseif isa(wts, AbstractVector)
-        ## for backward compatibility
-        fweights(wts)
-    end
     η    = similar(_y)
     μ    = similar(_y)
-    r    = GlmResp(_y, d, l, η, μ, _off, _wts)
-    initialeta!(r.eta, d, l, _y, _wts, _off)
+    r    = GlmResp(_y, d, l, η, μ, _off, wts)
+    initialeta!(r.eta, d, l, _y, wts, _off)
     updateμ!(r, r.eta)
     return r
 end
 
-function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real}, wts::AbstractVector{<:Real}) where {D, L}
+function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real}, wts::AbstractWeights{<:Real}) where {D, L}
     GlmResp(float(y), d, l, float(off), wts)
 end
 
@@ -296,7 +286,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
     lp = r.mu
 
     # Initialize β, μ, and compute deviance
-    if start == nothing || isempty(start)
+    if start === nothing || isempty(start)
         # Compute beta update based on default response value
         # if no starting values have been passed
         delbeta!(p, wrkresp(r), r.wrkwt)
@@ -481,17 +471,25 @@ function fit(::Type{M},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
     dofit::Bool = true,
-    wts::AbstractWeights{<:Real},
-    offset::AbstractVector{<:Real}   = similar(y, 0),
+    wts::AbstractVector{<:Real} = uweights(length(y)),
+    offset::AbstractVector{<:Real} = similar(y, 0),
     fitargs...) where {M<:AbstractGLM}
-
+    println("got you")
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
         throw(DimensionMismatch("number of rows in X and y must match"))
     end
-
-    rr = GlmResp(y, d, l, offset, wts)
-    res = M(rr, cholpred(X, false, wts), false)
+    # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
+    _wts = if isa(wts, AbstractWeights)
+        wts
+    elseif isa(wts, AbstractVector)
+        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding by coercing wts to `FrequencyWeights`", :fit)
+        fweights(wts)
+    else
+        throw(ArgumentError("`wts` should be an AbstractVector coercible to AbstractWeights"))
+    end
+    rr = GlmResp(y, d, l, offset, _wts)
+    res = M(rr, cholpred(X, false, _wts), false)
     return dofit ? fit!(res; fitargs...) : res
 end
 
@@ -500,7 +498,7 @@ fit(::Type{M},
     y::AbstractVector,
     d::UnivariateDistribution,
     l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
-        fit(M, float(X), float(y), d, l; kwargs...)
+    fit(M, float(X), float(y), d, l; kwargs...)
 
 """
     glm(formula, data,

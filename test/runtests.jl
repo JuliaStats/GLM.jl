@@ -152,9 +152,8 @@ end
     @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7,:])
 
     m2p_dep_pos = fit(LinearModel, Xmissingcell, ymissingcell, true)
-    @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " * "argument `dropcollinear` instead. Proceeding with positional argument value: true")  (:warn, "Passing weights as vector is deprecated in favor of explicitely using " * "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights.") fit(LinearModel, Xmissingcell, ymissingcell, true)
-    # @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
-    #             "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
+    @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
+                "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
     @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
     @test rank(m2p_dep_pos.pp.chol) == rank(m2p.pp.chol)
     @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
@@ -165,6 +164,16 @@ end
     @test rank(m2p_dep_pos_kw.pp.chol) == rank(m2p.pp.chol)
     @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
     @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
+end
+
+@testset "Passing wts (depwarn)" begin
+    df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3], wts = [3,3,3])
+    @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitely using " * 
+                       "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " * 
+                       "by coercing wts to `FrequencyWeights`") lm(@formula(y~x), df; wts=wts)
+    @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitely using " * 
+                       "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " * 
+                       "by coercing wts to `FrequencyWeights`") glm(@formula(y~x), Normal(), IdentityLink(), df; wts=wts)
 end
 
 @testset "saturated linear model" begin
@@ -1206,14 +1215,14 @@ end
         glm4 = glm(view(x, :, :), view(y, :), Binomial())
         @test coef(glm1) == coef(glm2) == coef(glm3) == coef(glm4)
 
-        glm5 = glm(x, y, Binomial(), wts=w)
-        glm6 = glm(x, view(y, :), Binomial(), wts=w)
-        glm7 = glm(view(x, :, :), y, Binomial(), wts=w)
-        glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=w)
-        glm9 = glm(x, y, Binomial(), wts=view(w, :))
-        glm10 = glm(x, view(y, :), Binomial(), wts=view(w, :))
-        glm11 = glm(view(x, :, :), y, Binomial(), wts=view(w, :))
-        glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=view(w, :))
+        glm5 = glm(x, y, Binomial(), wts=fweights(w))
+        glm6 = glm(x, view(y, :), Binomial(), wts=fweights(w))
+        glm7 = glm(view(x, :, :), y, Binomial(), wts=fweights(w))
+        glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=fweights(w))
+        glm9 = glm(x, y, Binomial(), wts=fweights(view(w, :)))
+        glm10 = glm(x, view(y, :), Binomial(), wts=fweights(view(w, :)))
+        glm11 = glm(view(x, :, :), y, Binomial(), wts=fweights(view(w, :)))
+        glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=fweights(view(w, :)))
         @test coef(glm5) == coef(glm6) == coef(glm7) == coef(glm8) == coef(glm9) == coef(glm10) ==
             coef(glm11) == coef(glm12)
     end

@@ -12,7 +12,7 @@ Encapsulates the response for a linear model
 
 Either or both `offset` and `wts` may be of length 0
 """
-mutable struct LmResp{V<:FPVector, W<:Union{AbstractWeights{<:Real}, AbstractVector{<:Real}}} <: ModResp  # response in a linear model
+mutable struct LmResp{V<:FPVector, W<:AbstractWeights{<:Real}} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
     wts::W                                 # prior weights (may have length 0)
@@ -28,9 +28,9 @@ mutable struct LmResp{V<:FPVector, W<:Union{AbstractWeights{<:Real}, AbstractVec
     end
 end
 
-function LmResp(y::AbstractVector{<:Real}, wts::Union{Nothing,AbstractVector{<:Real}, AbstractWeights{<:Real}}=nothing)
+function LmResp(y::AbstractVector{<:Real}, wts::AbstractWeights{<:Real})
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
-    _y = convert(Vector{float(eltype(y))}, y)    
+    _y = convert(Vector{float(eltype(y))}, y)
     return LmResp{typeof(_y), typeof(wts)}(zero(_y), zero(_y), wts, _y)
 end
 
@@ -124,8 +124,8 @@ end
 LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 
 function StatsBase.fit!(obj::LinearModel)
-    delbeta!(obj.pp, obj.rr.y)    
-    installbeta!(obj.pp)     
+    delbeta!(obj.pp, obj.rr.y)
+    installbeta!(obj.pp)
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
     return obj
 end
@@ -166,19 +166,20 @@ $FIT_LM_DOC
 """
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
-             wts::AbstractVector{<:Real}=similar(y, 0),
+             wts::AbstractVector{<:Real}=uweights(length(y)),
              dropcollinear::Bool=true)
     if allowrankdeficient_dep !== nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
         dropcollinear = allowrankdeficient_dep
     end    
-    _wts = if wts === nothing
-        uweights(0)
-    elseif isa(wts, AbstractWeights)
+    # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
+    _wts = if isa(wts, AbstractWeights)
         wts
     elseif isa(wts, AbstractVector)
-        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using AnalyticalWeights, ProbabilityWeights, or FrequencyWeights", :fit)
+        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using " * 
+                     "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " * 
+                     "by coercing wts to `FrequencyWeights`", :fit)
         fweights(wts)
     else
         throw(ArgumentError("`wts` should be an AbstractVector coercible to AbstractWeights"))
