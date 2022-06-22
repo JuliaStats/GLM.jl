@@ -67,14 +67,14 @@ end
 
 function nullloglikelihood(r::LmResp)
     n = isempty(r.wts) ? length(r.y) : sum(r.wts)
-    -n/2 * (log(2π * nulldeviance(r)/n) + 1) 
+    -n/2 * (log(2π * nulldeviance(r)/n) + 1)
 end
 
-function residuals(r::LmResp; weighted=false) 
+function residuals(r::LmResp; weighted=false)
     wts = weights(r)
     res = r.y - r.mu
-    if !weighted 
-        res 
+    if !weighted
+        res
     elseif !isempty(wts)
         sqrt.(wts).*res
     else
@@ -118,14 +118,14 @@ const FIT_LM_DOC = """
     values of the dependent variable.
 
     The keyword argument `wts` can be an `AbstractWeights` specifying frequency weights for observations.
-    Weights allowed are: 
+    Weights allowed are:
     - `AnalyticaWeights`: describe a non-random relative importance (usually between 0 and 1)
     for each observation.
     - `FrequencyWeights`: describe the number of times (or frequency) each observation was observed.
     - `ProbabilityWeights`: represent the inverse of the sampling probability for each observation,
     providing a correction mechanism for under- or over-sampling certain population groups
-    These weights gives equal point estimates but different standard errors. 
-    If a vector is passed (deprecated), it is coerced to `FrequencyWeights`. 
+    These weights gives equal point estimates but different standard errors.
+    If a vector is passed (deprecated), it is coerced to `FrequencyWeights`.
 
     `dropcollinear` controls whether or not `lm` accepts a model matrix which
     is less-than-full rank. If `true` (the default), only the first of each set of
@@ -151,19 +151,18 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
         dropcollinear = allowrankdeficient_dep
-    end    
+    end
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
     _wts = if isa(wts, AbstractWeights)
         wts
     elseif isa(wts, AbstractVector)
-        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using " * 
-                     "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " * 
+        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using " *
+                     "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " *
                      "by coercing wts to `FrequencyWeights`", :fit)
         fweights(wts)
     else
         throw(ArgumentError("`wts` should be an AbstractVector coercible to AbstractWeights"))
     end
-
     fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts)))
 end
 

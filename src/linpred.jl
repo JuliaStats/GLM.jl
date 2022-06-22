@@ -1,5 +1,5 @@
 """
-linpred!(out, p::LinPred, f::Real=1.0)
+    linpred!(out, p::LinPred, f::Real=1.0)
 
 Overwrite `out` with the linear predictor from `p` with factor `f`
 
@@ -11,14 +11,14 @@ function linpred!(out, p::LinPred, f::Real=1.)
 end
 
 """
-linpred(p::LinPred, f::Real=1.0)
+    linpred(p::LinPred, f::Real=1.0)
 
 Return the linear predictor `p.X * (p.beta0 .+ f * p.delbeta)`
 """
 linpred(p::LinPred, f::Real=1.) = linpred!(Vector{eltype(p.X)}(undef, size(p.X, 1)), p, f)
 
 """
-installbeta!(p::LinPred, f::Real=1.0)
+    installbeta!(p::LinPred, f::Real=1.0)
 
 Install `pbeta0 .+= f * p.delbeta` and zero out `p.delbeta`.  Return the updated `p.beta0`.
 """
@@ -33,7 +33,7 @@ function installbeta!(p::LinPred, f::Real=1.)
 end
 
 """
-DensePredQR
+    DensePredQR
 
 A `LinPred` type with a dense, unpivoted QR decomposition of `X`
 
@@ -122,16 +122,15 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights{<:Re
     T = eltype(F)
     F = pivot ? pivoted_cholesky!(F, tol = -one(T), check = false) : cholesky!(F)
     DensePredChol(Matrix{T}(X),
-    Matrix{T}(Xw),
-    zeros(T, size(X, 2)),
-    zeros(T, size(X, 2)),
-    zeros(T, size(X, 2)),
-    F,
-    wts,
-    similar(X, T),
-    similar(cholfactors(F)),
-    similar(X, T, (size(X,1),))
-    )
+        Matrix{T}(Xw),
+        zeros(T, size(X, 2)),
+        zeros(T, size(X, 2)),
+        zeros(T, size(X, 2)),
+        F,
+        wts,
+        similar(X, T),
+        similar(cholfactors(F)),
+        similar(X, T, (size(X,1),)))
 end
 
 cholpred(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights) = DensePredChol(X, pivot, wts)
@@ -227,14 +226,14 @@ function SparsePredChol(X::SparseMatrixCSC{T}, wts::AbstractVector) where T
     sqrtwts = sqrt.(wts)
     Xw = isempty(wts) ? SparseMatrixCSC(I, 0, 0) : sqrtwts.*X
     return SparsePredChol{eltype(X),typeof(X),typeof(chol), typeof(wts)}(X,
-    Xw,
-    X',
-    zeros(T, size(X, 2)),
-    zeros(T, size(X, 2)),
-    zeros(T, size(X, 2)),
-    chol,
-    similar(X),
-    wts)
+        Xw,
+        X',
+        zeros(T, size(X, 2)),
+        zeros(T, size(X, 2)),
+        zeros(T, size(X, 2)),
+        chol,
+        similar(X),
+        wts)
 end
 
 cholpred(X::SparseMatrixCSC, pivot::Bool=false) = SparsePredChol(X, uweights(size(X,1)))
@@ -290,7 +289,7 @@ end
 
 invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
 
-function vcov(x::LinPredModel) 
+function vcov(x::LinPredModel)
     d = dispersion(x, true)
     B = _covm(x.pp)
     rmul!(B, dispersion(x, true))
@@ -298,7 +297,7 @@ end
 
 _covm(pp::LinPred) = invchol(pp)
 
-function _covm(pp::DensePredChol{T, <:ProbabilityWeights, <:Cholesky}) where {T} 
+function _covm(pp::DensePredChol{T, <:ProbabilityWeights, <:Cholesky}) where {T}
     wts = pp.wts
     Z = pp.scratchm1 .= pp.X.*wts
     XtW2X = Z'Z
@@ -306,7 +305,7 @@ function _covm(pp::DensePredChol{T, <:ProbabilityWeights, <:Cholesky}) where {T}
     invXtWX*XtW2X*invXtWX
 end
 
-function _covm(pp::DensePredChol{T, <:ProbabilityWeights, <:CholeskyPivoted}) where {T} 
+function _covm(pp::DensePredChol{T, <:ProbabilityWeights, <:CholeskyPivoted}) where {T}
     wts = pp.wts
     Z = pp.scratchm1 .= pp.X.*wts
     rnk = rank(pp.chol)
@@ -334,7 +333,7 @@ end
 
 modelframe(obj::LinPredModel) = obj.fr
 
-function modelmatrix(obj::LinPredModel; weighted=false) 
+function modelmatrix(obj::LinPredModel; weighted=false)
     if !weighted
         obj.pp.X
     elseif !isempty(weights(obj))

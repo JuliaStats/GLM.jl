@@ -17,7 +17,7 @@ struct GlmResp{V<:FPVector, D<:UnivariateDistribution,L<:Link,W<:AbstractWeights
     mu::V
     "`offset:` offset added to `Xβ` to form `eta`.  Can be of length 0"
     offset::V
-    "`wts:` prior case weights.  Can be of length 0."
+    "`wts`: prior case weights.  Can be of length 0."
     wts::W
     "`wrkwt`: working case weights for the Iteratively Reweighted Least Squares (IRLS) algorithm"
     wrkwt::V
@@ -372,7 +372,7 @@ function StatsBase.fit!(m::AbstractGLM;
     if haskey(kwargs, :tol)
         Base.depwarn("`tol` argument is deprecated, use `atol` and `rtol` instead", :fit!)
         rtol = kwargs[:tol]
-    end    
+    end
 
     _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
 end
@@ -438,9 +438,9 @@ const FIT_GLM_DOC = """
 
     # Keyword Arguments
     - `dofit::Bool=true`: Determines whether model will be fit
-    - `wts::AbstractWeights=aweights(similar(y,0))`: Weights of observations. 
-      Allowed weights are `AnalyticalWeights`, `FrequencyWeights`, or `ProbabilityWeights`.        
-      If a vector is passed (deprecated) it is coerced to FrequencyWeights. 
+    - `wts::AbstractWeights=aweights(similar(y,0))`: Weights of observations.
+      Allowed weights are `AnalyticalWeights`, `FrequencyWeights`, or `ProbabilityWeights`.
+      If a vector is passed (deprecated) it is coerced to FrequencyWeights.
       Can be length 0 to indicate no weighting (default).
     - `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
       length 0
@@ -482,8 +482,8 @@ function fit(::Type{M},
     _wts = if isa(wts, AbstractWeights)
         wts
     elseif isa(wts, AbstractVector)
-        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using " * 
-                     "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " * 
+        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using " *
+                     "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " *
                      "by coercing wts to `FrequencyWeights`", :fit)
         fweights(wts)
     else
@@ -499,7 +499,7 @@ fit(::Type{M},
     y::AbstractVector,
     d::UnivariateDistribution,
     l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
-    fit(M, float(X), float(y), d, l; kwargs...)
+        fit(M, float(X), float(y), d, l; kwargs...)
 
 """
     glm(formula, data,
@@ -669,4 +669,3 @@ nobs(r::LmResp{V,W}) where {V,W<:FrequencyWeights} = isempty(r.wts) ? oftype(sum
 
 nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = isempty(r.wts) ? oftype(sum(one(eltype(r.wts))), length(r.y)) : r.wts.sum
 nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W} = oftype(sum(one(eltype(r.wts))), length(r.y))
-
