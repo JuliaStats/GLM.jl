@@ -474,7 +474,6 @@ function fit(::Type{M},
     wts::AbstractVector{<:Real} = uweights(length(y)),
     offset::AbstractVector{<:Real} = similar(y, 0),
     fitargs...) where {M<:AbstractGLM}
-    println("got you")
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
         throw(DimensionMismatch("number of rows in X and y must match"))
@@ -483,7 +482,9 @@ function fit(::Type{M},
     _wts = if isa(wts, AbstractWeights)
         wts
     elseif isa(wts, AbstractVector)
-        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding by coercing wts to `FrequencyWeights`", :fit)
+        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using " * 
+                     "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " * 
+                     "by coercing wts to `FrequencyWeights`", :fit)
         fweights(wts)
     else
         throw(ArgumentError("`wts` should be an AbstractVector coercible to AbstractWeights"))
