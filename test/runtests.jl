@@ -121,9 +121,11 @@ end
     @test isapprox(vcov(lm_model), [265.59401084217296   -0.20434035947652907; 
                                      -0.20434035947652907 0.00020126512195323495])
     @test isapprox(first(predict(lm_model)), 357.57694841780994)
-    @test isapprox(loglikelihood(lm_model), -4353.946729075838)
-    @test isapprox(loglikelihood(glm_model), -4353.946729075838)
-    @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
+    @test isapprox(loglikelihood(lm_model), -1467.8964643217373)
+    @test isapprox(loglikelihood(glm_model), -1467.8964643217373)    
+    @test isapprox(nullloglikelihood(lm_model), -1790.7176571556527)
+    #@test isapprox(nullloglikelihood(glm_model), -1790.7176571556527)
+    @test isapprox(nullloglikelihood(lm_model), -1790.7176571556527)
     @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
 end
 
@@ -170,10 +172,10 @@ end
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3], wts = [3,3,3])
     @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitely using " * 
                        "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " * 
-                       "by coercing wts to `FrequencyWeights`") lm(@formula(y~x), df; wts=wts)
+                       "by coercing wts to `FrequencyWeights`") lm(@formula(y~x), df; wts=df.wts)
     @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitely using " * 
                        "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " * 
-                       "by coercing wts to `FrequencyWeights`") glm(@formula(y~x), Normal(), IdentityLink(), df; wts=wts)
+                       "by coercing wts to `FrequencyWeights`") glm(@formula(y~x), Normal(), IdentityLink(), df; wts=df.wts)
 end
 
 @testset "saturated linear model" begin

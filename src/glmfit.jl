@@ -92,15 +92,20 @@ the linear predictor, `linPr`.
 """
 function updateμ! end
 
-function updateμ!(r::GlmResp{T}, linPr::T) where T<:FPVector
+function updateμ!(r::GlmResp{T,D,L,<:AbstractWeights}, linPr::T) where {T<:FPVector,D,L}
     isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
-    if !isempty(r.wts)
-        map!(*, r.devresid, r.devresid, r.wts)
-        map!(*, r.wrkwt, r.wrkwt, r.wts)
-    end
+    map!(*, r.devresid, r.devresid, r.wts)
+    map!(*, r.wrkwt, r.wrkwt, r.wts)    
     r
 end
+
+function updateμ!(r::GlmResp{T,D,L,<:UnitWeights}, linPr::T) where {T<:FPVector,D,L}
+    isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
+    updateμ!(r)
+    r
+end
+
 
 function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
@@ -248,25 +253,30 @@ end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
-function loglikelihood(m::AbstractGLM)
-    r   = m.rr
-    wts = r.wts
+loglikelihood(m::AbstractGLM) = loglikelihood(m.rr)
+
+function loglikelihood(r::GlmResp{T,D,L,<:UnitWeights}) where {T,D,L}
     y   = r.y
     mu  = r.mu
     d   = r.d
     ll  = zero(eltype(mu))
-    if length(wts) == length(y)
-        ϕ = deviance(m)/sum(wts)
-        @inbounds for i in eachindex(y, mu, wts)
-            ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
-        end
-    else
-        ϕ = deviance(m)/length(y)
-        @inbounds for i in eachindex(y, mu)
-            ll += loglik_obs(d, y[i], mu[i], 1, ϕ)
-        end
+    ϕ = deviance(r)/nobs(r)
+    @inbounds for i in eachindex(y, mu)
+        ll += loglik_obs(d, y[i], mu[i], 1, ϕ)
     end
-    ll
+end
+
+function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
+    whf = sqrt.(r.wts)
+    y   = r.y
+    mu  = r.mu
+    d   = r.d
+    ll  = zero(eltype(mu))
+    ϕ = deviance(r)/nobs(r)
+    @inbounds for i in eachindex(y, mu, whf)
+        ll += loglik_obs(d, whf[i]*y[i], whf[i]*mu[i], 1, ϕ)
+    end
+    ll + sum(log.(weights(r)))/2
 end
 
 dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
@@ -389,6 +399,7 @@ function StatsBase.fit!(m::AbstractGLM,
                         rtol::Real=1e-6,
                         start=nothing,
                         kwargs...)
+
     if haskey(kwargs, :maxIter)
         Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
         maxiter = kwargs[:maxIter]
@@ -409,10 +420,20 @@ function StatsBase.fit!(m::AbstractGLM,
         rtol = kwargs[:tol]
     end
 
-    r = m.rr
-    V = typeof(r.y)
-    r.y = copy!(r.y, y)
-    isa(wts, Nothing) || copy!(r.wts, wts)
+    # r = m.rr
+    # V = typeof(r.y)
+    # r.y = copy!(r.y, y)
+    # if !isa(wts, Nothing) 
+    #      if wts isa typeof(r.wts) 
+    #         copy!(r.wts, wts)
+    #      else
+            
+    #      end
+    # else
+    #     if typeof(r.wts) === UnitWeights
+
+
+
     isa(offset, Nothing) || copy!(r.offset, offset)
     initialeta!(r.eta, r.d, r.l, r.y, r.wts, r.offset)
     updateμ!(r, r.eta)
@@ -608,27 +629,14 @@ function initialeta!(eta::AbstractVector,
                     dist::UnivariateDistribution,
                     link::Link,
                     y::AbstractVector,
-                    wts::AbstractVector,
+                    wts::AbstractWeights,
                     off::AbstractVector)
 
 
     n  = length(y)
-    lw = length(wts)
     lo = length(off)
 
-    if lw == n
-        @inbounds @simd for i = eachindex(y, eta, wts)
-            μ      = mustart(dist, y[i], wts[i])
-            eta[i] = linkfun(link, μ)
-        end
-    elseif lw == 0
-        @inbounds @simd for i = eachindex(y, eta)
-            μ      = mustart(dist, y[i], 1)
-            eta[i] = linkfun(link, μ)
-        end
-    else
-        throw(ArgumentError("length of wts must be either $n or 0 but was $lw"))
-    end
+    _initialeta!(eta, dist, link, y, wts)
 
     if lo == n
         @inbounds @simd for i = eachindex(eta, off)
@@ -640,6 +648,21 @@ function initialeta!(eta::AbstractVector,
 
     return eta
 end
+
+function _initialeta!(eta, dist, link, y, wts::UnitWeights)
+    @inbounds @simd for i in eachindex(y, eta)
+        μ      = mustart(dist, y[i], 1)
+        eta[i] = linkfun(link, μ)
+    end
+end
+
+function _initialeta!(eta, dist, link, y, wts::AbstractWeights)
+    @inbounds @simd for i in eachindex(y, eta)
+        μ      = mustart(dist, y[i], wts[i])
+        eta[i] = linkfun(link, μ)
+    end
+end
+
 
 # Helper function to check that the values of y are in the allowed domain
 function checky(y, d::Distribution)
@@ -665,7 +688,7 @@ when prior weights of type FrequencyWeights are specified, the sum of weights.
 nobs(obj::LinPredModel) = nobs(obj.rr)
 
 nobs(r::LmResp{V,W}) where {V,W} = oftype(sum(one(eltype(r.wts))), length(r.y))
-nobs(r::LmResp{V,W}) where {V,W<:FrequencyWeights} = isempty(r.wts) ? oftype(sum(one(eltype(r.wts))), length(r.y)) : r.wts.sum
+nobs(r::LmResp{V,W}) where {V,W<:FrequencyWeights} = r.wts.sum
 
-nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = isempty(r.wts) ? oftype(sum(one(eltype(r.wts))), length(r.y)) : r.wts.sum
+nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = r.wts.sum
 nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W} = oftype(sum(one(eltype(r.wts))), length(r.y))

@@ -23,7 +23,7 @@ mutable struct LmResp{V<:FPVector, W<:AbstractWeights{<:Real}} <: ModResp  # res
         ll = length(off)
         ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
         ll = length(wts)
-        ll == 0 || ll == n || error("length of wts is $ll, must be $n or 0")
+        ll == n || error("length of wts is $ll, must be $n")
         new{V,W}(mu, off, wts, y)
     end
 end
@@ -43,31 +43,49 @@ end
 
 updateμ!(r::LmResp{V, W}, linPr) where {V<:FPVector, W} = updateμ!(r, convert(V, vec(linPr)))
 
-function deviance(r::LmResp)
+function deviance(r::LmResp{T,<:UnitWeights}) where T
+    y = r.y
+    mu = r.mu
+    v = zero(eltype(y)) + zero(eltype(y))
+    @inbounds @simd for i in eachindex(y,mu)
+        v += abs2(y[i] - mu[i])
+    end
+    return v
+end
+
+function deviance(r::LmResp{T,<:AbstractWeights}) where T
     y = r.y
     mu = r.mu
     wts = r.wts
     v = zero(eltype(y)) + zero(eltype(y)) * zero(eltype(wts))
-    if isempty(wts)
-        @inbounds @simd for i = eachindex(y,mu)
-            v += abs2(y[i] - mu[i])
-        end
-    else
-        @inbounds @simd for i = eachindex(y,mu,wts)
-            v += abs2(y[i] - mu[i])*wts[i]
-        end
+    @inbounds @simd for i in eachindex(y,mu,wts)
+        v += abs2(y[i] - mu[i])*wts[i]
     end
-    v
+    return v
 end
 
-function loglikelihood(r::LmResp)
-    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+weights(r::LmResp) = r.wts
+
+function loglikelihood(r::LmResp{T,<:Union{UnitWeights, FrequencyWeights}}) where T
+    n = nobs(r)
     -n/2 * (log(2π * deviance(r)/n) + 1)
 end
 
-function nullloglikelihood(r::LmResp)
-    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+function loglikelihood(r::LmResp{T,<:AbstractWeights}) where T
+    N = nobs(r)
+    n = sum(log.(weights(r)))
+    0.5*(n - N * (log(2π * deviance(r)/N) + 1))
+end
+
+function nullloglikelihood(r::LmResp{T,<:Union{UnitWeights, FrequencyWeights}}) where T
+    n = nobs(r)
     -n/2 * (log(2π * nulldeviance(r)/n) + 1)
+end
+
+function nullloglikelihood(r::LmResp{T,<:AbstractWeights}) where T
+    N = nobs(r)
+    n = sum(log.(weights(r)))
+    0.5*(n - N * (log(2π * nulldeviance(r)/N) + 1))
 end
 
 function residuals(r::LmResp; weighted=false)
@@ -75,15 +93,12 @@ function residuals(r::LmResp; weighted=false)
     res = r.y - r.mu
     if !weighted
         res
-    elseif !isempty(wts)
+    elseif isweighted(r)
         sqrt.(wts).*res
     else
         throw(ArgumentError("`weighted=true` allowed only for weighted models."))
     end
 end
-
-weights(r::LmResp) = r.wts
-
 
 """
     LinearModel
@@ -198,13 +213,12 @@ For linear models, the deviance of the null model is equal to the total sum of s
 """
 function nulldeviance(obj::LinearModel)
     y = obj.rr.y
-    wts = obj.rr.wts
-
+    wts = weights(obj)
     if hasintercept(obj)
-        if isempty(wts)
+        if !isweighted(obj)
             m = mean(y)
         else
-            m = mean(y, weights(wts))
+            m = mean(y, wts)
         end
     else
         @warn("Starting from GLM.jl 1.8, null model is defined as having no predictor at all " *
@@ -213,7 +227,7 @@ function nulldeviance(obj::LinearModel)
     end
 
     v = zero(eltype(y))*zero(eltype(wts))
-    if isempty(wts)
+    if !isweighted(obj)
         @inbounds @simd for yi in y
             v += abs2(yi - m)
         end
@@ -229,7 +243,7 @@ loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
 
 function nullloglikelihood(obj::LinearModel)
     r = obj.rr
-    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+    n = nobs(r)
     -n/2 * (log(2π * nulldeviance(obj)/n) + 1)
 end
 
@@ -323,12 +337,12 @@ Currently only implemented for linear models without weights.
 """
 function StatsBase.cooksdistance(obj::LinearModel)
     wts = weights(obj)
-    u = residuals(obj; weighted=!isempty(wts))
+    u = residuals(obj; weighted=isweighted(obj))
     mse = GLM.dispersion(obj,true)
     k = dof(obj)-1
     d_res = dof_residual(obj)
-    X = modelmatrix(obj; weighted=!isempty(wts))
-    XtX = crossmodelmatrix(obj; weighted=!isempty(wts))
+    X = modelmatrix(obj; weighted=isweighted(obj))
+    XtX = crossmodelmatrix(obj; weighted=isweighted(obj))
     k == size(X,2) || throw(ArgumentError("Models with collinear terms are not currently supported."))
     hii = diag(X * inv(XtX) * X')
     D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
