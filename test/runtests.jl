@@ -207,6 +207,74 @@ end
     @test_broken glm(@formula(y ~ x1 + x2), df, Normal(), IdentityLink())
 end
 
+@testset "Linear model with no intercept" begin
+    @testset "Test with NoInt1 Dataset" begin
+        # test case to test r2 for no intercept model
+        # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt1.dat
+
+        data = DataFrame(x = 60:70, y = 130:140)
+        mdl = lm(@formula(y ~ 0 + x), data)
+        @test coef(mdl) ≈ [2.07438016528926]
+        @test stderror(mdl) ≈ [0.165289256198347E-01]
+        @test GLM.dispersion(mdl.model) ≈ 3.56753034006338
+        @test dof(mdl) == 2
+        @test dof_residual(mdl) == 10
+        @test r2(mdl) ≈ 0.999365492298663
+        @test adjr2(mdl) ≈ 0.9993020415285
+        @test nulldeviance(mdl) ≈ 200585.00000000000
+        @test deviance(mdl) ≈ 127.2727272727272
+        @test aic(mdl) ≈ 62.149454400575
+        @test loglikelihood(mdl) ≈ -29.07472720028775
+        @test nullloglikelihood(mdl) ≈ -69.56936343308669
+        @test predict(mdl) ≈ [124.4628099173554, 126.5371900826446, 128.6115702479339,
+                              130.6859504132231, 132.7603305785124, 134.8347107438017,
+                              136.9090909090909, 138.9834710743802, 141.0578512396694,
+                              143.1322314049587, 145.2066115702479]
+    end
+    @testset "Test with NoInt2 Dataset" begin
+        # test case to test r2 for no intercept model
+        # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt2.dat
+
+        data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
+        mdl = lm(@formula(y ~ 0 + x), data)
+        @test coef(mdl) ≈ [0.727272727272727]
+        @test stderror(mdl) ≈ [0.420827318078432E-01]
+        @test GLM.dispersion(mdl.model) ≈ 0.369274472937998
+        @test dof(mdl) == 2
+        @test dof_residual(mdl) == 2
+        @test r2(mdl) ≈ 0.993348115299335
+        @test adjr2(mdl) ≈ 0.990022172949
+        @test nulldeviance(mdl) ≈ 41.00000000000000
+        @test deviance(mdl) ≈ 0.27272727272727
+        @test aic(mdl) ≈ 5.3199453808329
+        @test loglikelihood(mdl) ≈ -0.6599726904164597
+        @test nullloglikelihood(mdl) ≈ -8.179255266668315
+        @test predict(mdl) ≈ [2.909090909090908, 3.636363636363635, 4.363636363636362]
+    end
+    @testset "Test with without formula" begin
+        X = [4 5 6]'
+        y = [3, 4, 4]
+
+        data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
+        mdl1 = lm(@formula(y ~ 0 + x), data)
+        mdl2 = lm(X, y)
+
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test GLM.dispersion(mdl1.model) ≈ GLM.dispersion(mdl2)
+        @test dof(mdl1) ≈ dof(mdl2)
+        @test dof_residual(mdl1) ≈ dof_residual(mdl2)
+        @test r2(mdl1) ≈ r2(mdl2)
+        @test adjr2(mdl1) ≈ adjr2(mdl2)
+        @test nulldeviance(mdl1) ≈ nulldeviance(mdl2)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test nullloglikelihood(mdl1) ≈ nullloglikelihood(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+    end
+end
+
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     Outcome = categorical(repeat(string.('A':'C'), outer = 3)),
     Treatment = categorical(repeat(string.('a':'c'), inner = 3)))
@@ -553,6 +621,39 @@ end
     @test isapprox(coef(gm21)[1:7],
         [-0.08288628676491684, -0.03697387258037785, 0.010284124099280421, -0.027411445371127288,
          0.01582155341041012, 0.029074956147127032, 0.023628812427424876])
+end
+
+@testset "Geometric LogLink" begin
+    # the default/canonical link is LogLink
+    gm22 = fit(GeneralizedLinearModel, @formula(Days ~ Eth + Sex + Age + Lrn), quine, Geometric())
+    test_show(gm22)
+    @test dof(gm22) == 8
+    @test deviance(gm22) ≈ 137.8781581814965
+    @test loglikelihood(gm22) ≈ -548.3711276642073
+    @test aic(gm22) ≈ 1112.7422553284146
+    @test aicc(gm22) ≈ 1113.7933502189255
+    @test bic(gm22) ≈ 1136.6111083020812
+    @test coef(gm22)[1:7] ≈ [2.8978546663153897, -0.5701067649409168, 0.08040181505082235, 
+                            -0.4497584898742737, 0.08622664933901254, 0.3558996662512287, 
+                             0.29016080736927813]
+    @test stderror(gm22) ≈ [0.22754287093719366, 0.15274755092180423, 0.15928431669166637,
+                            0.23853372776980591, 0.2354231414867577, 0.24750780320597515,
+                            0.18553339017028742]
+end
+
+@testset "Geometric is a special case of NegativeBinomial with θ = 1" begin
+    gm23 = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, Geometric(), InverseLink())
+    gm24 = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(1), InverseLink())
+    @test coef(gm23) ≈ coef(gm24)
+    @test stderror(gm23) ≈ stderror(gm24)
+    @test confint(gm23) ≈ confint(gm24)
+    @test dof(gm23) ≈ dof(gm24)
+    @test deviance(gm23) ≈ deviance(gm24)
+    @test loglikelihood(gm23) ≈ loglikelihood(gm24)
+    @test aic(gm23) ≈ aic(gm24)
+    @test aicc(gm23) ≈ aicc(gm24)
+    @test bic(gm23) ≈ bic(gm24)
+    @test predict(gm23) ≈ predict(gm24)
 end
 
 @testset "Sparse GLM" begin
