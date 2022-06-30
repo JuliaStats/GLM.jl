@@ -273,6 +273,7 @@ end
         @test nullloglikelihood(mdl1) ≈ nullloglikelihood(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
     end
+end
 # issue about can't converge within 30 iterations discussed in PR #314
 @testset "rankdeficient GLM" begin
     # an example of rank deficiency caused by linearly dependent columns
