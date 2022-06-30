@@ -274,60 +274,6 @@ end
         @test predict(mdl1) ≈ predict(mdl2)
     end
 end
-# issue about can't converge within 30 iterations discussed in PR #314
-@testset "rankdeficient GLM" begin
-    # an example of rank deficiency caused by linearly dependent columns
-    num_rows = 100_000
-    dfrm = DataFrame()
-    dfrm[!, :x1] = randn(StableRNG(123), num_rows)
-    dfrm[!, :x2] = randn(StableRNG(456), num_rows)
-    dfrm[!, :x3]= 2*dfrm[!, :x1] + 3*dfrm[!, :x2]
-    dfrm[!, :y] = Int.(randn(StableRNG(9999999), num_rows) .> 0)
-    f1 = @eval(@formula(y ~ 1+x1+x2+x3))
-    @test_throws PosDefException fit(GeneralizedLinearModel,
-                                     f1,
-                                     dfrm,
-                                     Binomial(),
-                                     GLM.LogitLink())
-    @test_throws PosDefException fit(GeneralizedLinearModel,
-                                     f1,
-                                     dfrm,
-                                     Binomial(),
-                                     GLM.LogitLink();
-                                     dropcollinear=false)
-    m1 = fit(GeneralizedLinearModel,
-             f1,
-             dfrm,
-             Binomial(),
-             GLM.LogitLink();
-             dropcollinear=true)
-    @test isa(m1.model.pp.chol, CholeskyPivoted)
-    @test rank(m1.model.pp.chol) == 3
-    @test deviance(m1.model) ≈ 138628.8442005168471951
-    f2 = @eval(@formula(y ~ 1+x1*x2*x3))
-    @test_throws PosDefException fit(GeneralizedLinearModel,
-                                     f2,
-                                     dfrm,
-                                     Binomial(),
-                                     GLM.LogitLink())
-    @test_throws PosDefException fit(GeneralizedLinearModel,
-                                     f2,
-                                     dfrm,
-                                     Binomial(),
-                                     GLM.LogitLink();
-                                     dropcollinear=false)
-    m2 = fit(GeneralizedLinearModel,
-             f2,
-             dfrm,
-             Binomial(),
-             GLM.LogitLink();
-             dropcollinear=true)
-    @test isa(m2.model.pp.chol, CholeskyPivoted)
-    @test rank(m2.model.pp.chol) == 7
-    @test deviance(m2.model) ≈ 138627.6062160052242689
-    glmallow = fit(GeneralizedLinearModel, @formula(y~x1+x2+x3), dfrm, Poisson(), dropcollinear=true)
-    @test isa(glmallow.model.pp.chol, CholeskyPivoted)
-end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     Outcome = categorical(repeat(string.('A':'C'), outer = 3)),
@@ -1366,5 +1312,85 @@ end
         @test confint(mdl1) ≈ confint(mdl2)
         @test aic(mdl1) ≈ aic(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
+    end
+end
+
+# issue about can't converge within 30 iterations discussed in PR #314
+@testset "dropcollinearity in GLM" begin
+    @testset "General test" begin
+        # an example of rank deficiency caused by linearly dependent columns
+        num_rows = 100_000
+        dfrm = DataFrame()
+        dfrm[!, :x1] = randn(StableRNG(123), num_rows)
+        dfrm[!, :x2] = randn(StableRNG(456), num_rows)
+        dfrm[!, :x3]= 2*dfrm[!, :x1] + 3*dfrm[!, :x2]
+        dfrm[!, :y] = Int.(randn(StableRNG(9999999), num_rows) .> 0)
+        f1 = @eval(@formula(y ~ 1+x1+x2+x3))
+
+        @test_throws PosDefException fit(GeneralizedLinearModel,
+                                        f1,
+                                        dfrm,
+                                        Binomial(),
+                                        GLM.LogitLink();
+                                        dropcollinear=false)
+        m1 = fit(GeneralizedLinearModel,
+                f1,
+                dfrm,
+                Binomial(),
+                GLM.LogitLink();
+                dropcollinear=true)
+        @test isa(m1.model.pp.chol, CholeskyPivoted)
+        @test rank(m1.model.pp.chol) == 3
+        @test deviance(m1.model) ≈ 138628.8442005168471951
+        f2 = @eval(@formula(y ~ 1+x1*x2*x3))
+
+        @test_throws PosDefException fit(GeneralizedLinearModel,
+                                        f2,
+                                        dfrm,
+                                        Binomial(),
+                                        GLM.LogitLink();
+                                        dropcollinear=false)
+        m2 = fit(GeneralizedLinearModel,
+                f2,
+                dfrm,
+                Binomial(),
+                GLM.LogitLink();
+                dropcollinear=true)
+        @test isa(m2.model.pp.chol, CholeskyPivoted)
+        @test rank(m2.model.pp.chol) == 7
+        @test deviance(m2.model) ≈ 138627.6062160052242689
+        glmallow = fit(GeneralizedLinearModel, @formula(y~x1+x2+x3), dfrm, Poisson(), dropcollinear=true)
+        @test isa(glmallow.model.pp.chol, CholeskyPivoted)
+    end
+    data = DataFrame(x1 = [4, 5, 9, 6, 5], x2 = [5, 3, 6, 7, 1], 
+                     x3=[4.2, 4.6, 8.4, 6.2, 4.2], y=[14, 14, 24, 20, 11])
+    @testset "Test with equivalent LM model" begin
+        mdl1 = lm(@formula(y ~ x1 + x2 + x3), data; dropcollinear=true)
+        mdl2 = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
+                   dropcollinear=true)
+
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1)[1:3] ≈ stderror(mdl2)[1:3]
+        @test dof(mdl1) == dof(mdl2)
+        @test dof_residual(mdl1) == dof_residual(mdl2)
+        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+    end
+    @testset "Test with" begin
+        mdl = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
+                   dropcollinear=true)
+        @test coef(mdl)[1:3] ≈ [1.350439882697950, 1.740469208211143, 1.171554252199414]
+        @test stderror(mdl)[1:3] ≈ [0.58371400875263, 0.10681694901238, 0.08531532203251]
+        @test dof(mdl) == 4
+        @test dof_residual(mdl) == 2
+        @test GLM.dispersion(mdl.model, true) ≈ 0.1341642228738996
+        @test deviance(mdl) ≈ 0.2683284457477991
+        @test loglikelihood(mdl) ≈ 0.2177608775670037
+        @test aic(mdl) ≈ 7.564478244866
+        @test predict(mdl) ≈ [14.17008797653959, 13.56744868035191, 24.04398826979472,
+                              19.99413489736071, 11.22434017595308]
     end
 end

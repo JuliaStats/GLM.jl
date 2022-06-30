@@ -273,6 +273,8 @@ end
 
 dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
 
+dof(obj::GeneralizedLinearModel{<:GlmResp,<:DensePredChol{<:Real,<:CholeskyPivoted}}) = dispersion_parameter(obj.rr.d) ? obj.pp.chol.rank + 1 : obj.pp.chol.rank
+
 function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real,
                atol::Real, rtol::Real, start)
 
@@ -475,7 +477,7 @@ function fit(::Type{M},
     y::AbstractVector{<:Real},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
-    dropcollinear::Bool = false,
+    dropcollinear::Bool = true,
     dofit::Bool = true,
     wts::AbstractVector{<:Real}      = similar(y, 0),
     offset::AbstractVector{<:Real}   = similar(y, 0),
