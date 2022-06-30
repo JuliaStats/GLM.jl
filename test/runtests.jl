@@ -279,10 +279,10 @@ end
     # an example of rank deficiency caused by linearly dependent columns
     num_rows = 100_000
     dfrm = DataFrame()
-    dfrm[!, :x1] = randn(MersenneTwister(123), num_rows)
-    dfrm[!, :x2] = randn(MersenneTwister(456), num_rows)
+    dfrm[!, :x1] = randn(StableRNG(123), num_rows)
+    dfrm[!, :x2] = randn(StableRNG(456), num_rows)
     dfrm[!, :x3]= 2*dfrm[!, :x1] + 3*dfrm[!, :x2]
-    dfrm[!, :y] = Int.(randn(MersenneTwister(9999999), num_rows) .> 0)
+    dfrm[!, :y] = Int.(randn(StableRNG(9999999), num_rows) .> 0)
     f1 = @eval(@formula(y ~ 1+x1+x2+x3))
     @test_throws PosDefException fit(GeneralizedLinearModel,
                                      f1,
@@ -303,7 +303,7 @@ end
              dropcollinear=true)
     @test isa(m1.model.pp.chol, CholeskyPivoted)
     @test rank(m1.model.pp.chol) == 3
-    @test deviance(m1.model) ≈ 138626.4675807269231882
+    @test deviance(m1.model) ≈ 138628.8442005168471951
     f2 = @eval(@formula(y ~ 1+x1*x2*x3))
     @test_throws PosDefException fit(GeneralizedLinearModel,
                                      f2,
@@ -324,7 +324,7 @@ end
              dropcollinear=true)
     @test isa(m2.model.pp.chol, CholeskyPivoted)
     @test rank(m2.model.pp.chol) == 7
-    @test deviance(m2.model) ≈ 138624.2610495247936342
+    @test deviance(m2.model) ≈ 138627.6062160052242689
     glmallow = fit(GeneralizedLinearModel, @formula(y~x1+x2+x3), dfrm, Poisson(), dropcollinear=true)
     @test isa(glmallow.model.pp.chol, CholeskyPivoted)
 end
