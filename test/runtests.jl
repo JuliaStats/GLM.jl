@@ -142,7 +142,6 @@ end
     @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
 end
 
-<<<<<<< HEAD
 @testset "saturated linear model" begin
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
     model = lm(@formula(y ~ x), df)
@@ -274,7 +273,6 @@ end
         @test nullloglikelihood(mdl1) ≈ nullloglikelihood(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
     end
-=======
 # issue about can't converge within 30 iterations discussed in PR #314
 @testset "rankdeficient GLM" begin
     # an example of rank deficiency caused by linearly dependent columns
@@ -330,7 +328,6 @@ end
 #     @test deviance(m2.model) ≈ 138615.90834086522
     glmallow = fit(GeneralizedLinearModel, @formula(y~x1+x2+x3), dfrm, Poisson(), allowrankdeficient=true)
     @test isa(glmallow.model.pp.chol, CholeskyPivoted)
->>>>>>> 2eb96e580f3ee86aa45a57312f8780fb0a835058
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
