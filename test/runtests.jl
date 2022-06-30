@@ -1,5 +1,5 @@
 using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays, StableRNGs,
-      Random, Statistics, StatsBase, Test, RDatasets
+      Statistics, StatsBase, Test, RDatasets
 using GLM
 using StatsFuns: logistic
 using Distributions: TDist
