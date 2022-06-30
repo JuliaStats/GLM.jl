@@ -303,8 +303,7 @@ end
              dropcollinear=true)
     @test isa(m1.model.pp.chol, CholeskyPivoted)
     @test rank(m1.model.pp.chol) == 3
-    # Evaluated: 138626.46758072695 ≈ 138625.6633724341
-#     @test deviance(m1.model) ≈ 138625.6633724341
+    @test deviance(m1.model) ≈ 138626.4675807269231882
     f2 = @eval(@formula(y ~ 1+x1*x2*x3))
     @test_throws PosDefException fit(GeneralizedLinearModel,
                                      f2,
@@ -325,8 +324,7 @@ end
              dropcollinear=true)
     @test isa(m2.model.pp.chol, CholeskyPivoted)
     @test rank(m2.model.pp.chol) == 7
-    # Evaluated: 138624.26104952476 ≈ 138615.90834086522
-#     @test deviance(m2.model) ≈ 138615.90834086522
+    @test deviance(m2.model) ≈ 138624.2610495247936342
     glmallow = fit(GeneralizedLinearModel, @formula(y~x1+x2+x3), dfrm, Poisson(), dropcollinear=true)
     @test isa(glmallow.model.pp.chol, CholeskyPivoted)
 end
