@@ -475,7 +475,7 @@ function fit(::Type{M},
     y::AbstractVector{<:Real},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
-    allowrankdeficient::Bool = false,
+    dropcollinear::Bool = false,
     dofit::Bool = true,
     wts::AbstractVector{<:Real}      = similar(y, 0),
     offset::AbstractVector{<:Real}   = similar(y, 0),
@@ -487,7 +487,7 @@ function fit(::Type{M},
     end
 
     rr = GlmResp(y, d, l, offset, wts)
-    res = M(rr, cholpred(X, allowrankdeficient), false)
+    res = M(rr, cholpred(X, dropcollinear), false)
     return dofit ? fit!(res; fitargs...) : res
 end
 

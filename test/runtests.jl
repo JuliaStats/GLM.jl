@@ -294,13 +294,13 @@ end
                                      dfrm,
                                      Binomial(),
                                      GLM.LogitLink();
-                                     allowrankdeficient=false)
+                                     dropcollinear=false)
     m1 = fit(GeneralizedLinearModel,
              f1,
              dfrm,
              Binomial(),
              GLM.LogitLink();
-             allowrankdeficient=true)
+             dropcollinear=true)
     @test isa(m1.model.pp.chol, CholeskyPivoted)
     @test rank(m1.model.pp.chol) == 3
     # Evaluated: 138626.46758072695 ≈ 138625.6633724341
@@ -316,18 +316,18 @@ end
                                      dfrm,
                                      Binomial(),
                                      GLM.LogitLink();
-                                     allowrankdeficient=false)
+                                     dropcollinear=false)
     m2 = fit(GeneralizedLinearModel,
              f2,
              dfrm,
              Binomial(),
              GLM.LogitLink();
-             allowrankdeficient=true)
+             dropcollinear=true)
     @test isa(m2.model.pp.chol, CholeskyPivoted)
     @test rank(m2.model.pp.chol) == 7
     # Evaluated: 138624.26104952476 ≈ 138615.90834086522
 #     @test deviance(m2.model) ≈ 138615.90834086522
-    glmallow = fit(GeneralizedLinearModel, @formula(y~x1+x2+x3), dfrm, Poisson(), allowrankdeficient=true)
+    glmallow = fit(GeneralizedLinearModel, @formula(y~x1+x2+x3), dfrm, Poisson(), dropcollinear=true)
     @test isa(glmallow.model.pp.chol, CholeskyPivoted)
 end
 
