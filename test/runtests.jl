@@ -1379,7 +1379,7 @@ end
         @test aic(mdl1) ≈ aic(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
     end
-    @testset "Test with" begin
+    @testset "Test with Outputs from R" begin
         mdl = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
                    dropcollinear=true)
         @test coef(mdl)[1:3] ≈ [1.350439882697950, 1.740469208211143, 1.171554252199414]
