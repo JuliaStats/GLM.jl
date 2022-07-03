@@ -166,7 +166,7 @@ Many of the methods provided by this package have names similar to those in [R](
 - `nobs`: number of rows, or sum of the weights when prior weights are specified
 - `nulldeviance`: deviance of the model with all predictors removed
 - `nullloglikelihood`: log-likelihood of the model with all predictors removed
-- `predict`: obtain predicted values of the dependent variable from the fitted model
+- `predict`: predicted values of the dependent variable from the fitted model
 - `r2`: R² of a linear model (an alias for `r²`)
 - `residuals`: vector of residuals from the fitted model
 - `response`: model response (a.k.a the dependent variable)
