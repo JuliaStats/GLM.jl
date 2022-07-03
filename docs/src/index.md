@@ -156,7 +156,7 @@ Many of the methods provided by this package have names similar to those in [R](
 - `cooksdistance`: [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
 - `dispersion`: dispersion (or scale) parameter for a model's distribution
-- `dof`: the number of degrees of freedom consumed in the model
+- `dof`: number of degrees of freedom consumed in the model
 - `dof_residual`: degrees of freedom for residuals, when meaningful
 - `fitted`: the fitted values of the model
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
