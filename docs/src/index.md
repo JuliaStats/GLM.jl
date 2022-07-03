@@ -158,7 +158,7 @@ Many of the methods provided by this package have names similar to those in [R](
 - `dispersion`: dispersion (or scale) parameter for a model's distribution
 - `dof`: number of degrees of freedom consumed in the model
 - `dof_residual`: degrees of freedom for residuals, when meaningful
-- `fitted`: the fitted values of the model
+- `fitted`: fitted values of the model
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
 - `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
 - `loglikelihood`: log-likelihood of the model
