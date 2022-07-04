@@ -266,18 +266,34 @@ function loglikelihood(r::GlmResp{T,D,L,<:UnitWeights}) where {T,D,L}
     end
 end
 
-function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
-    whf = sqrt.(r.wts)
+function loglikelihood(r::GlmResp{T,D,L,<:FrequencyWeights}) where {T,D,L}
+    wts = r.wts
     y   = r.y
     mu  = r.mu
     d   = r.d
     ll  = zero(eltype(mu))
     ϕ = deviance(r)/nobs(r)
     @inbounds for i in eachindex(y, mu, whf)
-        ll += loglik_obs(d, whf[i]*y[i], whf[i]*mu[i], 1, ϕ)
+        ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
     end
-    ll + sum(log.(weights(r)))/2
+    ll
 end
+
+function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
+    wts = r.wts
+    sumwt = sum(wts)
+    y   = r.y
+    mu  = r.mu
+    d   = r.d
+    ll  = zero(eltype(mu))
+    ϕ = deviance(r)
+    n = length(y)    
+    @inbounds for i in eachindex(y, mu, wts)
+        ll += loglik_aweights_obs(d, y[i], mu[i], wts[i], ϕ, sumwt, n)
+    end
+    ll 
+end
+
 
 dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
 
