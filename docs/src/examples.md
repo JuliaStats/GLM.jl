@@ -8,7 +8,7 @@ end
 
 ## Linear regression
 ```jldoctest
-julia> using DataFrames, GLM
+julia> using DataFrames, GLM, StatsBase
 
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
 3×2 DataFrame
