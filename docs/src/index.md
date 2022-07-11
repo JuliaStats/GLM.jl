@@ -178,7 +178,7 @@ Note that the canonical link for negative binomial regression is `NegativeBinomi
 in practice one typically uses `LogLink`.
 
 ```jldoctest methods
-julia> using GLM, DataFrames;
+julia> using GLM, DataFrames, StatsBase;
 
 julia> data = DataFrame(X=[1,2,3], y=[2,4,7]);
 
