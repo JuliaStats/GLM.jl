@@ -178,13 +178,11 @@ Note that the canonical link for negative binomial regression is `NegativeBinomi
 in practice one typically uses `LogLink`.
 
 ```jldoctest methods
-julia> using GLM, DataFrames, StatsBase;
+julia> using GLM, DataFrames, StatsBase
 
 julia> data = DataFrame(X=[1,2,3], y=[2,4,7]);
 
-julia> test_data = DataFrame(X=[4]);
-
-julia> mdl = lm(@formula(y ~  X), data);
+julia> mdl = lm(@formula(y ~ X), data);
 
 julia> round.(coef(mdl); digits=8)
 2-element Vector{Float64}:
@@ -197,15 +195,20 @@ julia> round(r2(mdl); digits=8)
 julia> round(aic(mdl); digits=8)
 5.84251593
 ```
-`predict` method returns predicted values of response variable from covariate values `newX`.
-If you ommit `newX` then it return fitted response values. You will find more about [predict](https://juliastats.org/GLM.jl/stable/api/#StatsBase.predict) in the API docuemnt.
+
+The [`predict`](@ref) method returns predicted values of response variable from covariate values in an input `newX`.
+If `newX` is omitted then the fitted response values from the model are returned.
 
 ```jldoctest methods
+julia> test_data = DataFrame(X=[4]);
+
 julia> round.(predict(mdl, test_data); digits=8)
 1-element Vector{Float64}:
  9.33333333
 ```
-`cooksdistance` method computes [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation in linear model `obj`, giving an estimate of the influence of each data point. Currently only implemented for linear models without weights.
+
+The [`cooksdistance`](@ref) method computes [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation used to fit a linear model, giving an estimate of the influence of each data point.
+Note that it's currently only implemented for linear models without weights.
 
 ```jldoctest methods
 julia> round.(cooksdistance(mdl); digits=8)
