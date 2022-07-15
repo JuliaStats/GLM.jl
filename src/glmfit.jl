@@ -233,7 +233,14 @@ mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     rr::G
     pp::L
     fit::Bool
+    maxiter::Int
+    minstepfac::Float64
+    atol::Float64
+    rtol::Float64
 end
+
+GeneralizedLinearModel(rr::GlmResp, pp::LinPred, fit::Bool) =
+    GeneralizedLinearModel(rr, pp, fit, 0, NaN, NaN, NaN)
 
 function coeftable(mm::AbstractGLM; level::Real=0.95)
     cc = coef(mm)
@@ -253,6 +260,7 @@ end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
+<<<<<<< HEAD
 loglikelihood(m::AbstractGLM) = loglikelihood(m.rr)
 
 function loglikelihood(r::GlmResp{T,D,L,<:UnitWeights}) where {T,D,L}
@@ -268,14 +276,64 @@ function loglikelihood(r::GlmResp{T,D,L,<:UnitWeights}) where {T,D,L}
 end
 
 function loglikelihood(r::GlmResp{T,D,L,<:FrequencyWeights}) where {T,D,L}
+=======
+function nulldeviance(m::GeneralizedLinearModel)
+    r      = m.rr
+    wts    = weights(r.wts)
+    y      = r.y
+    d      = r.d
+    offset = r.offset
+    hasint = hasintercept(m)
+    dev    = zero(eltype(y))
+    if isempty(offset) # Faster method
+        if !isempty(wts)
+            mu = hasint ?
+                mean(y, wts) :
+                linkinv(r.link, zero(eltype(y))*zero(eltype(wts))/1)
+            @inbounds for i in eachindex(y, wts)
+                dev += wts[i] * devresid(d, y[i], mu)
+            end
+        else
+            mu = hasint ? mean(y) : linkinv(r.link, zero(eltype(y))/1)
+            @inbounds for i in eachindex(y)
+                dev += devresid(d, y[i], mu)
+            end
+        end
+    else
+        X = fill(1.0, length(y), hasint ? 1 : 0)
+        nullm = fit(GeneralizedLinearModel,
+                    X, y, d, r.link, wts=wts, offset=offset,
+                    maxiter=m.maxiter, minstepfac=m.minstepfac,
+                    atol=m.atol, rtol=m.rtol)
+        dev = deviance(nullm)
+    end
+    return dev
+end
+
+function loglikelihood(m::AbstractGLM)
+    r   = m.rr
+>>>>>>> 97ef55810a95f2b4122cfd1e1904c5b3c20182cb
     wts = r.wts
     y   = r.y
     mu  = r.mu
     d   = r.d
     ll  = zero(eltype(mu))
+<<<<<<< HEAD
     ϕ = deviance(r)/nobs(r)
     @inbounds for i in eachindex(y, mu, wts)
         ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
+=======
+    if !isempty(wts)
+        ϕ = deviance(m)/sum(wts)
+        @inbounds for i in eachindex(y, mu, wts)
+            ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
+        end
+    else
+        ϕ = deviance(m)/length(y)
+        @inbounds for i in eachindex(y, mu)
+            ll += loglik_obs(d, y[i], mu[i], 1, ϕ)
+        end
+>>>>>>> 97ef55810a95f2b4122cfd1e1904c5b3c20182cb
     end
     return ll
 end
@@ -293,6 +351,39 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
         ll += loglik_aweights_obs(d, y[i], mu[i], wts[i], ϕ, sumwt, n)
     end
     return ll 
+end
+
+function nullloglikelihood(m::GeneralizedLinearModel)
+    r      = m.rr
+    wts    = r.wts
+    y      = r.y
+    d      = r.d
+    offset = r.offset
+    hasint = hasintercept(m)
+    ll  = zero(eltype(y))
+    if isempty(r.offset) # Faster method
+        if !isempty(wts)
+            mu = hasint ? mean(y, weights(wts)) : linkinv(r.link, zero(ll)/1)
+            ϕ = nulldeviance(m)/sum(wts)
+            @inbounds for i in eachindex(y, wts)
+                ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
+            end
+        else
+            mu = hasint ? mean(y) : linkinv(r.link, zero(ll)/1)
+            ϕ = nulldeviance(m)/length(y)
+            @inbounds for i in eachindex(y)
+                ll += loglik_obs(d, y[i], mu, 1, ϕ)
+            end
+        end
+    else
+        X = fill(1.0, length(y), hasint ? 1 : 0)
+        nullm = fit(GeneralizedLinearModel,
+                    X, y, d, r.link, wts=wts, offset=offset,
+                    maxiter=m.maxiter, minstepfac=m.minstepfac,
+                    atol=m.atol, rtol=m.rtol)
+        ll = loglikelihood(nullm)
+    end
+    return ll
 end
 
 dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
@@ -400,6 +491,11 @@ function StatsBase.fit!(m::AbstractGLM;
         rtol = kwargs[:tol]
     end
 
+    m.maxiter = maxiter
+    m.minstepfac = minstepfac
+    m.atol = atol
+    m.rtol = rtol
+
     _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
 end
 
@@ -441,6 +537,10 @@ function StatsBase.fit!(m::AbstractGLM,
     updateμ!(r, r.eta)
     fill!(m.pp.beta0, 0)
     m.fit = false
+    m.maxiter = maxiter
+    m.minstepfac = minstepfac
+    m.atol = atol
+    m.rtol = rtol
     if dofit
         _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
     else

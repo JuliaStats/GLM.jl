@@ -19,7 +19,7 @@ module GLM
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
            fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
-           cooksdistance, hasintercept, weights, AnalyticWeights, ProbabilityWeights, FrequencyWeights
+           cooksdistance, hasintercept, dispersion, weights, AnalyticWeights, ProbabilityWeights, FrequencyWeights
 
     export
         # types
