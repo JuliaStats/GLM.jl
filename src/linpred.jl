@@ -7,11 +7,6 @@ The effective coefficient vector, `p.scratchbeta`, is evaluated as `p.beta0 .+ f
 and `out` is updated to `p.X * p.scratchbeta`
 """
 function linpred!(out, p::LinPred, f::Real=1.)
-    for i in eachindex(p.delbeta)
-        if isnan(p.delbeta[i]) || isinf(p.delbeta[i])
-            p.delbeta[i] = 0
-        end
-    end
     mul!(out, p.X, iszero(f) ? p.beta0 : broadcast!(muladd, p.scratchbeta, f, p.delbeta, p.beta0))
 end
 
