@@ -534,8 +534,8 @@ loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r,
 ## ϕ: is the deviance - not the deviance / n or sum(wt)
 ## sumwt: sum(wt)
 ## n is the numer of observations
-loglik_aweights_obs(::Bernoulli, y, μ, wt, ϕ, sumwt, n) = logpdf(Bernoulli(μ), round(wt*y))
-loglik_aweights_obs(::Binomial, y, μ, wt, ϕ, sumwt, n) = logpdf(Binomial(round(wt), μ), round(wt*y))
+loglik_aweights_obs(::Bernoulli, y, μ, wt, ϕ, sumwt, n) = logpdf(Binomial(round(Int, wt), μ), round(wt*y))
+loglik_aweights_obs(::Binomial, y, μ, wt, ϕ, sumwt, n) = logpdf(Binomial(round(Int, wt), μ), round(wt*y))
 loglik_aweights_obs(::Gamma, y, μ, wt, ϕ, sumwt, n) = wt*logpdf(Gamma(inv(ϕ/sumwt), μ*ϕ/sumwt), y)
 loglik_aweights_obs(::Geometric, y, μ, wt, ϕ, sumwt, n) = wt*logpdf(Geometric(1 / (μ + 1)), y)
 loglik_aweights_obs(::InverseGaussian, y, μ, wt, ϕ, sumwt, n) = -(wt*(1 + log(2π*(ϕ/sumwt))) + 3*log(y)*wt)/2

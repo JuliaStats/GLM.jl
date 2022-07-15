@@ -301,7 +301,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
                             "when some independent variables have been dropped " *
                             "from the model due to collinearity"))
     end
-    length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
+    !isweighted(mm) || error("prediction with confidence intervals not yet implemented for weighted regression")
     chol = cholesky!(mm.pp)
     # get the R matrix from the QR factorization
     if chol isa CholeskyPivoted

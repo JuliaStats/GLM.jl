@@ -232,7 +232,7 @@ mutable struct SparsePredChol{T,M<:SparseMatrixCSC,C,W<:AbstractWeights{<:Real}}
     delbeta::Vector{T}             # coefficient increment
     scratchbeta::Vector{T}
     chol::C
-    scratch::M
+    scratchm1::M
     wts::W
 end
 
@@ -252,28 +252,28 @@ cholpred(X::SparseMatrixCSC, pivot::Bool=false) = SparsePredChol(X, uweights(siz
 cholpred(X::SparseMatrixCSC, pivot::Bool, wts::AbstractWeights) = SparsePredChol(X, wts)
 
 function delbeta!(p::SparsePredChol{T,M,C,<:UnitWeights}, r::Vector{T}, wt::Vector{T}) where {T,M,C}
-    scr = mul!(p.scratch, Diagonal(wt), p.X)
+    scr = mul!(p.scratchm1, Diagonal(wt), p.X)
     XtWX = p.Xt*scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
 
 function delbeta!(p::SparsePredChol{T,M,C,<:AbstractWeights}, r::Vector{T}, wt::Vector{T}) where {T,M,C}
-    scr = mul!(p.scratch, Diagonal(wt.*p.wts), p.X)
+    scr = mul!(p.scratchm1, Diagonal(wt.*p.wts), p.X)
     XtWX = p.Xt*scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
 
 function delbeta!(p::SparsePredChol{T,M,C,<:UnitWeights}, r::Vector{T}) where {T,M,C}
-    scr = p.scratch = p.X
+    scr = p.X
     XtWX = p.Xt*scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
 
 function delbeta!(p::SparsePredChol{T,M,C,<:AbstractWeights}, r::Vector{T}) where {T,M,C}
-    scr = p.scratch .= p.X.*p.wts
+    scr = p.scratchm1 .= p.X.*p.wts
     XtWX = p.Xt*scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)

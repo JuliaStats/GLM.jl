@@ -264,6 +264,7 @@ function loglikelihood(r::GlmResp{T,D,L,<:UnitWeights}) where {T,D,L}
     @inbounds for i in eachindex(y, mu)
         ll += loglik_obs(d, y[i], mu[i], 1, ϕ)
     end
+    return ll
 end
 
 function loglikelihood(r::GlmResp{T,D,L,<:FrequencyWeights}) where {T,D,L}
@@ -273,10 +274,10 @@ function loglikelihood(r::GlmResp{T,D,L,<:FrequencyWeights}) where {T,D,L}
     d   = r.d
     ll  = zero(eltype(mu))
     ϕ = deviance(r)/nobs(r)
-    @inbounds for i in eachindex(y, mu, whf)
+    @inbounds for i in eachindex(y, mu, wts)
         ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
     end
-    ll
+    return ll
 end
 
 function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
@@ -291,9 +292,8 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
     @inbounds for i in eachindex(y, mu, wts)
         ll += loglik_aweights_obs(d, y[i], mu[i], wts[i], ϕ, sumwt, n)
     end
-    ll 
+    return ll 
 end
-
 
 dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
 
@@ -435,20 +435,6 @@ function StatsBase.fit!(m::AbstractGLM,
         Base.depwarn("`tol` argument is deprecated, use `atol` and `rtol` instead", :fit!)
         rtol = kwargs[:tol]
     end
-
-    # r = m.rr
-    # V = typeof(r.y)
-    # r.y = copy!(r.y, y)
-    # if !isa(wts, Nothing) 
-    #      if wts isa typeof(r.wts) 
-    #         copy!(r.wts, wts)
-    #      else
-            
-    #      end
-    # else
-    #     if typeof(r.wts) === UnitWeights
-
-
 
     isa(offset, Nothing) || copy!(r.offset, offset)
     initialeta!(r.eta, r.d, r.l, r.y, r.wts, r.offset)
