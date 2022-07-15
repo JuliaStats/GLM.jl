@@ -443,7 +443,7 @@ const FIT_GLM_DOC = """
     for a list of built-in links).
 
     # Keyword Arguments
-    - `dropcollinear::Bool=true`: Controls whether or not lm accepts a model matrix which is less-than-full rank.
+    - `dropcollinear::Bool=false`: Controls whether or not lm accepts a model matrix which is less-than-full rank.
     - `dofit::Bool=true`: Determines whether model will be fit
     - `wts::Vector=similar(y,0)`: Prior frequency (a.k.a. case) weights of observations.
       Such weights are equivalent to repeating each observation a number of times equal
@@ -480,7 +480,7 @@ function fit(::Type{M},
     y::AbstractVector{<:Real},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
-    dropcollinear::Bool = true,
+    dropcollinear::Bool = false,
     dofit::Bool = true,
     wts::AbstractVector{<:Real}      = similar(y, 0),
     offset::AbstractVector{<:Real}   = similar(y, 0),
