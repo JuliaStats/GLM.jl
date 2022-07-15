@@ -275,6 +275,8 @@ dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) 
 
 dof(obj::GeneralizedLinearModel{<:GlmResp,<:DensePredChol{<:Real,<:CholeskyPivoted}}) = dispersion_parameter(obj.rr.d) ? obj.pp.chol.rank + 1 : obj.pp.chol.rank
 
+dof_residual(obj::GeneralizedLinearModel) = nobs(obj) - dof(obj) + 1
+
 function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real,
                atol::Real, rtol::Real, start)
 

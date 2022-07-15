@@ -1315,16 +1315,16 @@ end
     end
 end
 
-# issue about can't converge within 30 iterations discussed in PR #314
 @testset "dropcollinearity in GLM" begin
+    num_rows = 100_000
+    dfrm = DataFrame()
+    dfrm[!, :x1] = randn(StableRNG(123), num_rows)
+    dfrm[!, :x2] = randn(StableRNG(456), num_rows)
+    dfrm[!, :x3]= 2*dfrm[!, :x1] + 3*dfrm[!, :x2]
+    dfrm[!, :y] = Int.(randn(StableRNG(9999999), num_rows) .> 0)
     @testset "General test" begin
         # an example of rank deficiency caused by linearly dependent columns
-        num_rows = 100_000
-        dfrm = DataFrame()
-        dfrm[!, :x1] = randn(StableRNG(123), num_rows)
-        dfrm[!, :x2] = randn(StableRNG(456), num_rows)
-        dfrm[!, :x3]= 2*dfrm[!, :x1] + 3*dfrm[!, :x2]
-        dfrm[!, :y] = Int.(randn(StableRNG(9999999), num_rows) .> 0)
+        
         f1 = @eval(@formula(y ~ 1+x1+x2+x3))
 
         @test_throws PosDefException fit(GeneralizedLinearModel,
@@ -1341,7 +1341,8 @@ end
                 dropcollinear=true)
         @test isa(m1.model.pp.chol, CholeskyPivoted)
         @test rank(m1.model.pp.chol) == 3
-        @test deviance(m1.model) ≈ 138628.8442005168471951
+        @test deviance(m1) ≈ 138628.8442005168471951
+
         f2 = @eval(@formula(y ~ 1+x1*x2*x3))
 
         @test_throws PosDefException fit(GeneralizedLinearModel,
@@ -1392,5 +1393,18 @@ end
         @test aic(mdl) ≈ 7.564478244866
         @test predict(mdl) ≈ [14.17008797653959, 13.56744868035191, 24.04398826979472,
                               19.99413489736071, 11.22434017595308]
+    end
+    @testset "Test Logistic Regression Outputs from R" begin
+
+        mdl = glm(@formula(y ~ x1 + x2 + x3), dfrm, Binomial(), LogitLink();
+                   dropcollinear=true)
+        #@test coef(mdl)[1:3] ≈ [-0.0004214049869026, 0.0015203302828698, -0.0015318739665768]
+        #@test stderror(mdl)[1:3] ≈ [0.0063246304255069, 0.0076210032633906, 0.0021094442243717]
+        @test deviance(mdl) ≈ 138628.8442005168471951
+        @test loglikelihood(mdl) ≈ -69314.42210025842
+        @test dof(mdl) == 3
+        @test dof_residual(mdl) == 99998
+        @test aic(mdl) ≈ 138634.84420052
+        @test GLM.dispersion(mdl.model, true) ≈ 1
     end
 end
