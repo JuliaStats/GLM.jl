@@ -694,3 +694,50 @@ nobs(r::LmResp{V,W}) where {V,W<:FrequencyWeights} = r.wts.sum
 
 nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = r.wts.sum
 nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W} = oftype(sum(one(eltype(r.wts))), length(r.y))
+
+## To be reviewed!
+Base.sqrt(::UnitWeights{T}) where T = one(T)
+
+function residuals(r::GlmResp; weighted::Bool = false)
+    ## Note: this is necessary if we want to be able to evsaluate
+    ## unweighted residuls when the model is weighted. Otherwise, if we
+    ## agree that the residulas should follow the specification of the model
+    ## we could use the object devresid 
+    y, η, μ = r.y, r.eta, r.mu
+    dres = similar(μ)
+
+    @inbounds for i in eachindex(y, μ)
+        μi = μ[i] 
+        yi = y[i]
+        dres[i] = sqrt(max(0, devresid(r.d, yi, μi)))*sign(yi-μi)        
+    end
+
+    if weighted
+        dres .= dres.*sqrt.(r.wts)
+    end
+
+    return dres
+end
+
+mdisp(rr::GlmResp{T1, <: Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}, T2, T3}) where {T1, T2, T3} = one(1)
+mdisp(rr::GlmResp{T1, <: Union{Gamma, Geometric, InverseGaussian}, T2, T3}) where {T1, T2, T3} = sum(abs2, rr.wrkwt.*rr.wrkresid)/sum(rr.wrkwt)
+
+momentmatrix(m::RegressionModel) = momentmatrix(m.model)
+
+function momentmatrix(m::GeneralizedLinearModel)
+    X = modelmatrix(m; weighted=false)
+    d = mdisp(m.rr)
+    r = m.rr.wrkwt.*m.rr.wrkresid
+    return (X.*r)./d
+end
+
+function momentmatrix(m::LinearModel) 
+    X = modelmatrix(m; weighted=false)
+    r = residuals(m; weighted=false)
+    mm = (X.*r)
+    if isweighted(m)
+        mm.*weights(m)
+    else
+        mm
+    end
+end

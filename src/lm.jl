@@ -93,7 +93,7 @@ function residuals(r::LmResp; weighted=false)
     res = r.y - r.mu
     if !weighted
         res
-    elseif isweighted(r)
+    elseif r.wts isa AbstractWeights
         sqrt.(wts).*res
     else
         throw(ArgumentError("`weighted=true` allowed only for weighted models."))

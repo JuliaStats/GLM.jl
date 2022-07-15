@@ -302,23 +302,26 @@ invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), siz
 
 function vcov(x::LinPredModel)
     d = dispersion(x, true)
-    B = _covm(x.pp)
-    rmul!(B, d)
+    u = residuals(x; weighted = isweighted(x))
+    _vcov(x.pp, u, d)
 end
 
-@inline _covm(pp::LinPred) = invchol(pp)
+_vcov(pp::LinPred, u, d) = rmul!(invchol(pp), d)
 
-function _covm(pp::DensePredChol{T, <:ProbabilityWeights, <:Cholesky}) where {T}
+function _vcov(pp::DensePredChol{T, <:ProbabilityWeights, <:Cholesky}, u, d) where {T}
     wts = pp.wts
-    Z = mul!(pp.scratchm1, Diagonal(wts), pp.X)
+    Z = mul!(pp.scratchm1, Diagonal(sqrt.(wts).*u), pp.X)
     XtW2X = Z'Z
     invXtWX = invchol(pp)
-    invXtWX*XtW2X*invXtWX
+    V = invXtWX*XtW2X*invXtWX
+    n = length(wts)
+    k = length(pp.delbeta)
+    n/(n-k)*V
 end
 
-function _covm(pp::DensePredChol{T, <:ProbabilityWeights, <:CholeskyPivoted}) where {T}
+function _vcov(pp::DensePredChol{T, <:ProbabilityWeights, <:CholeskyPivoted}, u) where {T}
     wts = pp.wts
-    mul!(pp.scratchm1, Diagonal(wts), pp.X)
+    Z = mul!(pp.scratchm1, Diagonal(sqrt.(wts).*u), pp.X)
     rnk = rank(pp.chol)
     p = length(pp.delbeta)
     if rnk == p
@@ -327,7 +330,10 @@ function _covm(pp::DensePredChol{T, <:ProbabilityWeights, <:CholeskyPivoted}) wh
         ## no idea
     end
     invXtWX = invchol(pp)
-    invXtWX*XtW2X*invXtWX
+    V = invXtWX*XtW2X*invXtWX
+    n = length(wts)
+    k = length(pp.delbeta)
+    n/(n-k)*V
 end
 
 function cor(x::LinPredModel)
