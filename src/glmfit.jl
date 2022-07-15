@@ -260,7 +260,6 @@ end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
-<<<<<<< HEAD
 loglikelihood(m::AbstractGLM) = loglikelihood(m.rr)
 
 function loglikelihood(r::GlmResp{T,D,L,<:UnitWeights}) where {T,D,L}
@@ -276,64 +275,14 @@ function loglikelihood(r::GlmResp{T,D,L,<:UnitWeights}) where {T,D,L}
 end
 
 function loglikelihood(r::GlmResp{T,D,L,<:FrequencyWeights}) where {T,D,L}
-=======
-function nulldeviance(m::GeneralizedLinearModel)
-    r      = m.rr
-    wts    = weights(r.wts)
-    y      = r.y
-    d      = r.d
-    offset = r.offset
-    hasint = hasintercept(m)
-    dev    = zero(eltype(y))
-    if isempty(offset) # Faster method
-        if !isempty(wts)
-            mu = hasint ?
-                mean(y, wts) :
-                linkinv(r.link, zero(eltype(y))*zero(eltype(wts))/1)
-            @inbounds for i in eachindex(y, wts)
-                dev += wts[i] * devresid(d, y[i], mu)
-            end
-        else
-            mu = hasint ? mean(y) : linkinv(r.link, zero(eltype(y))/1)
-            @inbounds for i in eachindex(y)
-                dev += devresid(d, y[i], mu)
-            end
-        end
-    else
-        X = fill(1.0, length(y), hasint ? 1 : 0)
-        nullm = fit(GeneralizedLinearModel,
-                    X, y, d, r.link, wts=wts, offset=offset,
-                    maxiter=m.maxiter, minstepfac=m.minstepfac,
-                    atol=m.atol, rtol=m.rtol)
-        dev = deviance(nullm)
-    end
-    return dev
-end
-
-function loglikelihood(m::AbstractGLM)
-    r   = m.rr
->>>>>>> 97ef55810a95f2b4122cfd1e1904c5b3c20182cb
     wts = r.wts
     y   = r.y
     mu  = r.mu
     d   = r.d
     ll  = zero(eltype(mu))
-<<<<<<< HEAD
     ϕ = deviance(r)/nobs(r)
     @inbounds for i in eachindex(y, mu, wts)
         ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
-=======
-    if !isempty(wts)
-        ϕ = deviance(m)/sum(wts)
-        @inbounds for i in eachindex(y, mu, wts)
-            ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
-        end
-    else
-        ϕ = deviance(m)/length(y)
-        @inbounds for i in eachindex(y, mu)
-            ll += loglik_obs(d, y[i], mu[i], 1, ϕ)
-        end
->>>>>>> 97ef55810a95f2b4122cfd1e1904c5b3c20182cb
     end
     return ll
 end
