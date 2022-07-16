@@ -335,6 +335,13 @@ for each observation in linear model `obj`, giving an estimate of the influence
 of each data point.
 Currently only implemented for linear models without weights.
 """
+## To remove when https://github.com/JuliaStats/StatsAPI.jl/pull/16 is merged
+function crossmodelmatrix(model::RegressionModel; weighted::Bool=false) 
+    x = weighted ? modelmatrix(model; weighted=weighted) : modelmatrix(model)
+    return Symmetric(x' * x)
+end
+    
+
 function StatsBase.cooksdistance(obj::LinearModel)
     wts = weights(obj)
     u = residuals(obj; weighted=isweighted(obj))
