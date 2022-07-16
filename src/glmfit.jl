@@ -68,6 +68,8 @@ function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Re
 end
 
 deviance(r::GlmResp) = sum(r.devresid)
+
+
 weights(r::GlmResp) = r.wts
 """
     cancancel(r::GlmResp{V,D,L})
@@ -259,6 +261,39 @@ function confint(obj::AbstractGLM; level::Real=0.95)
 end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
+
+function nulldeviance(m::GeneralizedLinearModel)
+    r      = m.rr
+    wts    = r.wts
+    y      = r.y
+    d      = r.d
+    offset = r.offset
+    hasint = hasintercept(m)
+    dev    = zero(eltype(y))
+    if isempty(offset) # Faster method
+        if !(wts isa UnitWeights)
+            mu = hasint ?
+                mean(y, wts) :
+                linkinv(r.link, zero(eltype(y))*zero(eltype(wts))/1)
+            @inbounds for i in eachindex(y, wts)
+                dev += wts[i] * devresid(d, y[i], mu)
+            end
+        else
+            mu = hasint ? mean(y) : linkinv(r.link, zero(eltype(y))/1)
+            @inbounds for i in eachindex(y)
+                dev += devresid(d, y[i], mu)
+            end
+        end
+    else
+        X = fill(1.0, length(y), hasint ? 1 : 0)
+        nullm = fit(GeneralizedLinearModel,
+                    X, y, d, r.link, wts=wts, offset=offset,
+                    maxiter=m.maxiter, minstepfac=m.minstepfac,
+                    atol=m.atol, rtol=m.rtol)
+        dev = deviance(nullm)
+    end
+    return dev
+end
 
 loglikelihood(m::AbstractGLM) = loglikelihood(m.rr)
 
