@@ -1327,12 +1327,6 @@ end
         
         f1 = @eval(@formula(y ~ 1+x1+x2+x3))
 
-        @test_throws PosDefException fit(GeneralizedLinearModel,
-                                        f1,
-                                        dfrm,
-                                        Binomial(),
-                                        GLM.LogitLink();
-                                        dropcollinear=false)
         m1 = fit(GeneralizedLinearModel,
                 f1,
                 dfrm,
@@ -1345,12 +1339,6 @@ end
 
         f2 = @eval(@formula(y ~ 1+x1*x2*x3))
 
-        @test_throws PosDefException fit(GeneralizedLinearModel,
-                                        f2,
-                                        dfrm,
-                                        Binomial(),
-                                        GLM.LogitLink();
-                                        dropcollinear=false)
         m2 = fit(GeneralizedLinearModel,
                 f2,
                 dfrm,
