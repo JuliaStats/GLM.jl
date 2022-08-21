@@ -140,7 +140,12 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
         dropcollinear = allowrankdeficient_dep
     end
-    fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
+    if dropcollinear
+        fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
+    else
+        fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear)))
+    end
+
 end
 
 """
