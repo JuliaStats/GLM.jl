@@ -77,6 +77,17 @@ function delbeta!(p::DensePredQR{T}, r::Vector{T}) where T<:BlasReal
     return p
 end
 
+function delbeta!(p::DensePredQR{T}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+    R = p.qr.R 
+    Q = p.qr.Q[:,1:(size(R)[1])]
+    W = Diagonal(wt)
+    sqrtW = Diagonal(map(√,wt)) 
+    p.delbeta = R \ ((Q'*W*Q) \ (Q'*W*r))
+    X = p.X
+    #p.chol =  Cholesky{T,typeof(p.X)}(qr(sqrtW * Q ).R * R, 'U', 0) #compute cholesky using qr decomposition
+    return p
+end
+
 """
     DensePredChol{T}
 
