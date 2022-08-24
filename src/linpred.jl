@@ -45,24 +45,34 @@ A `LinPred` type with a dense, unpivoted QR decomposition of `X`
 - `scratchbeta`: scratch vector of length `p`, used in `linpred!` method
 - `qr`: a `QRCompactWY` object created from `X`, with optional row weights.
 """
-mutable struct DensePredQR{T<:BlasReal} <: DensePred
+mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY{T},QRPivoted{T}}} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
-    qr::QRCompactWY{T}
-    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}) where T
+    qr::Q
+    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, pivot::Bool=false) where T
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
-        new{T}(X, beta0, zeros(T,p), zeros(T,p), qr(X))
+        if pivot
+            new{T,QRPivoted{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X,ColumnNorm()))
+        else
+            new{T,QRCompactWY{T}}(X, beta0, zeros(T,p), zeros(T,p), qr(X))
+        end
     end
-    function DensePredQR{T}(X::Matrix{T}) where T
+
+    function DensePredQR{T}(X::Matrix{T}, pivot::Bool=false) where T
         n, p = size(X)
-        new{T}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X))
+        if pivot
+            new{T,QRPivoted{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X,ColumnNorm()))
+        else
+            new{T,QRCompactWY{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X))
+        end
     end
+    
 end
-DensePredQR(X::Matrix, beta0::Vector) = DensePredQR{eltype(X)}(X, beta0)
-DensePredQR(X::Matrix{T}) where T = DensePredQR{T}(X, zeros(T, size(X,2)))
+DensePredQR(X::Matrix, beta0::Vector, pivot::Bool=false) = DensePredQR{eltype(X)}(X, beta0, pivot)
+DensePredQR(X::Matrix{T}, pivot::Bool=false) where T = DensePredQR{T}(X, zeros(T, size(X,2)), pivot)
 convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
 """
@@ -72,12 +82,12 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 """
 function delbeta! end
 
-function delbeta!(p::DensePredQR{T}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredQR{T,QRCompactWY{T}}, r::Vector{T}) where T<:BlasReal
     p.delbeta = p.qr\r
     return p
 end
 
-function delbeta!(p::DensePredQR{T}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredQR{T,QRCompactWY{T}}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     R = p.qr.R 
     Q = p.qr.Q[:,1:(size(R)[1])]
     W = Diagonal(wt)
@@ -85,6 +95,20 @@ function delbeta!(p::DensePredQR{T}, r::Vector{T}, wt::Vector{T}) where T<:BlasR
     p.delbeta = R \ ((Q'*W*Q) \ (Q'*W*r))
     X = p.X
     #p.chol =  Cholesky{T,typeof(p.X)}(qr(sqrtW * Q ).R * R, 'U', 0) #compute cholesky using qr decomposition
+    return p
+end
+
+function delbeta!(p::DensePredQR{T,QRPivoted{T}}, r::Vector{T}) where T<:BlasReal
+    return delbeta!(p,r,ones(size(r)))
+end
+
+function delbeta!(p::DensePredQR{T,QRPivoted{T}}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+    R = p.qr.R[:,1:rank(p.X)] 
+    Q = p.qr.Q[:,1:(size(R)[1])]
+    W = Diagonal(wt)
+    p.delbeta = zeros(size(p.delbeta))
+    p.delbeta[1:rank(p.X)] = R \ ((Q'*W*Q) \ (Q'*W*r))
+    p.delbeta = p.qr.P*p.delbeta #for pivoting 
     return p
 end
 
@@ -126,7 +150,7 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool)
 end
 
 cholpred(X::AbstractMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
-qrpred(X::AbstractMatrix, pivot::Bool=false) = DensePredQR(X)
+qrpred(X::AbstractMatrix, pivot::Bool=false) = DensePredQR(X,pivot)
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
