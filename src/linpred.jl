@@ -11,7 +11,7 @@ function linpred!(out, p::LinPred, f::Real=1.)
 end
 
 """
-    linpred(p::LinPred, f::Read=1.0)
+    linpred(p::LinPred, f::Real=1.0)
 
 Return the linear predictor `p.X * (p.beta0 .+ f * p.delbeta)`
 """
@@ -101,11 +101,11 @@ mutable struct DensePredChol{T<:BlasReal,C} <: DensePred
     scratchm1::Matrix{T}
     scratchm2::Matrix{T}
 end
-function DensePredChol(X::StridedMatrix, pivot::Bool)
+function DensePredChol(X::AbstractMatrix, pivot::Bool)
     F = Hermitian(float(X'X))
     T = eltype(F)
     F = pivot ? pivoted_cholesky!(F, tol = -one(T), check = false) : cholesky!(F)
-    DensePredChol(AbstractMatrix{T}(X),
+    DensePredChol(Matrix{T}(X),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
@@ -114,7 +114,7 @@ function DensePredChol(X::StridedMatrix, pivot::Bool)
         similar(cholfactors(F)))
 end
 
-cholpred(X::StridedMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
+cholpred(X::AbstractMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol

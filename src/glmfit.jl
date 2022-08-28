@@ -7,6 +7,8 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     "`y`: response vector"
     y::V
     d::D
+    "`link`: link function with relevant parameters"
+    link::L
     "`devresid`: the squared deviance residuals"
     devresid::V
     "`eta`: the linear predictor"
@@ -46,7 +48,7 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVec
         throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
     end
 
-    return GlmResp{V,D,L}(y, d, similar(y), η, μ, off, wts, similar(y), similar(y))
+    return GlmResp{V,D,L}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
 end
 
 function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::FPVector)
@@ -106,7 +108,7 @@ function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
-        μi, dμdη = inverselink(L(), η[i])
+        μi, dμdη = inverselink(r.link, η[i])
         μ[i] = μi
         yi = y[i]
         wrkres[i] = (yi - μi) / dμdη
@@ -228,7 +230,14 @@ mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     rr::G
     pp::L
     fit::Bool
+    maxiter::Int
+    minstepfac::Float64
+    atol::Float64
+    rtol::Float64
 end
+
+GeneralizedLinearModel(rr::GlmResp, pp::LinPred, fit::Bool) =
+    GeneralizedLinearModel(rr, pp, fit, 0, NaN, NaN, NaN)
 
 function coeftable(mm::AbstractGLM; level::Real=0.95)
     cc = coef(mm)
@@ -248,6 +257,39 @@ end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
+function nulldeviance(m::GeneralizedLinearModel)
+    r      = m.rr
+    wts    = weights(r.wts)
+    y      = r.y
+    d      = r.d
+    offset = r.offset
+    hasint = hasintercept(m)
+    dev    = zero(eltype(y))
+    if isempty(offset) # Faster method
+        if !isempty(wts)
+            mu = hasint ?
+                mean(y, wts) :
+                linkinv(r.link, zero(eltype(y))*zero(eltype(wts))/1)
+            @inbounds for i in eachindex(y, wts)
+                dev += wts[i] * devresid(d, y[i], mu)
+            end
+        else
+            mu = hasint ? mean(y) : linkinv(r.link, zero(eltype(y))/1)
+            @inbounds for i in eachindex(y)
+                dev += devresid(d, y[i], mu)
+            end
+        end
+    else
+        X = fill(1.0, length(y), hasint ? 1 : 0)
+        nullm = fit(GeneralizedLinearModel,
+                    X, y, d, r.link, wts=wts, offset=offset,
+                    maxiter=m.maxiter, minstepfac=m.minstepfac,
+                    atol=m.atol, rtol=m.rtol)
+        dev = deviance(nullm)
+    end
+    return dev
+end
+
 function loglikelihood(m::AbstractGLM)
     r   = m.rr
     wts = r.wts
@@ -255,7 +297,7 @@ function loglikelihood(m::AbstractGLM)
     mu  = r.mu
     d   = r.d
     ll  = zero(eltype(mu))
-    if length(wts) == length(y)
+    if !isempty(wts)
         ϕ = deviance(m)/sum(wts)
         @inbounds for i in eachindex(y, mu, wts)
             ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
@@ -267,6 +309,39 @@ function loglikelihood(m::AbstractGLM)
         end
     end
     ll
+end
+
+function nullloglikelihood(m::GeneralizedLinearModel)
+    r      = m.rr
+    wts    = r.wts
+    y      = r.y
+    d      = r.d
+    offset = r.offset
+    hasint = hasintercept(m)
+    ll  = zero(eltype(y))
+    if isempty(r.offset) # Faster method
+        if !isempty(wts)
+            mu = hasint ? mean(y, weights(wts)) : linkinv(r.link, zero(ll)/1)
+            ϕ = nulldeviance(m)/sum(wts)
+            @inbounds for i in eachindex(y, wts)
+                ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
+            end
+        else
+            mu = hasint ? mean(y) : linkinv(r.link, zero(ll)/1)
+            ϕ = nulldeviance(m)/length(y)
+            @inbounds for i in eachindex(y)
+                ll += loglik_obs(d, y[i], mu, 1, ϕ)
+            end
+        end
+    else
+        X = fill(1.0, length(y), hasint ? 1 : 0)
+        nullm = fit(GeneralizedLinearModel,
+                    X, y, d, r.link, wts=wts, offset=offset,
+                    maxiter=m.maxiter, minstepfac=m.minstepfac,
+                    atol=m.atol, rtol=m.rtol)
+        ll = loglikelihood(nullm)
+    end
+    return ll
 end
 
 dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
@@ -374,6 +449,11 @@ function StatsBase.fit!(m::AbstractGLM;
         rtol = kwargs[:tol]
     end
 
+    m.maxiter = maxiter
+    m.minstepfac = minstepfac
+    m.atol = atol
+    m.rtol = rtol
+
     _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
 end
 
@@ -418,6 +498,10 @@ function StatsBase.fit!(m::AbstractGLM,
     updateμ!(r, r.eta)
     fill!(m.pp.beta0, 0)
     m.fit = false
+    m.maxiter = maxiter
+    m.minstepfac = minstepfac
+    m.atol = atol
+    m.rtol = rtol
     if dofit
         _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
     else
@@ -507,9 +591,7 @@ $FIT_GLM_DOC
 """
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
-GLM.Link(mm::AbstractGLM) = mm.l
-GLM.Link(r::GlmResp{T,D,L}) where {T,D,L} = L()
-GLM.Link(r::GlmResp{T,D,L}) where {T,D<:NegativeBinomial,L<:NegativeBinomialLink} = L(r.d.r)
+GLM.Link(r::GlmResp) = r.link
 GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
 
 Distributions.Distribution(r::GlmResp{T,D,L}) where {T,D,L} = D
@@ -528,7 +610,9 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
     r = m.rr
     if dispersion_parameter(r.d)
         wrkwt, wrkresid = r.wrkwt, r.wrkresid
-        s = sum(i -> wrkwt[i] * abs2(wrkresid[i]), eachindex(wrkwt, wrkresid)) / dof_residual(m)
+        dofr = dof_residual(m)
+        s = sum(i -> wrkwt[i] * abs2(wrkresid[i]), eachindex(wrkwt, wrkresid)) / dofr
+        dofr > 0 || return oftype(s, Inf)
         sqr ? s : sqrt(s)
     else
         one(eltype(r.mu))

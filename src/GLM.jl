@@ -19,7 +19,7 @@ module GLM
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
            fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
-           cooksdistance, hasintercept
+           cooksdistance, hasintercept, dispersion
 
     export
         # types
@@ -27,6 +27,7 @@ module GLM
         Bernoulli,
         Binomial,
         Gamma,
+        Geometric,
         InverseGaussian,
         NegativeBinomial,
         Normal,
@@ -42,6 +43,7 @@ module GLM
         LogitLink,
         LogLink,
         NegativeBinomialLink,
+        PowerLink,
         ProbitLink,
         SqrtLink,
 

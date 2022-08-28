@@ -22,10 +22,10 @@ Their arguments must be:
   then a valid formula is `@formula(Y ~ X1 + X2)`
 - `data`: a table in the Tables.jl definition, e.g. a data frame;
   rows with `missing` values are ignored
-- `X` a matrix holding values of the dependent variable(s) in columns
-- `y` a vector holding values of the independent variable
+- `X` a matrix holding values of the independent variable(s) in columns
+- `y` a vector holding values of the dependent variable
   (including if appropriate the intercept)
-- `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Normal()`, `Poisson()`, or `NegativeBinomial(θ)`
+- `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Geometric()`, `Normal()`, `Poisson()`, or `NegativeBinomial(θ)`
 - `link`: chosen from the list below, for example, `LogitLink()` is a valid link for the `Binomial()` family
 
 Typical distributions for use with `glm` and their canonical link
@@ -34,8 +34,9 @@ functions are
            Bernoulli (LogitLink)
             Binomial (LogitLink)
                Gamma (InverseLink)
+           Geometric (LogLink)
      InverseGaussian (InverseSquareLink)
-    NegativeBinomial (LogLink)
+    NegativeBinomial (NegativeBinomialLink, often used with LogLink)
               Normal (IdentityLink)
              Poisson (LogLink)
 
@@ -49,6 +50,7 @@ Currently the available Link types are
     LogitLink
     LogLink
     NegativeBinomialLink
+    PowerLink
     ProbitLink
     SqrtLink
 
@@ -147,19 +149,76 @@ F-test: 2 models fitted on 50 observations
 ## Methods applied to fitted models
 
 Many of the methods provided by this package have names similar to those in [R](http://www.r-project.org).
-- `coef`: extract the estimates of the coefficients in the model
+- `adjr2`: adjusted R² for a linear model (an alias for `adjr²`)
+- `aic`: Akaike's Information Criterion
+- `aicc`: corrected Akaike's Information Criterion for small sample sizes
+- `bic`: Bayesian Information Criterion
+- `coef`: estimates of the coefficients in the model
+- `confint`: confidence intervals for coefficients
+- `cooksdistance`: [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation
 - `deviance`: measure of the model fit, weighted residual sum of squares for lm's
+- `dispersion`: dispersion (or scale) parameter for a model's distribution
+- `dof`: number of degrees of freedom consumed in the model
 - `dof_residual`: degrees of freedom for residuals, when meaningful
+- `fitted`: fitted values of the model
 - `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
 - `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
-- `r2`: R² of a linear model or pseudo-R² of a generalized linear model
+- `loglikelihood`: log-likelihood of the model
+- `modelmatrix`: design matrix
+- `nobs`: number of rows, or sum of the weights when prior weights are specified
+- `nulldeviance`: deviance of the model with all predictors removed
+- `nullloglikelihood`: log-likelihood of the model with all predictors removed
+- `predict`: predicted values of the dependent variable from the fitted model
+- `r2`: R² of a linear model (an alias for `r²`)
+- `residuals`: vector of residuals from the fitted model
+- `response`: model response (a.k.a the dependent variable)
 - `stderror`: standard errors of the coefficients
-- `vcov`: estimated variance-covariance matrix of the coefficient estimates
-- `predict` : obtain predicted values of the dependent variable from the fitted model
-- `residuals`: get the vector of residuals from the fitted model
+- `vcov`: variance-covariance matrix of the coefficient estimates
+
 
 Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
 in practice one typically uses `LogLink`.
+
+```jldoctest methods
+julia> using GLM, DataFrames, StatsBase
+
+julia> data = DataFrame(X=[1,2,3], y=[2,4,7]);
+
+julia> mdl = lm(@formula(y ~ X), data);
+
+julia> round.(coef(mdl); digits=8)
+2-element Vector{Float64}:
+ -0.66666667
+  2.5
+
+julia> round(r2(mdl); digits=8)
+0.98684211
+
+julia> round(aic(mdl); digits=8)
+5.84251593
+```
+
+The [`predict`](@ref) method returns predicted values of response variable from covariate values in an input `newX`.
+If `newX` is omitted then the fitted response values from the model are returned.
+
+```jldoctest methods
+julia> test_data = DataFrame(X=[4]);
+
+julia> round.(predict(mdl, test_data); digits=8)
+1-element Vector{Float64}:
+ 9.33333333
+```
+
+The [`cooksdistance`](@ref) method computes [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation used to fit a linear model, giving an estimate of the influence of each data point.
+Note that it's currently only implemented for linear models without weights.
+
+```jldoctest methods
+julia> round.(cooksdistance(mdl); digits=8)
+3-element Vector{Float64}:
+ 2.5
+ 0.25
+ 2.5
+```
 
 ## Separation of response object and predictor object
 

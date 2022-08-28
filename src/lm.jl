@@ -65,36 +65,9 @@ function deviance(r::LmResp)
     v
 end
 
-function nulldeviance(r::LmResp)
-    y = r.y
-    wts = r.wts
-    if isempty(wts)
-        m = mean(y)
-    else 
-        m = mean(r.y, weights(r.wts))
-    end
-
-    v = zero(eltype(y))*zero(eltype(wts))
-    if isempty(wts)
-        @inbounds @simd for i = 1:length(y)
-            v += abs2(y[i] - m)
-        end
-    else
-        @inbounds @simd for i = 1:length(y)
-            v += abs2(y[i] - m)*wts[i]
-        end
-    end
-    v
-end
-
 function loglikelihood(r::LmResp)
     n = isempty(r.wts) ? length(r.y) : sum(r.wts)
     -n/2 * (log(2π * deviance(r)/n) + 1)
-end
-
-function nullloglikelihood(r::LmResp)
-    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
-    -n/2 * (log(2π * nulldeviance(r)/n) + 1) 
 end
 
 residuals(r::LmResp) = r.y - r.mu
@@ -200,30 +173,65 @@ deviance(obj::LinearModel) = deviance(obj.rr)
 
 For linear models, the deviance of the null model is equal to the total sum of squares (TSS).
 """
-nulldeviance(obj::LinearModel) = nulldeviance(obj.rr)
-loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
-nullloglikelihood(obj::LinearModel) = nullloglikelihood(obj.rr)
+function nulldeviance(obj::LinearModel)
+    y = obj.rr.y
+    wts = obj.rr.wts
 
-r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
+    if hasintercept(obj)
+        if isempty(wts)
+            m = mean(y)
+        else
+            m = mean(y, weights(wts))
+        end
+    else
+        @warn("Starting from GLM.jl 1.8, null model is defined as having no predictor at all " *
+              "when a model without an intercept is passed.")
+        m = zero(eltype(y))
+    end
 
-function adjr2(obj::LinearModel)
-    n = nobs(obj)
-    # dof() includes the dispersion parameter
-    p = dof(obj) - 1
-    1 - (1 - r²(obj))*(n-1)/(n-p)
+    v = zero(eltype(y))*zero(eltype(wts))
+    if isempty(wts)
+        @inbounds @simd for yi in y
+            v += abs2(yi - m)
+        end
+    else
+        @inbounds @simd for i = eachindex(y,wts)
+            v += abs2(y[i] - m)*wts[i]
+        end
+    end
+    v
 end
 
+loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
+
+function nullloglikelihood(obj::LinearModel)
+    r = obj.rr
+    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+    -n/2 * (log(2π * nulldeviance(obj)/n) + 1)
+end
+
+r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
+adjr2(obj::LinearModel) = 1 - (1 - r²(obj))*(nobs(obj)-hasintercept(obj))/dof_residual(obj)
+
 function dispersion(x::LinearModel, sqr::Bool=false)
-    ssqr = deviance(x.rr)/dof_residual(x)
+    dofr = dof_residual(x)
+    ssqr = deviance(x.rr)/dofr
+    dofr > 0 || return oftype(ssqr, Inf)
     return sqr ? ssqr : sqrt(ssqr)
 end
 
 function coeftable(mm::LinearModel; level::Real=0.95)
     cc = coef(mm)
+    dofr = dof_residual(mm)
     se = stderror(mm)
     tt = cc ./ se
-    p = ccdf.(Ref(FDist(1, dof_residual(mm))), abs2.(tt))
-    ci = se*quantile(TDist(dof_residual(mm)), (1-level)/2)
+    if dofr > 0
+        p = ccdf.(Ref(FDist(1, dofr)), abs2.(tt))
+        ci = se*quantile(TDist(dofr), (1-level)/2)
+    else
+        p = [isnan(t) ? NaN : 1.0 for t in tt]
+        ci = [isnan(t) ? NaN : -Inf for t in tt]
+    end
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
     CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
               ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
@@ -236,7 +244,7 @@ end
 
 If `interval` is `nothing` (the default), return a vector with the predicted values
 for model `mm` and new data `newx`.
-Otherwise, return a 3-column matrix with the prediction and
+Otherwise, return a vector with the predicted values, as well as vectors with
 the lower and upper confidence bounds for a given `level` (0.95 equates alpha = 0.05).
 Valid values of `interval` are `:confidence` delimiting the  uncertainty of the
 predicted relationship, and `:prediction` delimiting estimated bounds for new data points.
@@ -265,7 +273,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     else
         R = chol.U
     end
-    residvar = (ones(size(newx,2),1) * deviance(mm)/dof_residual(mm))
+    residvar = ones(size(newx,2)) * deviance(mm)/dof_residual(mm)
     if interval == :confidence
         retvariance = (newx/R).^2 * residvar
     elseif interval == :prediction
