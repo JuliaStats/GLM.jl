@@ -151,7 +151,7 @@ end
     y = 1 .+ randn() * x1 + randn() * x2 + 2 * randn(100)
     df = DataFrame(y = y, x1 = x1, x2 = x1_2, x3 = x2, x4 = x2_2, weights = repeat([1, 0.5],50))
     f = @formula(y ~ x1 + x2 + x3 + x4)
-    lm_model = lm(f, df, wts = df.weights)#, dropcollinear = true)
+    lm_model = lm(f, df, wts = df.weights)
     X = [ones(length(y)) x1_2 x2_2]
     W = Diagonal(df.weights)
     coef_naive = (X'W*X)\X'W*y
