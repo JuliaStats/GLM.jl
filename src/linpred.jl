@@ -11,7 +11,7 @@ function linpred!(out, p::LinPred, f::Real=1.)
 end
 
 """
-    linpred(p::LinPred, f::Read=1.0)
+    linpred(p::LinPred, f::Real=1.0)
 
 Return the linear predictor `p.X * (p.beta0 .+ f * p.delbeta)`
 """
@@ -42,7 +42,7 @@ A `LinPred` type with a dense, unpivoted QR decomposition of `X`
 - `X`: Model matrix of size `n` × `p` with `n ≥ p`.  Should be full column rank.
 - `beta0`: base coefficient vector of length `p`
 - `delbeta`: increment to coefficient vector, also of length `p`
-- `scratchbeta`: scratch vector of length `p`, used in [`linpred!`](@ref) method
+- `scratchbeta`: scratch vector of length `p`, used in `linpred!` method
 - `qr`: a `QRCompactWY` object created from `X`, with optional row weights.
 """
 mutable struct DensePredQR{T<:BlasReal} <: DensePred
@@ -87,7 +87,7 @@ A `LinPred` type with a dense Cholesky factorization of `X'X`
 - `X`: model matrix of size `n` × `p` with `n ≥ p`.  Should be full column rank.
 - `beta0`: base coefficient vector of length `p`
 - `delbeta`: increment to coefficient vector, also of length `p`
-- `scratchbeta`: scratch vector of length `p`, used in [`linpred!`](@ref) method
+- `scratchbeta`: scratch vector of length `p`, used in `linpred!` method
 - `chol`: a `Cholesky` object created from `X'X`, possibly using row weights.
 - `scratchm1`: scratch Matrix{T} of the same size as `X`
 - `scratchm2`: scratch Matrix{T} os the same size as `X'X`
@@ -101,11 +101,11 @@ mutable struct DensePredChol{T<:BlasReal,C} <: DensePred
     scratchm1::Matrix{T}
     scratchm2::Matrix{T}
 end
-function DensePredChol(X::StridedMatrix, pivot::Bool)
+function DensePredChol(X::AbstractMatrix, pivot::Bool)
     F = Hermitian(float(X'X))
     T = eltype(F)
-    F = pivot ? cholesky!(F, Val(true), tol = -one(T), check = false) : cholesky!(F)
-    DensePredChol(AbstractMatrix{T}(X),
+    F = pivot ? pivoted_cholesky!(F, tol = -one(T), check = false) : cholesky!(F)
+    DensePredChol(Matrix{T}(X),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
@@ -114,7 +114,7 @@ function DensePredChol(X::StridedMatrix, pivot::Bool)
         similar(cholfactors(F)))
 end
 
-cholpred(X::StridedMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
+cholpred(X::AbstractMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
@@ -138,12 +138,12 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}) where T<:
     if rnk == length(delbeta)
         ldiv!(ch, delbeta)
     else
-        permute!(delbeta, ch.piv)
+        permute!(delbeta, ch.p)
         for k=(rnk+1):length(delbeta)
             delbeta[k] = -zero(T)
         end
         LAPACK.potrs!(ch.uplo, view(ch.factors, 1:rnk, 1:rnk), view(delbeta, 1:rnk))
-        invpermute!(delbeta, ch.piv)
+        invpermute!(delbeta, ch.p)
     end
     p
 end
@@ -158,7 +158,7 @@ end
 
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     cf = cholfactors(p.chol)
-    piv = p.chol.piv
+    piv = p.chol.p
     cf .= mul!(p.scratchm2, adjoint(LinearAlgebra.mul!(p.scratchm1, Diagonal(wt), p.X)), p.X)[piv, piv]
     cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.scratchm1), r))
@@ -185,10 +185,17 @@ function SparsePredChol(X::SparseMatrixCSC{T}) where T
         similar(X))
 end
 
-cholpred(X::SparseMatrixCSC) = SparsePredChol(X)
+cholpred(X::SparseMatrixCSC, pivot::Bool=false) = SparsePredChol(X)
 
 function delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where T
     scr = mul!(p.scratch, Diagonal(wt), p.X)
+    XtWX = p.Xt*scr
+    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
+    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
+end
+
+function delbeta!(p::SparsePredChol{T}, r::Vector{T}) where T
+    scr = p.scratch = p.X
     XtWX = p.Xt*scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
@@ -209,7 +216,7 @@ function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
         res[i, j] = fac[i, j]
     end
     copytri!(LAPACK.potri!(ch.uplo, view(res, 1:rnk, 1:rnk)), ch.uplo, true)
-    ipiv = invperm(ch.piv)
+    ipiv = invperm(ch.p)
     res[ipiv, ipiv]
 end
 invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
@@ -233,7 +240,7 @@ response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
-formula(obj::LinPredModel) = modelframe(obj).formula
+StatsModels.formula(obj::LinPredModel) = modelframe(obj).formula
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
 """
@@ -255,3 +262,5 @@ coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
 
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
+
+hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))

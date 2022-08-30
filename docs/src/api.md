@@ -9,12 +9,12 @@ end
 ## Types defined in the package
 
 ```@docs
-DensePredChol
-DensePredQR
-GlmResp
 LinearModel
-LmResp
-LinPred
+GLM.DensePredChol
+GLM.DensePredQR
+GLM.LmResp
+GLM.GlmResp
+GLM.LinPred
 GLM.ModResp
 ```
 
@@ -22,52 +22,53 @@ GLM.ModResp
 
 The most general approach to fitting a model is with the `fit` function, as in
 ```jldoctest
-julia> using Random;
+julia> using Random
 
 julia> fit(LinearModel, hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
-LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
+LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}:
 
 Coefficients:
-      Estimate Std.Error  t value Pr(>|t|)
-x1    0.717436  0.775175 0.925515   0.3818
-x2   -0.152062  0.124931 -1.21717   0.2582
+────────────────────────────────────────────────────────────────
+        Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+────────────────────────────────────────────────────────────────
+x1   0.717436    0.775175   0.93    0.3818  -1.07012    2.50499
+x2  -0.152062    0.124931  -1.22    0.2582  -0.440153   0.136029
+────────────────────────────────────────────────────────────────
 ```
 
 This model can also be fit as
 ```jldoctest
-julia> using Random;
+julia> using Random
 
 julia> lm(hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
-LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
+LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}:
 
 Coefficients:
-      Estimate Std.Error  t value Pr(>|t|)
-x1    0.717436  0.775175 0.925515   0.3818
-x2   -0.152062  0.124931 -1.21717   0.2582
+────────────────────────────────────────────────────────────────
+        Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+────────────────────────────────────────────────────────────────
+x1   0.717436    0.775175   0.93    0.3818  -1.07012    2.50499
+x2  -0.152062    0.124931  -1.22    0.2582  -0.440153   0.136029
+────────────────────────────────────────────────────────────────
 ```
 
 ```@docs
-glm
-fit
 lm
+glm
+negbin
+fit
 ```
 
 ## Model methods
 ```@docs
-GLM.cancancel
-delbeta!
 StatsBase.deviance
 GLM.dispersion
+GLM.ftest
 GLM.installbeta!
-GLM.issubmodel
-linpred!
-linpred
 StatsBase.nobs
 StatsBase.nulldeviance
 StatsBase.predict
-updateμ!
-wrkresp
-GLM.wrkresp!
+StatsModels.isnested
 ```
 
 ## Links and methods applied to them
@@ -82,16 +83,18 @@ InverseSquareLink
 LogitLink
 LogLink
 NegativeBinomialLink
+PowerLink
 ProbitLink
 SqrtLink
-linkfun
-linkinv
-mueta
-inverselink
+GLM.linkfun
+GLM.linkinv
+GLM.mueta
+GLM.inverselink
 canonicallink
-glmvar
-mustart
+GLM.glmvar
+GLM.mustart
 devresid
 GLM.dispersion_parameter
 GLM.loglik_obs
+GLM.cancancel
 ```

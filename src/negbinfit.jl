@@ -30,15 +30,47 @@ function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
         end
         θ = θ - δ
     end
-    converged || throw(ConvergenceException(maxiter))
+    if !converged
+        info_msg = "Estimating dispersion parameter failed, which may " *
+            "indicate Poisson distributed data."
+        throw(ConvergenceException(maxiter, NaN, NaN, info_msg))
+    end
     θ
 end
 
+"""
+    negbin(formula, data, [link::Link];
+           <keyword arguments>)
+    negbin(X::AbstractMatrix, y::AbstractVector, [link::Link];
+           <keyword arguments>)
+
+Fit a negative binomial generalized linear model to data, while simultaneously
+estimating the shape parameter θ. Extra arguments and keyword arguments will be
+passed to [`glm`](@ref).
+
+In the first method, `formula` must be a
+[StatsModels.jl `Formula` object](https://juliastats.org/StatsModels.jl/stable/formula/)
+and `data` a table (in the [Tables.jl](https://tables.juliadata.org/stable/) definition, e.g. a data frame).
+In the second method, `X` must be a matrix holding values of the independent variable(s)
+in columns (including if appropriate the intercept), and `y` must be a vector holding
+values of the dependent variable.
+In both cases, `link` may specify the link function
+(if omitted, it is taken to be `NegativeBinomial(θ)`).
+
+# Keyword Arguments
+- `initialθ::Real=Inf`: Starting value for shape parameter θ. If it is `Inf`
+  then the initial value will be estimated by fitting a Poisson distribution.
+- `maxiter::Integer=30`: See `maxiter` for [`glm`](@ref)
+- `atol::Real=1.0e-6`: See `atol` for [`glm`](@ref)
+- `rtol::Real=1.0e-6`: See `rtol` for [`glm`](@ref)
+- `verbose::Bool=false`: See `verbose` for [`glm`](@ref)
+"""
 function negbin(F,
                 D,
                 args...;
                 initialθ::Real=Inf,
                 maxiter::Integer=30,
+                minstepfac::Real=0.001,
                 atol::Real=1e-6,
                 rtol::Real=1.e-6,
                 verbose::Bool=false,
@@ -85,7 +117,7 @@ function negbin(F,
         throw(ArgumentError("length of wts must be either $ly or 0 but was $lw"))
     end
 
-    θ = mle_for_θ(y, μ, wts)
+    θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)
     d = sqrt(2 * max(1, deviance(regmodel)))
     δ = one(θ)
     ll = loglikelihood(regmodel)

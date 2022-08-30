@@ -12,12 +12,14 @@ module GLM
     import Statistics: cor
     import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
                       loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
-                      fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², PValue
+                      fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², PValue
     import StatsFuns: xlogy
     import SpecialFunctions: erfc, erfcinv, digamma, trigamma
+    import StatsModels: hasintercept
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
-           fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²
+           fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
+           cooksdistance, hasintercept, dispersion
 
     export
         # types
@@ -25,13 +27,14 @@ module GLM
         Bernoulli,
         Binomial,
         Gamma,
-        Gaussian,
+        Geometric,
         InverseGaussian,
         NegativeBinomial,
         Normal,
         Poisson,
 
         ## Link types
+        Link,
         CauchitLink,
         CloglogLink,
         IdentityLink,
@@ -40,6 +43,7 @@ module GLM
         LogitLink,
         LogLink,
         NegativeBinomialLink,
+        PowerLink,
         ProbitLink,
         SqrtLink,
 
@@ -55,7 +59,7 @@ module GLM
         glm,            # general interface
         linpred,        # linear predictor
         lm,             # linear model
-        negbin,         # interface to fitting genative binomial regression
+        negbin,         # interface to fitting negative binomial regression
         nobs,           # total number of observations
         predict,        # make predictions
         ftest           # compare models with an F test
@@ -78,6 +82,12 @@ module GLM
     abstract type LinPred end                         # linear predictor in statistical models
     abstract type DensePred <: LinPred end            # linear predictor with dense X
     abstract type LinPredModel <: RegressionModel end # model based on a linear predictor
+
+    @static if VERSION < v"1.8.0-DEV.1139"
+        pivoted_cholesky!(A; kwargs...) = cholesky!(A, Val(true); kwargs...)
+    else
+        pivoted_cholesky!(A; kwargs...) = cholesky!(A, RowMaximum(); kwargs...)
+    end
 
     include("linpred.jl")
     include("lm.jl")
