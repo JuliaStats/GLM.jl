@@ -897,12 +897,12 @@ end
 
     mm = fit(LinearModel, @formula(y ~ 0 + x1 + x2),
              DataFrame(y=Ylm, x1=X[:, 1], x2=X[:, 2]))
-    pred4 = predict(mm, DataFrame(newX), interval=:confidence)
+    pred4 = predict(mm, DataFrame(newX, :auto), interval=:confidence)
     @test pred4.prediction == pred2.prediction
     @test pred4.lower == pred2.lower
     @test pred4.upper == pred2.upper
 
-    pred5 = predict(mm, DataFrame(newX), interval=:prediction)
+    pred5 = predict(mm, DataFrame(newX, :auto), interval=:prediction)
     @test pred5.prediction == pred3.prediction
     @test pred5.lower == pred3.lower
     @test pred5.upper == pred3.upper
