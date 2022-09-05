@@ -19,7 +19,8 @@ module GLM
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
            fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
-           cooksdistance, hasintercept, dispersion, weights, AnalyticWeights, ProbabilityWeights, FrequencyWeights
+           cooksdistance, hasintercept, dispersion, weights, AnalyticWeights, ProbabilityWeights, FrequencyWeights, 
+           aweights, fweights, pweights
 
     export
         # types
@@ -52,17 +53,17 @@ module GLM
         LinearModel,
 
         # functions
-        canonicallink,     # canonical link function for a distribution
-        deviance,          # deviance of fitted and observed responses
-        devresid,          # vector of squared deviance residuals
-        formula,           # extract the formula from a model
-        glm,               # general interface
-        linpred,           # linear predictor
-        lm,                # linear model
-        negbin,            # interface to fitting negative binomial regression
-        nobs,              # total number of observations
-        predict,           # make predictions
-        ftest              # compare models with an F test
+        canonicallink,   # canonical link function for a distribution
+        deviance,        # deviance of fitted and observed responses
+        devresid,        # vector of squared deviance residuals
+        formula,         # extract the formula from a model
+        glm,             # general interface
+        linpred,         # linear predictor
+        lm,              # linear model
+        negbin,          # interface to fitting negative binomial regression
+        nobs,            # total number of observations
+        predict,         # make predictions
+        ftest            # compare models with an F test
 
     const FP = AbstractFloat
     const FPVector{T<:FP} = AbstractArray{T,1}
