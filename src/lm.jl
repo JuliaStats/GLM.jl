@@ -66,6 +66,9 @@ end
 
 weights(r::LmResp) = r.wts
 
+nobs(r::LmResp{V,W}) where {V,W<:FrequencyWeights} = r.wts.sum
+nobs(r::LmResp) = oftype(sum(one(eltype(r.wts))), length(r.y))
+
 function loglikelihood(r::LmResp{T,<:Union{UnitWeights, FrequencyWeights}}) where T
     n = nobs(r)
     -n/2 * (log(2π * deviance(r)/n) + 1)
@@ -241,12 +244,7 @@ function nulldeviance(obj::LinearModel)
 end
 
 loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
-
-function nullloglikelihood(obj::LinearModel)
-    r = obj.rr
-    n = nobs(r)
-    -n/2 * (log(2π * nulldeviance(obj)/n) + 1)
-end
+nullloglikelihood(obj::LinearModel) = nullloglikelihood(obj.rr)
 
 r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
 adjr2(obj::LinearModel) = 1 - (1 - r²(obj))*(nobs(obj)-hasintercept(obj))/dof_residual(obj)
@@ -326,6 +324,17 @@ end
 function confint(obj::LinearModel; level::Real=0.95)
     hcat(coef(obj),coef(obj)) + stderror(obj) *
     quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
+end
+
+
+function momentmatrix(m::LinearModel) 
+    X = modelmatrix(m; weighted=false)
+    r = residuals(m; weighted=false)
+    if isweighted(m)
+        return X .* r .* weights(m)
+    else
+        return X .* r
+    end
 end
 
 """

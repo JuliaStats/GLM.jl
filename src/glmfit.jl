@@ -39,7 +39,7 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
     if !(wts isa AbstractWeights)
         throw(ArgumentError("`wts` should be an AbstractWeights but was $W"))
     end
-    
+
     # Lengths of y, η, and η all need to be n
     if !(nη == nμ == n)
         throw(DimensionMismatch("lengths of η, μ, and y ($nη, $nμ, $n) are not equal"))
@@ -767,20 +767,8 @@ function checky(y, d::Binomial)
     return nothing
 end
 
-"""
-    nobs(obj::LinearModel)
-    nobs(obj::GLM)
-
-For linear and generalized linear models, returns the number of rows, or,
-when prior weights of type FrequencyWeights are specified, the sum of weights.
-"""
-nobs(obj::LinPredModel) = nobs(obj.rr)
-
-nobs(r::LmResp{V,W}) where {V,W} = oftype(sum(one(eltype(r.wts))), length(r.y))
-nobs(r::LmResp{V,W}) where {V,W<:FrequencyWeights} = r.wts.sum
-
+nobs(r::GlmResp) = oftype(sum(one(eltype(r.wts))), length(r.y))
 nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = r.wts.sum
-nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W} = oftype(sum(one(eltype(r.wts))), length(r.y))
 
 ## To be reviewed!
 Base.sqrt(::UnitWeights{T}) where T = one(T)
@@ -815,12 +803,3 @@ function momentmatrix(m::GeneralizedLinearModel)
     return (X .* r) ./ d
 end
 
-function momentmatrix(m::LinearModel) 
-    X = modelmatrix(m; weighted=false)
-    r = residuals(m; weighted=false)
-    if isweighted(m)
-        return X .* r .* weights(m)
-    else
-        return X .* r
-    end
-end

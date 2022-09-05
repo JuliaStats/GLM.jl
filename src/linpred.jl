@@ -59,7 +59,7 @@ mutable struct DensePredQR{T<:BlasReal, W<:AbstractWeights} <: DensePred
         qrX = qr(X) 
         new{T,W}(X, beta0, zeros(T,p), zeros(T,p), qrX, wts, similar(X, T, size(X,1)))
     end
-    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, wts::W) where {T,W<:AbstractWeights{<:Real}}
+    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, wts::W) where {T,W<:AbstractWeights}
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
         length(wts) == n || throw(DimensionMismatch("Lenght of weights does not match the dimension of X"))
@@ -161,11 +161,13 @@ cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U'
 
 function delbeta!(p::DensePredChol{T,<:Cholesky, <:UnitWeights}, r::Vector{T}) where T<:BlasReal
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.X), r))
+    p
 end
 
 function delbeta!(p::DensePredChol{T,<:Cholesky, <:AbstractWeights}, r::Vector{T}) where T<:BlasReal
     X = mul!(p.scratchm1, Diagonal(p.wts), p.X)
     ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
+    p
 end
 
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:UnitWeights}, r::Vector{T}) where T<:BlasReal
@@ -303,7 +305,7 @@ end
 
 _vcov(pp::LinPred, u, d) = rmul!(invchol(pp), d)
 
-function _vcov(pp::DensePredChol{T, <:ProbabilityWeights, <:Cholesky}, u, d) where {T}
+function _vcov(pp::DensePredChol{T, <:ProbabilityWeights, <:Cholesky}, u::AbstractVector, d::Real) where {T}
     wts = pp.wts
     Z = mul!(pp.scratchm1, Diagonal(sqrt.(wts).*u), pp.X)
     XtW2X = Z'Z
@@ -314,7 +316,7 @@ function _vcov(pp::DensePredChol{T, <:ProbabilityWeights, <:Cholesky}, u, d) whe
     n/(n-k)*V
 end
 
-function _vcov(pp::DensePredChol{T, <:ProbabilityWeights, <:CholeskyPivoted}, u) where {T}
+function _vcov(pp::DensePredChol{T, <:ProbabilityWeights, <:CholeskyPivoted}, u::AbstractVector) where {T}
     wts = pp.wts
     Z = mul!(pp.scratchm1, Diagonal(sqrt.(wts).*u), pp.X)
     rnk = rank(pp.chol)
@@ -346,12 +348,10 @@ end
 modelframe(obj::LinPredModel) = obj.fr
 
 function modelmatrix(obj::LinPredModel; weighted::Bool=false)
-    if !weighted
-        obj.pp.X
-    elseif isweighted(obj)
+    if isweighted(obj)
         mul!(obj.pp.scratchm1, Diagonal(sqrt.(obj.pp.wts)), obj.pp.X)
     else
-        throw(ArgumentError("`weighted=true` allowed only for weighted models."))
+        obj.pp.X
     end
 end
 
@@ -361,6 +361,8 @@ fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
 StatsModels.formula(obj::LinPredModel) = modelframe(obj).formula
 residuals(obj::LinPredModel; weighted::Bool=false) = residuals(obj.rr; weighted=weighted)
+
+nobs(obj::LinPredModel) = nobs(obj.rr)
 
 weights(obj::RegressionModel) = weights(obj.model)
 weights(obj::LinPredModel) = weights(obj.rr)
