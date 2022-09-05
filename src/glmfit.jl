@@ -63,9 +63,9 @@ function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::Abst
     return r
 end
 
-function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real}, wts::AbstractWeights{<:Real}) where {D, L}
+GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
+        wts::AbstractWeights) where {D, L} =
     GlmResp(float(y), d, l, float(off), wts)
-end
 
 deviance(r::GlmResp) = sum(r.devresid)
 
