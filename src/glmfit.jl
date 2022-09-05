@@ -3,7 +3,7 @@
 
 The response vector and various derived vectors in a generalized linear model.
 """
-struct GlmResp{V<:FPVector, D<:UnivariateDistribution,L<:Link,W<:AbstractWeights{<:Real}} <: ModResp
+struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link,W<:AbstractWeights} <: ModResp
     "`y`: response vector"
     y::V
     d::D
