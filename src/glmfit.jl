@@ -35,6 +35,11 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
     # Check y values
     checky(y, d)
 
+    ## We don't support custom types of weights that a user may define
+    if !(wts isa AbstractWeights)
+        throw(ArgumentError("`wts` should be an AbstractWeights but was $W"))
+    end
+    
     # Lengths of y, η, and η all need to be n
     if !(nη == nμ == n)
         throw(DimensionMismatch("lengths of η, μ, and y ($nη, $nμ, $n) are not equal"))
