@@ -45,20 +45,19 @@ A `LinPred` type with a dense, unpivoted QR decomposition of `X`
 - `scratchbeta`: scratch vector of length `p`, used in `linpred!` method
 - `qr`: a `QRCompactWY` object created from `X`, with optional row weights.
 """
-mutable struct DensePredQR{T<:BlasReal, W<:AbstractWeights{<:Real}} <: DensePred
+mutable struct DensePredQR{T<:BlasReal, W<:AbstractWeights} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
     qr::QRCompactWY{T}
     wts::W
-    wresponse::Vector{T}
     function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, wts::W) where {T,W<:UnitWeights}
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
-        length(wts) == n || throw(DimensionMismatch("Lenght of weights does not match the dimension of X"))
+        length(wts) == n || throw(DimensionMismatch("Length of weights does not match the dimension of X"))
         qrX = qr(X) 
-        new{T,W}(X, beta0, zeros(T,p), zeros(T,p), qrX, wts, similar(X, T, (size(X,1),) ))
+        new{T,W}(X, beta0, zeros(T,p), zeros(T,p), qrX, wts, similar(X, T, size(X,1)))
     end
     function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, wts::W) where {T,W<:AbstractWeights{<:Real}}
         n, p = size(X)
@@ -69,13 +68,9 @@ mutable struct DensePredQR{T<:BlasReal, W<:AbstractWeights{<:Real}} <: DensePred
         new{T,W}(X, beta0, zeros(T,p), zeros(T,p), qrX, wts, similar(X, T, (size(X,1),) ))
     end
 
-    function DensePredQR{T}(X::Matrix{T}, wts::W) where {T,W}
+    function DensePredQR{T}(X::Matrix{T}, wts::W=uweights(size(X,1))) where {T,W}
         n, p = size(X)
         DensePredQR(X, zeros(T, p), wts)
-    end
-    function DensePredQR(X::Matrix{T}) where T
-        n, p = size(X)
-        DensePredQR{T}(X, zeros(T, p), uweights(size(X,1)))
     end
 end
 DensePredQR{T}(X::Matrix) where T = DensePredQR{eltype(X)}(X, zeros(T, size(X, 2)), uweights(size(X,1)))
@@ -84,7 +79,7 @@ DensePredQR(X::Matrix{T}, wts::AbstractVector) where T = DensePredQR{T}(X, zeros
 convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X)
 
 """
-delbeta!(p::LinPred, r::Vector)
+    delbeta!(p::LinPred, r::Vector)
 
 Evaluate and return `p.delbeta` the increment to the coefficient vector from residual `r`
 """
@@ -96,7 +91,7 @@ function delbeta!(p::DensePredQR{T}, r::Vector{T}) where T<:BlasReal
 end
 
 """
-DensePredChol{T}
+    DensePredChol{T}
 
 A `LinPred` type with a dense Cholesky factorization of `X'X`
 
@@ -110,7 +105,7 @@ A `LinPred` type with a dense Cholesky factorization of `X'X`
 - `scratchm1`: scratch Matrix{T} of the same size as `X`
 - `scratchm2`: scratch Matrix{T} of the same size as `X'X`
 """
-mutable struct DensePredChol{T<:BlasReal,C,W<:AbstractVector{<:Real}} <: DensePred
+mutable struct DensePredChol{T<:BlasReal,C,W<:AbstractVector} <: DensePred
     X::Matrix{T}                   # model matrix
     beta0::Vector{T}               # base vector for coefficients
     delbeta::Vector{T}             # coefficient increment
@@ -151,8 +146,8 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::UnitWeights)
         similar(cholfactors(F)))
 end
 
-cholpred(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights) = DensePredChol(X, pivot, wts)
-cholpred(X::AbstractMatrix, pivot::Bool=false) = DensePredChol(X, pivot, uweights(size(X,1)))
+cholpred(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights=uweights(size(X,1))) =
+    DensePredChol(X, pivot, wts)
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
@@ -170,7 +165,7 @@ end
 
 function delbeta!(p::DensePredChol{T,<:Cholesky, <:AbstractWeights}, r::Vector{T}) where T<:BlasReal
     X = mul!(p.scratchm1, Diagonal(p.wts), p.X)
-    ldiv!(p.chol, mul!(p.delbeta, transpose(X),r))
+    ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
 end
 
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:UnitWeights}, r::Vector{T}) where T<:BlasReal
@@ -225,7 +220,7 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Ve
     p
 end
 
-mutable struct SparsePredChol{T,M<:SparseMatrixCSC,C,W<:AbstractWeights{<:Real}} <: GLM.LinPred
+mutable struct SparsePredChol{T,M<:SparseMatrixCSC,C,W<:AbstractWeights} <: GLM.LinPred
     X::M                           # model matrix
     Xt::M                          # X'
     beta0::Vector{T}               # base vector for coefficients
@@ -248,8 +243,8 @@ function SparsePredChol(X::SparseMatrixCSC{T}, wts::AbstractVector) where T
         wts)
 end
 
-cholpred(X::SparseMatrixCSC, pivot::Bool=false) = SparsePredChol(X, uweights(size(X,1)))
-cholpred(X::SparseMatrixCSC, pivot::Bool, wts::AbstractWeights) = SparsePredChol(X, wts)
+cholpred(X::SparseMatrixCSC, pivot::Bool, wts::AbstractWeights=uweights(size(X,1))) =
+    SparsePredChol(X, wts)
 
 function delbeta!(p::SparsePredChol{T,M,C,<:UnitWeights}, r::Vector{T}, wt::Vector{T}) where {T,M,C}
     scr = mul!(p.scratchm1, Diagonal(wt), p.X)
@@ -350,7 +345,7 @@ end
 
 modelframe(obj::LinPredModel) = obj.fr
 
-function modelmatrix(obj::LinPredModel; weighted=false)
+function modelmatrix(obj::LinPredModel; weighted::Bool=false)
     if !weighted
         obj.pp.X
     elseif isweighted(obj)
@@ -365,7 +360,7 @@ response(obj::LinPredModel) = obj.rr.y
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
 StatsModels.formula(obj::LinPredModel) = modelframe(obj).formula
-residuals(obj::LinPredModel; kwarg...) = residuals(obj.rr; kwarg...)
+residuals(obj::LinPredModel; weighted::Bool=false) = residuals(obj.rr; weighted=weighted)
 
 weights(obj::RegressionModel) = weights(obj.model)
 weights(obj::LinPredModel) = weights(obj.rr)

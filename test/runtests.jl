@@ -83,7 +83,6 @@ end
 end
 
 @testset "linear model with weights" begin 
-
     df = dataset("quantreg", "engel")
     N = nrow(df)
     df.weights = repeat(1:5, Int(N/5))

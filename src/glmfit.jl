@@ -51,7 +51,7 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
     return GlmResp{V,D,L,W}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
 end
 
-function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::AbstractWeights{<:Real})
+function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::AbstractWeights)
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
     _y   = convert(Vector{float(eltype(y))}, y)
     _off = convert(Vector{float(eltype(off))}, off)
@@ -69,8 +69,8 @@ GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
 
 deviance(r::GlmResp) = sum(r.devresid)
 
-
 weights(r::GlmResp) = r.wts
+
 """
     cancancel(r::GlmResp{V,D,L})
 
@@ -107,7 +107,6 @@ function updateμ!(r::GlmResp{T,D,L,<:UnitWeights}, linPr::T) where {T<:FPVector
     updateμ!(r)
     r
 end
-
 
 function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
@@ -545,10 +544,10 @@ const FIT_GLM_DOC = """
 
     # Keyword Arguments
     - `dofit::Bool=true`: Determines whether model will be fit
-    - `wts::AbstractWeights=aweights(similar(y,0))`: Weights of observations.
+    - `wts::AbstractWeights=uweights(length(y))`: Weights of observations.
       Allowed weights are `AnalyticalWeights`, `FrequencyWeights`, or `ProbabilityWeights`.
-      If a vector is passed (deprecated) it is coerced to FrequencyWeights.
-      Can be length 0 to indicate no weighting (default).
+      If a no-`AbstractWeights` vector is passed (deprecated) it is coerced to `FrequencyWeights`.
+      By default, `UnitWeights` are used, meaning that no weighting is applied.
     - `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
       length 0
     - `verbose::Bool=false`: Display convergence information for each iteration
@@ -590,8 +589,8 @@ function fit(::Type{M},
         wts
     elseif isa(wts, AbstractVector)
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using " *
-                     "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " *
-                     "by coercing wts to `FrequencyWeights`", :fit)
+                     "`AnalyticalWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                     "by coercing `wts` to `FrequencyWeights`", :fit)
         fweights(wts)
     else
         throw(ArgumentError("`wts` should be an AbstractVector coercible to AbstractWeights"))
@@ -647,7 +646,6 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
         one(eltype(r.mu))
     end
 end
-
 
 """
     predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=eltype(newX)[],
@@ -782,11 +780,7 @@ nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W} = oftype(sum(one(eltype(r.wts))), leng
 ## To be reviewed!
 Base.sqrt(::UnitWeights{T}) where T = one(T)
 
-function residuals(r::GlmResp; weighted::Bool = false)
-    ## Note: this is necessary if we want to be able to evsaluate
-    ## unweighted residuls when the model is weighted. Otherwise, if we
-    ## agree that the residulas should follow the specification of the model
-    ## we could use the object devresid 
+function residuals(r::GlmResp; weighted::Bool=false)
     y, η, μ = r.y, r.eta, r.mu
     dres = similar(μ)
 
@@ -797,31 +791,31 @@ function residuals(r::GlmResp; weighted::Bool = false)
     end
 
     if weighted
-        dres .= dres.*sqrt.(r.wts)
+        dres .*= sqrt.(r.wts)
     end
 
     return dres
 end
 
-mdisp(rr::GlmResp{T1, <: Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}, T2, T3}) where {T1, T2, T3} = one(1)
-mdisp(rr::GlmResp{T1, <: Union{Gamma, Geometric, InverseGaussian}, T2, T3}) where {T1, T2, T3} = sum(abs2, rr.wrkwt.*rr.wrkresid)/sum(rr.wrkwt)
+mdisp(rr::GlmResp{<: Any, <: Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}}) = 1
+mdisp(rr::GlmResp{<: Any, <: Union{Gamma, Geometric, InverseGaussian}}) =
+    sum(abs2, Base.Broadcast.broadcasted(*, rr.wrkwt, rr.wrkresid))/sum(rr.wrkwt)
 
 momentmatrix(m::RegressionModel) = momentmatrix(m.model)
 
 function momentmatrix(m::GeneralizedLinearModel)
     X = modelmatrix(m; weighted=false)
     d = mdisp(m.rr)
-    r = m.rr.wrkwt.*m.rr.wrkresid
-    return (X.*r)./d
+    r = m.rr.wrkwt .* m.rr.wrkresid
+    return (X .* r) ./ d
 end
 
 function momentmatrix(m::LinearModel) 
     X = modelmatrix(m; weighted=false)
     r = residuals(m; weighted=false)
-    mm = (X.*r)
     if isweighted(m)
-        mm.*weights(m)
+        return X .* r .* weights(m)
     else
-        mm
+        return X .* r
     end
 end

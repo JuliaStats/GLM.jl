@@ -7,12 +7,12 @@ Encapsulates the response for a linear model
 
 - `mu`: current value of the mean response vector or fitted value
 - `offset`: optional offset added to the linear predictor to form `mu`
-- `wts`: optional weights for observations (AbstractWeights)
+- `wts`: optional weights for observations (as `AbstractWeights`)
 - `y`: observed response vector
 
 Either or both `offset` and `wts` may be of length 0
 """
-mutable struct LmResp{V<:FPVector, W<:AbstractWeights{<:Real}} <: ModResp  # response in a linear model
+mutable struct LmResp{V<:FPVector, W<:AbstractWeights} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
     wts::W                                 # prior weights (may have length 0)
@@ -28,20 +28,20 @@ mutable struct LmResp{V<:FPVector, W<:AbstractWeights{<:Real}} <: ModResp  # res
     end
 end
 
-function LmResp(y::AbstractVector{<:Real}, wts::AbstractWeights{<:Real})
+function LmResp(y::AbstractVector{<:Real}, wts::AbstractWeights)
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
     _y = convert(Vector{float(eltype(y))}, y)
     return LmResp{typeof(_y), typeof(wts)}(zero(_y), zero(_y), wts, _y)
 end
 
-function updateμ!(r::LmResp{V, W}, linPr::V) where {V<:FPVector, W}
+function updateμ!(r::LmResp{V}, linPr::V) where {V<:FPVector}
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copyto!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
     deviance(r)
 end
 
-updateμ!(r::LmResp{V, W}, linPr) where {V<:FPVector, W} = updateμ!(r, convert(V, vec(linPr)))
+updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
 
 function deviance(r::LmResp{T,<:UnitWeights}) where T
     y = r.y
@@ -132,15 +132,16 @@ const FIT_LM_DOC = """
     in columns (including if appropriate the intercept), and `y` must be a vector holding
     values of the dependent variable.
 
-    The keyword argument `wts` can be an `AbstractWeights` specifying frequency weights for observations.
-    Weights allowed are:
+    The keyword argument `wts` can be an `AbstractWeights` vector specifying prior weights
+    for observations. Allowed types are:
+    - `UnitWeights`: no weighting (all weights equal to 1).
     - `AnalyticaWeights`: describe a non-random relative importance (usually between 0 and 1)
-    for each observation.
-    - `FrequencyWeights`: describe the number of times (or frequency) each observation was observed.
+      for each observation.
+    - `FrequencyWeights`: describe the number of times (or frequency) each observation was seen.
     - `ProbabilityWeights`: represent the inverse of the sampling probability for each observation,
-    providing a correction mechanism for under- or over-sampling certain population groups
-    These weights gives equal point estimates but different standard errors.
-    If a vector is passed (deprecated), it is coerced to `FrequencyWeights`.
+      providing a correction mechanism for under- or over-sampling certain population groups.
+    These weights give equal point estimates but different standard errors.
+    If a non-`AbstractWeights` vector is passed (deprecated), it is coerced to `FrequencyWeights`.
 
     `dropcollinear` controls whether or not `lm` accepts a model matrix which
     is less-than-full rank. If `true` (the default), only the first of each set of
@@ -171,12 +172,12 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     _wts = if isa(wts, AbstractWeights)
         wts
     elseif isa(wts, AbstractVector)
-        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using " *
-                     "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " *
-                     "by coercing wts to `FrequencyWeights`", :fit)
+        Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
+                     "`AnalyticalWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                     "by coercing `wts` to `FrequencyWeights`", :fit)
         fweights(wts)
     else
-        throw(ArgumentError("`wts` should be an AbstractVector coercible to AbstractWeights"))
+        throw(ArgumentError("`wts` should be an `AbstractVector` coercible to `AbstractWeights`"))
     end
     fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts)))
 end
