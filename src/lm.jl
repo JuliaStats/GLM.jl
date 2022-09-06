@@ -220,16 +220,16 @@ function nulldeviance(obj::LinearModel)
     end
 
     v = zero(eltype(y))*zero(eltype(wts))
-    if !isweighted(obj)
-        @inbounds @simd for yi in y
-            v += abs2(yi - m)
-        end
-    else
+    # if !isweighted(obj)
+    #     @inbounds @simd for yi in y
+    #         v += abs2(yi - m)
+    #     end
+    # else
         @inbounds @simd for i = eachindex(y,wts)
             v += abs2(y[i] - m)*wts[i]
         end
-    end
-    v
+    #end
+    return v
 end
 
 function nullloglikelihood(m::LinearModel) 

@@ -301,44 +301,28 @@ end
 
 loglikelihood(m::AbstractGLM) = loglikelihood(m.rr)
 
-function loglikelihood(r::GlmResp{T,D,L,<:UnitWeights}) where {T,D,L}
-    y   = r.y
-    mu  = r.mu
-    d   = r.d
-    ll  = zero(eltype(mu))
-    ϕ = deviance(r)/nobs(r)
-    @inbounds for i in eachindex(y, mu)
-        ll += loglik_obs(d, y[i], mu[i], 1, ϕ)
-    end
-    return ll
-end
-
-function loglikelihood(r::GlmResp{T,D,L,<:FrequencyWeights}) where {T,D,L}
-    wts = r.wts
-    y   = r.y
-    mu  = r.mu
-    d   = r.d
-    ll  = zero(eltype(mu))
-    ϕ   = deviance(r)/nobs(r)
-    @inbounds for i in eachindex(y, mu, wts)
-        ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
-    end
-    return ll
-end
 
 function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
-    wts = r.wts
-    sumwt = sum(wts)
     y = r.y
     mu = r.mu
+    wts = weights(r)
+    sumwt = sum(wts)
     d = r.d
     ll = zero(eltype(mu))
-    ϕ = deviance(r)
-    n = length(y)    
-    @inbounds for i in eachindex(y, mu, wts)
-        ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], ϕ, sumwt, n)
+    n = nobs(r)
+    N = length(y)
+    δ = deviance(r)
+    ϕ = δ/n
+    if wts isa FrequencyWeights || wts isa UnitWeights
+        @inbounds for i in eachindex(y, mu)
+            ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
+        end
+    else
+        @inbounds for i in eachindex(y, mu, wts)
+            ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, sumwt, N)
+        end       
     end
-    return ll 
+    return ll
 end
 
 function nullloglikelihood(m::GeneralizedLinearModel)
@@ -351,26 +335,18 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     hasint = hasintercept(m)
     ll     = zero(eltype(y))
     if isempty(r.offset) # Faster method
-        if isweighted(m)
-            mu = hasint ? mean(y, wts) : linkinv(r.link, zero(ll)/1)
-            if wts isa FrequencyWeights
-                ϕ = nulldeviance(m)/nobs(m)
-                @inbounds for i in eachindex(y, wts)
-                    ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
-                end
-            else
-                ϕ = nulldeviance(m)
-                n = length(y)
-                @inbounds for i in eachindex(y, wts)
-                    ll += loglik_apweights_obs(d, y[i], mu, wts[i], ϕ, sumwt, n)
-                end
-            end            
-        else
-            mu = hasint ? mean(y) : linkinv(r.link, zero(ll)/1)
-            ϕ = nulldeviance(m)/length(y)
-            @inbounds for i in eachindex(y)
-                ll += loglik_obs(d, y[i], mu, 1, ϕ)
+        mu = hasint ? mean(y, wts) : linkinv(r.link, zero(ll)/1)
+        δ = nulldeviance(m)
+        ϕ = nulldeviance(m)/nobs(m)
+        N = length(y)
+        if wts isa FrequencyWeights || wts isa UnitWeights
+            @inbounds for i in eachindex(y, wts)
+                ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
             end
+        else
+            @inbounds for i in eachindex(y, wts)
+                ll += loglik_apweights_obs(d, y[i], mu, wts[i], δ, sumwt, N)
+            end        
         end
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
