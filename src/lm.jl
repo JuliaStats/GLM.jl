@@ -207,12 +207,9 @@ For linear models, the deviance of the null model is equal to the total sum of s
 function nulldeviance(obj::LinearModel)
     y = obj.rr.y
     wts = weights(obj)
+    
     if hasintercept(obj)
-        if !isweighted(obj)
-            m = mean(y)
-        else
-            m = mean(y, wts)
-        end
+        m = mean(y, wts)    
     else
         @warn("Starting from GLM.jl 1.8, null model is defined as having no predictor at all " *
               "when a model without an intercept is passed.")
@@ -220,15 +217,9 @@ function nulldeviance(obj::LinearModel)
     end
 
     v = zero(eltype(y))*zero(eltype(wts))
-    # if !isweighted(obj)
-    #     @inbounds @simd for yi in y
-    #         v += abs2(yi - m)
-    #     end
-    # else
-        @inbounds @simd for i = eachindex(y,wts)
-            v += abs2(y[i] - m)*wts[i]
-        end
-    #end
+    @inbounds @simd for i = eachindex(y,wts)
+        v += abs2(y[i] - m)*wts[i]
+    end
     return v
 end
 
