@@ -107,9 +107,6 @@ end
     @test isa(weights(lm_model), FrequencyWeights)
     @test isa(weights(glm_model), FrequencyWeights)
     
-    
-    
-    
     lm_model = lm(f, df, wts = aweights(df.weights))
     glm_model = glm(f, df, Normal(), wts = aweights(df.weights))
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
@@ -122,9 +119,9 @@ end
     @test isapprox(first(predict(lm_model)), 357.57694841780994)
     @test isapprox(loglikelihood(lm_model), -1467.8964643217373)
     @test isapprox(loglikelihood(glm_model), -1467.8964643217373)    
-    @test isapprox(nullloglikelihood(lm_model), -1790.7176571556527)
-    #@test isapprox(nullloglikelihood(glm_model), -1790.7176571556527)
-    @test isapprox(nullloglikelihood(lm_model), -1790.7176571556527)
+    @test isapprox(nullloglikelihood(lm_model), -1678.2116012002746)
+    @test isapprox(nullloglikelihood(glm_model), -1678.2116012002746)
+    @test isapprox(nullloglikelihood(lm_model), -1678.2116012002746)
     @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
 end
 
@@ -169,12 +166,12 @@ end
 
 @testset "Passing wts (depwarn)" begin
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3], wts = [3,3,3])
-    @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitely using " * 
-                       "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " * 
-                       "by coercing wts to `FrequencyWeights`") lm(@formula(y~x), df; wts=df.wts)
-    @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitely using " * 
-                       "AnalyticalWeights, ProbabilityWeights, or FrequencyWeights. Proceeding " * 
-                       "by coercing wts to `FrequencyWeights`") glm(@formula(y~x), df, Normal(), IdentityLink(); wts=df.wts)
+    @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitly using " *
+                       "`AnalyticalWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                       "by coercing `wts` to `FrequencyWeights`") lm(@formula(y~x), df; wts=df.wts)
+    @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitly using " *
+                       "`AnalyticalWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                       "by coercing `wts` to `FrequencyWeights`") glm(@formula(y~x), df, Normal(), IdentityLink(); wts=df.wts)
 end
 
 @testset "saturated linear model" begin
