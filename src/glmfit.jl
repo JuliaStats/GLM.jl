@@ -102,15 +102,11 @@ function updateμ! end
 function updateμ!(r::GlmResp{T,D,L,<:AbstractWeights}, linPr::T) where {T<:FPVector,D,L}
     isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
-    map!(*, r.devresid, r.devresid, r.wts)
-    map!(*, r.wrkwt, r.wrkwt, r.wts)    
-    r
-end
-
-function updateμ!(r::GlmResp{T,D,L,<:UnitWeights}, linPr::T) where {T<:FPVector,D,L}
-    isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
-    updateμ!(r)
-    r
+    if !(weights(r) isa UnitWeights)
+        map!(*, r.devresid, r.devresid, r.wts)
+        map!(*, r.wrkwt, r.wrkwt, r.wts)    
+    end
+    return r
 end
 
 function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L}
