@@ -66,8 +66,8 @@ end
 
 weights(r::LmResp) = r.wts
 
-nobs(r::LmResp{V,W}) where {V,W<:FrequencyWeights} = r.wts.sum
-nobs(r::LmResp) = oftype(sum(one(eltype(r.wts))), length(r.y))
+nobs(r::LmResp{V,W}) where {V<:AbstractVector{T} where T<:AbstractFloat,W<:FrequencyWeights} = sum(r.wts)
+nobs(r::LmResp{V,W}) where {V<:AbstractVector{T} where T<:AbstractFloat,W<:AbstractWeights} = oftype(sum(one(eltype(r.wts))), length(r.y))
 
 function loglikelihood(r::LmResp{T,<:Union{UnitWeights, FrequencyWeights}}) where T
     n = nobs(r)
@@ -75,20 +75,9 @@ function loglikelihood(r::LmResp{T,<:Union{UnitWeights, FrequencyWeights}}) wher
 end
 
 function loglikelihood(r::LmResp{T,<:AbstractWeights}) where T
-    N = nobs(r)
+    N = length(r.y)
     n = sum(log.(weights(r)))
     0.5*(n - N * (log(2π * deviance(r)/N) + 1))
-end
-
-function nullloglikelihood(r::LmResp{T,<:Union{UnitWeights, FrequencyWeights}}) where T
-    n = nobs(r)
-    -n/2 * (log(2π * nulldeviance(r)/n) + 1)
-end
-
-function nullloglikelihood(r::LmResp{T,<:AbstractWeights}) where T
-    N = nobs(r)
-    n = sum(log.(weights(r)))
-    0.5*(n - N * (log(2π * nulldeviance(r)/N) + 1))
 end
 
 function residuals(r::LmResp; weighted=false)
@@ -243,8 +232,20 @@ function nulldeviance(obj::LinearModel)
     v
 end
 
+function nullloglikelihood(m::LinearModel) 
+    wts = weights(m)
+    if wts isa Union{UnitWeights, FrequencyWeights}
+        n = nobs(m)
+        -n/2 * (log(2π * nulldeviance(m)/n) + 1)
+    else
+        N = length(m.rr.y)
+        n = sum(log.(wts))
+        0.5*(n - N * (log(2π * nulldeviance(m)/N) + 1))
+    end
+end
+
 loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
-nullloglikelihood(obj::LinearModel) = nullloglikelihood(obj.rr)
+
 
 r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
 adjr2(obj::LinearModel) = 1 - (1 - r²(obj))*(nobs(obj)-hasintercept(obj))/dof_residual(obj)

@@ -268,14 +268,14 @@ deviance(m::AbstractGLM) = deviance(m.rr)
 
 function nulldeviance(m::GeneralizedLinearModel)
     r      = m.rr
-    wts    = r.wts
+    wts    = weights(r)
     y      = r.y
     d      = r.d
     offset = r.offset
     hasint = hasintercept(m)
-    dev    = zero(eltype(y))
-    if isempty(offset) # Faster method
-        if !(wts isa UnitWeights)
+    dev    = zero(eltype(y))    
+    if isempty(offset) # Faster method        
+        if isweighted(m)
             mu = hasint ?
                 mean(y, wts) :
                 linkinv(r.link, zero(eltype(y))*zero(eltype(wts))/1)
@@ -319,7 +319,7 @@ function loglikelihood(r::GlmResp{T,D,L,<:FrequencyWeights}) where {T,D,L}
     mu  = r.mu
     d   = r.d
     ll  = zero(eltype(mu))
-    ϕ = deviance(r)/nobs(r)
+    ϕ   = deviance(r)/nobs(r)
     @inbounds for i in eachindex(y, mu, wts)
         ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
     end
@@ -329,33 +329,42 @@ end
 function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
     wts = r.wts
     sumwt = sum(wts)
-    y   = r.y
-    mu  = r.mu
-    d   = r.d
-    ll  = zero(eltype(mu))
+    y = r.y
+    mu = r.mu
+    d = r.d
+    ll = zero(eltype(mu))
     ϕ = deviance(r)
     n = length(y)    
     @inbounds for i in eachindex(y, mu, wts)
-        ll += loglik_aweights_obs(d, y[i], mu[i], wts[i], ϕ, sumwt, n)
+        ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], ϕ, sumwt, n)
     end
     return ll 
 end
 
 function nullloglikelihood(m::GeneralizedLinearModel)
     r      = m.rr
-    wts    = r.wts
+    wts    = weights(m)
+    sumwt  = sum(wts)
     y      = r.y
     d      = r.d
     offset = r.offset
     hasint = hasintercept(m)
-    ll  = zero(eltype(y))
+    ll     = zero(eltype(y))
     if isempty(r.offset) # Faster method
-        if !isempty(wts)
-            mu = hasint ? mean(y, weights(wts)) : linkinv(r.link, zero(ll)/1)
-            ϕ = nulldeviance(m)/sum(wts)
-            @inbounds for i in eachindex(y, wts)
-                ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
-            end
+        if isweighted(m)
+            mu = hasint ? mean(y, wts) : linkinv(r.link, zero(ll)/1)
+            if wts isa FrequencyWeights
+                ϕ = nulldeviance(m)/nobs(m)
+                @inbounds for i in eachindex(y, wts)
+                    ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
+                end
+            else
+                ϕ = nulldeviance(m)
+                n = length(y)
+                @inbounds for i in eachindex(y, wts)
+                    ll += loglik_apweights_obs(d, y[i], mu, wts[i], ϕ, sumwt, n)
+                end
+            end            
         else
             mu = hasint ? mean(y) : linkinv(r.link, zero(ll)/1)
             ϕ = nulldeviance(m)/length(y)
@@ -593,7 +602,7 @@ function fit(::Type{M},
     _wts = if isa(wts, AbstractWeights)
         wts
     elseif isa(wts, AbstractVector)
-        Base.depwarn("Passing weights as vector is deprecated in favor of explicitely using " *
+        Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
                      "`AnalyticalWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                      "by coercing `wts` to `FrequencyWeights`", :fit)
         fweights(wts)
@@ -767,11 +776,11 @@ function checky(y, d::Binomial)
     return nothing
 end
 
-nobs(r::GlmResp) = oftype(sum(one(eltype(r.wts))), length(r.y))
-nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = r.wts.sum
+nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:AbstractWeights} = oftype(sum(one(eltype(r.wts))), length(r.y))
+nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = sum(r.wts)
 
-## To be reviewed!
-Base.sqrt(::UnitWeights{T}) where T = one(T)
+##To be reviewed!
+# Base.sqrt(::UnitWeights{T}) where T = one(T)
 
 function residuals(r::GlmResp; weighted::Bool=false)
     y, η, μ = r.y, r.eta, r.mu
@@ -790,16 +799,24 @@ function residuals(r::GlmResp; weighted::Bool=false)
     return dres
 end
 
-mdisp(rr::GlmResp{<: Any, <: Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}}) = 1
-mdisp(rr::GlmResp{<: Any, <: Union{Gamma, Geometric, InverseGaussian}}) =
-    sum(abs2, Base.Broadcast.broadcasted(*, rr.wrkwt, rr.wrkresid))/sum(rr.wrkwt)
 
+
+## To be removed once  is merged
 momentmatrix(m::RegressionModel) = momentmatrix(m.model)
 
+"""
+    momentmatrix(m::GeneralizedLinearModel)
+
+    Return the moment matrix (score equation) of a GLM model.     
+"""
 function momentmatrix(m::GeneralizedLinearModel)
     X = modelmatrix(m; weighted=false)
-    d = mdisp(m.rr)
+    d = variancestructure(m.rr)
     r = m.rr.wrkwt .* m.rr.wrkresid
     return (X .* r) ./ d
 end
+
+variancestructure(rr::GlmResp{<: Any, <: Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}}) = 1
+variancestructure(rr::GlmResp{<: Any, <: Union{Gamma, Geometric, InverseGaussian}}) =
+    sum(abs2, Base.Broadcast.broadcasted(*, rr.wrkwt, rr.wrkresid))/sum(rr.wrkwt)
 

@@ -52,30 +52,16 @@ mutable struct DensePredQR{T<:BlasReal, W<:AbstractWeights} <: DensePred
     scratchbeta::Vector{T}
     qr::QRCompactWY{T}
     wts::W
-    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, wts::W) where {T,W<:UnitWeights}
+    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, wts::W) where {T,W<:AbstractWeights}   
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
         length(wts) == n || throw(DimensionMismatch("Length of weights does not match the dimension of X"))
         qrX = qr(X) 
-        new{T,W}(X, beta0, zeros(T,p), zeros(T,p), qrX, wts, similar(X, T, size(X,1)))
-    end
-    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, wts::W) where {T,W<:AbstractWeights}
-        n, p = size(X)
-        length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
-        length(wts) == n || throw(DimensionMismatch("Lenght of weights does not match the dimension of X"))
-        
-        qrX = qr(Diagonal(sqrt.(wts))*X)
-        new{T,W}(X, beta0, zeros(T,p), zeros(T,p), qrX, wts, similar(X, T, (size(X,1),) ))
-    end
-
-    function DensePredQR{T}(X::Matrix{T}, wts::W=uweights(size(X,1))) where {T,W}
-        n, p = size(X)
-        DensePredQR(X, zeros(T, p), wts)
+        new{T,W}(X, beta0, zeros(T,p), zeros(T,p), qrX, wts)
     end
 end
 DensePredQR{T}(X::Matrix) where T = DensePredQR{eltype(X)}(X, zeros(T, size(X, 2)), uweights(size(X,1)))
-DensePredQR(X::Matrix, beta0::Vector, wts::AbstractVector) = DensePredQR{eltype(X)}(X, beta0, wts)
-DensePredQR(X::Matrix{T}, wts::AbstractVector) where T = DensePredQR{T}(X, zeros(T, size(X,2)), wts)
+#DensePredQR(X::Matrix{T}, wts::AbstractWeights) where T = DensePredQR{T}(X, zeros(T, size(X,2)), wts)
 convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X)
 
 """
@@ -119,6 +105,7 @@ end
 function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights)
     scr = similar(X)
     mul!(scr, Diagonal(wts), X)
+    
     F = Hermitian(float(scr'X)) 
     T = eltype(F)
     F = pivot ? pivoted_cholesky!(F, tol = -one(T), check = false) : cholesky!(F)
