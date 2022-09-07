@@ -350,10 +350,19 @@ function StatsBase.cooksdistance(obj::LinearModel)
     mse = GLM.dispersion(obj,true)
     k = dof(obj)-1
     d_res = dof_residual(obj)
-    X = modelmatrix(obj; weighted=isweighted(obj))
-    XtX = crossmodelmatrix(obj; weighted=isweighted(obj))
-    k == size(X,2) || throw(ArgumentError("Models with collinear terms are not currently supported."))
-    hii = diag(X * inv(XtX) * X')
-    D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
+    X = modelmatrix(obj; weighted=isweighted(obj))    
+    if k == size(X,2)         
+        XtX = crossmodelmatrix(obj; weighted=isweighted(obj))
+        hii = diag(X * inv(XtX) * X')
+        D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
+    else
+        pp = obj.pp
+        C = invchol(pp)
+        idx_nan, idx_non = nancolidx(C)
+        Xc = view(X, :, idx_non)
+        XtX = (Xc)'*Xc
+        hii = diag(Xc * inv(XtX) * Xc')
+        D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
+    end
     return D
 end
