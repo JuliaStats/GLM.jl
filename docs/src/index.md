@@ -85,7 +85,7 @@ julia> data = DataFrame(y = rand(rng, 100), x = categorical(repeat([1, 2, 3, 4],
 
 
 julia> lm(@formula(y ~ x), data)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, StatsBase.UnitWeights{Int64}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
@@ -108,7 +108,7 @@ julia> using StableRNGs
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = repeat([1, 2, 3, 4], 25));
 
 julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, StatsBase.UnitWeights{Int64}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
@@ -134,13 +134,13 @@ Both `lm` and `glm` allow weighted estimation. The three different [types of wei
 We illustrate the API with random generated data.
 
 ```jldoctest weights
-julia> using StableRNGs
+julia> using StableRNGs, DataFrames, GLM
 
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = randn(StableRNG(2), 100), weights = repeat([1, 2, 3, 4], 25), );
 
 
 julia> m = lm(@formula(y ~ x), data)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, StatsBase.UnitWeights{Int64}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
@@ -153,7 +153,7 @@ x            -0.0500249   0.0307201  -1.63    0.1066  -0.110988  0.0109382
 ──────────────────────────────────────────────────────────────────────────
 
 julia> m_aweights = lm(@formula(y ~ x), data, wts=aweights(data.weights))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, AnalyticWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, AnalyticWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.AnalyticWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, StatsBase.AnalyticWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
@@ -166,7 +166,7 @@ x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
 ──────────────────────────────────────────────────────────────────────────
 
 julia> m_fweights = lm(@formula(y ~ x), data, wts=fweights(data.weights))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, FrequencyWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, FrequencyWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.FrequencyWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, StatsBase.FrequencyWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
@@ -194,7 +194,7 @@ x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
 
 The type of the weights selected will affect the variance of the estimated coefficients and calculations involving the variance such as `likelihood`, `deviance`, `nulllikelihood`, `nulldeviance`. The fit of the model is the same regardless of the type of weights.
 
-```jldoctest
+```jldoctest weights
 julia> loglikelihood(m_aweights)
 -16.29630756138424
 
