@@ -77,8 +77,9 @@ end
     # linear regression, two full collinear variables (XC = 2 XA) hence should get the same results as the original
     # after pivoting
     t_lm_colli = lm(@formula(Y ~ XA + XC), st_df, dropcollinear=true)
-    # Currently fails as the collinear variable is not dropped from `modelmatrix(obj)`
-    @test_throws ArgumentError isapprox(st_df.CooksD_base, cooksdistance(t_lm_colli))
+    t_lm_colli_b = lm(@formula(Y ~ XC), st_df, dropcollinear=true)
+    @test isapprox(cooksdistance(t_lm_colli), cooksdistance(t_lm_colli_b))
+    
 
 end
 
