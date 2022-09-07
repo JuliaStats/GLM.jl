@@ -123,6 +123,28 @@ end
     @test isapprox(nullloglikelihood(glm_model), -1678.2116012002746)
     @test isapprox(nullloglikelihood(lm_model), -1678.2116012002746)
     @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
+
+    lm_model = lm(f, df, wts = pweights(df.weights))
+    glm_model = glm(f, df, Normal(), wts = pweights(df.weights))
+    @test vcov(lm_model) ≈  [2230.3626444482406 -2.423827176758377; -2.4238271767583766 0.0026792687760410199]
+    @test vcov(glm_model) ≈  [2230.3626444482406 -2.423827176758377; -2.4238271767583766 0.0026792687760410199]
+
+    ## Test the non full rank case
+    df.Income2 = df.Income*2
+    df.Income3 = df.Income*3
+
+    f = @formula(FoodExp ~ Income3)
+    m1 = lm(f, df, wts = pweights(df.weights))
+    f = @formula(FoodExp ~ Income + Income2 + Income3)
+    m2 =  lm(f, df, wts = pweights(df.weights))
+    @test stderror(m1) ≈ filter(!isnan, stderror(m2))
+
+    f = @formula(FoodExp ~ Income3+Income^2)
+    m3 =  lm(f, df, wts = pweights(df.weights))
+    f = @formula(FoodExp ~ Income + Income2 + Income3+Income^2)
+    m4 =  lm(f, df, wts = pweights(df.weights))
+    @test stderror(m3) ≈ filter(!isnan, stderror(m4))
+
 end
 
 @testset "rankdeficient" begin
