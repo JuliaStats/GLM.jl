@@ -292,7 +292,7 @@ end
 
 _vcov(pp::LinPred, u, d) = rmul!(invchol(pp), d)
 
-function _vcov(pp::DensePredChol{T, <:ProbabilityWeights, <:Cholesky}, u::AbstractVector, d::Real) where {T}
+function _vcov(pp::DensePredChol{T, <:Cholesky, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T}
     wts = pp.wts
     Z = mul!(pp.scratchm1, Diagonal(sqrt.(wts).*u), pp.X)
     XtW2X = Z'Z
@@ -303,21 +303,36 @@ function _vcov(pp::DensePredChol{T, <:ProbabilityWeights, <:Cholesky}, u::Abstra
     n/(n-k)*V
 end
 
-function _vcov(pp::DensePredChol{T, <:ProbabilityWeights, <:CholeskyPivoted}, u::AbstractVector) where {T}
+function nancolidx(A::AbstractMatrix)
+    ## Return the columns without missing values
+    allnanidx = findall(map(x->all(isnan.(x)), eachcol(A)))
+    nonnanidx = setdiff(axes(A, 2), allnanidx)
+    return (allnanidx, nonnanidx)
+end
+
+function _vcov(pp::DensePredChol{T, <:CholeskyPivoted, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T}
     wts = pp.wts
     Z = mul!(pp.scratchm1, Diagonal(sqrt.(wts).*u), pp.X)
-    rnk = rank(pp.chol)
+    ch = pp.chol
+    rnk = rank(ch)
     p = length(pp.delbeta)
-    if rnk == p
-        XtW2X = Z'Z
-    else
-        ## no idea
-    end
     invXtWX = invchol(pp)
-    V = invXtWX*XtW2X*invXtWX
+    if rnk == p
+        B = Z'Z
+        A = invXtWX
+        V = A*B*A
+    else
+        idx_nan, idx_non = nancolidx(invXtWX) 
+        Zc = view(Z, :, idx_non)
+        B = Zc'Zc
+        A = view(invXtWX, idx_non, idx_non)
+        V = similar(pp.scratchm2)
+        V[idx_non, idx_non] = A*B*A
+        V[idx_nan, :] .= convert(T, NaN)
+        V[:, idx_nan] .= convert(T, NaN)
+    end
     n = length(wts)
-    k = length(pp.delbeta)
-    n/(n-k)*V
+    n/(n-rnk)*V
 end
 
 function cor(x::LinPredModel)
