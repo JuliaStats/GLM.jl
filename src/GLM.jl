@@ -20,7 +20,7 @@ module GLM
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
            fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
            cooksdistance, hasintercept, dispersion, weights, AnalyticWeights, ProbabilityWeights, FrequencyWeights, 
-           aweights, fweights, pweights
+           UnitWeights, aweights, fweights, pweights
 
     export
         # types
