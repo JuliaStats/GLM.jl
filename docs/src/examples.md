@@ -12,15 +12,15 @@ julia> using DataFrames, GLM, StatsBase
 
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
 3×2 DataFrame
- Row │ X      Y
-     │ Int64  Int64
+ Row │ X      Y     
+     │ Int64  Int64 
 ─────┼──────────────
    1 │     1      2
    2 │     2      4
    3 │     3      7
 
 julia> ols = lm(@formula(Y ~ X), data)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, StatsBase.UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}, UnitWeights{Int64}}}, Matrix{Float64}}
 
 Y ~ 1 + X
 
@@ -91,15 +91,15 @@ julia> round.(vcov(ols); digits=5)
 ```jldoctest
 julia> data = DataFrame(X=[1,2,2], Y=[1,0,1])
 3×2 DataFrame
- Row │ X      Y
-     │ Int64  Int64
+ Row │ X      Y     
+     │ Int64  Int64 
 ─────┼──────────────
    1 │     1      1
    2 │     2      0
    3 │     2      1
 
 julia> probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
-StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, Binomial{Float64}, ProbitLink, StatsBase.UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}, StatsBase.UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, Binomial{Float64}, ProbitLink, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}, UnitWeights{Int64}}}, Matrix{Float64}}
 
 Y ~ 1 + X
 
@@ -140,7 +140,7 @@ julia> quine = dataset("MASS", "quine")
                      131 rows omitted
 
 julia> nbrmodel = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
-StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, NegativeBinomial{Float64}, LogLink, StatsBase.UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}, StatsBase.UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, NegativeBinomial{Float64}, LogLink, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}, UnitWeights{Int64}}}, Matrix{Float64}}
 
 Days ~ 1 + Eth + Sex + Age + Lrn
 
@@ -158,7 +158,7 @@ Lrn: SL       0.296768     0.185934   1.60    0.1105  -0.0676559   0.661191
 ────────────────────────────────────────────────────────────────────────────
 
 julia> nbrmodel = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink())
-StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, NegativeBinomial{Float64}, LogLink, StatsBase.UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}, StatsBase.UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, NegativeBinomial{Float64}, LogLink, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.Cholesky{Float64, Matrix{Float64}}, UnitWeights{Int64}}}, Matrix{Float64}}
 
 Days ~ 1 + Eth + Sex + Age + Lrn
 
@@ -196,8 +196,8 @@ julia> using GLM, RDatasets
 
 julia> form = dataset("datasets", "Formaldehyde")
 6×2 DataFrame
- Row │ Carb     OptDen
-     │ Float64  Float64
+ Row │ Carb     OptDen  
+     │ Float64  Float64 
 ─────┼──────────────────
    1 │     0.1    0.086
    2 │     0.3    0.269
@@ -207,7 +207,7 @@ julia> form = dataset("datasets", "Formaldehyde")
    6 │     0.9    0.782
 
 julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}, UnitWeights{Int64}}}, Matrix{Float64}}
 
 OptDen ~ 1 + Carb
 
@@ -256,7 +256,7 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
                                                     35 rows omitted
 
 julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}, UnitWeights{Int64}}}, Matrix{Float64}}
 
 SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
 
@@ -350,8 +350,8 @@ julia> dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
                           Outcome   = categorical([1,2,3,1,2,3,1,2,3]),
                           Treatment = categorical([1,1,1,2,2,2,3,3,3]))
 9×3 DataFrame
- Row │ Counts   Outcome  Treatment
-     │ Float64  Cat…     Cat…
+ Row │ Counts   Outcome  Treatment 
+     │ Float64  Cat…     Cat…      
 ─────┼─────────────────────────────
    1 │    18.0  1        1
    2 │    17.0  2        1
@@ -390,29 +390,8 @@ In this example, we choose the best model from a set of λs, based on minimum BI
 ```jldoctest
 julia> using GLM, RDatasets, StatsBase, DataFrames, Optim
 
-julia> trees = DataFrame(dataset("datasets", "trees"))
-31×3 DataFrame
- Row │ Girth    Height  Volume  
-     │ Float64  Int64   Float64 
-─────┼──────────────────────────
-   1 │     8.3      70     10.3
-   2 │     8.6      65     10.3
-   3 │     8.8      63     10.2
-   4 │    10.5      72     16.4
-   5 │    10.7      81     18.8
-   6 │    10.8      83     19.7
-   7 │    11.0      66     15.6
-   8 │    11.0      75     18.2
-  ⋮  │    ⋮       ⋮        ⋮
-  25 │    16.3      77     42.6
-  26 │    17.3      81     55.4
-  27 │    17.5      82     55.7
-  28 │    17.9      80     58.3
-  29 │    18.0      80     51.5
-  30 │    18.0      80     51.0
-  31 │    20.6      87     77.0
-                 16 rows omitted
-                 
+julia> trees = DataFrame(dataset("datasets", "trees"));
+
 julia> bic_glm(λ) = bic(glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(λ)));
 
 julia> optimal_bic = optimize(bic_glm, -1.0, 1.0);

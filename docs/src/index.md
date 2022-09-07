@@ -85,7 +85,7 @@ julia> data = DataFrame(y = rand(rng, 100), x = categorical(repeat([1, 2, 3, 4],
 
 
 julia> lm(@formula(y ~ x), data)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, StatsBase.UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}, UnitWeights{Int64}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
@@ -108,7 +108,7 @@ julia> using StableRNGs
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = repeat([1, 2, 3, 4], 25));
 
 julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, StatsBase.UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}, UnitWeights{Int64}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
@@ -125,22 +125,23 @@ x: 4         -0.032673    0.0797865  -0.41    0.6831  -0.191048    0.125702
 
 ## Weighting 
 
-Both `lm` and `glm` allow weighted estimation. The three different [types of weights](https://juliastats.org/StatsBase.jl/stable/weights/) defined in [StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) can be used to fit a model:
+Both `lm` and `glm` allow weighted estimation. The three different [types of weights](https://juliastats.org/jl/stable/weights/) defined in [jl](https://github.com/JuliaStats/jl) can be used to fit a model:
 
 - `AnalyticWeights` describe a non-random relative importance (usually between 0 and 1) for each observation. These weights may also be referred to as reliability weights, precision weights or inverse variance weights. These are typically used when the observations being weighted are aggregate values (e.g., averages) with differing variances.
 - `FrequencyWeights` describe the inverse of the sampling probability for each observation, providing a correction mechanism for under- or over-sampling certain population groups. These weights may also be referred to as sampling weights.
-- `ProbabilityWeights` describe how trhe sample can be scaled back to the population. Ususally are the reciprocals of sampling probabilities.
+- `ProbabilityWeights` describe how the sample can be scaled back to the population. Usually are the reciprocals of sampling probabilities.
 
-We illustrate the API with random generated data.
+The `AnalyticWeights`, `FrequencyWeights`, and `ProbabilityWeights` can be constructed using `aweights`, `fweights`, and `pweights`, respectively. 
+
+We illustrate the API with randomly generated data.
 
 ```jldoctest weights
 julia> using StableRNGs, DataFrames, GLM
 
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = randn(StableRNG(2), 100), weights = repeat([1, 2, 3, 4], 25), );
 
-
 julia> m = lm(@formula(y ~ x), data)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, StatsBase.UnitWeights{Int64}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}, UnitWeights{Int64}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
@@ -153,7 +154,7 @@ x            -0.0500249   0.0307201  -1.63    0.1066  -0.110988  0.0109382
 ──────────────────────────────────────────────────────────────────────────
 
 julia> m_aweights = lm(@formula(y ~ x), data, wts=aweights(data.weights))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.AnalyticWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, StatsBase.AnalyticWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, AnalyticWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}, AnalyticWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
@@ -166,7 +167,7 @@ x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
 ──────────────────────────────────────────────────────────────────────────
 
 julia> m_fweights = lm(@formula(y ~ x), data, wts=fweights(data.weights))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, StatsBase.FrequencyWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, StatsBase.FrequencyWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, FrequencyWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}, FrequencyWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
@@ -179,20 +180,24 @@ x            -0.0478667   0.0193863  -2.47    0.0142  -0.0860494  -0.00968394
 ─────────────────────────────────────────────────────────────────────────────
 
 julia> m_pweights = lm(@formula(y ~ x), data, wts=pweights(data.weights))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, ProbabilityWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, ProbabilityWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, ProbabilityWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}, ProbabilityWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
 Coefficients:
-──────────────────────────────────────────────────────────────────────────
-                  Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
-──────────────────────────────────────────────────────────────────────────
-(Intercept)   0.51673     0.0270707  19.09    <1e-34   0.463009  0.570451
-x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
-──────────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(>|t|)  Lower 95%   Upper 95%
+───────────────────────────────────────────────────────────────────────────
+(Intercept)   0.51673     0.0288654  17.90    <1e-31   0.459447  0.574012
+x            -0.0478667   0.0266884  -1.79    0.0760  -0.100829  0.00509556
+───────────────────────────────────────────────────────────────────────────
 ```
 
-The type of the weights selected will affect the variance of the estimated coefficients and calculations involving the variance such as `likelihood`, `deviance`, `nulllikelihood`, `nulldeviance`. The fit of the model is the same regardless of the type of weights.
+!!! warning
+
+  In the old API, weights were passed as `AbstractVectors` and were silently treated in the internal computation of standard errors and related quantities as `FrequencyWeights`. Passing weights as `AbstractVector` is still allowed for backward compatibility, but it is deprecated. When weights are passed following the old API, they are now coerced to `FrequencyWeights` and a deprecation warning is issued. 
+
+The specific type of the weights selected will affect the variance of the estimated coefficients and, for `FrequencyWeights`, calculations involving the variance such as `likelihood`, `deviance`, `nulllikelihood`, `nulldeviance`. The fit of the model is the same regardless of the type of weights.
 
 ```jldoctest weights
 julia> loglikelihood(m_aweights)
@@ -204,6 +209,10 @@ julia> loglikelihood(m_fweights)
 julia> loglikelihood(m_pweights)
 -16.29630756138424
 ```
+
+!!! note
+
+  Note the R functions for fitting Linear and Generalized Linear models, `lm` and `glm`, accept a `weights` keyword argument. Both functions and related methods, such as `summary`, return standard errors assuming that the weights are analytic.
 
 ## Comparing models with F-test
 
