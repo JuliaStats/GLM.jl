@@ -304,10 +304,19 @@ function _vcov(pp::DensePredChol{T, <:Cholesky, <:ProbabilityWeights}, u::Abstra
 end
 
 function nancolidx(A::AbstractMatrix)
-    ## Return the columns without missing values
-    allnanidx = findall(map(x->all(isnan.(x)), eachcol(A)))
-    nonnanidx = setdiff(axes(A, 2), allnanidx)
-    return (allnanidx, nonnanidx)
+    ## Return to set the idx:
+    ## idx_nancol idx_nonnancol
+    nrow, ncol = size(A)
+    idx_nancol = Int64[]
+    idx_nonnancol = Int64[]
+    for j in axes(A, 2)
+        h = 0
+        for i in axes(A, 1)
+            h += isnan(A[i,j]) ? 1 : 0
+        end
+        h == nrow ? push!(idx_nancol, j) : push!(idx_nonnancol, j)
+    end
+    return (idx_nancol, idx_nonnancol)
 end
 
 function _vcov(pp::DensePredChol{T, <:CholeskyPivoted, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T}
