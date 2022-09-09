@@ -1315,7 +1315,7 @@ end
     end
 end
 
-@testset "dropcollinearity in GLM" begin
+@testset "dropcollinear with GLMs" begin
     num_rows = 100_000
     dfrm = DataFrame()
     dfrm[!, :x1] = randn(StableRNG(123), num_rows)
