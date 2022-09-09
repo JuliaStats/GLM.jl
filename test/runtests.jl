@@ -1328,11 +1328,11 @@ end
         f1 = @eval(@formula(y ~ 1+x1+x2+x3))
 
         m1 = fit(GeneralizedLinearModel,
-                f1,
-                dfrm,
-                Binomial(),
-                GLM.LogitLink();
-                dropcollinear=true)
+                 f1,
+                 dfrm,
+                 Binomial(),
+                 LogitLink();
+                 dropcollinear=true)
         @test isa(m1.model.pp.chol, CholeskyPivoted)
         @test rank(m1.model.pp.chol) == 3
         @test deviance(m1) ≈ 138628.8442005168471951
