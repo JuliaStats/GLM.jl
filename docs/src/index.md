@@ -167,7 +167,7 @@ x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
 ──────────────────────────────────────────────────────────────────────────
 
 julia> m_fweights = lm(@formula(y ~ x), data, wts=fweights(data.weights))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, FrequencyWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}, FrequencyWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, FrequencyWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, FrequencyWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
@@ -180,7 +180,7 @@ x            -0.0478667   0.0193863  -2.47    0.0142  -0.0860494  -0.00968394
 ─────────────────────────────────────────────────────────────────────────────
 
 julia> m_pweights = lm(@formula(y ~ x), data, wts=pweights(data.weights))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, ProbabilityWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}, ProbabilityWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, ProbabilityWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, ProbabilityWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
 
 y ~ 1 + x
 
