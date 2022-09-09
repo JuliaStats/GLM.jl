@@ -318,11 +318,10 @@ function confint(obj::LinearModel; level::Real=0.95)
     quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
 
-
-function momentmatrix(m::LinearModel) 
+function momentmatrix(m::LinearModel; weighted=isweighted(m)) 
     X = modelmatrix(m; weighted=false)
     r = residuals(m; weighted=false)
-    if isweighted(m)
+    if weighted & isweighted(m)
         return X .* r .* weights(m)
     else
         return X .* r
