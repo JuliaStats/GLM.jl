@@ -65,6 +65,7 @@ end
     # linear regression
     t_lm_base = lm(@formula(Y ~ XA), st_df)
     @test isapprox(st_df.CooksD_base, cooksdistance(t_lm_base))
+    @test GLM.momentmatrix(t_lm_base) == modelmatrix(t_lm_base).*residuals(t_lm_base) 
 
     # linear regression, no intercept 
     t_lm_noint = lm(@formula(Y ~ XA +0), st_df)
@@ -79,6 +80,7 @@ end
     t_lm_colli = lm(@formula(Y ~ XA + XC), st_df, dropcollinear=true)
     t_lm_colli_b = lm(@formula(Y ~ XC), st_df, dropcollinear=true)
     @test isapprox(cooksdistance(t_lm_colli), cooksdistance(t_lm_colli_b))
+
     
 
 end
