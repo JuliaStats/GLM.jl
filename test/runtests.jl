@@ -917,8 +917,8 @@ end
     expected_pred[3] = missing
     @test collect(skipmissing(predict(gm13m, dm))) ≈
         collect(skipmissing(predict(gm13, dm))) ≈
-        collect(skipmissing(gm13m_pred2.prediction)) ==
-        collect(skipmissing(gm13m_pred3.prediction)) ==
+        collect(skipmissing(gm13m_pred2.prediction)) ≈
+        collect(skipmissing(gm13m_pred3.prediction)) ≈
         collect(skipmissing(expected_pred))
     @test ismissing.(predict(gm13m, dm)) ==
         ismissing.(predict(gm13, dm)) ==
@@ -929,13 +929,13 @@ end
         allowmissing(predict(gm13m, drep;
                              interval=:confidence, interval_method=:delta).lower)
     expected_lower[3] = missing
-    @test collect(skipmissing(gm13m_pred2.lower)) == collect(skipmissing(expected_lower))
+    @test collect(skipmissing(gm13m_pred2.lower)) ≈ collect(skipmissing(expected_lower))
     @test ismissing.(gm13m_pred2.lower) == ismissing.(expected_lower)
     expected_upper =
         allowmissing(predict(gm13m, drep;
                              interval=:confidence, interval_method=:delta).upper)
     expected_upper[3] = missing
-    @test collect(skipmissing(gm13m_pred2.upper)) == collect(skipmissing(expected_upper))
+    @test collect(skipmissing(gm13m_pred2.upper)) ≈ collect(skipmissing(expected_upper))
     @test ismissing.(gm13m_pred2.upper) == ismissing.(expected_upper)
 
 
@@ -1029,8 +1029,8 @@ end
     expected_pred[3] = missing
     @test collect(skipmissing(predict(mmdm, dm))) ≈
         collect(skipmissing(predict(mmd, dm))) ≈
-        collect(skipmissing(mmdm_pred2.prediction)) ==
-        collect(skipmissing(mmdm_pred3.prediction)) ==
+        collect(skipmissing(mmdm_pred2.prediction)) ≈
+        collect(skipmissing(mmdm_pred3.prediction)) ≈
         collect(skipmissing(expected_pred))
     @test ismissing.(predict(mmdm, dm)) ==
         ismissing.(predict(mmdm, dm)) ==
@@ -1040,12 +1040,12 @@ end
     expected_lower =
         allowmissing(predict(mmdm, drep; interval=:confidence).lower)
     expected_lower[3] = missing
-    @test collect(skipmissing(mmdm_pred2.lower)) == collect(skipmissing(expected_lower))
+    @test collect(skipmissing(mmdm_pred2.lower)) ≈ collect(skipmissing(expected_lower))
     @test ismissing.(mmdm_pred2.lower) == ismissing.(expected_lower)
     expected_upper =
         allowmissing(predict(mmdm, drep; interval=:confidence).upper)
     expected_upper[3] = missing
-    @test collect(skipmissing(mmdm_pred2.upper)) == collect(skipmissing(expected_upper))
+    @test collect(skipmissing(mmdm_pred2.upper)) ≈ collect(skipmissing(expected_upper))
     @test ismissing.(mmdm_pred2.upper) == ismissing.(expected_upper)
 
 
