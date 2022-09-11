@@ -20,7 +20,7 @@ julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
    3 │     3      7
 
 julia> ols = lm(@formula(Y ~ X), data)
-LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}:
+LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}:
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────────────
@@ -199,7 +199,7 @@ julia> form = dataset("datasets", "Formaldehyde")
    6 │     0.9    0.782
 
 julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
-LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}:
+LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}:
 
 Coefficients:
 ───────────────────────────────────────────────────────────────────────────
@@ -246,7 +246,7 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
                                                     35 rows omitted
 
 julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
-LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}:
+LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}:
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────────────────────
