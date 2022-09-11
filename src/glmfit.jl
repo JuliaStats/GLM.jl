@@ -229,7 +229,7 @@ abstract type AbstractGLM <: LinPredModel end
 mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     rr::G
     pp::L
-    f::Union{FormulaTerm,Nothing}
+    formula::Union{FormulaTerm,Nothing}
     fit::Bool
 end
 
@@ -240,7 +240,7 @@ function coeftable(mm::AbstractGLM; level::Real=0.95)
     p = 2 * ccdf.(Ref(Normal()), abs.(zz))
     ci = se*quantile(Normal(), (1-level)/2)
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
-    cn = mm.f === nothing ? ["x$i" for i = 1:size(mm.pp.X, 2)] : coefnames(mm)
+    cn = coefnames(mm)
     CoefTable(hcat(cc,se,zz,p,cc+ci,cc-ci),
               ["Coef.","Std. Error","z","Pr(>|z|)","Lower $levstr%","Upper $levstr%"],
               cn, 4, 3)
@@ -461,10 +461,12 @@ const FIT_GLM_DOC = """
     - `start::AbstractVector=nothing`: Starting values for beta. Should have the
       same length as the number of columns in the model matrix.
     - `contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}()`: a `Dict` mapping term names
-      (as `Symbol`s) to term or contrast types. If a contrast is not provided
-      for a variable, the appropriate term type will be guessed based on the data type
-      from the data column: any numeric data is assumed to be continuous, and any
-      non-numeric data is assumed to be categorical.
+      (as `Symbol`s) to term types (e.g. `ContinuousTerm`) or contrasts
+      (e.g., `HelmertCoding()`, `SeqDiffCoding(; levels=["a", "b", "c"])`,
+      etc.). If contrasts are not provided for a variable, the appropriate
+      term type will be guessed based on the data type from the data column:
+      any numeric data is assumed to be continuous, and any non-numeric data
+      is assumed to be categorical.
     """
 
 """

@@ -87,7 +87,7 @@ and possibly a `FormulaTerm`
 struct LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
     rr::L
     pp::T
-    f::Union{FormulaTerm,Nothing}
+    formula::Union{FormulaTerm,Nothing}
 end
 
 LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
@@ -124,10 +124,12 @@ const FIT_LM_DOC = """
     `0.0` and all associated statistics are set to `NaN`.
 
     `contrasts` may optionally be supplied in the form of a `Dict` mapping term names
-    (as `Symbol`s) to term or contrast types. If a contrast is not provided
-    for a variable, the appropriate term type will be guessed based on the data type
-    from the data column: any numeric data is assumed to be continuous, and any
-    non-numeric data is assumed to be categorical.
+    (as `Symbol`s) to term types (e.g. `ContinuousTerm`) or contrasts
+    (e.g., `HelmertCoding()`, `SeqDiffCoding(; levels=["a", "b", "c"])`,
+    etc.). If contrasts are not provided for a variable, the appropriate
+    term type will be guessed based on the data type from the data column:
+    any numeric data is assumed to be continuous, and any non-numeric data
+    is assumed to be categorical.
     """
 
 """
@@ -254,7 +256,7 @@ function coeftable(mm::LinearModel; level::Real=0.95)
         ci = [isnan(t) ? NaN : -Inf for t in tt]
     end
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
-    cn = mm.f === nothing ? ["x$i" for i = 1:size(mm.pp.X, 2)] : coefnames(mm)
+    cn = coefnames(mm)
     CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
               ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
               cn, 4, 3)

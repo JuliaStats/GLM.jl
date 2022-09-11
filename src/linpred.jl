@@ -251,8 +251,12 @@ response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
-formula(obj::LinPredModel) = obj.f
 residuals(obj::LinPredModel) = residuals(obj.rr)
+
+function formula(obj::LinPredModel)
+    obj.formula === nothing && throw(ArgumentError("model was fitted without a formula"))
+    return obj.formula
+end
 
 """
     nobs(obj::LinearModel)
@@ -271,7 +275,8 @@ end
 
 coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
-coefnames(x::LinPredModel) = coefnames(formula(x).rhs)
+coefnames(x::LinPredModel) =
+    x.formula === nothing ? ["x$i" for i in 1:length(coef(x))] : coefnames(formula(x).rhs)
 
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
 
@@ -282,7 +287,7 @@ _coltype(::ContinuousTerm{T}) where {T} = T
 # Function common to all LinPred models, but documented separately
 # for LinearModel and GeneralizedLinearModel
 function StatsBase.predict(mm::LinPredModel, data;
-                           interval::Union{Symbol,Nothing}=nothing, level::Real=0.95,
+                           interval::Union{Symbol,Nothing}=nothing,
                            kwargs...)
     Tables.istable(data) ||
         throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
@@ -294,17 +299,19 @@ function StatsBase.predict(mm::LinPredModel, data;
     prediction = Tables.allocatecolumn(Union{_coltype(f.lhs), Missing}, length(nonmissings))
     fill!(prediction, missing)
     if interval === nothing
-        predict!(view(prediction, nonmissings), mm, newx; kwargs...)
+        predict!(view(prediction, nonmissings), mm, newx;
+                 interval=interval, kwargs...)
         return prediction
     else
         # Finding integer indices once is faster
         nonmissinginds = findall(nonmissings)
-        lower = Vector{Union{Float64, Missing}}(missing, nr)
-        upper = Vector{Union{Float64, Missing}}(missing, nr)
+        lower = Vector{Union{Float64, Missing}}(missing, length(nonmissings))
+        upper = Vector{Union{Float64, Missing}}(missing, length(nonmissings))
         tup = (prediction=view(prediction, nonmissinginds),
                lower=view(lower, nonmissinginds),
                upper=view(upper, nonmissinginds))
-        predict!(tup, mm, new_x; kwargs...)
+        predict!(tup, mm, newx;
+                 interval=interval, kwargs...)
         return (prediction=prediction, lower=lower, upper=upper)
     end
 end

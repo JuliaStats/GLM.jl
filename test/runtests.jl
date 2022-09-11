@@ -760,9 +760,18 @@ end
     gm13 = fit(GeneralizedLinearModel, @formula(y ~ 0 + x1 + x2), d, Binomial())
     @test predict(gm13) ≈ predict(gm13, d[:,[:x1, :x2]]) == predict(gm13, X)
     @test predict(gm13) ≈ predict(gm13, d) == predict(gm13, X)
+    @test predict(gm13) ≈ predict(gm11)
+    @test predict(gm13, newX; interval=:confidence, interval_method=:delta) ==
+        predict(gm11, newX; interval=:confidence, interval_method=:delta)
+    @test predict(gm13, newX; interval=:confidence, interval_method=:transformation) ==
+        predict(gm11, newX; interval=:confidence, interval_method=:transformation)
 
     newd = DataFrame(newX, :auto)
     @test predict(gm13, newd) == predict(gm13, newX)
+    @test predict(gm13, newX; interval=:confidence, interval_method=:delta) ==
+        predict(gm11, newX; interval=:confidence, interval_method=:delta)
+    @test predict(gm13, newd; interval=:confidence, interval_method=:transformation) ==
+        predict(gm11, newX; interval=:confidence, interval_method=:transformation)
 
 
     # Prediction from DataFrames with missing values
@@ -775,14 +784,32 @@ end
     @test predict(gm13m) == predict(gm13)
     @test predict(gm13m, d) == predict(gm13, d)
     @test isequal(predict(gm13m, dm), predict(gm13, dm))
-    expected = allowmissing(predict(gm13m, drep))
-    expected[3] = missing
+    gm13m_pred2 = predict(gm13m, dm; interval=:confidence, interval_method=:delta)
+    gm13m_pred3 = predict(gm13m, dm; interval=:confidence, interval_method=:transformation)
+    expected_pred = allowmissing(predict(gm13m, drep))
+    expected_pred[3] = missing
     @test collect(skipmissing(predict(gm13m, dm))) ≈
         collect(skipmissing(predict(gm13, dm))) ≈
-        collect(skipmissing(expected))
+        collect(skipmissing(gm13m_pred2.prediction)) ==
+        collect(skipmissing(gm13m_pred3.prediction)) ==
+        collect(skipmissing(expected_pred))
     @test ismissing.(predict(gm13m, dm)) ==
         ismissing.(predict(gm13, dm)) ==
-        ismissing.(expected)
+        ismissing.(gm13m_pred2.prediction) ==
+        ismissing.(gm13m_pred3.prediction) ==
+        ismissing.(expected_pred)
+    expected_lower =
+        allowmissing(predict(gm13m, drep;
+                             interval=:confidence, interval_method=:delta).lower)
+    expected_lower[3] = missing
+    @test collect(skipmissing(gm13m_pred2.lower)) == collect(skipmissing(expected_lower))
+    @test ismissing.(gm13m_pred2.lower) == ismissing.(expected_lower)
+    expected_upper =
+        allowmissing(predict(gm13m, drep;
+                             interval=:confidence, interval_method=:delta).upper)
+    expected_upper[3] = missing
+    @test collect(skipmissing(gm13m_pred2.upper)) == collect(skipmissing(expected_upper))
+    @test ismissing.(gm13m_pred2.upper) == ismissing.(expected_upper)
 
 
     # Linear Model
@@ -822,7 +849,7 @@ end
    @test predict!((prediction=similar(Y, size(newX, 1)),
                    lower=similar(Y, size(newX, 1)),
                    upper=similar(Y, size(newX, 1))),
-                    mm, newX, interval=:prediction) ==
+                   mm, newX, interval=:prediction) ==
         predict(mm, newX, interval=:prediction)
     @test_throws ArgumentError predict!((prediction=similar(Y, size(newX, 1)),
                                          lower=similar(Y, size(newX, 1)),
@@ -836,6 +863,63 @@ end
                                              lower=similar(Y, size(newX, 1)),
                                              upper=[1]),
                                              mm, newX, interval=:confidence)
+
+
+    # Prediction from DataFrames
+    d = DataFrame(X, :auto)
+    d.y = Ylm
+
+    mmd = lm(@formula(y ~ 0 + x1 + x2), d)
+    @test predict(mmd) ≈ predict(mmd, d[:,[:x1, :x2]]) == predict(mm, X)
+    @test predict(mmd) ≈ predict(mmd, d) == predict(mm, X)
+    @test predict(mmd) ≈ predict(mm)
+    @test predict(mmd, newX; interval=:confidence) ==
+        predict(mm, newX; interval=:confidence)
+    @test predict(mmd, newX; interval=:prediction) ==
+        predict(mm, newX; interval=:prediction)
+
+    newd = DataFrame(newX, :auto)
+    @test predict(mmd, newd) == predict(mm, newX)
+    @test predict(mmd, newd; interval=:confidence) ==
+        predict(mm, newX; interval=:confidence)
+    @test predict(mmd, newd; interval=:prediction) ==
+        predict(mm, newX; interval=:prediction)
+
+
+    # Prediction from DataFrames with missing values
+    drep = d[[1, 2, 3, 3, 4, 5, 6, 7, 8, 8, 9, 10], :]
+    dm = allowmissing(drep)
+    dm.x1[3] = missing
+    dm.y[9] = missing
+
+    mmdm = lm(@formula(y ~ 0 + x1 + x2), dm)
+    @test predict(mmdm) == predict(mmd)
+    @test predict(mmdm, d) == predict(mmd, d)
+    @test isequal(predict(mmdm, dm), predict(mmd, dm))
+    mmdm_pred2 = predict(mmdm, dm; interval=:confidence)
+    mmdm_pred3 = predict(mmdm, dm; interval=:prediction)
+    expected_pred = allowmissing(predict(mmdm, drep))
+    expected_pred[3] = missing
+    @test collect(skipmissing(predict(mmdm, dm))) ≈
+        collect(skipmissing(predict(mmd, dm))) ≈
+        collect(skipmissing(mmdm_pred2.prediction)) ==
+        collect(skipmissing(mmdm_pred3.prediction)) ==
+        collect(skipmissing(expected_pred))
+    @test ismissing.(predict(mmdm, dm)) ==
+        ismissing.(predict(mmdm, dm)) ==
+        ismissing.(mmdm_pred2.prediction) ==
+        ismissing.(mmdm_pred3.prediction) ==
+        ismissing.(expected_pred)
+    expected_lower =
+        allowmissing(predict(mmdm, drep; interval=:confidence).lower)
+    expected_lower[3] = missing
+    @test collect(skipmissing(mmdm_pred2.lower)) == collect(skipmissing(expected_lower))
+    @test ismissing.(mmdm_pred2.lower) == ismissing.(expected_lower)
+    expected_upper =
+        allowmissing(predict(mmdm, drep; interval=:confidence).upper)
+    expected_upper[3] = missing
+    @test collect(skipmissing(mmdm_pred2.upper)) == collect(skipmissing(expected_upper))
+    @test ismissing.(mmdm_pred2.upper) == ismissing.(expected_upper)
 
 
     # Prediction with dropcollinear (#409)
@@ -1407,4 +1491,20 @@ end
                 Normal(), IdentityLink())
     @test coef(m) == coef(mcat) ≈ [11, 1, 2, 3, 4]
     @test coef(gm) == coef(gmcat) ≈ [11, 1, 2, 3, 4]
+end
+
+@testset "formula accessor" begin
+    m = lm(rand(10, 2), rand(10))
+    @test_throws ArgumentError formula(m)
+
+    m = glm(rand(10, 2), rand(10), Normal(), IdentityLink())
+    @test_throws ArgumentError formula(m)
+
+    df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
+    m = lm(@formula(y ~ x), df)
+    @test formula(m)::FormulaTerm === m.formula
+
+    df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
+    m = glm(@formula(y ~ x), df, Normal(), IdentityLink())
+    @test formula(m)::FormulaTerm === m.formula
 end
