@@ -736,7 +736,7 @@ end
 const _RESIDUAL_TYPES = [:deviance, :response, :working]
 
 """
-    residuals(model::GeneralizedLinearModel; type=:response)
+    residuals(model::GeneralizedLinearModel; type=:deviance)
 
 Return the residuals of a GLM.
 
@@ -746,7 +746,7 @@ Supported residual types are:
                 contribution to the deviance
 - `:working`: working residuals (used during the IRLS process)
 """
-function residuals(model::GeneralizedLinearModel; type=:response)
+function residuals(model::GeneralizedLinearModel; type=:deviance)
     type in _RESIDUAL_TYPES ||
         throw(ArgumentError("Unsupported type `$(type)``; supported types are" *
                             "$(_RESIDUAL_TYPES)"))
