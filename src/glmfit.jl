@@ -740,28 +740,26 @@ const _RESIDUAL_TYPES = [:deviance, :response, :working]
 
 Return the residuals of a GLM.
 
-Supported residual types are:
+Supported values for `type` are:
+- `:deviance` (the default): the signed square root of the element-wise
+  contribution to the deviance
 - `:response`: the difference between the observed and fitted values
-- `:deviance`: the signed square root of the elementwise
-                contribution to the deviance
 - `:working`: working residuals (used during the IRLS process)
 """
 function residuals(model::GeneralizedLinearModel; type=:deviance)
     type in _RESIDUAL_TYPES ||
         throw(ArgumentError("Unsupported type `$(type)``; supported types are" *
                             "$(_RESIDUAL_TYPES)"))
-    # TODO: add in optimized method for normal with identity linnk
-    res = if type == :response
-        response(model) - fitted(model)
+    # TODO: add in optimized method for normal with identity link
+    if type == :response
+        return response(model) - fitted(model)
     elseif type == :deviance
         # XXX I think this might be the same as
         # 2 * wrkresid, but I'm not 100% sure if that holds across families
-        sign.(response(model) .- fitted(model)) .* sqrt.(model.rr.devresid)
+        return sign.(response(model) .- fitted(model)) .* sqrt.(model.rr.devresid)
     elseif type == :working
         return model.rr.wrkresid
     else
         error("An error has occurred. Please file an issue on GitHub.")
     end
-
-    return res
 end
