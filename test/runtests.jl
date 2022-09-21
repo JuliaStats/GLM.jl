@@ -301,6 +301,24 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     @test isapprox(bic(gm1), 57.74744128863877)
     @test isapprox(coef(gm1)[1:3],
         [3.044522437723423,-0.45425527227759555,-0.29298712468147375])
+        
+    @test isapprox(residuals(gm1; type=:deviance),
+                   [-0.6712492, 0.9627236, -0.1696466, -0.2199851, -0.9555235,
+                     1.049386, 0.8471537, -0.09167147, -0.9665637];
+                     atol=1e-6)
+    # @test isapprox(residuals(gm1; type=:pearson),
+    #                [-0.6546537, 1.004158, -0.1684304, -0.2182179,
+    #                 -0.9128709, 1.094797, 0.8728716, -0.09128709, -0.9263671];
+    #                atol=1e-6)
+    @test isapprox(residuals(gm1; type=:response),
+                   [-3, 3.666667, -0.6666667, -1, -3.333333, 
+                    4.333333, 4, -0.3333333, -3.666667];
+                   atol=1e-6)
+    @test isapprox(residuals(gm1; type=:working),
+                    [-0.1428571, 0.275, -0.04255319, -0.04761905, 
+                     -0.25, 0.2765957, 0.1904762, -0.025, -0.2340426];
+                     atol=1e-6)
+          
 end
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
@@ -338,6 +356,13 @@ admit.rank = categorical(admit.rank)
     @test isapprox(res[390:400],
                    [-0.4027505, 0.5990641, 0.512806, 0.7779709, 0.5612748,
                     0.7465767, -0.48867, -0.1655043, -0.1810622, -0.4636674, -0.3007306]; atol=1e-6)
+    # res = residuals(gm2; type=:pearson)
+    # @test isapprox(res[1:10],
+    #                [-0.4567757, 1.556473, 0.5952011, 2.146128, -0.3663905, 
+    #                 1.304961, 1.176959, -0.5264452, 1.995417, -1.036398]; atol=1e-6)                    
+    # @test isapprox(res[390:400],
+    #                [-0.8211834, 1.22236, 1.025949, 1.871874, 1.131075,
+    #                  1.716382, -0.977591, -0.4453409, -0.4702063, -0.9297929]; atol=1e-6)
     # less extensive test here because it's just grabbing the IRLS values, which are already
     # extensively tested
     @test isapprox(residuals(gm2; type=:working)[1:10],
@@ -500,6 +525,22 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
     @test isapprox(coef(gm8), [-0.01655438172784895,0.01534311491072141])
     @test isapprox(GLM.dispersion(gm8.model, true), 0.002446059333495581, atol=1e-6)
     @test isapprox(stderror(gm8), [0.00092754223, 0.000414957683], atol=1e-6)
+    
+    @test isapprox(residuals(gm8; type=:response),
+                   [-4.859041, 4.736111, 1.992869, 0.9973619, -1.065779,
+                    0.02779383, -0.614323, -0.7318223, -0.4831699]; atol=1e-6)
+    @test isapprox(residuals(gm8; type=:working), 
+                   [0.0003219114, -0.001669384, -0.001245099, -0.0008626359,
+                    0.001353047, -4.456918e-05, 0.001314963, 0.001879625, 0.001414318]; 
+                    atol=1e-6)
+    @test isapprox(residuals(gm8; type=:deviance), 
+                   [-0.04008349, 0.08641118, 0.04900896, 0.02904992,
+                    -0.03846595, 0.001112578, -0.02869586, -0.03755713, -0.0263724]; 
+                    atol=1e-6)
+    # @test isapprox(residuals(gm8; type=:pearson), 
+    #                [-0.03954973, 0.08891786, 0.04981284, 0.0293319,
+    #                 -0.03797433, 0.001112991, -0.02842204, -0.03708843, -0.02614107]; 
+    #                 atol=1e-6)
 end
 
 @testset "InverseGaussian" begin
@@ -518,6 +559,21 @@ end
     @test isapprox(coef(gm8a), [-0.0011079770504295668,0.0007219138982289362])
     @test isapprox(GLM.dispersion(gm8a.model, true), 0.0011008719709455776, atol=1e-6)
     @test isapprox(stderror(gm8a), [0.0001675339726910311,9.468485015919463e-5], atol=1e-6)
+    
+    @test isapprox(residuals(gm8a; type=:response), 
+                   [-18.21078, 15.52523, 7.639634, 4.20793, -0.2428536,
+                    -0.3585344, -2.263445, -3.056904, -3.240284]; atol=1e-5)
+    @test isapprox(residuals(gm8a; type=:working), 
+                   [1.441199e-05, -0.0004052051, -0.0003766424, -0.0002882584, 2.402242e-05,
+                    4.397323e-05, 0.0003595653, 0.0005697418, 0.0006762887]; 
+                    atol=1e-6)
+    @test isapprox(residuals(gm8a; type=:deviance), 
+                   [-0.01230767, 0.04799467, 0.03430759, 0.02309913, -0.001715577, 
+                   -0.002827721, -0.02123177, -0.03179512, -0.0359572]; 
+                   atol=1e-6)
+    # @test isapprox(residuals(gm8a; type=:pearson),
+    #                [-0.01145543, 0.05608432, 0.03793027, 0.02462693, -0.001707913,
+    #                 -0.00280766, -0.02017246, -0.02950971, -0.03310111]; atol=1e-6)
 end
 
 @testset "Gamma LogLink" begin
