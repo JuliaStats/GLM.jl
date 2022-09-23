@@ -103,7 +103,11 @@ end
 
 function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights)
     scr = similar(X)
-    mul!(scr, Diagonal(wts), X)
+    if wts isa UnitWeights 
+        copy!(scr, X)
+    else 
+        mul!(scr, Diagonal(wts), X)
+    end
     
     F = Hermitian(float(scr'X)) 
     T = eltype(F)
@@ -115,20 +119,6 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights)
         F,
         wts,
         scr,
-        similar(cholfactors(F)))
-end
-
-function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::UnitWeights)
-    F = Hermitian(float(X'X)) 
-    T = eltype(F)
-    F = pivot ? pivoted_cholesky!(F, tol = -one(T), check = false) : cholesky!(F)
-    DensePredChol(Matrix{T}(X),
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        F,
-        wts,
-        similar(X, T),
         similar(cholfactors(F)))
 end
 
@@ -145,37 +135,15 @@ function cholesky(p::DensePredChol{T}) where T<:FP
 end
 cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U', 0)
 
-function delbeta!(p::DensePredChol{T,<:Cholesky, <:UnitWeights}, r::Vector{T}) where T<:BlasReal
-    ldiv!(p.chol, mul!(p.delbeta, transpose(p.X), r))
-    p
-end
-
-function delbeta!(p::DensePredChol{T,<:Cholesky, <:AbstractWeights}, r::Vector{T}) where T<:BlasReal
-    X = mul!(p.scratchm1, Diagonal(p.wts), p.X)
+function delbeta!(p::DensePredChol{T,<:Cholesky,W<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
+    X = W isa UnitWeights ? copy!(p.scratchm1, p.X) : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:UnitWeights}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,W<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
     ch = p.chol
-    delbeta = mul!(p.delbeta, adjoint(p.X), r)
-    rnk = rank(ch)
-    if rnk == length(delbeta)
-        ldiv!(ch, delbeta)
-    else
-        permute!(delbeta, ch.p)
-        for k=(rnk+1):length(delbeta)
-            delbeta[k] = -zero(T)
-        end
-        LAPACK.potrs!(ch.uplo, view(ch.factors, 1:rnk, 1:rnk), view(delbeta, 1:rnk))
-        invpermute!(delbeta, ch.p)
-    end
-    p
-end
-
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
-    ch = p.chol
-    X = mul!(p.scratchm1, Diagonal(p.wts), p.X)
+    X = W isa UnitWeights ? copy!(p.scratchm1, p.X) : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     delbeta = mul!(p.delbeta, adjoint(X), r)
     rnk = rank(ch)
     if rnk == length(delbeta)
@@ -302,22 +270,6 @@ function _vcov(pp::DensePredChol{T, <:Cholesky, <:ProbabilityWeights}, u::Abstra
     n/(n-k)*V
 end
 
-function nancolidx(A::AbstractMatrix)
-    ## Return to set the idx:
-    ## idx_nancol idx_nonnancol
-    nrow, ncol = size(A)
-    idx_nancol = Int64[]
-    idx_nonnancol = Int64[]
-    for j in axes(A, 2)
-        h = 0
-        for i in axes(A, 1)
-            h += isnan(A[i,j]) ? 1 : 0
-        end
-        h == nrow ? push!(idx_nancol, j) : push!(idx_nonnancol, j)
-    end
-    return (idx_nancol, idx_nonnancol)
-end
-
 function _vcov(pp::DensePredChol{T, <:CholeskyPivoted, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T}
     wts = pp.wts
     Z = mul!(pp.scratchm1, Diagonal(sqrt.(wts).*u), pp.X)
@@ -330,14 +282,15 @@ function _vcov(pp::DensePredChol{T, <:CholeskyPivoted, <:ProbabilityWeights}, u:
         A = invXtWX
         V = A*B*A
     else
-        idx_nan, idx_non = nancolidx(invXtWX) 
-        Zc = view(Z, :, idx_non)
+        nancols = [all(isnan, col) for col in eachcol(invXtWX)]
+        nnancols = .!nancols
+        Zc = view(Z, :, nnancols)
         B = Zc'Zc
-        A = view(invXtWX, idx_non, idx_non)
+        A = view(invXtWX, nnancols, nnancols)
         V = similar(pp.scratchm2)
-        V[idx_non, idx_non] = A*B*A
-        V[idx_nan, :] .= NaN
-        V[:, idx_nan] .= NaN
+        V[nnancols, nnancols] = A*B*A
+        V[nancols, :] .= NaN
+        V[:, nancols] .= NaN
     end
     n = length(wts)
     n/(n-rnk)*V

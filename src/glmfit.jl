@@ -36,8 +36,8 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
     checky(y, d)
 
     ## We don't support custom types of weights that a user may define
-    if !(wts isa AbstractWeights)
-        throw(ArgumentError("`wts` should be an AbstractWeights but was $W"))
+    if !(wts isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights, UnitWeights})
+        throw(ArgumentError("The type of `wts` was $W. The supported weights type are `FrequencyWeights`, `AnalyticWeights`, `ProbabilityWeights`, or a `UnitWeights`."))
     end
 
     # Lengths of y, η, and η all need to be n
@@ -75,6 +75,7 @@ GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
 deviance(r::GlmResp) = sum(r.devresid)
 
 weights(r::GlmResp) = r.wts
+isweighted(r::GlmResp) = weights(r) isa Union{AnalyticWeights, FrequencyWeights, ProbabilityWeights}
 
 """
     cancancel(r::GlmResp{V,D,L})
@@ -469,7 +470,7 @@ end
 
 function StatsBase.fit!(m::AbstractGLM,
                         y;
-                        wts=nothing,
+                        wts=uweights(length(y)),
                         offset=nothing,
                         dofit::Bool=true,
                         verbose::Bool=false,
@@ -499,6 +500,9 @@ function StatsBase.fit!(m::AbstractGLM,
         rtol = kwargs[:tol]
     end
 
+    r = m.rr
+    V = typeof(r.y)
+    r.y = copy!(r.y, y)
     isa(offset, Nothing) || copy!(r.offset, offset)
     initialeta!(r.eta, r.d, r.l, r.y, r.wts, r.offset)
     updateμ!(r, r.eta)
@@ -718,19 +722,18 @@ function initialeta!(eta::AbstractVector,
 end
 
 function _initialeta!(eta, dist, link, y, wts::UnitWeights)
-    @inbounds @simd for i in eachindex(y, eta)
-        μ      = mustart(dist, y[i], 1)
-        eta[i] = linkfun(link, μ)
+    if wts isa UnitWeights
+        @inbounds @simd for i in eachindex(y, eta)
+            μ      = mustart(dist, y[i], 1)
+            eta[i] = linkfun(link, μ)
+        end
+    else
+        @inbounds @simd for i in eachindex(y, eta)
+            μ      = mustart(dist, y[i], wts[i])
+            eta[i] = linkfun(link, μ)
+        end
     end
 end
-
-function _initialeta!(eta, dist, link, y, wts::AbstractWeights)
-    @inbounds @simd for i in eachindex(y, eta)
-        μ      = mustart(dist, y[i], wts[i])
-        eta[i] = linkfun(link, μ)
-    end
-end
-
 
 # Helper function to check that the values of y are in the allowed domain
 function checky(y, d::Distribution)
@@ -754,7 +757,8 @@ nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = sum(r.wts)
 
 function residuals(r::GlmResp; weighted::Bool=false)
     y, η, μ = r.y, r.eta, r.mu
-    dres = similar(μ)
+    dres = similar(μ)    
+
 
     @inbounds for i in eachindex(y, μ)
         μi = μ[i] 
@@ -776,11 +780,11 @@ momentmatrix(m::RegressionModel) = momentmatrix(m.model)
 
 function momentmatrix(m::GeneralizedLinearModel)
     X = modelmatrix(m; weighted=false)
-    d = variancestructure(m.rr)
     r = m.rr.wrkwt .* m.rr.wrkresid
+    d = variancestructure(m.rr, r)    
     return (X .* r) ./ d
 end
 
-variancestructure(rr::GlmResp{<: Any, <: Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}}) = 1
-variancestructure(rr::GlmResp{<: Any, <: Union{Gamma, Geometric, InverseGaussian}}) =
-    sum(abs2, Base.Broadcast.broadcasted(*, rr.wrkwt, rr.wrkresid))/sum(rr.wrkwt)
+variancestructure(rr::GlmResp{<: Any, <: Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}}, r) = 1
+variancestructure(rr::GlmResp{<: Any, <: Union{Gamma, Geometric, InverseGaussian}}, r) =
+    sum(abs2, r)/sum(rr.wrkwt)

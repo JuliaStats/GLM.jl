@@ -43,23 +43,20 @@ end
 
 updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
 
-function deviance(r::LmResp{T,<:UnitWeights}) where T
-    y = r.y
-    mu = r.mu
-    v = zero(eltype(y)) + zero(eltype(y))
-    @inbounds @simd for i in eachindex(y,mu)
-        v += abs2(y[i] - mu[i])
-    end
-    return v
-end
-
 function deviance(r::LmResp{T,<:AbstractWeights}) where T
     y = r.y
     mu = r.mu
-    wts = r.wts
-    v = zero(eltype(y)) + zero(eltype(y)) * zero(eltype(wts))
-    @inbounds @simd for i in eachindex(y,mu,wts)
-        v += abs2(y[i] - mu[i])*wts[i]
+    wts = r.wts    
+    if wts isa UnitWeights
+        v = zero(eltype(y)) + zero(eltype(y)) 
+        @inbounds @simd for i in eachindex(y,mu,wts)
+            v += abs2(y[i] - mu[i])
+        end
+    else
+        v = zero(eltype(y)) + zero(eltype(y)) * zero(eltype(wts))
+        @inbounds @simd for i in eachindex(y,mu,wts)
+            v += abs2(y[i] - mu[i])*wts[i]
+        end
     end
     return v
 end
@@ -88,7 +85,7 @@ function residuals(r::LmResp; weighted=false)
     elseif r.wts isa AbstractWeights
         sqrt.(wts).*res
     else
-        throw(ArgumentError("`weighted=true` allowed only for weighted models."))
+        res
     end
 end
 
@@ -355,10 +352,11 @@ function StatsBase.cooksdistance(obj::LinearModel)
         hii = diag(X * inv(XtX) * X')
         D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
     else
-        pp = obj.pp
+        pp = obj.pp        
         C = invchol(pp)
-        idx_nan, idx_non = nancolidx(C)
-        Xc = view(X, :, idx_non)
+        nancols = [all(isnan, col) for col in eachcol(C)]
+        nnancols = .!nancols
+        Xc = view(X, :, nnancols)
         XtX = (Xc)'*Xc
         hii = diag(Xc * inv(XtX) * Xc')
         D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)

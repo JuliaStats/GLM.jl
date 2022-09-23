@@ -125,13 +125,24 @@ x: 4         -0.032673    0.0797865  -0.41    0.6831  -0.191048    0.125702
 
 ## Weighting 
 
-Both `lm` and `glm` allow weighted estimation. The three different [types of weights](https://juliastats.org/StatsBase.jl/stable/weights/) defined in [StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) can be used to fit a model:
+Both `lm` and `glm` allow weighted estimation. The three different 
+[types of weights](https://juliastats.org/StatsBase.jl/stable/weights/) defined in 
+[StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) can be used to fit a model:
 
-- `AnalyticWeights` describe a non-random relative importance (usually between 0 and 1) for each observation. These weights may also be referred to as reliability weights, precision weights or inverse variance weights. These are typically used when the observations being weighted are aggregate values (e.g., averages) with differing variances.
-- `FrequencyWeights` describe the inverse of the sampling probability for each observation, providing a correction mechanism for under- or over-sampling certain population groups. These weights may also be referred to as sampling weights.
-- `ProbabilityWeights` describe how the sample can be scaled back to the population. Usually are the reciprocals of sampling probabilities.
+- `AnalyticWeights` describe a non-random relative importance (usually between 0 and 1) for
+  each observation. These weights may also be referred to as reliability weights, precision
+  weights or inverse variance weights. These are typically used when the observations being
+  weighted are aggregate values (e.g., averages) with differing variances.
+- `FrequencyWeights` describe the inverse of the sampling probability for each observation,
+  providing a correction mechanism for under- or over-sampling certain population groups.
+  These weights may also be referred to as sampling weights.
+- `ProbabilityWeights` describe how the sample can be scaled back to the population.
+  Usually are the reciprocals of sampling probabilities.
 
-To indicate which kind of weights should be used, the vector of weights must be wrapped in one of the three weights types, and then passed to the `weights` keyword argument. Short-hand functions `aweights`, `fweights`, and `pweights` can be used to construct `AnalyticWeights`, `FrequencyWeights`, and `ProbabilityWeights`, respectively. 
+To indicate which kind of weights should be used, the vector of weights must be wrapped in
+one of the three weights types, and then passed to the `weights` keyword argument.
+Short-hand functions `aweights`, `fweights`, and `pweights` can be used to construct
+`AnalyticWeights`, `FrequencyWeights`, and `ProbabilityWeights`, respectively.
 
 We illustrate the API with randomly generated data.
 
@@ -195,9 +206,15 @@ x            -0.0478667   0.0266884  -1.79    0.0760  -0.100829  0.00509556
 
 !!! warning
 
-  In the old API, weights were passed as `AbstractVectors` and were silently treated in the internal computation of standard errors and related quantities as `FrequencyWeights`. Passing weights as `AbstractVector` is still allowed for backward compatibility, but it is deprecated. When weights are passed following the old API, they are now coerced to `FrequencyWeights` and a deprecation warning is issued. 
+  In the old API, weights were passed as `AbstractVectors` and were silently treated in
+  the internal computation of standard errors and related quantities as `FrequencyWeights`.
+  Passing weights as `AbstractVector` is still allowed for backward compatibility, but it
+  is deprecated. When weights are passed following the old API, they are now coerced to
+  `FrequencyWeights` and a deprecation warning is issued.
 
-The specific type of the weights selected will affect the variance of the estimated coefficients and, for `FrequencyWeights`, calculations involving the variance such as `likelihood`, `deviance`, `nulllikelihood`, `nulldeviance`. The fit of the model is the same regardless of the type of weights.
+The type of the weights will affect the variance of the estimated coefficients and the
+quantities involving this variance. The coefficient point estimates will be the same
+regardless of the type of weights.
 
 ```jldoctest weights
 julia> loglikelihood(m_aweights)
@@ -209,10 +226,6 @@ julia> loglikelihood(m_fweights)
 julia> loglikelihood(m_pweights)
 -16.29630756138424
 ```
-
-!!! note
-
-  Note the R functions for fitting Linear and Generalized Linear models, `lm` and `glm`, accept a `weights` keyword argument. Both functions and related methods, such as `summary`, return standard errors assuming that the weights are analytic.
 
 ## Comparing models with F-test
 
@@ -267,8 +280,8 @@ Many of the methods provided by this package have names similar to those in [R](
 - `vcov`: variance-covariance matrix of the coefficient estimates
 
 
-Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
-in practice one typically uses `LogLink`.
+Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, 
+but in practice one typically uses `LogLink`.
 
 ```jldoctest methods
 julia> using GLM, DataFrames, StatsBase
@@ -300,7 +313,9 @@ julia> round.(predict(mdl, test_data); digits=8)
  9.33333333
 ```
 
-The [`cooksdistance`](@ref) method computes [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation used to fit a linear model, giving an estimate of the influence of each data point.
+The [`cooksdistance`](@ref) method computes
+[Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation
+used to fit a linear model, giving an estimate of the influence of each data point.
 Note that it's currently only implemented for linear models without weights.
 
 ```jldoctest methods
