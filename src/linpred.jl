@@ -52,7 +52,7 @@ mutable struct DensePredQR{T<:BlasReal, W<:AbstractWeights} <: DensePred
     scratchbeta::Vector{T}
     qr::QRCompactWY{T}
     wts::W
-    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, wts::W) where {T,W<:AbstractWeights}   
+    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, wts::W) where {T,W<:AbstractWeights}
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
         length(wts) == n || throw(DimensionMismatch("Length of weights does not match the dimension of X"))
@@ -61,7 +61,6 @@ mutable struct DensePredQR{T<:BlasReal, W<:AbstractWeights} <: DensePred
     end
 end
 DensePredQR{T}(X::Matrix) where T = DensePredQR{eltype(X)}(X, zeros(T, size(X, 2)), uweights(size(X,1)))
-#DensePredQR(X::Matrix{T}, wts::AbstractWeights) where T = DensePredQR{T}(X, zeros(T, size(X,2)), wts)
 convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X)
 
 """
@@ -290,7 +289,7 @@ function vcov(x::LinPredModel)
     _vcov(x.pp, u, d)
 end
 
-_vcov(pp::LinPred, u, d) = rmul!(invchol(pp), d)
+_vcov(pp::LinPred, u::AbstractVector, d::Real) = rmul!(invchol(pp), d)
 
 function _vcov(pp::DensePredChol{T, <:Cholesky, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T}
     wts = pp.wts
@@ -337,8 +336,8 @@ function _vcov(pp::DensePredChol{T, <:CholeskyPivoted, <:ProbabilityWeights}, u:
         A = view(invXtWX, idx_non, idx_non)
         V = similar(pp.scratchm2)
         V[idx_non, idx_non] = A*B*A
-        V[idx_nan, :] .= convert(T, NaN)
-        V[:, idx_nan] .= convert(T, NaN)
+        V[idx_nan, :] .= NaN
+        V[:, idx_nan] .= NaN
     end
     n = length(wts)
     n/(n-rnk)*V

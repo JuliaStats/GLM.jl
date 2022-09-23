@@ -102,7 +102,7 @@ function updateμ! end
 function updateμ!(r::GlmResp{T,D,L,<:AbstractWeights}, linPr::T) where {T<:FPVector,D,L}
     isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
-    if !(weights(r) isa UnitWeights)
+    if isweighted(r)
         map!(*, r.devresid, r.devresid, r.wts)
         map!(*, r.wrkwt, r.wrkwt, r.wts)    
     end
@@ -270,7 +270,7 @@ function nulldeviance(m::GeneralizedLinearModel)
     offset = r.offset
     hasint = hasintercept(m)
     dev    = zero(eltype(y))    
-    if isempty(offset) # Faster method        
+    if isempty(offset) # Faster method
         if isweighted(m)
             mu = hasint ?
                 mean(y, wts) :
@@ -296,7 +296,6 @@ function nulldeviance(m::GeneralizedLinearModel)
 end
 
 loglikelihood(m::AbstractGLM) = loglikelihood(m.rr)
-
 
 function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
     y = r.y
@@ -480,7 +479,6 @@ function StatsBase.fit!(m::AbstractGLM,
                         rtol::Real=1e-6,
                         start=nothing,
                         kwargs...)
-
     if haskey(kwargs, :maxIter)
         Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
         maxiter = kwargs[:maxIter]
@@ -776,11 +774,6 @@ end
 ## To be removed once  is merged
 momentmatrix(m::RegressionModel) = momentmatrix(m.model)
 
-"""
-    momentmatrix(m::GeneralizedLinearModel)
-
-    Return the moment matrix (score equation) of a GLM model.     
-"""
 function momentmatrix(m::GeneralizedLinearModel)
     X = modelmatrix(m; weighted=false)
     d = variancestructure(m.rr)
@@ -791,4 +784,3 @@ end
 variancestructure(rr::GlmResp{<: Any, <: Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}}) = 1
 variancestructure(rr::GlmResp{<: Any, <: Union{Gamma, Geometric, InverseGaussian}}) =
     sum(abs2, Base.Broadcast.broadcasted(*, rr.wrkwt, rr.wrkresid))/sum(rr.wrkwt)
-

@@ -53,17 +53,17 @@ module GLM
         LinearModel,
 
         # functions
-        canonicallink,   # canonical link function for a distribution
-        deviance,        # deviance of fitted and observed responses
-        devresid,        # vector of squared deviance residuals
-        formula,         # extract the formula from a model
-        glm,             # general interface
-        linpred,         # linear predictor
-        lm,              # linear model
-        negbin,          # interface to fitting negative binomial regression
-        nobs,            # total number of observations
-        predict,         # make predictions
-        ftest            # compare models with an F test
+        canonicallink,  # canonical link function for a distribution
+        deviance,       # deviance of fitted and observed responses
+        devresid,       # vector of squared deviance residuals
+        formula,        # extract the formula from a model
+        glm,            # general interface
+        linpred,        # linear predictor
+        lm,             # linear model
+        negbin,         # interface to fitting negative binomial regression
+        nobs,           # total number of observations
+        predict,        # make predictions
+        ftest           # compare models with an F test
 
     const FP = AbstractFloat
     const FPVector{T<:FP} = AbstractArray{T,1}

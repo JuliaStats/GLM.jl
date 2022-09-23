@@ -66,8 +66,8 @@ end
 
 weights(r::LmResp) = r.wts
 
-nobs(r::LmResp{V,W}) where {V<:AbstractVector{T} where T<:AbstractFloat,W<:FrequencyWeights} = sum(r.wts)
-nobs(r::LmResp{V,W}) where {V<:AbstractVector{T} where T<:AbstractFloat,W<:AbstractWeights} = oftype(sum(one(eltype(r.wts))), length(r.y))
+nobs(r::LmResp{<:Any,W}) where {W<:FrequencyWeights} = sum(r.wts)
+nobs(r::LmResp) = oftype(sum(one(eltype(r.wts))), length(r.y))
 
 function loglikelihood(r::LmResp{T,<:Union{UnitWeights, FrequencyWeights}}) where T
     n = nobs(r)
@@ -76,7 +76,7 @@ end
 
 function loglikelihood(r::LmResp{T,<:AbstractWeights}) where T
     N = length(r.y)
-    n = sum(log.(weights(r)))
+    n = sum(log, weights(r))
     0.5*(n - N * (log(2π * deviance(r)/N) + 1))
 end
 
@@ -230,7 +230,7 @@ function nullloglikelihood(m::LinearModel)
         -n/2 * (log(2π * nulldeviance(m)/n) + 1)
     else
         N = length(m.rr.y)
-        n = sum(log.(wts))
+        n = sum(log, wts)
         0.5*(n - N * (log(2π * nulldeviance(m)/N) + 1))
     end
 end
@@ -321,7 +321,7 @@ end
 function momentmatrix(m::LinearModel; weighted=isweighted(m)) 
     X = modelmatrix(m; weighted=false)
     r = residuals(m; weighted=false)
-    if weighted & isweighted(m)
+    if weighted && isweighted(m)
         return X .* r .* weights(m)
     else
         return X .* r

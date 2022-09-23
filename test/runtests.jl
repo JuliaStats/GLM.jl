@@ -1329,7 +1329,7 @@ end
 end
 
 @testset "Issue 118" begin
-    Test.@inferred nobs(lm(randn(10, 2), randn(10)))
+    @inferred nobs(lm(randn(10, 2), randn(10)))
 end
 
 @testset "Issue 153" begin

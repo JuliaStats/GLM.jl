@@ -125,13 +125,13 @@ x: 4         -0.032673    0.0797865  -0.41    0.6831  -0.191048    0.125702
 
 ## Weighting 
 
-Both `lm` and `glm` allow weighted estimation. The three different [types of weights](https://juliastats.org/jl/stable/weights/) defined in [jl](https://github.com/JuliaStats/jl) can be used to fit a model:
+Both `lm` and `glm` allow weighted estimation. The three different [types of weights](https://juliastats.org/StatsBase.jl/stable/weights/) defined in [StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) can be used to fit a model:
 
 - `AnalyticWeights` describe a non-random relative importance (usually between 0 and 1) for each observation. These weights may also be referred to as reliability weights, precision weights or inverse variance weights. These are typically used when the observations being weighted are aggregate values (e.g., averages) with differing variances.
 - `FrequencyWeights` describe the inverse of the sampling probability for each observation, providing a correction mechanism for under- or over-sampling certain population groups. These weights may also be referred to as sampling weights.
 - `ProbabilityWeights` describe how the sample can be scaled back to the population. Usually are the reciprocals of sampling probabilities.
 
-The `AnalyticWeights`, `FrequencyWeights`, and `ProbabilityWeights` can be constructed using `aweights`, `fweights`, and `pweights`, respectively. 
+To indicate which kind of weights should be used, the vector of weights must be wrapped in one of the three weights types, and then passed to the `weights` keyword argument. Short-hand functions `aweights`, `fweights`, and `pweights` can be used to construct `AnalyticWeights`, `FrequencyWeights`, and `ProbabilityWeights`, respectively. 
 
 We illustrate the API with randomly generated data.
 
