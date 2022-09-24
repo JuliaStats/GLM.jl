@@ -64,7 +64,7 @@ end
 weights(r::LmResp) = r.wts
 
 nobs(r::LmResp{<:Any,W}) where {W<:FrequencyWeights} = sum(r.wts)
-nobs(r::LmResp) = oftype(sum(one(eltype(r.wts))), length(r.y))
+nobs(r::LmResp{<:Any,W}) where {W<:AbstractWeights} = oftype(sum(one(eltype(r.wts))), length(r.y))
 
 function loglikelihood(r::LmResp{T,<:Union{UnitWeights, FrequencyWeights}}) where T
     n = nobs(r)
@@ -158,9 +158,9 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
         dropcollinear = allowrankdeficient_dep
     end
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
-    _wts = if isa(wts, AbstractWeights)
+    _wts = if wts isa AbstractWeights
         wts
-    elseif isa(wts, AbstractVector)
+    elseif wts isa AbstractVector
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
                      "`AnalyticalWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                      "by coercing `wts` to `FrequencyWeights`", :fit)

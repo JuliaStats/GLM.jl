@@ -309,7 +309,7 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
     N = length(y)
     δ = deviance(r)
     ϕ = δ/n
-    if wts isa FrequencyWeights || wts isa UnitWeights
+    if wts isa Union{FrequencyWeights, UnitWeights}
         @inbounds for i in eachindex(y, mu)
             ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
         end
@@ -335,7 +335,7 @@ function nullloglikelihood(m::GeneralizedLinearModel)
         δ = nulldeviance(m)
         ϕ = nulldeviance(m)/nobs(m)
         N = length(y)
-        if wts isa FrequencyWeights || wts isa UnitWeights
+        if wts isa Union{FrequencyWeights, UnitWeights}
             @inbounds for i in eachindex(y, wts)
                 ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
             end
@@ -573,9 +573,9 @@ function fit(::Type{M},
         throw(DimensionMismatch("number of rows in X and y must match"))
     end
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
-    _wts = if isa(wts, AbstractWeights)
+    _wts = if wts isa AbstractWeights
         wts
-    elseif isa(wts, AbstractVector)
+    elseif wts isa AbstractVector
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
                      "`AnalyticalWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                      "by coercing `wts` to `FrequencyWeights`", :fit)
@@ -721,7 +721,7 @@ function initialeta!(eta::AbstractVector,
     return eta
 end
 
-function _initialeta!(eta, dist, link, y, wts::UnitWeights)
+function _initialeta!(eta, dist, link, y, wts::AbstractWeights)
     if wts isa UnitWeights
         @inbounds @simd for i in eachindex(y, eta)
             μ      = mustart(dist, y[i], 1)

@@ -101,16 +101,18 @@ mutable struct DensePredChol{T<:BlasReal,C,W<:AbstractVector} <: DensePred
     scratchm2::Matrix{T}
 end
 
-function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights)
-    scr = similar(X)
-    if wts isa UnitWeights 
-        copy!(scr, X)
-    else 
+function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights)    
+    if wts isa UnitWeights
+        F = Hermitian(float(X'X))
+        T = eltype(F)
+        scr = similar(X, T)
+    else
+        T = promote_type(eltype(wts), eltype(X))
+        T = promote_type(eltype(float(zero(T))), T)
+        scr = similar(X, T)
         mul!(scr, Diagonal(wts), X)
-    end
-    
-    F = Hermitian(float(scr'X)) 
-    T = eltype(F)
+        F = Hermitian(float(scr'X))
+    end    
     F = pivot ? pivoted_cholesky!(F, tol = -one(T), check = false) : cholesky!(F)
     DensePredChol(Matrix{T}(X),
         zeros(T, size(X, 2)),
@@ -135,15 +137,15 @@ function cholesky(p::DensePredChol{T}) where T<:FP
 end
 cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U', 0)
 
-function delbeta!(p::DensePredChol{T,<:Cholesky,W<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
-    X = W isa UnitWeights ? copy!(p.scratchm1, p.X) : mul!(p.scratchm1, Diagonal(p.wts), p.X)
+function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
+    X = p.wts isa UnitWeights ? copy!(p.scratchm1, p.X) : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,W<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
     ch = p.chol
-    X = W isa UnitWeights ? copy!(p.scratchm1, p.X) : mul!(p.scratchm1, Diagonal(p.wts), p.X)
+    X = p.wts isa UnitWeights ? copy!(p.scratchm1, p.X) : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     delbeta = mul!(p.delbeta, adjoint(X), r)
     rnk = rank(ch)
     if rnk == length(delbeta)
