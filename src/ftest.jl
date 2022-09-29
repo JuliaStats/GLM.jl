@@ -193,7 +193,7 @@ function show(io::IO, ftr::FTestResult{N}) where N
     # cf. Issue #461 
     
     r2vals = [@sprintf("%.4f", val) for val in ftr.r2]
-    r2vals .= replace(r2vals, "-0.0000" => "0.0000")
+    r2vals .= replace.(r2vals, "-0.0000" => "0.0000")
     
     outrows[2, :] = ["[1]", @sprintf("%.0d", ftr.dof[1]), " ",
                      @sprintf("%.4f", ftr.ssr[1]), " ",
