@@ -111,22 +111,22 @@ julia> bigmodel = lm(@formula(Result ~ 1 + Treatment + Other), dat);
 
 julia> ftest(nullmodel.model, model.model)
 F-test: 2 models fitted on 12 observations
-──────────────────────────────────────────────────────────────────
-     DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)
-──────────────────────────────────────────────────────────────────
-[1]    2        3.2292           -0.0000
-[2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234  <1e-07
-──────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────
+     DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
+─────────────────────────────────────────────────────────────────
+[1]    2        3.2292           0.0000
+[2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
+─────────────────────────────────────────────────────────────────
 
 julia> ftest(nullmodel.model, model.model, bigmodel.model)
 F-test: 3 models fitted on 12 observations
-──────────────────────────────────────────────────────────────────
-     DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)
-──────────────────────────────────────────────────────────────────
-[1]    2        3.2292           -0.0000
-[2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234  <1e-07
-[3]    5     2  0.1017  -0.0266   0.9685  0.0082    1.0456  0.3950
-──────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────
+     DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
+─────────────────────────────────────────────────────────────────
+[1]    2        3.2292           0.0000
+[2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
+[3]    5     2  0.1017  -0.0266  0.9685  0.0082    1.0456  0.3950
+─────────────────────────────────────────────────────────────────
 ```
 """
 function ftest(mods::LinearModel...; atol::Real=0.0)
@@ -166,7 +166,14 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
 
     fstat = (NaN, (MSR1 ./ MSR2)...)
     pval = (NaN, ccdf.(FDist.(abs.(Δdf), dfr_big), abs.(fstat[2:end]))...)
-    return FTestResult(Int(nobs(mods[1])), SSR, df, r2.(mods), fstat, pval)
+    # clamp to get rid of negative zero -- doesn't matter mathematically,
+    # but messes up doctests and various other things
+    # cf. Issue #461
+    r2vals = map(mods) do m # not a comprehension because tuple
+        r = r2(m)
+        return (-1e-6 < r <= 0.0 ? zero(r) : r)
+    end
+    return FTestResult(Int(nobs(mods[1])), SSR, df, r2vals, fstat, pval)
 end
 
 function show(io::IO, ftr::SingleFTestResult)
