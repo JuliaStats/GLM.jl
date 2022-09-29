@@ -1,4 +1,7 @@
 name: CI-future
+concurrency:
+  group: ${{ github.head_ref }}.ci_future
+  cancel-in-progress: true
 on:
   pull_request:
     branches:
