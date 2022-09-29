@@ -166,14 +166,8 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
 
     fstat = (NaN, (MSR1 ./ MSR2)...)
     pval = (NaN, ccdf.(FDist.(abs.(Δdf), dfr_big), abs.(fstat[2:end]))...)
-    # clamp to get rid of negative zero -- doesn't matter mathematically,
-    # but messes up doctests and various other things
-    # cf. Issue #461
-    r2vals = map(mods) do m # not a comprehension because tuple
-        r = r2(m)
-        return (-1e-6 < r <= 0.0 ? zero(r) : r)
-    end
-    return FTestResult(Int(nobs(mods[1])), SSR, df, r2vals, fstat, pval)
+
+    return FTestResult(Int(nobs(mods[1])), SSR, df, r2.(mods), fstat, pval)
 end
 
 function show(io::IO, ftr::SingleFTestResult)
@@ -194,15 +188,22 @@ function show(io::IO, ftr::FTestResult{N}) where N
     outrows[1, :] = ["", "DOF", "ΔDOF", "SSR", "ΔSSR",
                      "R²", "ΔR²", "F*", "p(>F)"]
 
+    # get rid of negative zero -- doesn't matter mathematically,
+    # but messes up doctests and various other things
+    # cf. Issue #461 
+    
+    r2vals = [@sprintf("%.4f", val) for val in ftr.r2]
+    r2vals .= replace(r2vals, "-0.0000" => "0.0000")
+    
     outrows[2, :] = ["[1]", @sprintf("%.0d", ftr.dof[1]), " ",
                      @sprintf("%.4f", ftr.ssr[1]), " ",
-                     @sprintf("%.4f", ftr.r2[1]), " ", " ", " "]
+                     r2vals[1], " ", " ", " "]
 
     for i in 2:nr
         outrows[i+1, :] = ["[$i]",
                            @sprintf("%.0d", ftr.dof[i]), @sprintf("%.0d", Δdof[i-1]),
                            @sprintf("%.4f", ftr.ssr[i]), @sprintf("%.4f", Δssr[i-1]),
-                           @sprintf("%.4f", ftr.r2[i]), @sprintf("%.4f", ΔR²[i-1]),
+                           r2vals[i], @sprintf("%.4f", ΔR²[i-1]),
                            @sprintf("%.4f", ftr.fstat[i]), string(PValue(ftr.pval[i])) ]
     end
     colwidths = length.(outrows)
