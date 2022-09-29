@@ -191,8 +191,7 @@ function show(io::IO, ftr::FTestResult{N}) where N
     # get rid of negative zero -- doesn't matter mathematically,
     # but messes up doctests and various other things
     # cf. Issue #461 
-
-    r2vals = [replace(@sprintf("%.4f", val),  "-0.0000" => "0.0000") for val in ftr.r2]
+    r2vals = [replace(@sprintf("%.4f", val), "-0.0000" => "0.0000") for val in ftr.r2]
 
     outrows[2, :] = ["[1]", @sprintf("%.0d", ftr.dof[1]), " ",
                      @sprintf("%.4f", ftr.ssr[1]), " ",
