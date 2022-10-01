@@ -271,11 +271,14 @@ function loglikelihood(m::AbstractGLM)
     ll
 end
 
-dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
+model_rank(x::GeneralizedLinearModel) = model_rank(x.pp)
 
-dof(obj::GeneralizedLinearModel{<:GlmResp,<:DensePredChol{<:Real,<:CholeskyPivoted}}) = dispersion_parameter(obj.rr.d) ? obj.pp.chol.rank + 1 : obj.pp.chol.rank
+function dof(x::GeneralizedLinearModel)
+    modelrank = model_rank(x)
+    dispersion_parameter(x.rr.d) ? modelrank + 1 : modelrank
+end
 
-dof_residual(obj::GeneralizedLinearModel) = nobs(obj) - dof(obj) + 1
+#dof_residual(obj::GeneralizedLinearModel) = nobs(obj) - dof(obj) + 1
 
 function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real,
                atol::Real, rtol::Real, start)
@@ -443,7 +446,7 @@ const FIT_GLM_DOC = """
     for a list of built-in links).
 
     # Keyword Arguments
-    - `dropcollinear::Bool=false`: Controls whether or not `lm` accepts a model matrix which
+    - `dropcollinear::Bool=true`: Controls whether or not `lm` accepts a model matrix which
       is less-than-full rank. If `true` (the default), only the first of each set of
       linearly-dependent columns is used. The coefficient for redundant linearly dependent columns is
       `0.0` and all associated statistics are set to `NaN`.
@@ -483,7 +486,7 @@ function fit(::Type{M},
     y::AbstractVector{<:Real},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
-    dropcollinear::Bool = false,
+    dropcollinear::Bool = true,
     dofit::Bool = true,
     wts::AbstractVector{<:Real}      = similar(y, 0),
     offset::AbstractVector{<:Real}   = similar(y, 0),

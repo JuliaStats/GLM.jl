@@ -1316,43 +1316,11 @@ end
 end
 
 @testset "dropcollinear with GLMs" begin
-    num_rows = 100_000
-    dfrm = DataFrame()
-    dfrm[!, :x1] = randn(StableRNG(123), num_rows)
-    dfrm[!, :x2] = randn(StableRNG(456), num_rows)
-    dfrm[!, :x3]= 2*dfrm[!, :x1] + 3*dfrm[!, :x2]
-    dfrm[!, :y] = Int.(randn(StableRNG(9999999), num_rows) .> 0)
-    @testset "General test" begin
-        # an example of rank deficiency caused by linearly dependent columns
-        
-        f1 = @eval(@formula(y ~ 1+x1+x2+x3))
 
-        m1 = fit(GeneralizedLinearModel,
-                 f1,
-                 dfrm,
-                 Binomial(),
-                 LogitLink();
-                 dropcollinear=true)
-        @test isa(m1.model.pp.chol, CholeskyPivoted)
-        @test rank(m1.model.pp.chol) == 3
-        @test deviance(m1) ≈ 138628.8442005168471951
-
-        f2 = @eval(@formula(y ~ 1+x1*x2*x3))
-
-        m2 = fit(GeneralizedLinearModel,
-                f2,
-                dfrm,
-                Binomial(),
-                GLM.LogitLink();
-                dropcollinear=true)
-        @test isa(m2.model.pp.chol, CholeskyPivoted)
-        @test rank(m2.model.pp.chol) == 7
-        @test deviance(m2.model) ≈ 138627.6062160052242689
-        glmallow = fit(GeneralizedLinearModel, @formula(y~x1+x2+x3), dfrm, Poisson(), dropcollinear=true)
-        @test isa(glmallow.model.pp.chol, CholeskyPivoted)
-    end
     data = DataFrame(x1 = [4, 5, 9, 6, 5], x2 = [5, 3, 6, 7, 1], 
-                     x3=[4.2, 4.6, 8.4, 6.2, 4.2], y=[14, 14, 24, 20, 11])
+                     x3=[4.2, 4.6, 8.4, 6.2, 4.2], y=[14, 14, 24, 20, 11]
+                    )
+
     @testset "Test with equivalent LM model" begin
         mdl1 = lm(@formula(y ~ x1 + x2 + x3), data; dropcollinear=true)
         mdl2 = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
@@ -1382,17 +1350,27 @@ end
         @test predict(mdl) ≈ [14.17008797653959, 13.56744868035191, 24.04398826979472,
                               19.99413489736071, 11.22434017595308]
     end
+
+    num_rows = 100_000
+    dfrm = DataFrame()
+    dfrm[!, :x1] = randn(StableRNG(123), num_rows)
+    dfrm[!, :x2] = randn(StableRNG(1234), num_rows)
+    dfrm[!, :x3]= 2*dfrm[!, :x1] + 3*dfrm[!, :x2]
+    dfrm[!, :y] = Int.(randn(StableRNG(12345), num_rows) .> 0)
+
     @testset "Test Logistic Regression Outputs from R" begin
 
         mdl = glm(@formula(y ~ x1 + x2 + x3), dfrm, Binomial(), LogitLink();
                    dropcollinear=true)
-        #@test coef(mdl)[1:3] ≈ [-0.0004214049869026, 0.0015203302828698, -0.0015318739665768]
-        #@test stderror(mdl)[1:3] ≈ [0.0063246304255069, 0.0076210032633906, 0.0021094442243717]
-        @test deviance(mdl) ≈ 138628.8442005168471951
-        @test loglikelihood(mdl) ≈ -69314.42210025842
+        @test coef(mdl) ≈ [0.005134641298499415, 0.001277642634696454, 0, -0.001347197592412351] atol = 1.0E-8
+        _stdrr = stderror(mdl)
+        @test vcat(_stdrr[1:2], _stdrr[4])  ≈ [0.006324636330358, 0.007607056717909, 0.002108547332981] atol = 1.0E-7
+        @test deviance(mdl) ≈ 138628.3232904733
+        @test loglikelihood(mdl) ≈ -69314.16164523663
         @test dof(mdl) == 3
         @test dof_residual(mdl) == 99998
-        @test aic(mdl) ≈ 138634.84420052
+        @test aic(mdl) ≈ 138634.32329047
         @test GLM.dispersion(mdl.model, true) ≈ 1
+        @test predict(mdl)[1:3] ≈ [0.5008036876837788, 0.5001329059586855, 0.5034217691502286]
     end
 end

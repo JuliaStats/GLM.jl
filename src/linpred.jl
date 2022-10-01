@@ -178,9 +178,10 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vecto
             delbeta[k] = -zero(T)
         end
         # shift full rank column to 1:rank
-        p.scratchm2 .= p.scratchm2[piv, piv]
-        cholesky!(Hermitian(view(p.scratchm2, 1:rnk, 1:rnk), Symbol(p.chol.uplo)))
-        ldiv!(Cholesky(view(p.scratchm2, 1:rnk, 1:rnk), Symbol(p.chol.uplo), p.chol.info), view(delbeta, 1:rnk))
+        cf = cholfactors(p.chol)
+        cf .= p.scratchm2[piv, piv]
+        cholesky!(Hermitian(view(cf, 1:rnk, 1:rnk), Symbol(p.chol.uplo)))
+        ldiv!(Cholesky(view(cf, 1:rnk, 1:rnk), Symbol(p.chol.uplo), p.chol.info), view(delbeta, 1:rnk))
         invpermute!(delbeta, piv)
     end
     p
@@ -285,3 +286,6 @@ coef(obj::LinPredModel) = coef(obj.pp)
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
 
 hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))
+
+model_rank(x::LinPred) = length(x.beta0)
+model_rank(x::DensePredChol{T,<:CholeskyPivoted}) where T = x.chol.rank
