@@ -1353,10 +1353,10 @@ end
 
     num_rows = 100_000
     dfrm = DataFrame()
-    dfrm[!, :x1] = randn(StableRNG(123), num_rows)
-    dfrm[!, :x2] = randn(StableRNG(1234), num_rows)
-    dfrm[!, :x3]= 2*dfrm[!, :x1] + 3*dfrm[!, :x2]
-    dfrm[!, :y] = Int.(randn(StableRNG(12345), num_rows) .> 0)
+    dfrm.x1 = randn(StableRNG(123), num_rows)
+    dfrm.x2 = randn(StableRNG(1234), num_rows)
+    dfrm.x3 = 2*dfrm[!, :x1] + 3*dfrm[!, :x2]
+    dfrm.x4 = Int.(randn(StableRNG(12345), num_rows) .> 0)
 
     @testset "Test Logistic Regression Outputs from R" begin
 
