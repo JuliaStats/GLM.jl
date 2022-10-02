@@ -1364,6 +1364,7 @@ end
                    dropcollinear=true)
         @test coef(mdl) ≈ [0.005134641298499415, 0.001277642634696454, 0, -0.001347197592412351] atol = 1.0E-8
         _stdrr = stderror(mdl)
+        @test isnan(_stdrr[3]) == true
         @test vcat(_stdrr[1:2], _stdrr[4])  ≈ [0.006324636330358, 0.007607056717909, 0.002108547332981] atol = 1.0E-7
         @test deviance(mdl) ≈ 138628.3232904733
         @test loglikelihood(mdl) ≈ -69314.16164523663
