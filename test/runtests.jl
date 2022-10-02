@@ -1355,8 +1355,8 @@ end
     dfrm = DataFrame()
     dfrm.x1 = randn(StableRNG(123), num_rows)
     dfrm.x2 = randn(StableRNG(1234), num_rows)
-    dfrm.x3 = 2*dfrm[!, :x1] + 3*dfrm[!, :x2]
-    dfrm.x4 = Int.(randn(StableRNG(12345), num_rows) .> 0)
+    dfrm.x3 = 2*dfrm.x1 + 3*dfrm.x2
+    dfrm.y = Int.(randn(StableRNG(12345), num_rows) .> 0)
 
     @testset "Test Logistic Regression Outputs from R" begin
 
@@ -1372,5 +1372,7 @@ end
         @test aic(mdl) ≈ 138634.32329047
         @test GLM.dispersion(mdl.model, true) ≈ 1
         @test predict(mdl)[1:3] ≈ [0.5008036876837788, 0.5001329059586855, 0.5034217691502286]
+        @test confint(mdl)[1:2,1:2] ≈ [-0.007261391766554954 0.017530806817981207;
+                                   -0.013632009007684477 0.016187394900004416] atol = 1.0E-3
     end
 end
