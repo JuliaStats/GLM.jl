@@ -156,11 +156,14 @@ cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
 
 cholesky(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(copy(p.qr.R), 'U', 0)
+cholesky(p::DensePredQR{T,QRPivoted{T}}) where {T<:FP} = CholeskyPivoted{T,typeof(p.X)}(copy(p.qr.R), 'U', p.qr.p, rank(p.qr.R), 0, 0)
+
 function cholesky(p::DensePredChol{T}) where T<:FP
     c = p.chol
     Cholesky(copy(cholfactors(c)), c.uplo, c.info)
 end
 cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U', 0)
+cholesky!(p::DensePredQR{T,QRPivoted{T}}) where {T<:FP} = CholeskyPivoted{T,typeof(p.X)}(p.qr.R, 'U', p.qr.p, rank(p.qr.R), 0, 0)
 
 function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where T<:BlasReal
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.X), r))
@@ -241,8 +244,9 @@ LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)
 LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 
 invchol(x::DensePred) = inv(cholesky!(x))
-function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
-    ch = x.chol
+
+function invchol(x::Union{DensePredChol{T,<: CholeskyPivoted},DensePredQR{T,QRPivoted{T}}}) where T
+    ch = cholesky(x)
     rnk = rank(ch)
     p = length(x.delbeta)
     rnk == p && return inv(ch)
@@ -255,6 +259,7 @@ function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
     ipiv = invperm(ch.p)
     res[ipiv, ipiv]
 end
+
 invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
 vcov(x::LinPredModel) = rmul!(invchol(x.pp), dispersion(x, true))
 
