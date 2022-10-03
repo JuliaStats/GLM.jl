@@ -352,7 +352,7 @@ function StatsBase.cooksdistance(obj::LinearModel)
         hii = diag(X * inv(XtX) * X')
         D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
     else
-        pp = obj.pp        
+        pp = obj.pp
         C = invchol(pp)
         nancols = [all(isnan, col) for col in eachcol(C)]
         nnancols = .!nancols

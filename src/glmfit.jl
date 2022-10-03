@@ -37,7 +37,8 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
 
     ## We don't support custom types of weights that a user may define
     if !(wts isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights, UnitWeights})
-        throw(ArgumentError("The type of `wts` was $W. The supported weights type are `FrequencyWeights`, `AnalyticWeights`, `ProbabilityWeights`, or a `UnitWeights`."))
+        throw(ArgumentError("The type of `wts` was $W. The supported weights types are " *
+                            "`FrequencyWeights`, `AnalyticWeights`, `ProbabilityWeights` and `UnitWeights`."))
     end
 
     # Lengths of y, η, and η all need to be n
@@ -759,7 +760,6 @@ function residuals(r::GlmResp; weighted::Bool=false)
     y, η, μ = r.y, r.eta, r.mu
     dres = similar(μ)    
 
-
     @inbounds for i in eachindex(y, μ)
         μi = μ[i] 
         yi = y[i]
@@ -785,6 +785,8 @@ function momentmatrix(m::GeneralizedLinearModel)
     return (X .* r) ./ d
 end
 
-variancestructure(rr::GlmResp{<: Any, <: Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}}, r) = 1
-variancestructure(rr::GlmResp{<: Any, <: Union{Gamma, Geometric, InverseGaussian}}, r) =
+variancestructure(rr::GlmResp{<:Any, <:Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}},
+                  r::AbstractArray) = 1
+variancestructure(rr::GlmResp{<:Any, <:Union{Gamma, Geometric, InverseGaussian}},
+                  r::AbstractArray) =
     sum(abs2, r)/sum(rr.wrkwt)
