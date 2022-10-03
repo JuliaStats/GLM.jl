@@ -503,7 +503,7 @@ function StatsBase.fit!(m::AbstractGLM,
 
     r = m.rr
     V = typeof(r.y)
-    r.y = copy!(r.y, y)
+    copy!(r.y, y)
     isa(offset, Nothing) || copy!(r.offset, offset)
     initialeta!(r.eta, r.d, r.l, r.y, r.wts, r.offset)
     updateμ!(r, r.eta)
