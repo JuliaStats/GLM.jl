@@ -311,8 +311,8 @@ end
 
 modelframe(obj::LinPredModel) = obj.fr
 
-function modelmatrix(obj::LinPredModel; weighted::Bool=false)
-    if isweighted(obj)
+function modelmatrix(obj::LinPredModel; weighted::Bool=isweighted(obj))
+    if weighted
         mul!(obj.pp.scratchm1, Diagonal(sqrt.(obj.pp.wts)), obj.pp.X)
     else
         obj.pp.X
