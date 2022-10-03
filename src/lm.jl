@@ -206,7 +206,7 @@ function nulldeviance(obj::LinearModel)
     wts = weights(obj)
     
     if hasintercept(obj)
-        m = mean(y, wts)    
+        m = mean(y, wts)
     else
         @warn("Starting from GLM.jl 1.8, null model is defined as having no predictor at all " *
               "when a model without an intercept is passed.")
@@ -214,8 +214,14 @@ function nulldeviance(obj::LinearModel)
     end
 
     v = zero(eltype(y))*zero(eltype(wts))
-    @inbounds @simd for i = eachindex(y,wts)
-        v += abs2(y[i] - m)*wts[i]
+    if wts isa UnitWeights
+        @inbounds @simd for i = eachindex(y,wts)
+            v += abs2(y[i] - m)
+        end
+    else
+        @inbounds @simd for i = eachindex(y,wts)
+            v += abs2(y[i] - m)*wts[i]
+        end
     end
     return v
 end
