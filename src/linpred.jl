@@ -258,7 +258,7 @@ function vcov(x::LinPredModel)
     _vcov(x.pp, u, d)
 end
 
-_vcov(pp::DensePredChol{T, <:Cholesky, <:Any}, u::AbstractVector, d::Real) where {T} = rmul!(invchol(pp), d)
+_vcov(pp::DensePredChol{T, <:Union{Cholesky, CholeskyPivoted}, <:Any}, u::AbstractVector, d::Real) where {T} = rmul!(invchol(pp), d)
 
 function _vcov(pp::DensePredChol{T, <:Cholesky, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T}
     wts = pp.wts
