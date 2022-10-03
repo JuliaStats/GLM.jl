@@ -1,4 +1,7 @@
 name: CI-stable
+concurrency:
+  group: ${{ github.head_ref }}.ci
+  cancel-in-progress: true
 on:
   pull_request:
     branches:

@@ -111,22 +111,22 @@ julia> bigmodel = lm(@formula(Result ~ 1 + Treatment + Other), dat);
 
 julia> ftest(nullmodel.model, model.model)
 F-test: 2 models fitted on 12 observations
-──────────────────────────────────────────────────────────────────
-     DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)
-──────────────────────────────────────────────────────────────────
-[1]    2        3.2292           -0.0000
-[2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234  <1e-07
-──────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────
+     DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
+─────────────────────────────────────────────────────────────────
+[1]    2        3.2292           0.0000
+[2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
+─────────────────────────────────────────────────────────────────
 
 julia> ftest(nullmodel.model, model.model, bigmodel.model)
 F-test: 3 models fitted on 12 observations
-──────────────────────────────────────────────────────────────────
-     DOF  ΔDOF     SSR     ΔSSR       R²     ΔR²        F*   p(>F)
-──────────────────────────────────────────────────────────────────
-[1]    2        3.2292           -0.0000
-[2]    3     1  0.1283  -3.1008   0.9603  0.9603  241.6234  <1e-07
-[3]    5     2  0.1017  -0.0266   0.9685  0.0082    1.0456  0.3950
-──────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────
+     DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
+─────────────────────────────────────────────────────────────────
+[1]    2        3.2292           0.0000
+[2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
+[3]    5     2  0.1017  -0.0266  0.9685  0.0082    1.0456  0.3950
+─────────────────────────────────────────────────────────────────
 ```
 """
 function ftest(mods::LinearModel...; atol::Real=0.0)
@@ -166,6 +166,7 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
 
     fstat = (NaN, (MSR1 ./ MSR2)...)
     pval = (NaN, ccdf.(FDist.(abs.(Δdf), dfr_big), abs.(fstat[2:end]))...)
+
     return FTestResult(Int(nobs(mods[1])), SSR, df, r2.(mods), fstat, pval)
 end
 
@@ -187,15 +188,20 @@ function show(io::IO, ftr::FTestResult{N}) where N
     outrows[1, :] = ["", "DOF", "ΔDOF", "SSR", "ΔSSR",
                      "R²", "ΔR²", "F*", "p(>F)"]
 
+    # get rid of negative zero -- doesn't matter mathematically,
+    # but messes up doctests and various other things
+    # cf. Issue #461 
+    r2vals = [replace(@sprintf("%.4f", val), "-0.0000" => "0.0000") for val in ftr.r2]
+
     outrows[2, :] = ["[1]", @sprintf("%.0d", ftr.dof[1]), " ",
                      @sprintf("%.4f", ftr.ssr[1]), " ",
-                     @sprintf("%.4f", ftr.r2[1]), " ", " ", " "]
+                     r2vals[1], " ", " ", " "]
 
     for i in 2:nr
         outrows[i+1, :] = ["[$i]",
                            @sprintf("%.0d", ftr.dof[i]), @sprintf("%.0d", Δdof[i-1]),
                            @sprintf("%.4f", ftr.ssr[i]), @sprintf("%.4f", Δssr[i-1]),
-                           @sprintf("%.4f", ftr.r2[i]), @sprintf("%.4f", ΔR²[i-1]),
+                           r2vals[i], @sprintf("%.4f", ΔR²[i-1]),
                            @sprintf("%.4f", ftr.fstat[i]), string(PValue(ftr.pval[i])) ]
     end
     colwidths = length.(outrows)
