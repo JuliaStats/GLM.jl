@@ -1316,10 +1316,8 @@ end
 end
 
 @testset "dropcollinear with GLMs" begin
-
-    data = DataFrame(x1 = [4, 5, 9, 6, 5], x2 = [5, 3, 6, 7, 1], 
-                     x3=[4.2, 4.6, 8.4, 6.2, 4.2], y=[14, 14, 24, 20, 11]
-                    )
+    data = DataFrame(x1=[4, 5, 9, 6, 5], x2=[5, 3, 6, 7, 1], 
+                     x3=[4.2, 4.6, 8.4, 6.2, 4.2], y=[14, 14, 24, 20, 11])
 
     @testset "Test with equivalent LM model" begin
         mdl1 = lm(@formula(y ~ x1 + x2 + x3), data; dropcollinear=true)
