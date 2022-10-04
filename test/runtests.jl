@@ -1326,6 +1326,7 @@ end
 
         @test coef(mdl1) ≈ coef(mdl2)
         @test stderror(mdl1)[1:3] ≈ stderror(mdl2)[1:3]
+        @test isnan(stderror(mdl1)[4])
         @test dof(mdl1) == dof(mdl2)
         @test dof_residual(mdl1) == dof_residual(mdl2)
         @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
