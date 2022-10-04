@@ -1357,9 +1357,8 @@ end
     dfrm.y = Int.(randn(StableRNG(12345), num_rows) .> 0)
 
     @testset "Test Logistic Regression Outputs from R" begin
-
         mdl = glm(@formula(y ~ x1 + x2 + x3), dfrm, Binomial(), LogitLink();
-                   dropcollinear=true)
+                  dropcollinear=true)
         @test coef(mdl) ≈ [0.005134641298499415, 0.001277642634696454, 0, -0.001347197592412351] atol = 1.0E-8
         _stdrr = stderror(mdl)
         @test isnan(_stdrr[3]) == true
