@@ -464,7 +464,6 @@ function StatsBase.fit!(m::AbstractGLM,
                         y;
                         wts=nothing,
                         offset=nothing,
-                        dofit::Bool=true,
                         verbose::Bool=false,
                         maxiter::Integer=30,
                         minstepfac::Real=0.001,
@@ -524,14 +523,8 @@ const FIT_GLM_DOC = """
     for a list of built-in links).
 
     # Keyword Arguments
-    - `dofit::Bool=true`: Determines whether model will be fit
-    - `wts::Vector=similar(y,0)`: Prior frequency (a.k.a. case) weights of observations.
-      Such weights are equivalent to repeating each observation a number of times equal
-      to its weight. Do note that this interpretation gives equal point estimates but
-      different standard errors from analytical (a.k.a. inverse variance) weights and
-      from probability (a.k.a. sampling) weights which are the default in some other
-      software.
-      Can be length 0 to indicate no weighting (default).
+    - `dofit::Bool=true`: Determines whether model will be fit. Only supported with `glm`.
+    $COMMON_FIT_KWARGS_DOCS
     - `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
       length 0
     - `verbose::Bool=false`: Display convergence information for each iteration
@@ -543,13 +536,6 @@ const FIT_GLM_DOC = """
     - `minstepfac::Real=0.001`: Minimum line step fraction. Must be between 0 and 1.
     - `start::AbstractVector=nothing`: Starting values for beta. Should have the
       same length as the number of columns in the model matrix.
-    - `contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}()`: a `Dict` mapping term names
-      (as `Symbol`s) to term types (e.g. `ContinuousTerm`) or contrasts
-      (e.g., `HelmertCoding()`, `SeqDiffCoding(; levels=["a", "b", "c"])`,
-      etc.). If contrasts are not provided for a variable, the appropriate
-      term type will be guessed based on the data type from the data column:
-      any numeric data is assumed to be continuous, and any non-numeric data
-      is assumed to be categorical.
     """
 
 """
@@ -567,10 +553,15 @@ function fit(::Type{M},
     y::AbstractVector{<:Real},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
-    dofit::Bool = true,
+    dofit::Union{Bool, Nothing} = nothing,
     wts::AbstractVector{<:Real}      = similar(y, 0),
     offset::AbstractVector{<:Real}   = similar(y, 0),
     fitargs...) where {M<:AbstractGLM}
+    if dofit === nothing
+        dofit = true
+    else
+        Base.depwarn("`dofit` argument to `fit` is deprecated", :fit)
+    end
 
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
@@ -596,9 +587,15 @@ function fit(::Type{M},
              l::Link=canonicallink(d);
              offset::Union{AbstractVector, Nothing} = nothing,
              wts::Union{AbstractVector, Nothing} = nothing,
-             dofit::Bool = true,
+             dofit::Union{Bool, Nothing} = nothing,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
              fitargs...) where {M<:AbstractGLM}
+    if dofit === nothing
+        dofit = true
+    else
+        Base.depwarn("`dofit` argument to `fit` is deprecated", :fit)
+    end
+
     f, (y, X) = modelframe(f, data, contrasts)
 
     # Check that X and y have the same number of observations
@@ -672,8 +669,8 @@ the point estimates, but do not respect natural parameter constraints
 """
     predict(mm::AbstractGLM, newX;
             offset::FPVector=[],
-            interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95,
-            interval_method::Symbol = :transformation)
+            interval::Union{Symbol,Nothing}=nothing, level::Real=0.95,
+            interval_method::Symbol=:transformation)
 
 Return the predicted response of model `mm` from covariate values `newX` and,
 optionally, an `offset`.
@@ -698,8 +695,8 @@ end
 """
     predict!(res, mm::AbstractGLM, newX::AbstractMatrix;
              offset::FPVector=eltype(newX)[],
-             interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95,
-             interval_method::Symbol = :transformation)
+             interval::Union{Symbol,Nothing}=nothing, level::Real=0.95,
+             interval_method::Symbol=:transformation)
 
 Store in `res` the predicted response of model `mm` from covariate values `newX`
 and, optionally, an `offset`. `res` must be a vector with a length equal to the number

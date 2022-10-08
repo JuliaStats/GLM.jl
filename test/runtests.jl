@@ -1600,6 +1600,7 @@ end
 end
 
 @testset "contrasts argument" begin
+    # DummyCoding (default)
     m = lm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)),
            contrasts=Dict(:x=>DummyCoding()))
     mcat = lm(@formula(y~x), (y=1:25, x=categorical(repeat(1:5, 5))))
@@ -1621,6 +1622,46 @@ end
                 Normal(), IdentityLink())
     @test coef(m) == coef(mcat) ≈ [11, 1, 2, 3, 4]
     @test coef(gm) == coef(gmcat) ≈ [11, 1, 2, 3, 4]
+
+    # EffectsCoding
+    m = lm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)),
+           contrasts=Dict(:x=>EffectsCoding()))
+    gm = glm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+             contrasts=Dict(:x=>EffectsCoding()))
+    @test coef(m) ≈ coef(gm) ≈ [13, -1, 0, 1, 2]
+
+    m = fit(LinearModel, @formula(y~x), (y=1:25, x=repeat(1:5, 5)),
+           contrasts=Dict(:x=>EffectsCoding()))
+    gm = fit(GeneralizedLinearModel, @formula(y~x),
+             (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+             contrasts=Dict(:x=>EffectsCoding()))
+    @test coef(m) ≈ coef(gm) ≈ [13, -1, 0, 1, 2]
+end
+
+
+@testset "dofit argument" begin
+    gm1 = glm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+              dofit=true)
+    gm2 = glm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+              dofit=false)
+    @test gm1.fit
+    @test !gm2.fit
+    fit!(gm2)
+    @test gm2.fit
+    @test coef(gm1) == coef(gm2) ≈ [10, 1]
+
+    # Deprecated
+    gm1 = fit(GeneralizedLinearModel, @formula(y~x),
+             (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+             dofit=true)
+    gm2 = fit(GeneralizedLinearModel, @formula(y~x),
+             (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+             dofit=false)
+    @test gm1.fit
+    @test !gm2.fit
+    fit!(gm2)
+    @test gm2.fit
+    @test coef(gm1) == coef(gm2) ≈ [10, 1]
 end
 
 @testset "formula accessor" begin

@@ -111,29 +111,16 @@ const FIT_LM_DOC = """
     in columns (including if appropriate the intercept), and `y` must be a vector holding
     values of the dependent variable.
 
-    The keyword argument `wts` can be a `Vector` specifying frequency weights for observations.
-    Such weights are equivalent to repeating each observation a number of times equal
-    to its weight. Do note that this interpretation gives equal point estimates but
-    different standard errors from analytical (a.k.a. inverse variance) weights and
-    from probability (a.k.a. sampling) weights which are the default in some other
-    software.
-
-    `dropcollinear` controls whether or not `lm` accepts a model matrix which
-    is less-than-full rank. If `true` (the default), only the first of each set of
-    linearly-dependent columns is used. The coefficient for redundant linearly dependent columns is
-    `0.0` and all associated statistics are set to `NaN`.
-
-    `contrasts` may optionally be supplied in the form of a `Dict` mapping term names
-    (as `Symbol`s) to term types (e.g. `ContinuousTerm`) or contrasts
-    (e.g., `HelmertCoding()`, `SeqDiffCoding(; levels=["a", "b", "c"])`,
-    etc.). If contrasts are not provided for a variable, the appropriate
-    term type will be guessed based on the data type from the data column:
-    any numeric data is assumed to be continuous, and any non-numeric data
-    is assumed to be categorical.
+    # Keyword Arguments
+    $COMMON_FIT_KWARGS_DOCS
+    - `dropcollinear::Bool=false` controls whether or not `lm` accepts a model matrix which
+      is less-than-full rank. If `true` (the default), only the first of each set of
+      linearly-dependent columns is used. The coefficient for redundant linearly dependent
+      columns is `0.0` and all associated statistics are set to `NaN`.
     """
 
 """
-    fit(LinearModel, formula::FormulaTerm, data, allowrankdeficient=false;
+    fit(LinearModel, formula::FormulaTerm, data;
         [wts::AbstractVector], dropcollinear::Bool=true,
         contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
@@ -166,7 +153,7 @@ function fit(::Type{LinearModel}, f::FormulaTerm, data,
 end
 
 """
-    lm(formula, data, allowrankdeficient=false;
+    lm(formula, data;
        [wts::AbstractVector], dropcollinear::Bool=true,
        contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     lm(X::AbstractMatrix, y::AbstractVector;

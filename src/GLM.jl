@@ -91,6 +91,23 @@ module GLM
         pivoted_cholesky!(A; kwargs...) = cholesky!(A, RowMaximum(); kwargs...)
     end
 
+    const COMMON_FIT_KWARGS_DOCS = """
+        - `wts::Vector=similar(y,0)`: Prior frequency (a.k.a. case) weights of observations.
+          Such weights are equivalent to repeating each observation a number of times equal
+          to its weight. Do note that this interpretation gives equal point estimates but
+          different standard errors from analytical (a.k.a. inverse variance) weights and
+          from probability (a.k.a. sampling) weights which are the default in some other
+          software.
+          Can be length 0 to indicate no weighting (default).
+        - `contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}()`: a `Dict` mapping term names
+          (as `Symbol`s) to term types (e.g. `ContinuousTerm`) or contrasts
+          (e.g., `HelmertCoding()`, `SeqDiffCoding(; levels=["a", "b", "c"])`,
+          etc.). If contrasts are not provided for a variable, the appropriate
+          term type will be guessed based on the data type from the data column:
+          any numeric data is assumed to be continuous, and any non-numeric data
+          is assumed to be categorical (with `DummyCoding()` as the default contrast type).
+        """
+
     include("linpred.jl")
     include("lm.jl")
     include("glmtools.jl")
