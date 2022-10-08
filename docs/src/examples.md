@@ -8,7 +8,7 @@ end
 
 ## Linear regression
 ```jldoctest
-julia> using DataFrames, GLM
+julia> using DataFrames, GLM, StatsBase
 
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
 3×2 DataFrame
@@ -20,7 +20,7 @@ julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
    3 │     3      7
 
 julia> ols = lm(@formula(Y ~ X), data)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
 
 Y ~ 1 + X
 
@@ -42,6 +42,49 @@ julia> round.(predict(ols), digits=5)
  1.83333
  4.33333
  6.83333
+
+julia> round.(confint(ols); digits=5)
+2×2 Matrix{Float64}:
+ -8.59038  7.25704
+ -1.16797  6.16797
+
+julia> round(r2(ols); digits=5)
+0.98684
+
+julia> round(adjr2(ols); digits=5)
+0.97368
+
+julia> round(deviance(ols); digits=5)
+0.16667
+
+julia> dof(ols)
+3
+
+julia> dof_residual(ols)
+1.0
+
+julia> round(aic(ols); digits=5)
+5.84252
+
+julia> round(aicc(ols); digits=5)
+-18.15748
+
+julia> round(bic(ols); digits=5)
+3.13835
+
+julia> round(dispersion(ols.model); digits=5)
+0.40825
+
+julia> round(loglikelihood(ols); digits=5)
+0.07874
+
+julia> round(nullloglikelihood(ols); digits=5)
+-6.41736
+
+julia> round.(vcov(ols); digits=5)
+2×2 Matrix{Float64}:
+  0.38889  -0.16667
+ -0.16667   0.08333
 ```
 
 ## Probit regression
@@ -164,7 +207,7 @@ julia> form = dataset("datasets", "Formaldehyde")
    6 │     0.9    0.782
 
 julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
 
 OptDen ~ 1 + Carb
 
@@ -213,7 +256,7 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
                                                     35 rows omitted
 
 julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
 
 SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
 
