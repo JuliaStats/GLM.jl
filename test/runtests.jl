@@ -1470,7 +1470,7 @@ end
     @testset "Check normal with identity link against outputs from R" begin
         mdl = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
                    dropcollinear=true)
-        @test coef(mdl)] ≈ [1.350439882697950, 1.740469208211143, 1.171554252199414, 0.0]
+        @test coef(mdl) ≈ [1.350439882697950, 1.740469208211143, 1.171554252199414, 0.0]
         @test stderror(mdl)[1:3] ≈ [0.58371400875263, 0.10681694901238, 0.08531532203251]
         @test dof(mdl) == 4
         @test dof_residual(mdl) == 2
