@@ -51,22 +51,23 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY{T},QRPivoted{T}}} <:
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
     qr::Q
+    chol::Union{Cholesky,CholeskyPivoted}
     function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, pivot::Bool=false) where T
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
         if pivot
-            new{T,QRPivoted{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X,ColumnNorm()))
+            new{T,QRPivoted{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X,ColumnNorm()),pivoted_cholesky_qr(X))
         else
-            new{T,QRCompactWY{T}}(X, beta0, zeros(T,p), zeros(T,p), qr(X))
+            new{T,QRCompactWY{T}}(X, beta0, zeros(T,p), zeros(T,p), qr(X),cholesky_qr(X))
         end
     end
 
     function DensePredQR{T}(X::Matrix{T}, pivot::Bool=false) where T
         n, p = size(X)
         if pivot
-            new{T,QRPivoted{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X,ColumnNorm()))
+            new{T,QRPivoted{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X,ColumnNorm()),pivoted_cholesky_qr(X))
         else
-            new{T,QRCompactWY{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X))
+            new{T,QRCompactWY{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X),cholesky_qr(X))
         end
     end
     
@@ -91,10 +92,10 @@ function delbeta!(p::DensePredQR{T,QRCompactWY{T}}, r::Vector{T}, wt::Vector{T})
     R = p.qr.R 
     Q = p.qr.Q[:,1:(size(R)[1])]
     W = Diagonal(wt)
-    sqrtW = Diagonal(map(√,wt)) 
+    sqrtW = Diagonal(sqrt.(wt)) 
     p.delbeta = R \ ((Q'*W*Q) \ (Q'*W*r))
     X = p.X
-    #p.chol =  Cholesky{T,typeof(p.X)}(qr(sqrtW * Q ).R * R, 'U', 0) #compute cholesky using qr decomposition
+    p.chol =  cholesky_qr(sqrtW*X) #compute cholesky using qr decomposition
     return p
 end
 
@@ -106,6 +107,9 @@ function delbeta!(p::DensePredQR{T,QRPivoted{T}}, r::Vector{T}, wt::Vector{T}) w
     R = p.qr.R[:,1:rank(p.X)] 
     Q = p.qr.Q[:,1:(size(R)[1])]
     W = Diagonal(wt)
+    sqrtW = Diagonal(sqrt.(wt))
+    X = p.X
+    p.chol =  pivoted_cholesky_qr(sqrtW*X) 
     p.delbeta = zeros(size(p.delbeta))
     p.delbeta[1:rank(p.X)] = R \ ((Q'*W*Q) \ (Q'*W*r))
     p.delbeta = p.qr.P*p.delbeta #for pivoting 
@@ -158,12 +162,21 @@ cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
 cholesky(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(copy(p.qr.R), 'U', 0)
 cholesky(p::DensePredQR{T,QRPivoted{T}}) where {T<:FP} = CholeskyPivoted{T,typeof(p.X)}(copy(p.qr.R), 'U', p.qr.p, rank(p.qr.R), 0, 0)
 
+#cholesky of X'X using qr decomposition
+cholesky_qr(X::Matrix{T}) where T = Cholesky{T,typeof(X)}(qr(X).R, 'U', 0)
+
+#pivoted cholesky of X'X using pivoted qr decomposition
+function pivoted_cholesky_qr(X::Matrix{T}) where T
+    qrX=qr(X,ColumnNorm())
+    CholeskyPivoted{T,typeof(X)}(qrX.R, 'U', qrX.p, rank(qrX.R), 0, 0)
+end
+
 function cholesky(p::DensePredChol{T}) where T<:FP
     c = p.chol
     Cholesky(copy(cholfactors(c)), c.uplo, c.info)
 end
-cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U', 0)
-cholesky!(p::DensePredQR{T,QRPivoted{T}}) where {T<:FP} = CholeskyPivoted{T,typeof(p.X)}(p.qr.R, 'U', p.qr.p, rank(p.qr.R), 0, 0)
+cholesky!(p::DensePredQR{T}) where {T<:FP} = p.chol
+cholesky!(p::DensePredQR{T,QRPivoted{T}}) where {T<:FP} = p.chol
 
 function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where T<:BlasReal
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.X), r))
@@ -246,7 +259,7 @@ LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 invchol(x::DensePred) = inv(cholesky!(x))
 
 function invchol(x::Union{DensePredChol{T,<: CholeskyPivoted},DensePredQR{T,QRPivoted{T}}}) where T
-    ch = cholesky(x)
+    ch = x.chol
     rnk = rank(ch)
     p = length(x.delbeta)
     rnk == p && return inv(ch)
