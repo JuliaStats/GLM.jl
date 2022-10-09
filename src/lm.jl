@@ -162,6 +162,7 @@ lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
 dof(x::LinearModel) = length(coef(x)) + 1
 
 dof(obj::LinearModel{<:LmResp,<:DensePredChol{<:Real,<:CholeskyPivoted}}) = obj.pp.chol.rank + 1
+dof(obj::LinearModel{<:LmResp,<:DensePredQR{<:Real,<:QRPivoted}}) = cholesky(obj.pp).rank + 1
 
 """
     deviance(obj::LinearModel)
