@@ -376,7 +376,7 @@ end
 
         data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
         mdl1 = lm(@formula(y ~ 0 + x), data; method="Stable")
-        mdl2 = lm(float(X), y; method="Stable")
+        mdl2 = lm(X, y; method="Stable")
 
         @test coef(mdl1) ≈ coef(mdl2)
         @test stderror(mdl1) ≈ stderror(mdl2)
