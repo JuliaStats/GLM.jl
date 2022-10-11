@@ -134,6 +134,7 @@ $FIT_LM_DOC
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
              wts::AbstractVector{<:Real}=similar(y, 0),
+             method::String = "Fast",
              dropcollinear::Bool=true)
     if allowrankdeficient_dep !== nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
@@ -141,8 +142,12 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
         dropcollinear = allowrankdeficient_dep
     end
     
-    fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear)))
-
+    if method === "Fast"
+        fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
+    else
+        @info "QR Method"
+        fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear)))
+    end
 end
 
 """

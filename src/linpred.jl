@@ -52,6 +52,7 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY{T},QRPivoted{T}}} <:
     scratchbeta::Vector{T}
     qr::Q
     chol::Union{Cholesky,CholeskyPivoted}
+    
     function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, pivot::Bool=false) where T
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
@@ -70,8 +71,9 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY{T},QRPivoted{T}}} <:
             new{T,QRCompactWY{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X),cholesky_qr(X))
         end
     end
-    
+
 end
+
 DensePredQR(X::Matrix, beta0::Vector, pivot::Bool=false) = DensePredQR{eltype(X)}(X, beta0, pivot)
 DensePredQR(X::Matrix{T}, pivot::Bool=false) where T = DensePredQR{T}(X, zeros(T, size(X,2)), pivot)
 convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
@@ -95,7 +97,7 @@ function delbeta!(p::DensePredQR{T,QRCompactWY{T}}, r::Vector{T}, wt::Vector{T})
     sqrtW = Diagonal(sqrt.(wt)) 
     p.delbeta = R \ ((Q'*W*Q) \ (Q'*W*r))
     X = p.X
-    p.chol =  cholesky_qr(sqrtW*X) #compute cholesky using qr decomposition
+    p.chol = cholesky_qr(sqrtW*X) #compute cholesky using qr decomposition
     return p
 end
 

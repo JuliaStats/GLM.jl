@@ -275,6 +275,177 @@ end
     end
 end
 
+@testset "Linear model with QR method" begin
+    @testset "lm with QR method" begin
+        lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form; method="Stable")
+        test_show(lm1)
+        @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
+        Σ = [6.136653061224592e-05 -9.464489795918525e-05
+            -9.464489795918525e-05 1.831836734693908e-04]
+        @test isapprox(vcov(lm1), Σ)
+        @test isapprox(cor(lm1.model), Diagonal(diag(Σ))^(-1/2)*Σ*Diagonal(diag(Σ))^(-1/2))
+        @test dof(lm1) == 3
+        @test isapprox(deviance(lm1), 0.0002992000000000012)
+        @test isapprox(loglikelihood(lm1), 21.204842144047973)
+        @test isapprox(nulldeviance(lm1), 0.3138488333333334)
+        @test isapprox(nullloglikelihood(lm1), 0.33817870295676444)
+        @test r²(lm1) == r2(lm1)
+        @test isapprox(r²(lm1), 0.9990466748057584)
+        @test adjr²(lm1) == adjr2(lm1)
+        @test isapprox(adjr²(lm1), 0.998808343507198)
+        @test isapprox(aic(lm1), -36.409684288095946)
+        @test isapprox(aicc(lm1), -24.409684288095946)
+        @test isapprox(bic(lm1), -37.03440588041178)
+        lm2 = fit(LinearModel, hcat(ones(6), 10form.Carb), form.OptDen, true)
+        @test isa(lm2.pp.chol, CholeskyPivoted)
+        @test lm2.pp.chol.piv == [2, 1]
+        @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
+        lm3 = lm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), contrasts=Dict(:x=>DummyCoding()))
+        lm4 = lm(@formula(y~x), (y=1:25, x=categorical(repeat(1:5, 5))))
+        @test coef(lm3) == coef(lm4) ≈ [11, 1, 2, 3, 4]
+    end
+
+    @testset "linear model with weights and QR method" begin 
+        df = dataset("quantreg", "engel")
+        N = nrow(df)
+        df.weights = repeat(1:5, Int(N/5))
+        f = @formula(FoodExp ~ Income)
+        lm_qr_model = lm(f, df, wts = df.weights; method="Stable")
+        lm_model = lm(f, df, wts = df.weights; method="Fast")
+        @test coef(lm_model) ≈ coef(lm_qr_model)
+        @test stderror(lm_model) ≈ stderror(lm_qr_model)
+        @test r2(lm_model) ≈ r2(lm_qr_model)
+        @test adjr2(lm_model) ≈ adjr2(lm_qr_model)
+        @test vcov(lm_model) ≈ vcov(lm_qr_model)
+        @test predict(lm_model) ≈ predict(lm_qr_model)
+        @test loglikelihood(lm_model) ≈ loglikelihood(lm_qr_model)
+        @test nullloglikelihood(lm_model) ≈ nullloglikelihood(lm_qr_model)
+        @test residuals(lm_model) ≈ residuals(lm_qr_model)
+        @test aic(lm_model) ≈ aic(lm_qr_model)
+        @test aicc(lm_model) ≈ aicc(lm_qr_model)
+        @test bic(lm_model) ≈ bic(lm_qr_model)
+        @test GLM.dispersion(lm_model.model) ≈ GLM.dispersion(lm_qr_model.model)
+    end
+
+    @testset "Test QR method with NoInt1 Dataset" begin
+        # test case to test r2 for no intercept model
+        # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt1.dat
+
+        data = DataFrame(x = 60:70, y = 130:140)
+        mdl = lm(@formula(y ~ 0 + x), data; method="Stable")
+        @test coef(mdl) ≈ [2.07438016528926]
+        @test stderror(mdl) ≈ [0.165289256198347E-01]
+        @test GLM.dispersion(mdl.model) ≈ 3.56753034006338
+        @test dof(mdl) == 2
+        @test dof_residual(mdl) == 10
+        @test r2(mdl) ≈ 0.999365492298663
+        @test adjr2(mdl) ≈ 0.9993020415285
+        @test nulldeviance(mdl) ≈ 200585.00000000000
+        @test deviance(mdl) ≈ 127.2727272727272
+        @test aic(mdl) ≈ 62.149454400575
+        @test loglikelihood(mdl) ≈ -29.07472720028775
+        @test nullloglikelihood(mdl) ≈ -69.56936343308669
+        @test predict(mdl) ≈ [124.4628099173554, 126.5371900826446, 128.6115702479339,
+                              130.6859504132231, 132.7603305785124, 134.8347107438017,
+                              136.9090909090909, 138.9834710743802, 141.0578512396694,
+                              143.1322314049587, 145.2066115702479]
+    end
+    @testset "Test QR method with NoInt2 Dataset" begin
+        # test case to test r2 for no intercept model
+        # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt2.dat
+
+        data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
+        mdl = lm(@formula(y ~ 0 + x), data; method="Stable")
+        @test coef(mdl) ≈ [0.727272727272727]
+        @test stderror(mdl) ≈ [0.420827318078432E-01]
+        @test GLM.dispersion(mdl.model) ≈ 0.369274472937998
+        @test dof(mdl) == 2
+        @test dof_residual(mdl) == 2
+        @test r2(mdl) ≈ 0.993348115299335
+        @test adjr2(mdl) ≈ 0.990022172949
+        @test nulldeviance(mdl) ≈ 41.00000000000000
+        @test deviance(mdl) ≈ 0.27272727272727
+        @test aic(mdl) ≈ 5.3199453808329
+        @test loglikelihood(mdl) ≈ -0.6599726904164597
+        @test nullloglikelihood(mdl) ≈ -8.179255266668315
+        @test predict(mdl) ≈ [2.909090909090908, 3.636363636363635, 4.363636363636362]
+    end
+    @testset "Test QR method with without formula" begin
+        X = [4 5 6]'
+        y = [3, 4, 4]
+
+        data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
+        mdl1 = lm(@formula(y ~ 0 + x), data; method="Stable")
+        mdl2 = lm(float(X), y; method="Stable")
+
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test GLM.dispersion(mdl1.model) ≈ GLM.dispersion(mdl2)
+        @test dof(mdl1) ≈ dof(mdl2)
+        @test dof_residual(mdl1) ≈ dof_residual(mdl2)
+        @test r2(mdl1) ≈ r2(mdl2)
+        @test adjr2(mdl1) ≈ adjr2(mdl2)
+        @test nulldeviance(mdl1) ≈ nulldeviance(mdl2)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test nullloglikelihood(mdl1) ≈ nullloglikelihood(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+    end
+    @testset "Test QR method with NASTY data" begin
+        nasty = CSV.read(joinpath(glm_datadir, "nasty.csv"), DataFrame)
+        mdl = lm(@formula(X ~ TINY), nasty; method="Stable")
+
+        @test coef(mdl) ≈ [-5.921189464667501e-16, 1.000000000000000e+12]
+        #@test stderror(mdl) ≈ [2.586741365599e-16, 4.596760034896e-05]
+        @test dof(mdl) ≈ 3
+        @test r2(mdl) ≈ 1.0
+        @test adjr2(mdl) ≈ 1.0
+        #@test deviance(mdl) ≈ 0
+        #@test aic(mdl) ≈ -601.58944804028
+        #@test loglikelihood(mdl) ≈ 308.5032713906926
+    end
+    @testset "Test QR method with dropcollinearity" begin
+        rng = StableRNG(1234321)
+        # an example of rank deficiency caused by a missing cell in a table
+        dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
+                         categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
+                         [:G, :H])
+        f = @formula(0 ~ 1 + G*H)
+        X = ModelMatrix(ModelFrame(f, dfrm)).m
+        y = X * (1:size(X, 2)) + 0.1 * randn(rng, size(X, 1))
+        inds = deleteat!(collect(1:length(y)), 7:8)
+        m1 = fit(LinearModel, X, y; method = "Stable")
+        @test isapprox(deviance(m1), 0.12160301538297297)
+        Xmissingcell = X[inds, :]
+        ymissingcell = y[inds]
+        #@test_throws PosDefException m2 = fit(LinearModel, Xmissingcell, ymissingcell; dropcollinear=false)
+        m2p = fit(LinearModel, Xmissingcell, ymissingcell; method = "Stable")
+        @test isa(m2p.pp.chol, CholeskyPivoted)
+        @test rank(m2p.pp.chol) == 11
+        @test isapprox(deviance(m2p), 0.1215758392280204)
+        @test isapprox(coef(m2p), [0.9772643585229087, 11.889730016918346, 3.0273473975032767,
+            3.966137919940119, 5.079410103608535, 6.194461814118848, -2.986388408421906, 
+            7.930328728005132, 8.87999491860477, 0.0, 10.849722305243564, 11.844809275711498])
+        #@test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7,:])
+    
+        m2p_dep_pos = fit(LinearModel, Xmissingcell, ymissingcell, true; method = "Stable")
+        @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
+                    "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
+        @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
+        @test rank(m2p_dep_pos.pp.chol) == rank(m2p.pp.chol)
+        @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
+        @test isapprox(coef(m2p_dep_pos), coef(m2p))
+    
+        m2p_dep_pos_kw = fit(LinearModel, Xmissingcell, ymissingcell, true;
+            dropcollinear = false, method="Stable")
+        @test isa(m2p_dep_pos_kw.pp.chol, CholeskyPivoted)
+        @test rank(m2p_dep_pos_kw.pp.chol) == rank(m2p.pp.chol)
+        @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
+        @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
+    end
+end
+
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     Outcome = categorical(repeat(string.('A':'C'), outer = 3)),
     Treatment = categorical(repeat(string.('a':'c'), inner = 3)))
