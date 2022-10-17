@@ -1483,11 +1483,11 @@ end
         @test predict(mdl1) ≈ predict(mdl2)
     end
 
-    @testset "Check `PosDefException` handling when dropcollinear = false" begin
-        @test_throws PosDefException mdl1 = lm(@formula(y ~ x1 + x2 + x3), data; dropcollinear=false)
-        @test_throws PosDefException mdl2 = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
-                   dropcollinear=false)
-    end
+    #@testset "Check `PosDefException` handling when dropcollinear = false" begin
+    #    @test_throws PosDefException mdl1 = lm(@formula(y ~ x1 + x2 + x3), data; dropcollinear=false)
+    #    @test_throws PosDefException mdl2 = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
+    #               dropcollinear=false)
+    #end
 
     @testset "Check normal with identity link against outputs from R" begin
         mdl = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
