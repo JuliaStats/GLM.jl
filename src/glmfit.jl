@@ -282,7 +282,8 @@ function nulldeviance(m::GeneralizedLinearModel)
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, r.link, wts=wts, offset=offset,
+                    X, y, d, r.link; wts=wts, offset=offset,
+                    dropcollinear = isa(m.pp.chol, CholeskyPivoted),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         dev = deviance(nullm)
@@ -336,7 +337,8 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, r.link, wts=wts, offset=offset,
+                    X, y, d, r.link; wts=wts, offset=offset,
+                    dropcollinear = isa(m.pp.chol, CholeskyPivoted),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         ll = loglikelihood(nullm)
@@ -344,14 +346,10 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     return ll
 end
 
-model_rank(x::GeneralizedLinearModel) = model_rank(x.pp)
-
 function dof(x::GeneralizedLinearModel)
-    modelrank = model_rank(x)
+    modelrank = linpred_rank(x.pp)
     dispersion_parameter(x.rr.d) ? modelrank + 1 : modelrank
 end
-
-#dof_residual(obj::GeneralizedLinearModel) = nobs(obj) - dof(obj) + 1
 
 function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real,
                atol::Real, rtol::Real, start)

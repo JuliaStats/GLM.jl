@@ -157,10 +157,7 @@ $FIT_LM_DOC
 lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
     fit(LinearModel, X, y, allowrankdeficient_dep; kwargs...)
 
-
-model_rank(x::LinearModel) = model_rank(x.pp)
-dof(x::LinearModel) = model_rank(x) + 1
-
+dof(x::LinearModel) = linpred_rank(x.pp) + 1
 
 """
     deviance(obj::LinearModel)

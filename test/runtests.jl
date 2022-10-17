@@ -767,8 +767,8 @@ end
 
     # Poisson with categorical predictors, weights and offset
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat), anorexia,
-                    Poisson(), LogLink(), offset=log.(anorexia.Prewt),
-                    wts=repeat(1:4, outer=18), rtol=1e-8)
+                    Poisson(), LogLink(); offset=log.(anorexia.Prewt),
+                    wts=repeat(1:4, outer=18), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3.model)
     @test GLM.cancancel(nointglm3.model.rr)
     test_show(nointglm3)
@@ -1467,6 +1467,28 @@ end
         @test aic(mdl1) ≈ aic(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
     end
+    @testset "Check against equivalent linear model when dropcollinear = false" begin
+        mdl1 = lm(@formula(y ~ x1 + x2), data; dropcollinear=false)
+        mdl2 = glm(@formula(y ~ x1 + x2), data, Normal(), IdentityLink();
+                   dropcollinear=false)
+
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test dof(mdl1) == dof(mdl2)
+        @test dof_residual(mdl1) == dof_residual(mdl2)
+        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+    end
+
+    @testset "Check `PosDefException` handling when dropcollinear = false" begin
+        @test_throws PosDefException mdl1 = lm(@formula(y ~ x1 + x2 + x3), data; dropcollinear=false)
+        @test_throws PosDefException mdl2 = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
+                   dropcollinear=false)
+    end
+
     @testset "Check normal with identity link against outputs from R" begin
         mdl = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
                    dropcollinear=true)
@@ -1482,7 +1504,7 @@ end
                               19.99413489736071, 11.22434017595308]
     end
 
-    num_rows = 100_000
+    num_rows = 100
     dfrm = DataFrame()
     dfrm.x1 = randn(StableRNG(123), num_rows)
     dfrm.x2 = randn(StableRNG(1234), num_rows)
@@ -1492,18 +1514,18 @@ end
     @testset "Test Logistic Regression Outputs from R" begin
         mdl = glm(@formula(y ~ x1 + x2 + x3), dfrm, Binomial(), LogitLink();
                   dropcollinear=true)
-        @test coef(mdl) ≈ [0.005134641298499415, 0.001277642634696454, 0, -0.001347197592412351] atol = 1.0E-8
+        @test coef(mdl) ≈ [-0.1402582892604246, 0.1362176272953289, 0, -0.1134751362230204] atol = 1.0E-6
         stderr = stderror(mdl)
         @test isnan(stderr[3]) == true
-        @test vcat(stderr[1:2], stderr[4])  ≈ [0.006324636330358, 0.007607056717909, 0.002108547332981] atol = 1.0E-7
-        @test deviance(mdl) ≈ 138628.3232904733
-        @test loglikelihood(mdl) ≈ -69314.16164523663
+        @test vcat(stderr[1:2], stderr[4])  ≈ [0.20652049856206, 0.25292632684716, 0.07496476901643] atol = 1.0E-4
+        @test deviance(mdl) ≈ 135.68506068159
+        @test loglikelihood(mdl) ≈ -67.8425303407948
         @test dof(mdl) == 3
-        @test dof_residual(mdl) == 99998
-        @test aic(mdl) ≈ 138634.32329047
+        @test dof_residual(mdl) == 98
+        @test aic(mdl) ≈ 141.68506068159
         @test GLM.dispersion(mdl.model, true) ≈ 1
-        @test predict(mdl)[1:3] ≈ [0.5008036876837788, 0.5001329059586855, 0.5034217691502286]
-        @test confint(mdl)[1:2,1:2] ≈ [-0.007261391766554954 0.017530806817981207;
-                                       -0.013632009007684477 0.016187394900004416] atol = 1.0E-3
+        @test predict(mdl)[1:3] ≈ [0.4241893070433117, 0.3754516361306202, 0.6327877688720133] atol = 1.0E-6
+        @test confint(mdl)[1:2,1:2] ≈ [-0.5493329715011036 0.26350316142056085;
+                                       -0.3582545657827583 0.64313795309765587] atol = 1.0E-1
     end
 end
