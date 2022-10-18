@@ -313,26 +313,6 @@ function inverselink(pl::PowerLink, η::Real)
     end
 end
 
-linkfun(pl::PowerLink, μ::Real) = pl.λ == 0 ? log(μ) : μ^pl.λ
-linkinv(pl::PowerLink, η::Real) = pl.λ == 0 ? exp(η) : η^(1 / pl.λ)
-function mueta(pl::PowerLink, η::Real)
-    if pl.λ == 0
-        return exp(η)
-    else
-        invλ = inv(pl.λ)
-        return invλ * η^(invλ - 1)
-    end
-end
-function inverselink(pl::PowerLink, η::Real)
-    if pl.λ == 0
-        μ = exp(η)
-        return μ, μ, convert(float(typeof(η)), NaN)
-    else
-        invλ = inv(pl.λ)
-        return η^invλ, invλ * η^(invλ - 1), convert(float(typeof(η)), NaN)
-    end
-end
-
 linkfun(::ProbitLink, μ::Real) = -sqrt2 * erfcinv(2μ)
 linkinv(::ProbitLink, η::Real) = erfc(-η / sqrt2) / 2
 mueta(::ProbitLink, η::Real) = exp(-abs2(η) / 2) / sqrt2π
