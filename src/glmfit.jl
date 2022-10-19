@@ -322,6 +322,10 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
     return ll
 end
 
+function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
+    throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
+end
+
 function nullloglikelihood(m::GeneralizedLinearModel)
     r      = m.rr
     wts    = weights(m)
@@ -780,13 +784,12 @@ momentmatrix(m::RegressionModel) = momentmatrix(m.model)
 
 function momentmatrix(m::GeneralizedLinearModel)
     X = modelmatrix(m; weighted=false)
-    r = m.rr.wrkwt .* m.rr.wrkresid
-    d = variancestructure(m.rr, r)    
-    return (X .* r) ./ d
+    r = m.rr.wrkwt .* m.rr.wrkresid    
+    return mul!(pp.scratchm1, Diagonal(r), pp.X)
 end
 
-variancestructure(rr::GlmResp{<:Any, <:Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}},
-                  r::AbstractArray) = 1
-variancestructure(rr::GlmResp{<:Any, <:Union{Gamma, Geometric, InverseGaussian}},
-                  r::AbstractArray) =
-    sum(abs2, r)/sum(rr.wrkwt)
+# variancestructure(rr::GlmResp{<:Any, <:Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}},
+#                   r::AbstractArray) = 1
+# variancestructure(rr::GlmResp{<:Any, <:Union{Gamma, Geometric, InverseGaussian}},
+#                   r::AbstractArray) =
+#     sum(abs2, r)/sum(rr.wrkwt)

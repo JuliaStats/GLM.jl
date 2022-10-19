@@ -77,6 +77,10 @@ function loglikelihood(r::LmResp{T,<:AbstractWeights}) where T
     0.5*(n - N * (log(2π * deviance(r)/N) + 1))
 end
 
+function loglikelihood(r::LmResp{T,<:ProbabilityWeights}) where T
+    throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
+end
+
 function residuals(r::LmResp; weighted=false)
     wts = weights(r)
     res = r.y - r.mu

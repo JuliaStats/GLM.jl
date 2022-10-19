@@ -137,7 +137,7 @@ end
 cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U', 0)
 
 function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
-    X = p.wts isa UnitWeights ? copy!(p.scratchm1, p.X) : mul!(p.scratchm1, Diagonal(p.wts), p.X)
+    X = p.wts isa UnitWeights ? p.scratchm1 .= p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
     p
 end
@@ -252,49 +252,34 @@ end
 
 invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
 
+working_residuals(x::LinPredModel) = x.rr.wrkresid
+working_weights(x::LinPredModel) = x.rr.wrkwt
+
 function vcov(x::LinPredModel)
     d = dispersion(x, true)
-    u = residuals(x; weighted = isweighted(x))
-    _vcov(x.pp, u, d)
+    u = working_residuals(x).*working_weights(x)
+    V = vcov(x.pp, u, d)
+    return (nobs(x)/dof_residual(x)).*V
 end
 
-_vcov(pp::LinPred, u::AbstractVector, d::Real) = rmul!(invchol(pp), d)
-
-function _vcov(pp::DensePredChol{T, <:Cholesky, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T}
-    wts = pp.wts
-    Z = mul!(pp.scratchm1, Diagonal(sqrt.(wts).*u), pp.X)
-    XtW2X = Z'Z
-    invXtWX = invchol(pp)
-    V = invXtWX*XtW2X*invXtWX
-    n = length(wts)
-    k = length(pp.delbeta)
-    n/(n-k)*V
-end
-
-function _vcov(pp::DensePredChol{T, <:CholeskyPivoted, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T}
-    wts = pp.wts
-    Z = mul!(pp.scratchm1, Diagonal(sqrt.(wts).*u), pp.X)
-    ch = pp.chol
-    rnk = rank(ch)
-    p = length(pp.delbeta)
-    invXtWX = invchol(pp)
-    if rnk == p
-        B = Z'Z
-        A = invXtWX
-        V = A*B*A
-    else
-        nancols = [all(isnan, col) for col in eachcol(invXtWX)]
+function vcov(pp::DensePredChol{T, C, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T, C}
+    Z = mul!(pp.scratchm1, Diagonal(u), pp.X)
+    @show Z
+    A = invchol(pp)
+    if C isa CholeskyPivoted && rank(pp.chol) != size(B, 1)
+        nancols = [all(isnan, col) for col in eachcol(B)]
         nnancols = .!nancols
         Zc = view(Z, :, nnancols)
-        B = Zc'Zc
-        A = view(invXtWX, nnancols, nnancols)
+        B = view(Zc'Zc, nnancols, nnancols)
         V = similar(pp.scratchm2)
-        V[nnancols, nnancols] = A*B*A
+        V[nnancols, nnancols] .= A*B*A
         V[nancols, :] .= NaN
         V[:, nancols] .= NaN
+    else
+        B = mul!(pp.scratchm2, Z', Z)
+        V = A*B*A
     end
-    n = length(wts)
-    n/(n-rnk)*V
+    return V    
 end
 
 function cor(x::LinPredModel)
