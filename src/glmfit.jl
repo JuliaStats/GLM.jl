@@ -338,7 +338,7 @@ function nullloglikelihood(m::GeneralizedLinearModel)
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
                     X, y, d, r.link; wts=wts, offset=offset,
-                    dropcollinear = isa(m.pp.chol, CholeskyPivoted),
+                    dropcollinear=isa(m.pp.chol, CholeskyPivoted),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         ll = loglikelihood(nullm)
