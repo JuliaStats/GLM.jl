@@ -125,7 +125,7 @@ end
             8.879994918604757, 2.986388408421915, 10.84972230524356, 11.844809275711485])
         @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7,:])
     
-        m2p_dep_pos = fit(GeneralizedLinearModel, Xmissingcell, ymissingcell, Normal();)
+        m2p_dep_pos = fit(GeneralizedLinearModel, Xmissingcell, ymissingcell, Normal())
         @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
                     "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
         @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
