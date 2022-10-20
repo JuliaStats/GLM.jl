@@ -288,4 +288,4 @@ dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
 hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))
 
 linpred_rank(x::LinPred) = length(x.beta0)
-linpred_rank(x::DensePredChol{T,<:CholeskyPivoted}) where T = x.chol.rank
+linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = x.chol.rank
