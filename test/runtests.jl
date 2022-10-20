@@ -138,8 +138,8 @@ end
         rng = StableRNG(1234321)
         # an example of rank deficiency caused by a missing cell in a table
         dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
-                         categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
-                         [:G, :H])
+                          categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
+                          [:G, :H])
         f = @formula(0 ~ 1 + G*H)
         X = ModelMatrix(ModelFrame(f, dfrm)).m
         y = X * (1:size(X, 2)) + 0.1 * randn(rng, size(X, 1))
