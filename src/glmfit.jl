@@ -757,9 +757,6 @@ end
 nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:AbstractWeights} = oftype(sum(one(eltype(r.wts))), length(r.y))
 nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = sum(r.wts)
 
-##To be reviewed!
-# Base.sqrt(::UnitWeights{T}) where T = one(T)
-
 function residuals(r::GlmResp; weighted::Bool=false)
     y, η, μ = r.y, r.eta, r.mu
     dres = similar(μ)    
@@ -788,8 +785,6 @@ function momentmatrix(m::GeneralizedLinearModel)
     d = varstruct(m.rr, r)
     return mul!(m.pp.scratchm1, Diagonal(r.*d), m.pp.X)
 end
-
-#res <- res * sum(weights(x, "working"), na.rm = TRUE)/sum(res^2, na.rm = TRUE)
 
 varstruct(rr::GlmResp{<:Any, <:Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}},
                    r::AbstractArray) = 1
