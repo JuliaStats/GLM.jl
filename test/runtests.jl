@@ -110,8 +110,8 @@ end
     @test isa(weights(lm_model), FrequencyWeights)
     @test isa(weights(glm_model), FrequencyWeights)
     
-    lm_model = lm(f, df, wts = aweights(df.weights))
-    glm_model = glm(f, df, Normal(), wts = aweights(df.weights))
+    lm_model = lm(f, df, wts = iweights(df.weights))
+    glm_model = glm(f, df, Normal(), wts = iweights(df.weights))
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(stderror(lm_model), [16.297055281313032, 0.014186793927918842])
@@ -129,8 +129,9 @@ end
 
     lm_model = lm(f, df, wts = pweights(df.weights))
     glm_model = glm(f, df, Normal(), wts = pweights(df.weights))
-    @test vcov(lm_model) ≈  [2230.3626444482406 -2.423827176758377; -2.4238271767583766 0.0026792687760410199]
-    @test vcov(glm_model) ≈  [2230.3626444482406 -2.423827176758377; -2.4238271767583766 0.0026792687760410199]
+    ## Standard errors from STATA
+    @test stderror(lm_model) ≈ [ 47.22671, .0517617] atol=1e-05    
+    @test stderror(glm_model) ≈ [ 47.22671, .0517617] atol=1e-05    
 
     ## Test the non full rank case
     df.Income2 = df.Income*2
@@ -192,10 +193,10 @@ end
 @testset "Passing wts (depwarn)" begin
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3], wts = [3,3,3])
     @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitly using " *
-                       "`AnalyticalWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                       "`ImportanceWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                        "by coercing `wts` to `FrequencyWeights`") lm(@formula(y~x), df; wts=df.wts)
     @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitly using " *
-                       "`AnalyticalWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                       "`ImportanceWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                        "by coercing `wts` to `FrequencyWeights`") glm(@formula(y~x), df, Normal(), IdentityLink(); wts=df.wts)
 end
 
@@ -609,10 +610,10 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
     
 end
 
-@testset "Aggregated Binomial LogitLink (AnalyticWeights)" begin
+@testset "Aggregated Binomial LogitLink (ImportanceWeights)" begin
     for distr in (Binomial, Bernoulli)
         gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
-                   wts=aweights(admit_agr.count))
+                   wts=iweights(admit_agr.count))
         @test dof(gm14) == 4
         @test nobs(gm14) == 8
         @test isapprox(deviance(gm14), 474.9667184280627)
@@ -907,10 +908,10 @@ end
         @test isapprox(Matrix(modelmatrix(gmsparse; weighted=true)), modelmatrix(gmdense; weighted=true))
     end
 
-    gmsparsev = [fit(LinearModel, X, y; wts=aweights(wts)),
-                 fit(LinearModel, X, sparse(y); wts=aweights(wts)),
-                 fit(LinearModel, Matrix(X), sparse(y); wts=aweights(wts))]
-    gmdense = fit(LinearModel, Matrix(X), y; wts=aweights(wts))
+    gmsparsev = [fit(LinearModel, X, y; wts=iweights(wts)),
+                 fit(LinearModel, X, sparse(y); wts=iweights(wts)),
+                 fit(LinearModel, Matrix(X), sparse(y); wts=iweights(wts))]
+    gmdense = fit(LinearModel, Matrix(X), y; wts=iweights(wts))
 
     for gmsparse in gmsparsev
         @test isapprox(deviance(gmsparse), deviance(gmdense))
@@ -918,6 +919,20 @@ end
         @test isapprox(vcov(gmsparse), vcov(gmdense))
         @test isapprox(Matrix(modelmatrix(gmsparse; weighted=true)), modelmatrix(gmdense; weighted=true))
     end
+
+    gmsparsev = [fit(LinearModel, X, y; wts=pweights(wts)),
+                 fit(LinearModel, X, sparse(y); wts=pweights(wts)),
+                 fit(LinearModel, Matrix(X), sparse(y); wts=pweights(wts))]
+    gmdense = fit(LinearModel, Matrix(X), y; wts=pweights(wts))
+
+    for gmsparse in gmsparsev
+        @test isapprox(deviance(gmsparse), deviance(gmdense))
+        @test isapprox(coef(gmsparse), coef(gmdense))
+        @test isapprox(vcov(gmsparse), vcov(gmdense))
+        @test isapprox(Matrix(modelmatrix(gmsparse; weighted=true)), modelmatrix(gmdense; weighted=true))
+    end
+
+
 end
 
 @testset "Predict" begin
@@ -1549,5 +1564,94 @@ end
         @test confint(mdl1) ≈ confint(mdl2)
         @test aic(mdl1) ≈ aic(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
+    end
+end
+
+@testset "momentmatrix" begin
+    @testset "Poisson" begin
+        dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
+        Outcome = categorical(repeat(string.('A':'C'), outer = 3)),
+        Treatment = categorical(repeat(string.('a':'c'), inner = 3)),
+        Weights = [0.3, 0.2, .9, .8, .2, .3, .4, .8, .9])
+
+        f = @formula(Counts ~ 1 + Outcome + Treatment)
+        
+        gm_pois = fit(GeneralizedLinearModel, f, dobson, Poisson())
+
+        mm0_pois = [-2.9999999792805436 -0.0 -0.0 -0.0 -0.0; 
+                     3.666666776430482 3.666666776430482 0.0 0.0 0.0; 
+                    -0.6666666790442577 -0.0 -0.6666666790442577 -0.0 -0.0; 
+                    -1.0000000123284563 -0.0 -0.0 -1.0000000123284563 -0.0; 
+                    -3.3333334972350723 -3.3333334972350723 -0.0 -3.3333334972350723 -0.0; 
+                    4.333333497138949 0.0 4.333333497138949 4.333333497138949 0.0; 
+                    4.000000005907649 0.0 0.0 0.0 4.000000005907649; 
+                    -0.33333334610634496 -0.33333334610634496 -0.0 -0.0 -0.33333334610634496; 
+                    -3.6666667654825043 -0.0 -3.6666667654825043 -0.0 -3.6666667654825043]
+        
+        gm_poisw = fit(GeneralizedLinearModel, f, dobson, Poisson(), wts = dobson.Weights)
+
+        mm0_poisw = [-0.9624647521850039 -0.0 -0.0 -0.0 -0.0; 
+                      0.6901050904949885 0.6901050904949885 0.0 0.0 0.0; 
+                      0.2723596655008255 0.0 0.2723596655008255 0.0 0.0; 
+                     -0.9062167634177802 -0.0 -0.0 -0.9062167634177802 -0.0; 
+                     -0.7002548908882033 -0.7002548908882033 -0.0 -0.7002548908882033 -0.0; 
+                      1.606471661159352 0.0 1.606471661159352 1.606471661159352 0.0; 
+                      1.8686815106332157 0.0 0.0 0.0 1.8686815106332157; 
+                      0.010149793505874801 0.010149793505874801 0.0 0.0 0.010149793505874801; 
+                     -1.8788313148033928 -0.0 -1.8788313148033928 -0.0 -1.8788313148033928]
+        
+        
+        
+        @test mm0_pois ≈  GLM.momentmatrix(gm_pois) atol=1e-06
+        @test mm0_poisw ≈  GLM.momentmatrix(gm_poisw) atol=1e-06
+    end
+    @testset "Binomial" begin
+        f = @formula(admit ~ 1 + rank)
+        
+        gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial())
+        mm0_bin = [-0.5  -0.0  -0.0  -0.0
+                   -0.5  -0.5  -0.0  -0.0
+                   -0.5  -0.0  -0.5  -0.0
+                   -0.5  -0.0  -0.0  -0.5
+                    0.5   0.0   0.0   0.0
+                    0.5   0.5   0.0   0.0
+                    0.5   0.0   0.5   0.0
+                    0.5   0.0   0.0   0.5]        
+        @test mm0_bin ≈ GLM.momentmatrix(gm_bin)     
+
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), wts=iweights(admit_agr.count))
+        mm0_binw =  [-15.1475    -0.0      -0.0     -0.0
+                     -34.6887   -34.6887   -0.0     -0.0
+                     -21.5207    -0.0     -21.5207  -0.0
+                      -9.85075   -0.0      -0.0     -9.85075
+                      15.1475     0.0       0.0      0.0
+                      34.6887    34.6887    0.0      0.0
+                      21.5207     0.0      21.5207   0.0
+                       9.85075    0.0       0.0      9.85075]
+        
+        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) atol=1e-03
+        Vcov =[ 0.0660173  -0.0660173  -0.0660173  -0.0660173
+               -0.0660173   0.0948451   0.0660173   0.0660173
+               -0.0660173   0.0660173   0.112484    0.0660173
+               -0.0660173   0.0660173   0.0660173   0.167532]
+
+        ## This is due to divverences between chol and qr
+        @test vcov(gm_binw) ≈ Vcov atol=1e-03
+
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), wts=pweights(admit_agr.count))
+        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) atol=1e-03
+        ## This are obtained from stata
+        ## glm admit i.rank [pweight=count], family(binomial)  irls
+        coef_stata = [.16430305, -.75002998, -1.364698,  -1.6867296]
+        @test coef(gm_binw) ≈ coef_stata atol=1e-05
+        ## Stata: uses different residuals degrees of freedom. In this case (n-1) instead of (n-4)
+        ## Also need to give low tolerance (this small differences seem to be due to QR vs Cholesky)
+        @test stderror(gm_binw)*sqrt(5/7) ≈ [1.5118579, 2.1380899, 2.1380899, 2.1380899] atol=1e-02
+
+        ## Stata is also off with fweights
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), wts=fweights(admit_agr.count))
+        ## vs Stata (here stata uses the same df)
+        stata_se = [.25693835, .30796933,  .33538667,   .4093073]  
+        @test stderror(gm_binw) ≈  stata_se atol = 0.001
     end
 end

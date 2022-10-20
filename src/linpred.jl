@@ -259,28 +259,47 @@ function vcov(x::LinPredModel)
     d = dispersion(x, true)
     u = working_residuals(x).*working_weights(x)
     V = vcov(x.pp, u, d)
-    return (nobs(x)/dof_residual(x)).*V
+    if x.pp.wts isa ProbabilityWeights
+        V*(nobs(x)/dof_residual(x))
+    else
+        V
+    end
 end
+
+vcov(x::DensePredChol{T, C, P}, u::AbstractVector, d::Real) where {T,C,P} = rmul!(invchol(x), d)
+vcov(x::SparsePredChol{T, C, M, P}, u::AbstractVector, d::Real) where {T,C,M,P} = rmul!(invchol(x), d)
 
 function vcov(pp::DensePredChol{T, C, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T, C}
     Z = mul!(pp.scratchm1, Diagonal(u), pp.X)
-    @show Z
     A = invchol(pp)
-    if C isa CholeskyPivoted && rank(pp.chol) != size(B, 1)
-        nancols = [all(isnan, col) for col in eachcol(B)]
+    if pp.chol isa CholeskyPivoted && rank(pp.chol) != size(A, 1)
+        nancols = [all(isnan, col) for col in eachcol(A)]
         nnancols = .!nancols
-        Zc = view(Z, :, nnancols)
-        B = view(Zc'Zc, nnancols, nnancols)
+        Zv = view(Z, :, nnancols)
+        B = Zv'Zv
+        Av = view(A, nnancols, nnancols)
         V = similar(pp.scratchm2)
-        V[nnancols, nnancols] .= A*B*A
+        V[nnancols, nnancols] .= Av*B*Av
         V[nancols, :] .= NaN
         V[:, nancols] .= NaN
     else
         B = mul!(pp.scratchm2, Z', Z)
         V = A*B*A
-    end
-    return V    
+    end    
+    #n = length(pp.wts)
+    #df_correction = n/(n-rank(pp.chol))
+    return V#*df_correction
 end
+
+function vcov(pp::SparsePredChol{T, C, M, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T, C, M}
+    ## Note: SparsePredChol does not handle rankdeficient cases
+    Z = mul!(pp.scratchm1, Diagonal(u), pp.X)
+    A = invchol(pp)
+    B = Z'*Z
+    V = A*B*A
+    return V
+end
+
 
 function cor(x::LinPredModel)
     Σ = vcov(x)
@@ -317,7 +336,7 @@ weights(obj::RegressionModel) = weights(obj.model)
 weights(obj::LinPredModel) = weights(obj.rr)
 
 isweighted(obj::RegressionModel) = isweighted(obj.model)
-isweighted(obj::LinPredModel) = weights(obj) isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights}
+isweighted(obj::LinPredModel) = weights(obj) isa Union{FrequencyWeights, ImportanceWeights, ProbabilityWeights}
 coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
 

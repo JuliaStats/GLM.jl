@@ -128,7 +128,7 @@ const FIT_LM_DOC = """
     The keyword argument `wts` can be an `AbstractWeights` vector specifying prior weights
     for observations. Allowed types are:
     - `UnitWeights`: no weighting (all weights equal to 1).
-    - `AnalyticaWeights`: describe a non-random relative importance (usually between 0 and 1)
+    - `Analyticiweights`: describe a non-random relative importance (usually between 0 and 1)
       for each observation.
     - `FrequencyWeights`: describe the number of times (or frequency) each observation was seen.
     - `ProbabilityWeights`: represent the inverse of the sampling probability for each observation,
@@ -162,11 +162,11 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
         dropcollinear = allowrankdeficient_dep
     end
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
-    _wts = if wts isa AbstractWeights
+    _wts = if wts isa Union{FrequencyWeights, ImportanceWeights, ProbabilityWeights, UnitWeights}
         wts
     elseif wts isa AbstractVector
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
-                     "`AnalyticalWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                     "`ImportanceWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                      "by coercing `wts` to `FrequencyWeights`", :fit)
         fweights(wts)
     else
@@ -207,8 +207,7 @@ For linear models, the deviance of the null model is equal to the total sum of s
 """
 function nulldeviance(obj::LinearModel)
     y = obj.rr.y
-    wts = weights(obj)
-    
+    wts = obj.pp.wts
     if hasintercept(obj)
         m = mean(y, wts)
     else
@@ -225,7 +224,7 @@ function nulldeviance(obj::LinearModel)
     else
         @inbounds @simd for i = eachindex(y,wts)
             v += abs2(y[i] - m)*wts[i]
-        end
+        end        
     end
     return v
 end
@@ -247,6 +246,9 @@ loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
 
 r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
 adjr2(obj::LinearModel) = 1 - (1 - r²(obj))*(nobs(obj)-hasintercept(obj))/dof_residual(obj)
+
+working_residuals(x::LinearModel) = residuals(x)
+working_weights(x::LinearModel) = x.pp.wts
 
 function dispersion(x::LinearModel, sqr::Bool=false)
     dofr = dof_residual(x)

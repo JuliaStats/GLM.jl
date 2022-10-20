@@ -36,9 +36,9 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
     checky(y, d)
 
     ## We don't support custom types of weights that a user may define
-    if !(wts isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights, UnitWeights})
+    if !(wts isa Union{FrequencyWeights, ImportanceWeights, ProbabilityWeights, UnitWeights})
         throw(ArgumentError("The type of `wts` was $W. The supported weights types are " *
-                            "`FrequencyWeights`, `AnalyticWeights`, `ProbabilityWeights` and `UnitWeights`."))
+                            "`FrequencyWeights`, `ImportanceWeights`, `ProbabilityWeights` and `UnitWeights`."))
     end
 
     # Lengths of y, η, and η all need to be n
@@ -76,7 +76,7 @@ GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
 deviance(r::GlmResp) = sum(r.devresid)
 
 weights(r::GlmResp) = r.wts
-isweighted(r::GlmResp) = weights(r) isa Union{AnalyticWeights, FrequencyWeights, ProbabilityWeights}
+isweighted(r::GlmResp) = weights(r) isa Union{ImportanceWeights, FrequencyWeights, ProbabilityWeights}
 
 """
     cancancel(r::GlmResp{V,D,L})
@@ -302,8 +302,7 @@ loglikelihood(m::AbstractGLM) = loglikelihood(m.rr)
 function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
     y = r.y
     mu = r.mu
-    wts = weights(r)
-    sumwt = sum(wts)
+    wts = weights(r)    
     d = r.d
     ll = zero(eltype(mu))
     n = nobs(r)
@@ -314,16 +313,17 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
         @inbounds for i in eachindex(y, mu)
             ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
         end
+    elseif wts isa ImportanceWeights
+        @inbounds for i in eachindex(y, mu, wts)
+            #ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
+            ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, wts.sum, N)
+        end
     else
         @inbounds for i in eachindex(y, mu, wts)
-            ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, sumwt, N)
+            throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
         end       
     end
     return ll
-end
-
-function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
-    throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
 end
 
 function nullloglikelihood(m::GeneralizedLinearModel)
@@ -582,7 +582,7 @@ function fit(::Type{M},
         wts
     elseif wts isa AbstractVector
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
-                     "`AnalyticalWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                     "`ImportanceWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                      "by coercing `wts` to `FrequencyWeights`", :fit)
         fweights(wts)
     else
@@ -784,12 +784,14 @@ momentmatrix(m::RegressionModel) = momentmatrix(m.model)
 
 function momentmatrix(m::GeneralizedLinearModel)
     X = modelmatrix(m; weighted=false)
-    r = m.rr.wrkwt .* m.rr.wrkresid    
-    return mul!(pp.scratchm1, Diagonal(r), pp.X)
+    r = m.rr.wrkwt .* m.rr.wrkresid
+    d = varstruct(m.rr, r)
+    return mul!(m.pp.scratchm1, Diagonal(r.*d), m.pp.X)
 end
 
-# variancestructure(rr::GlmResp{<:Any, <:Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}},
-#                   r::AbstractArray) = 1
-# variancestructure(rr::GlmResp{<:Any, <:Union{Gamma, Geometric, InverseGaussian}},
-#                   r::AbstractArray) =
-#     sum(abs2, r)/sum(rr.wrkwt)
+#res <- res * sum(weights(x, "working"), na.rm = TRUE)/sum(res^2, na.rm = TRUE)
+
+varstruct(rr::GlmResp{<:Any, <:Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}},
+                   r::AbstractArray) = 1
+varstruct(rr::GlmResp{<:Any, <:Union{Gamma, Geometric, InverseGaussian}},
+                   r::AbstractArray) = sum(rr.wrkwt)/sum(abs2, r)
