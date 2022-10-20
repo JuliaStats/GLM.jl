@@ -144,7 +144,7 @@ end
 
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
     ch = p.chol
-    X = p.wts isa UnitWeights ? copy!(p.scratchm1, p.X) : mul!(p.scratchm1, Diagonal(p.wts), p.X)
+    X = p.wts isa UnitWeights ? p.scratchm1 .= p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     delbeta = mul!(p.delbeta, adjoint(X), r)
     rnk = rank(ch)
     if rnk == length(delbeta)
