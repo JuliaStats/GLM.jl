@@ -148,7 +148,7 @@ end
         @test isapprox(deviance(m1), 0.0407069934950098)
         Xmissingcell = X[inds, :]
         ymissingcell = y[inds]
-        @test_throws PosDefException m2 = fit(GeneralizedLinearModel, Xmissingcell, ymissingcell, Gamma(); dropcollinear=false)
+        @test_throws PosDefException fit(GeneralizedLinearModel, Xmissingcell, ymissingcell, Gamma(); dropcollinear=false)
         m2p = fit(GeneralizedLinearModel, Xmissingcell, ymissingcell, Gamma(); dropcollinear=true)
         @test isa(m2p.pp.chol, CholeskyPivoted)
         @test rank(m2p.pp.chol) == 11
