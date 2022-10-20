@@ -181,7 +181,8 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vecto
         cf = cholfactors(p.chol)
         cf .= p.scratchm2[piv, piv]
         cholesky!(Hermitian(view(cf, 1:rnk, 1:rnk), Symbol(p.chol.uplo)))
-        ldiv!(Cholesky(view(cf, 1:rnk, 1:rnk), Symbol(p.chol.uplo), p.chol.info), view(delbeta, 1:rnk))
+        ldiv!(Cholesky(view(cf, 1:rnk, 1:rnk), Symbol(p.chol.uplo), p.chol.info),
+              view(delbeta, 1:rnk))
         invpermute!(delbeta, piv)
     end
     p
