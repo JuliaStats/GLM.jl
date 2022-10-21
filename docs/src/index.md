@@ -85,7 +85,9 @@ julia> data = DataFrame(y = rand(rng, 100), x = categorical(repeat([1, 2, 3, 4],
 
 
 julia> lm(@formula(y ~ x), data)
-LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}:
+LinearModel
+
+y ~ 1 + x
 
 Coefficients:
 ───────────────────────────────────────────────────────────────────────────
@@ -106,7 +108,9 @@ julia> using StableRNGs
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = repeat([1, 2, 3, 4], 25));
 
 julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
-LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}:
+LinearModel
+
+y ~ 1 + x
 
 Coefficients:
 ───────────────────────────────────────────────────────────────────────────

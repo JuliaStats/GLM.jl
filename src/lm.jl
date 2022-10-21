@@ -147,7 +147,7 @@ function fit(::Type{LinearModel}, f::FormulaTerm, data,
              wts::Union{AbstractVector{<:Real}, Nothing}=nothing,
              dropcollinear::Bool=true,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
-    f, (y, X) = modelframe(f, data, contrasts)
+    f, (y, X) = modelframe(f, data, contrasts, LinearModel)
     wts === nothing && (wts = similar(y, 0))
     fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), f))
 end

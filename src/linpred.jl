@@ -231,10 +231,12 @@ end
 stderror(x::LinPredModel) = sqrt.(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
-    println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
+    println(io, nameof(typeof(obj)), '\n')
+    obj.formula !== nothing && println(io, obj.formula, '\n')
+    println(io, "Coefficients:\n", coeftable(obj))
 end
 
-function modelframe(f::FormulaTerm, data, contrasts::AbstractDict)
+function modelframe(f::FormulaTerm, data, contrasts::AbstractDict, ::Type{M}) where M
     Tables.istable(data) ||
         throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
     t = Tables.columntable(data)
@@ -242,7 +244,7 @@ function modelframe(f::FormulaTerm, data, contrasts::AbstractDict)
     msg != "" && throw(ArgumentError(msg))
     data, _ = StatsModels.missing_omit(t, f)
     sch = schema(f, data, contrasts)
-    f = apply_schema(f, sch, LinPredModel)
+    f = apply_schema(f, sch, M)
     f, modelcols(f, data)
 end
 

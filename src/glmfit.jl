@@ -596,7 +596,7 @@ function fit(::Type{M},
         Base.depwarn("`dofit` argument to `fit` is deprecated", :fit)
     end
 
-    f, (y, X) = modelframe(f, data, contrasts)
+    f, (y, X) = modelframe(f, data, contrasts, M)
 
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
