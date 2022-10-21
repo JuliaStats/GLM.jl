@@ -500,6 +500,17 @@ dispersion_parameter(D) = true
 dispersion_parameter(::Union{Bernoulli, Binomial, Poisson}) = false
 
 """
+    _safer_int(x::T)
+    
+Convert to Int, when `x` is within 1 eps of an integer.
+"""
+function _safer_int(x::T) where {T<:Base.IEEEFloat}
+    r = round(Int, x)
+    abs(x - r) <= eps(x) && return r
+    throw(InexactError(:safer_int, T, x))
+end
+
+"""
     GLM.loglik_obs(D, y, μ, wt, ϕ)
 
 Returns `wt * logpdf(D(μ, ϕ), y)` where the parameters of `D` are derived from `μ` and `ϕ`.
@@ -512,7 +523,7 @@ The loglikelihood of a fitted model is the sum of these values over all the obse
 function loglik_obs end
 
 loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
-loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), Int(y*wt))
+loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), _safer_int(y*wt))
 loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
 # In Distributions.jl, a Geometric distribution characterizes the number of failures before 
 # the first success in a sequence of independent Bernoulli trials with success rate p.

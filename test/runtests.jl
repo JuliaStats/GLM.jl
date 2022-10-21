@@ -1445,6 +1445,7 @@ end
         @test aic(mdl1) ≈ aic(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
     end
+
 end
 
 @testset "dropcollinear with GLMs" begin
@@ -1591,3 +1592,15 @@ end
     end
 end
 
+    
+@testset "Floating point error in Binomial loglik" begin
+    @test GLM._safer_int(1.0) == 1
+    @test GLM._safer_int(1.0) isa Int
+    # see issue 503
+    y, μ, wt, ϕ = 0.6376811594202898, 0.8492925285671102, 69.0, NaN
+    # due to floating point:
+    # 1. y * wt == 43.99999999999999 
+    # 2. 44 / y == wt
+    # 3. 44 / wt == y
+    @test GLM.loglik_obs(Binomial(), y, μ,  wt, ϕ) ≈ GLM.logpdf(Binomial(Int(wt), μ), 44)
+end
