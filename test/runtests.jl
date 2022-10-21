@@ -853,7 +853,7 @@ end
                     upper=similar(Y, size(newX, 1))),
                    gm11, newX, interval=:confidence, interval_method=:delta) ==
         predict(gm11, newX, interval=:confidence, interval_method=:delta)
-   @test predict!((prediction=similar(Y, size(newX, 1)),
+    @test predict!((prediction=similar(Y, size(newX, 1)),
                    lower=similar(Y, size(newX, 1)),
                    upper=similar(Y, size(newX, 1))),
                    gm11, newX, interval=:confidence, interval_method=:transformation) ==
