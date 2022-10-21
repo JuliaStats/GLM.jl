@@ -527,9 +527,11 @@ const FIT_GLM_DOC = """
 
     # Keyword Arguments
     - `dropcollinear::Bool=true`: Controls whether or not `lm` accepts a model matrix which
-      is less-than-full rank. If `true` (the default), only the first of each set of
-      linearly-dependent columns is used. The coefficient for redundant linearly dependent columns is
+      is less-than-full rank.
+      If `true` (the default) the coefficient for redundant linearly dependent columns is
       `0.0` and all associated statistics are set to `NaN`.
+      Typically from a set of linearly-dependent columns the last ones are identified as redundant
+      (however, the exact selection of columns identified as redundant is not guaranteed).
     - `dofit::Bool=true`: Determines whether model will be fit
     - `wts::Vector=similar(y,0)`: Prior frequency (a.k.a. case) weights of observations.
       Such weights are equivalent to repeating each observation a number of times equal
