@@ -1445,7 +1445,6 @@ end
         @test aic(mdl1) ≈ aic(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
     end
-
 end
 
 @testset "dropcollinear with GLMs" begin
@@ -1602,5 +1601,5 @@ end
     # 1. y * wt == 43.99999999999999 
     # 2. 44 / y == wt
     # 3. 44 / wt == y
-    @test GLM.loglik_obs(Binomial(), y, μ,  wt, ϕ) ≈ GLM.logpdf(Binomial(Int(wt), μ), 44)
+    @test GLM.loglik_obs(Binomial(), y, μ, wt, ϕ) ≈ GLM.logpdf(Binomial(Int(wt), μ), 44)
 end
