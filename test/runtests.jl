@@ -1595,6 +1595,8 @@ end
 @testset "Floating point error in Binomial loglik" begin
     @test GLM._safer_int(1.0) == 1
     @test GLM._safer_int(1.0) isa Int
+    @test_throws InexactError GLM._safer_int(1.3)
+    @test GLM._safer_int(1) === 1
     # see issue 503
     y, μ, wt, ϕ = 0.6376811594202898, 0.8492925285671102, 69.0, NaN
     # due to floating point:
