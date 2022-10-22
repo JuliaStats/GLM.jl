@@ -510,6 +510,8 @@ function _safer_int(x::T) where {T<:Base.IEEEFloat}
     throw(InexactError(nameof(T), T, x))
 end
 
+_safer_int(x) = Int(x)
+
 """
     GLM.loglik_obs(D, y, μ, wt, ϕ)
 
