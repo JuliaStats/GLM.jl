@@ -504,7 +504,7 @@ dispersion_parameter(::Union{Bernoulli, Binomial, Poisson}) = false
     
 Convert to Int, when `x` is within 1 eps of an integer.
 """
-function _safer_int(x::T) where {T<:Base.IEEEFloat}
+function _safer_int(x::T) where {T<:AbstractFloat}
     r = round(Int, x)
     abs(x - r) <= eps(x) && return r
     throw(InexactError(nameof(T), T, x))
