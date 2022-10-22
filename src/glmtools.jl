@@ -507,7 +507,7 @@ Convert to Int, when `x` is within 1 eps of an integer.
 function _safer_int(x::T) where {T<:Base.IEEEFloat}
     r = round(Int, x)
     abs(x - r) <= eps(x) && return r
-    throw(InexactError(:safer_int, T, x))
+    throw(InexactError(nameof(T), T, x))
 end
 
 """
