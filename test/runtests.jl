@@ -1593,8 +1593,6 @@ end
 
     
 @testset "Floating point error in Binomial loglik" begin
-    @test GLM._safer_int(1.0) == 1
-    @test GLM._safer_int(1.0) isa Int
     @test_throws InexactError GLM._safer_int(1.3)
     @test GLM._safer_int(1) === 1
     # see issue 503
