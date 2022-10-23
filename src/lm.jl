@@ -164,10 +164,7 @@ $FIT_LM_DOC
 lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
     fit(LinearModel, X, y, allowrankdeficient_dep; kwargs...)
 
-dof(x::LinearModel) = length(coef(x)) + 1
-
-dof(obj::LinearModel{<:LmResp,<:DensePredChol{<:Real,<:CholeskyPivoted}}) = obj.pp.chol.rank + 1
-dof(obj::LinearModel{<:LmResp,<:DensePredQR{<:Real,<:QRPivoted}}) = cholesky(obj.pp).rank + 1
+dof(x::LinearModel) = linpred_rank(x.pp) + 1
 
 """
     deviance(obj::LinearModel)
