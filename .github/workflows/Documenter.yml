@@ -1,5 +1,7 @@
 name: Documentation
-
+concurrency:
+  group: ${{ github.head_ref }}.docs
+  cancel-in-progress: true
 on:
   push:
     branches:
