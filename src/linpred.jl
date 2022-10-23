@@ -285,10 +285,8 @@ function vcov(pp::DensePredChol{T, C, <:ProbabilityWeights}, u::AbstractVector, 
     else
         B = mul!(pp.scratchm2, Z', Z)
         V = A*B*A
-    end    
-    #n = length(pp.wts)
-    #df_correction = n/(n-rank(pp.chol))
-    return V#*df_correction
+    end
+    return V
 end
 
 function vcov(pp::SparsePredChol{T, C, M, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T, C, M}
@@ -315,12 +313,15 @@ end
 
 modelframe(obj::LinPredModel) = obj.fr
 
-function modelmatrix(obj::LinPredModel; weighted::Bool=isweighted(obj))
-    if weighted
-        mul!(obj.pp.scratchm1, Diagonal(sqrt.(obj.pp.wts)), obj.pp.X)
+modelmatrix(obj::LinPredModel; weighted::Bool=isweighted(obj)) = modelmatrix(obj.pp; weighted=weighted)
+
+function modelmatrix(pp::LinPred; weighted::Bool=isweighted(obj))
+    Z = if weighted
+        mul!(pp.scratchm1, Diagonal(sqrt.(pp.wts)), pp.X)
     else
-        obj.pp.X
+        pp.X
     end
+    return Z
 end
 
 response(obj::LinPredModel) = obj.rr.y
@@ -333,10 +334,13 @@ residuals(obj::LinPredModel; weighted::Bool=false) = residuals(obj.rr; weighted=
 nobs(obj::LinPredModel) = nobs(obj.rr)
 
 weights(obj::RegressionModel) = weights(obj.model)
-weights(obj::LinPredModel) = weights(obj.rr)
+weights(m::LinPredModel) = weights(m.rr)
+weights(pp::LinPred) = pp.wts
 
-isweighted(obj::RegressionModel) = isweighted(obj.model)
-isweighted(obj::LinPredModel) = weights(obj) isa Union{FrequencyWeights, ImportanceWeights, ProbabilityWeights}
+isweighted(obj::RegressionModel) = isweighted(obj.model.pp)
+isweighted(m::LinPredModel) = isweighted(m.pp)
+isweighted(pp::LinPred) = weights(pp) isa Union{FrequencyWeights, ImportanceWeights, ProbabilityWeights}
+
 coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
 

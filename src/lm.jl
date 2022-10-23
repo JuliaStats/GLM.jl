@@ -343,35 +343,35 @@ end
 Compute [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance)
 for each observation in linear model `obj`, giving an estimate of the influence
 of each data point.
-Currently only implemented for linear models without weights.
 """
 ## To remove when https://github.com/JuliaStats/StatsAPI.jl/pull/16 is merged
 function crossmodelmatrix(model::RegressionModel; weighted::Bool=false) 
     x = weighted ? modelmatrix(model; weighted=weighted) : modelmatrix(model)
     return Symmetric(x' * x)
 end
-    
+
+hatvalues(x::LinPredModel) = hatvalues(x.pp)
+
+function hatvalues(pp::DensePredChol{T, C, W}) where {T, C<:CholeskyPivoted, W}
+    X = modelmatrix(pp; weighted=isweighted(pp))
+    _, k = size(X)    
+    ch = pp.chol
+    rnk = rank(ch)
+    p = ch.p 
+    idx = invperm(p)[1:rnk]
+    sum((view(X,:,1:rnk)/ch.U[1:rnk, idx]).^2, dims=2)    
+end
+
+function hatvalues(pp::DensePredChol{T, C, W}) where {T, C<:Cholesky, W}
+    X = modelmatrix(pp; weighted=isweighted(pp))
+    sum((X/pp.chol.U).^2, dims=2)
+end
 
 function StatsBase.cooksdistance(obj::LinearModel)
-    wts = weights(obj)
     u = residuals(obj; weighted=isweighted(obj))
     mse = GLM.dispersion(obj,true)
     k = dof(obj)-1
-    d_res = dof_residual(obj)
-    X = modelmatrix(obj; weighted=isweighted(obj))    
-    if k == size(X,2)         
-        XtX = crossmodelmatrix(obj; weighted=isweighted(obj))
-        hii = diag(X * inv(XtX) * X')
-        D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
-    else
-        pp = obj.pp
-        C = invchol(pp)
-        nancols = [all(isnan, col) for col in eachcol(C)]
-        nnancols = .!nancols
-        Xc = view(X, :, nnancols)
-        XtX = (Xc)'*Xc
-        hii = diag(Xc * inv(XtX) * Xc')
-        D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
-    end
+    hii = hatvalues(obj)
+    D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)    
     return D
 end
