@@ -81,8 +81,6 @@ end
     t_lm_colli_b = lm(@formula(Y ~ XC), st_df, dropcollinear=true)
     @test isapprox(cooksdistance(t_lm_colli), cooksdistance(t_lm_colli_b))
 
-    
-
 end
 
 @testset "linear model with weights" begin 
@@ -110,8 +108,8 @@ end
     @test isa(weights(lm_model), FrequencyWeights)
     @test isa(weights(glm_model), FrequencyWeights)
     
-    lm_model = lm(f, df, wts = iweights(df.weights))
-    glm_model = glm(f, df, Normal(), wts = iweights(df.weights))
+    lm_model = lm(f, df, wts = aweights(df.weights))
+    glm_model = glm(f, df, Normal(), wts = aweights(df.weights))
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(stderror(lm_model), [16.297055281313032, 0.014186793927918842])
@@ -193,10 +191,10 @@ end
 @testset "Passing wts (depwarn)" begin
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3], wts = [3,3,3])
     @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitly using " *
-                       "`ImportanceWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                       "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                        "by coercing `wts` to `FrequencyWeights`") lm(@formula(y~x), df; wts=df.wts)
     @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitly using " *
-                       "`ImportanceWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                       "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                        "by coercing `wts` to `FrequencyWeights`") glm(@formula(y~x), df, Normal(), IdentityLink(); wts=df.wts)
 end
 
@@ -610,10 +608,10 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
     
 end
 
-@testset "Aggregated Binomial LogitLink (ImportanceWeights)" begin
+@testset "Aggregated Binomial LogitLink (AnalyticWeights)" begin
     for distr in (Binomial, Bernoulli)
         gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
-                   wts=iweights(admit_agr.count))
+                   wts=aweights(admit_agr.count))
         @test dof(gm14) == 4
         @test nobs(gm14) == 8
         @test isapprox(deviance(gm14), 474.9667184280627)
@@ -908,10 +906,10 @@ end
         @test isapprox(Matrix(modelmatrix(gmsparse; weighted=true)), modelmatrix(gmdense; weighted=true))
     end
 
-    gmsparsev = [fit(LinearModel, X, y; wts=iweights(wts)),
-                 fit(LinearModel, X, sparse(y); wts=iweights(wts)),
-                 fit(LinearModel, Matrix(X), sparse(y); wts=iweights(wts))]
-    gmdense = fit(LinearModel, Matrix(X), y; wts=iweights(wts))
+    gmsparsev = [fit(LinearModel, X, y; wts=aweights(wts)),
+                 fit(LinearModel, X, sparse(y); wts=aweights(wts)),
+                 fit(LinearModel, Matrix(X), sparse(y); wts=aweights(wts))]
+    gmdense = fit(LinearModel, Matrix(X), y; wts=aweights(wts))
 
     for gmsparse in gmsparsev
         @test isapprox(deviance(gmsparse), deviance(gmdense))
@@ -1619,7 +1617,7 @@ end
                     0.5   0.0   0.0   0.5]        
         @test mm0_bin ≈ GLM.momentmatrix(gm_bin)     
 
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), wts=iweights(admit_agr.count))
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), wts=aweights(admit_agr.count))
         mm0_binw =  [-15.1475    -0.0      -0.0     -0.0
                      -34.6887   -34.6887   -0.0     -0.0
                      -21.5207    -0.0     -21.5207  -0.0
@@ -1654,4 +1652,60 @@ end
         stata_se = [.25693835, .30796933,  .33538667,   .4093073]  
         @test stderror(gm_binw) ≈  stata_se atol = 0.001
     end
+
+    @testset "Binomial ProbitLink" begin
+        f = @formula(admit ~ 1 + rank)
+        
+        gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink())
+        mm0_bin = [-0.7978846  0.0000000  0.0000000  0.0000000
+                   -0.7978846 -0.7978846  0.0000000  0.0000000
+                   -0.7978846  0.0000000 -0.7978846  0.0000000
+                   -0.7978846  0.0000000  0.0000000 -0.7978846
+                    0.7978846  0.0000000  0.0000000  0.0000000
+                    0.7978846  0.7978846  0.0000000  0.0000000
+                    0.7978846  0.0000000  0.7978846  0.0000000
+                    0.7978846  0.0000000  0.0000000  0.7978846]        
+        @test mm0_bin ≈ GLM.momentmatrix(gm_bin) rtol=1e-06
+
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink(), wts=aweights(admit_agr.count))
+        
+        mm0_binw =  [ -24.20695   0.00000   0.00000   0.00000
+                      -56.36158 -56.36158   0.00000   0.00000
+                      -36.86681   0.00000 -36.86681   0.00000
+                      -17.52584   0.00000   0.00000 -17.52584
+                       24.20695   0.00000   0.00000   0.00000
+                       56.36158  56.36158   0.00000   0.00000
+                       36.86681   0.00000  36.86681   0.00000
+                       17.52584   0.00000   0.00000  17.52584]
+        
+        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) rtol=1e-05
+         
+        Vcov =[ 0.02585008 -0.02585008 -0.02585008 -0.02585008
+               -0.02585008  0.03677007  0.02585008  0.02585008
+               -0.02585008  0.02585008  0.04168393  0.02585008
+               -0.02585008  0.02585008  0.02585008  0.05792112]
+        
+        ## This is due to divverences between chol and qr
+        @test vcov(gm_binw) ≈ Vcov rtol=1e-06
+
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink(), wts=pweights(admit_agr.count))
+        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) rtol=1e-05
+        ## This are obtained from stata
+        ## glm admit i.rank [pweight=count], family(binomial)  irls
+        #coef_stata = []
+        #@test coef(gm_binw) ≈ coef_stata rtol=1e-05
+        ## Stata: uses different residuals degrees of freedom. In this case (n-1) instead of (n-4)
+        ## Also need to give low tolerance (this small differences seem to be due to QR vs Cholesky)
+        #@test stderror(gm_binw)*sqrt(5/7) ≈ [] atol=1e-02
+
+        ## Stata is also off with fweights
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), wts=fweights(admit_agr.count))
+        ## vs Stata (here stata uses the same df)
+        stata_se = [.25693835, .30796933,  .33538667,   .4093073]  
+        @test stderror(gm_binw) ≈  stata_se rtol = 1e-03
+    end
+
+
 end
+
+include("analytic_weights.jl")
