@@ -36,9 +36,9 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
     checky(y, d)
 
     ## We don't support custom types of weights that a user may define
-    if !(wts isa Union{FrequencyWeights, ImportanceWeights, ProbabilityWeights, UnitWeights})
+    if !(wts isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights, UnitWeights})
         throw(ArgumentError("The type of `wts` was $W. The supported weights types are " *
-                            "`FrequencyWeights`, `ImportanceWeights`, `ProbabilityWeights` and `UnitWeights`."))
+                            "`FrequencyWeights`, `AnalyticWeights`, `ProbabilityWeights` and `UnitWeights`."))
     end
 
     # Lengths of y, η, and η all need to be n
@@ -76,7 +76,7 @@ GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
 deviance(r::GlmResp) = sum(r.devresid)
 
 weights(r::GlmResp) = r.wts
-isweighted(r::GlmResp) = weights(r) isa Union{ImportanceWeights, FrequencyWeights, ProbabilityWeights}
+isweighted(r::GlmResp) = weights(r) isa Union{AnalyticWeights, FrequencyWeights, ProbabilityWeights}
 
 """
     cancancel(r::GlmResp{V,D,L})
@@ -313,7 +313,7 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
         @inbounds for i in eachindex(y, mu)
             ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
         end
-    elseif wts isa ImportanceWeights
+    elseif wts isa AnalyticWeights
         @inbounds for i in eachindex(y, mu, wts)
             #ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
             ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, wts.sum, N)
@@ -582,7 +582,7 @@ function fit(::Type{M},
         wts
     elseif wts isa AbstractVector
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
-                     "`ImportanceWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                     "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                      "by coercing `wts` to `FrequencyWeights`", :fit)
         fweights(wts)
     else

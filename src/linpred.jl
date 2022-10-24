@@ -339,7 +339,7 @@ weights(pp::LinPred) = pp.wts
 
 isweighted(obj::RegressionModel) = isweighted(obj.model.pp)
 isweighted(m::LinPredModel) = isweighted(m.pp)
-isweighted(pp::LinPred) = weights(pp) isa Union{FrequencyWeights, ImportanceWeights, ProbabilityWeights}
+isweighted(pp::LinPred) = weights(pp) isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights}
 
 coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)

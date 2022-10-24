@@ -19,22 +19,8 @@ module GLM
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
            fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
-           cooksdistance, hasintercept, dispersion, weights, ImportanceWeights, ProbabilityWeights, FrequencyWeights, 
-           UnitWeights, uweights, fweights, pweights, iweights
-
-
-    ## Should eventually be added to StatsBase
-    """
-    iweights(vs)
-    Construct an `ImportanceWeights` vector from array `vs`.
-    See the documentation for [`ImportanceWeights`](@ref) for more details.
-    """
-    const RealArray{T<:Real,N} = AbstractArray{T,N}
-    const RealVector{T<:Real} = AbstractArray{T,1}
-
-    StatsBase.@weights ImportanceWeights
-    iweights(vs::Vector{<:Real}) = ImportanceWeights(vs)
-    iweights(vs::RealArray) = ImportanceWeights(vec(vs))
+           cooksdistance, hasintercept, dispersion, weights, AnalyticWeights, ProbabilityWeights, FrequencyWeights, 
+           UnitWeights, uweights, fweights, pweights, aweights
 
     export
         # types

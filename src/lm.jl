@@ -128,7 +128,7 @@ const FIT_LM_DOC = """
     The keyword argument `wts` can be an `AbstractWeights` vector specifying prior weights
     for observations. Allowed types are:
     - `UnitWeights`: no weighting (all weights equal to 1).
-    - `Analyticiweights`: describe a non-random relative importance (usually between 0 and 1)
+    - `Analyticaweights`: describe a non-random relative importance (usually between 0 and 1)
       for each observation.
     - `FrequencyWeights`: describe the number of times (or frequency) each observation was seen.
     - `ProbabilityWeights`: represent the inverse of the sampling probability for each observation,
@@ -162,11 +162,11 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
         dropcollinear = allowrankdeficient_dep
     end
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
-    _wts = if wts isa Union{FrequencyWeights, ImportanceWeights, ProbabilityWeights, UnitWeights}
+    _wts = if wts isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights, UnitWeights}
         wts
     elseif wts isa AbstractVector
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
-                     "`ImportanceWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                     "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                      "by coercing `wts` to `FrequencyWeights`", :fit)
         fweights(wts)
     else
