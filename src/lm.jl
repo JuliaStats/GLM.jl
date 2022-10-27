@@ -119,6 +119,9 @@ const FIT_LM_DOC = """
     is less-than-full rank. If `true` (the default), only the first of each set of
     linearly-dependent columns is used. The coefficient for redundant linearly dependent columns is
     `0.0` and all associated statistics are set to `NaN`.
+
+    `method` controls which decomposition method will be used in`lm`. If `method=:fast` (the default),
+    then Cholesky decomposition will be used. If `method=:stable` then QR decomposition method wull be used.
     """
 
 """
@@ -134,7 +137,7 @@ $FIT_LM_DOC
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
              wts::AbstractVector{<:Real}=similar(y, 0),
-             method::String = "Fast",
+             method::Symbol=:fast,
              dropcollinear::Bool=true)
     if allowrankdeficient_dep !== nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
@@ -142,11 +145,13 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
         dropcollinear = allowrankdeficient_dep
     end
     
-    if method === "Fast"
+    if method === :fast
         fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
-    else
+    elseif method === :stable
         @info "QR Method"
         fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear)))
+    else
+        @error "Only possible methods are :fast and :statble"
     end
 end
 

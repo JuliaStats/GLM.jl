@@ -70,7 +70,6 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY{T},QRPivoted{T}}} <:
             new{T,QRCompactWY{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X))
         end
     end
-
 end
 
 DensePredQR(X::Matrix, beta0::Vector, pivot::Bool=false) = DensePredQR{eltype(X)}(X, beta0, pivot)
@@ -284,7 +283,8 @@ LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 function invqr(x::DensePredQR{T,<: QRCompactWY}) where T
     @info "invqr"
     Q,R = x.qr
-    Rinv = inv(R)
+    #Rinv = inv(R)
+    Rinv = R\I
     Rinv*Rinv'
 end
 
@@ -294,17 +294,18 @@ function invqr(x::DensePredQR{T,<: QRPivoted}) where T
     rnk = rank(R)
     p = length(x.delbeta)
     if rnk == p
-        Rinv = inv(R)
-        rinv = Rinv*Rinv'
+        #Rinv = inv(R)
+        Rinv = R\I
+        xinv = Rinv*Rinv'
         ipiv = invperm(pv)
-        return rinv[ipiv, ipiv]
+        return xinv[ipiv, ipiv]
     else
         Rsub = R[1:rnk, 1:rnk]
         RsubInv = inv(Rsub)
-        rinv = fill(convert(T, NaN), (p,p))
-        rinv[1:rnk, 1:rnk] = RsubInv*RsubInv'
+        xinv = fill(convert(T, NaN), (p,p))
+        xinv[1:rnk, 1:rnk] = RsubInv*RsubInv'
         ipiv = invperm(pv)
-        return rinv[ipiv, ipiv]
+        return xinv[ipiv, ipiv]
     end
 end
 
