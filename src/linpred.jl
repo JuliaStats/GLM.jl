@@ -56,7 +56,7 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY{T},QRPivoted{T}}} <:
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
         if pivot
-            new{T,QRPivoted{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X,ColumnNorm()))
+            new{T,QRPivoted{T}}(X, beta0, zeros(T,p), zeros(T,p), qr(X,ColumnNorm()))
         else
             new{T,QRCompactWY{T}}(X, beta0, zeros(T,p), zeros(T,p), qr(X))
         end
