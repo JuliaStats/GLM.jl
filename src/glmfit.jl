@@ -593,9 +593,9 @@ fit(::Type{M},
 
 """
     glm(formula, data,
-        distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
+        distr::UnivariateDistribution, link::Link = canonicallink(distr); <keyword arguments>)
     glm(X::AbstractMatrix, y::AbstractVector,
-        distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
+        distr::UnivariateDistribution, link::Link = canonicallink(distr); <keyword arguments>)
 
 Fit a generalized linear model to data. Alias for `fit(GeneralizedLinearModel, ...)`.
 
