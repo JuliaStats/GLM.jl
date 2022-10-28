@@ -64,11 +64,7 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY{T},QRPivoted{T}}} <:
 
     function DensePredQR{T}(X::Matrix{T}, pivot::Bool=false) where T
         n, p = size(X)
-        if pivot
-            new{T,QRPivoted{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X,ColumnNorm()))
-        else
-            new{T,QRCompactWY{T}}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X))
-        end
+        DensePredQR(X, zeros(T, p), pivot)
     end
 end
 
