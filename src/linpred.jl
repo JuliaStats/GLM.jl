@@ -52,13 +52,13 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY{T},QRPivoted{T}}} <:
     scratchbeta::Vector{T}
     qr::Q
     
-    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}, pivot::Bool=false) where T
+    function DensePredQR{T}(X::AbstractMatrix, beta0::AbstractVector, pivot::Bool=false) where T
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
         if pivot
-            new{T,QRPivoted{T}}(X, beta0, zeros(T,p), zeros(T,p), qr(X,ColumnNorm()))
+            new{T,QRPivoted{T}}(Matrix{T}(X), Vector{T}(beta0), zeros(T,p), zeros(T,p), qr(X,ColumnNorm()))
         else
-            new{T,QRCompactWY{T}}(X, beta0, zeros(T,p), zeros(T,p), qr(X))
+            new{T,QRCompactWY{T}}(Matrix{T}(X), Vector{T}(beta0), zeros(T,p), zeros(T,p), qr(X))
         end
     end
 
