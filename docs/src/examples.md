@@ -86,6 +86,22 @@ julia> round.(vcov(ols); digits=5)
   0.38889  -0.16667
  -0.16667   0.08333
 ```
+By default, the `lm` method uses the `Cholesky` factorization which is known as fast but numerically unstable, especially for an ill-conditioned design matrix. You can use the `method` keyword argument to apply a more stable `QR` factorization method.
+
+```jldoctest
+julia> ols = lm(@formula(Y ~ X), data; method=:stable)
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredQR{Float64, LinearAlgebra.QRPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
+
+Y ~ 1 + X
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────
+                 Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+─────────────────────────────────────────────────────────────────────────
+(Intercept)  -0.666667    0.62361   -1.07    0.4788   -8.59038    7.25704
+X             2.5         0.288675   8.66    0.0732   -1.16797    6.16797
+─────────────────────────────────────────────────────────────────────────
+```
 
 ## Probit regression
 ```jldoctest

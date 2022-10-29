@@ -120,8 +120,9 @@ const FIT_LM_DOC = """
     linearly-dependent columns is used. The coefficient for redundant linearly dependent columns is
     `0.0` and all associated statistics are set to `NaN`.
 
-    `method` controls which decomposition method will be used in`lm`. If `method=:fast` (the default),
-    then Cholesky decomposition will be used. If `method=:stable` then QR decomposition method wull be used.
+    `method` controls which decomposition method will be used in the `lm` method.
+    If `method=:fast` (the default), then the `Cholesky` decomposition method will be used.
+    If `method=:stable`, then the `QR` decomposition method will be used.
     """
 
 """

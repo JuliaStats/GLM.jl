@@ -43,33 +43,40 @@ A `LinPred` type with a dense, unpivoted QR decomposition of `X`
 - `beta0`: base coefficient vector of length `p`
 - `delbeta`: increment to coefficient vector, also of length `p`
 - `scratchbeta`: scratch vector of length `p`, used in `linpred!` method
-- `qr`: a `QRCompactWY` object created from `X`, with optional row weights.
+- `qr`: either a `QRCompactWY` or `QRPrivoted` object created from `X`, with optional row weights.
 """
-mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY{T},QRPivoted{T}}} <: DensePred
+mutable struct DensePredQR{T<:BlasReal,Q} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
     qr::Q
-    
-    function DensePredQR{T}(X::AbstractMatrix, beta0::AbstractVector, pivot::Bool=false) where T
-        n, p = size(X)
-        length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
-        if pivot
-            new{T,QRPivoted{T}}(Matrix{T}(X), Vector{T}(beta0), zeros(T,p), zeros(T,p), qr(X,ColumnNorm()))
-        else
-            new{T,QRCompactWY{T}}(Matrix{T}(X), Vector{T}(beta0), zeros(T,p), zeros(T,p), qr(X))
-        end
-    end
-
-    function DensePredQR{T}(X::Matrix{T}, pivot::Bool=false) where T
-        n, p = size(X)
-        DensePredQR(X, zeros(T, p), pivot)
-    end
+end
+function DensePredQR(X::AbstractMatrix, beta0::AbstractVector, pivot::Bool=false)
+    n, p = size(X)
+    length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
+    T = eltype(X)
+    F = pivot ? qr(X,ColumnNorm()) : qr(X)
+    DensePredQR(Matrix{T}(X),
+        Vector{T}(beta0),
+        zeros(T, p),
+        zeros(T, p),
+        F)
+end
+function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
+    n, p = size(X)
+    T = eltype(X)
+    F = pivot ? qr(X,ColumnNorm()) : qr(X)
+    DensePredQR(Matrix{T}(X),
+        zeros(T, p),
+        zeros(T, p),
+        zeros(T, p),
+        F)
 end
 
-DensePredQR(X::Matrix, beta0::Vector, pivot::Bool=false) = DensePredQR{eltype(X)}(X, beta0, pivot)
-DensePredQR(X::Matrix{T}, pivot::Bool=false) where T = DensePredQR{T}(X, zeros(T, size(X,2)), pivot)
+#DensePredQR(X::Matrix, beta0::Vector, pivot::Bool=false) = DensePredQR{eltype(X)}(X, beta0, pivot)
+#DensePredQR(X::Matrix, pivot::Bool=false) = DensePredQR{eltype(X)}(X, zeros(eltype(X), size(X,2)), pivot)
+#DensePredQR(X::Matrix{T}, pivot::Bool=false) where T = DensePredQR{T}(X, zeros(T, size(X,2)), pivot)
 convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
 """
@@ -79,12 +86,12 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 """
 function delbeta! end
 
-function delbeta!(p::DensePredQR{T,QRCompactWY{T}}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where T<:BlasReal
     p.delbeta = p.qr\r
     return p
 end
 
-function delbeta!(p::DensePredQR{T,QRCompactWY{T}}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     R = p.qr.R 
     Q = p.qr.Q[:,1:(size(R)[1])]
     W = Diagonal(wt)
@@ -95,11 +102,11 @@ function delbeta!(p::DensePredQR{T,QRCompactWY{T}}, r::Vector{T}, wt::Vector{T})
     return p
 end
 
-function delbeta!(p::DensePredQR{T,QRPivoted{T}}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
     return delbeta!(p,r,ones(size(r)))
 end
 
-function delbeta!(p::DensePredQR{T,QRPivoted{T}}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
     R = p.qr.R[:,1:rnk] 
     Q = p.qr.Q[:,1:(size(R)[1])]
@@ -375,4 +382,4 @@ hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size
 
 linpred_rank(x::LinPred) = length(x.beta0)
 linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = x.chol.rank
-linpred_rank(x::DensePredQR{<:Any,<:QRPivoted}) = cholesky(x).rank
+linpred_rank(x::DensePredQR{<:Any,<:QRPivoted}) = rank(x.qr.R)
