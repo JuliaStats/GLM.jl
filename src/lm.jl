@@ -127,9 +127,9 @@ const FIT_LM_DOC = """
 
 """
     fit(LinearModel, formula, data, allowrankdeficient=false;
-       [wts::AbstractVector], dropcollinear::Bool=true)
+       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:fast)
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
-        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
+        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:fast)
 
 Fit a linear model to data.
 
@@ -149,21 +149,22 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     if method === :fast
         fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
     elseif method === :stable
-        @info "QR Method"
         fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear)))
     else
-        @error "Only possible methods are :fast and :statble"
+        @warn "The possible values for keyword argument `method` are `:fast` and `:statble`. " *
+              "Proceedign with `method=:fast`"
+        fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
     end
 end
 
 """
     lm(formula, data, allowrankdeficient=false;
-       [wts::AbstractVector], dropcollinear::Bool=true)
+       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:fast)
     lm(X::AbstractMatrix, y::AbstractVector;
-       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
+       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:fast)
 
 Fit a linear model to data.
-An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear)`
+An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, method=method)`
 
 $FIT_LM_DOC
 """

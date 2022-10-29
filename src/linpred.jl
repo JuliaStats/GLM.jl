@@ -35,7 +35,7 @@ end
 """
     DensePredQR
 
-A `LinPred` type with a dense, unpivoted QR decomposition of `X`
+A `LinPred` type with a dense QR decomposition (both pivoted and unpivoted) of `X`
 
 # Members
 
@@ -77,7 +77,7 @@ end
 #DensePredQR(X::Matrix, beta0::Vector, pivot::Bool=false) = DensePredQR{eltype(X)}(X, beta0, pivot)
 #DensePredQR(X::Matrix, pivot::Bool=false) = DensePredQR{eltype(X)}(X, zeros(eltype(X), size(X,2)), pivot)
 #DensePredQR(X::Matrix{T}, pivot::Bool=false) where T = DensePredQR{T}(X, zeros(T, size(X,2)), pivot)
-convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
+#convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
 
 """
     delbeta!(p::LinPred, r::Vector)
@@ -272,27 +272,24 @@ LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)
 LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 
 function invqr(x::DensePredQR{T,<: QRCompactWY}) where T
-    @info "invqr"
     Q,R = x.qr
-    #Rinv = inv(R)
+    #Rinv = inv(R) - which one is better inv(R) or R\I?
     Rinv = R\I
     Rinv*Rinv'
 end
 
 function invqr(x::DensePredQR{T,<: QRPivoted}) where T
-    @info "invqr"
     Q,R,pv = x.qr
     rnk = rank(R)
     p = length(x.delbeta)
     if rnk == p
-        #Rinv = inv(R)
         Rinv = R\I
         xinv = Rinv*Rinv'
         ipiv = invperm(pv)
         return xinv[ipiv, ipiv]
     else
         Rsub = R[1:rnk, 1:rnk]
-        RsubInv = inv(Rsub)
+        RsubInv = Rsub\I
         xinv = fill(convert(T, NaN), (p,p))
         xinv[1:rnk, 1:rnk] = RsubInv*RsubInv'
         ipiv = invperm(pv)
