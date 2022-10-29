@@ -437,9 +437,6 @@ end
         @test isa(m2p.pp.qr, QRPivoted)
         @test rank(m2p.pp.qr.R) == 11
         @test isapprox(deviance(m2p), 0.1215758392280204)
-        @test isapprox(coef(m2p), [0.9772643585229087, 11.889730016918346, 3.0273473975032767,
-            3.966137919940119, 5.079410103608535, 6.194461814118848, -2.986388408421906, 
-            7.930328728005132, 8.87999491860477, 0.0, 10.849722305243564, 11.844809275711498])
     
         m2p_dep_pos = lm(Xmissingcell, ymissingcell, true; method=:stable)
         @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
