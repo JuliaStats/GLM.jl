@@ -86,9 +86,11 @@ julia> round.(vcov(ols); digits=5)
   0.38889  -0.16667
  -0.16667   0.08333
 ```
-By default, the `lm` method uses the `Cholesky` factorization which is known as fast but numerically unstable, especially for an ill-conditioned design matrix. You can use the `method` keyword argument to apply a more stable `QR` factorization method.
+By default, the `lm` method uses the `Cholesky` factorization which is known as fast but numerically unstable, especially for ill-conditioned design matrices. You can use the `method` keyword argument to apply a more stable `QR` factorization method.
 
 ```jldoctest
+julia> data = DataFrame(X=[1,2,3], Y=[2,4,7]);
+
 julia> ols = lm(@formula(Y ~ X), data; method=:stable)
 StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredQR{Float64, LinearAlgebra.QRPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
 
