@@ -164,23 +164,11 @@ cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
 
 cholesky(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(copy(p.qr.R), 'U', 0)
-cholesky(p::DensePredQR{T,QRPivoted{T}}) where {T<:FP} = CholeskyPivoted{T,typeof(p.X)}(copy(p.qr.R), 'U', p.qr.p, rank(p.qr.R), 0, 0)
-
-#cholesky of X'X using qr decomposition
-cholesky_qr(X::Matrix{T}) where T = Cholesky{T,typeof(X)}(qr(X).R, 'U', 0)
-
-#pivoted cholesky of X'X using pivoted qr decomposition
-function pivoted_cholesky_qr(X::Matrix{T}) where T
-    qrX=qr(X,ColumnNorm())
-    CholeskyPivoted{T,typeof(X)}(qrX.R, 'U', qrX.p, rank(qrX.R), 0, 0)
-end
-
 function cholesky(p::DensePredChol{T}) where T<:FP
     c = p.chol
     Cholesky(copy(cholfactors(c)), c.uplo, c.info)
 end
 cholesky!(p::DensePredQR{T}) where {T<:FP} = p.chol
-cholesky!(p::DensePredQR{T,QRPivoted{T}}) where {T<:FP} = p.chol
 
 function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where T<:BlasReal
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.X), r))

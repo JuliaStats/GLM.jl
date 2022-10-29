@@ -1413,7 +1413,7 @@ end
 
 @testset "Issue 153" begin
     X = [ones(10) randn(10)]
-    Test.@inferred cholesky(GLM.DensePredQR{Float64}(X))
+    Test.@inferred cholesky(GLM.DensePredQR(X))
 end
 
 @testset "Issue 224" begin
