@@ -229,3 +229,118 @@ function show(io::IO, ftr::FTestResult{N}) where N
     end
     print(io, '─'^totwidth)
 end
+
+
+##############################################
+# Group effects table
+# Baset on F-statistics
+# The s×p full row rank matrix. The rows are estimable functions. s≥1
+
+using PrettyTables
+struct GroupEffectsTable
+    name
+    df
+    f
+    p
+end
+
+"""
+θ + A * B * A'
+
+Change θ (only upper triangle). B is symmetric.
+"""
+function mulαβαtinc!(θ::AbstractMatrix, A::AbstractMatrix, B::AbstractMatrix)
+    axb  = axes(B, 1)
+    sa   = size(A, 1)
+    for m ∈ 1:sa
+        for n ∈ m:sa
+            for j ∈ axb
+                @inbounds for i ∈ axb
+                    θ[m, n] +=  A[m, i] * B[i, j] * A[n, j]
+                end
+            end
+        end
+    end
+    θ
+end
+"""
+    lcontrast(obj, i::Int)
+
+L-contrast matrix for `i` fixed effect.
+"""
+function lcontrast(obj, i::Int)
+    n = obj.mf.schema.schema.count
+    if i > n || n < 1 error("Factor number out of range 1-$(n)") end
+    inds = findall(x -> x==i, obj.mm.assign)
+    if typeof(obj.mf.f.rhs.terms[i]) <: CategoricalTerm
+        mxc   = zeros(size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1), size(obj.mm.m, 2))
+        mxcv  = view(mxc, :, inds)
+        mxcv .= obj.mf.f.rhs.terms[i].contrasts.matrix
+        mx    = zeros(size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1) - 1, size(obj.mm.m, 2))
+        for i = 2:size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1)
+            mx[i-1, :] .= mxc[i, :] - mxc[1, :]
+        end
+    else
+        mx = zeros(length(inds), size(obj.mm.m, 2))
+        for i = 1:length(inds)
+            mx[i, inds[i]] = 1
+        end
+    end
+    mx
+end
+
+"""
+"""
+function typeiii(obj)
+    V           = vcov(obj) 
+    replace!(V, NaN => 0)
+    B           = coef(obj)   
+    c           = obj.mf.schema.schema.count
+    d           = Vector{Int}(undef, 0)
+    fac         = Vector{String}(undef, c)
+    F           = Vector{Float64}(undef,c)
+    df          = Vector{Float64}(undef, c)
+    ndf         = Vector{Float64}(undef, c)
+    pval        = Vector{Float64}(undef, c)
+    for i = 1:c
+        if typeof(obj.mf.f.rhs.terms[i]) <: InterceptTerm{true}
+            fac[i] = "(Intercept)"
+        elseif typeof(obj.mf.f.rhs.terms[i]) <: InterceptTerm{false}
+            push!(d, i)
+            fac[i] = ""
+            continue
+        else
+            fac[i] = string(obj.mf.f.rhs.terms[i].sym)
+        end
+        L       = lcontrast(obj, i)
+        for c = 1:length(B)
+            if isnan(B[i]) || iszero(B[i])
+                L[i, :] .= 0
+            end
+        end
+
+        θ = zeros(size(L, 1), size(L, 1))
+        mulαβαtinc!(θ, L, V)
+
+
+        F[i]    = (B' * L' * pinv(Symmetric(θ)) * L * B)/rank(L)
+
+        df[i]  = rank(L)
+
+        pval[i] = ccdf(FDist(df[i], dof_residual(obj)), F[i])
+  
+    end
+    if length(d) > 0
+        deleteat!(fac, d)
+        deleteat!(F, d)
+        deleteat!(df, d)
+        deleteat!(pval, d)
+    end
+    GroupEffectsTable(fac, df, F, pval)
+
+end
+
+function Base.show(io::IO, obj::GroupEffectsTable)
+    mx = hcat(obj.name, obj.df, obj.f, obj.p)
+    PrettyTables.pretty_table(io, mx; tf = PrettyTables.tf_compact, header = ["Name", "DF" ,"F" ,"Pval"])
+end
