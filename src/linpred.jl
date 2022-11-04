@@ -74,11 +74,6 @@ function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
         F)
 end
 
-#DensePredQR(X::Matrix, beta0::Vector, pivot::Bool=false) = DensePredQR{eltype(X)}(X, beta0, pivot)
-#DensePredQR(X::Matrix, pivot::Bool=false) = DensePredQR{eltype(X)}(X, zeros(eltype(X), size(X,2)), pivot)
-#DensePredQR(X::Matrix{T}, pivot::Bool=false) where T = DensePredQR{T}(X, zeros(T, size(X,2)), pivot)
-#convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
-
 """
     delbeta!(p::LinPred, r::Vector)
 

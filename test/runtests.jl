@@ -411,7 +411,8 @@ end
         @test predict(mdl1) ≈ predict(mdl2)
     end
     @testset "Test QR method with NASTY data" begin
-        nasty = CSV.read(joinpath(glm_datadir, "nasty.csv"), DataFrame)
+        x =  [1, 2, 3, 4, 5, 6, 7, 8, 9]
+        nasty = DataFrame(X = x, TINY = 1.0E-12*x)
         mdl = lm(@formula(X ~ TINY), nasty; method=:stable)
 
         @test coef(mdl) ≈ [-5.921189464667501e-16, 1.000000000000000e+12]
