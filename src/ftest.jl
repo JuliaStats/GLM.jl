@@ -327,25 +327,30 @@ end
 L-contrast matrix for `i` fixed effect.
 """
 function lcontrast(obj, i::Int)
-    n = obj.mf.schema.schema.count
+    n = length(obj.mf.f.rhs.terms)
     if i > n || n < 1 error("Factor number out of range 1-$(n)") end
+    p    = size(obj.mm.m, 2) # number of coefs
     inds = findall(x -> x==i, obj.mm.assign)
     if typeof(obj.mf.f.rhs.terms[i]) <: CategoricalTerm
-        mxc   = zeros(size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1), size(obj.mm.m, 2))
+        mxc   = zeros(size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1), p)
         mxcv  = view(mxc, :, inds)
         mxcv .= obj.mf.f.rhs.terms[i].contrasts.matrix
-        mx    = zeros(size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1) - 1, size(obj.mm.m, 2))
-        for i = 2:size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1)
+        mx    = zeros(size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1) - 1, p)
+        for i = 2:size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1) # correct for zero-intercept model
             mx[i-1, :] .= mxc[i, :] - mxc[1, :]
         end
     else
-        mx = zeros(length(inds), size(obj.mm.m, 2))
-        for i = 1:length(inds)
-            mx[i, inds[i]] = 1
+        mx = zeros(length(inds), p) # unknown correctness for zero-intercept model
+        for j = 1:length(inds)
+            mx[j, inds[j]] = 1
         end
     end
     mx
 end
+
+tname(t::AbstractTerm) = "$(t.sym)"
+tname(t::InteractionTerm) = join(tname.(t.terms), " & ")
+tname(t::InterceptTerm) = "(Intercept)"
 
 """
     typeiii(obj)
@@ -356,28 +361,36 @@ Sum of squares and MS not calculated.
 """
 function typeiii(obj)
     V           = vcov(obj) 
-    replace!(V, NaN => 0)
+    replace!(V, NaN => 0) # Some values can be NaN - replace it to zero
     B           = coef(obj)   
-    c           = obj.mf.schema.schema.count
+    c           = length(obj.mf.f.rhs.terms)
     d           = Vector{Int}(undef, 0)
     fac         = Vector{String}(undef, c)
     F           = Vector{Float64}(undef,c)
     df          = Vector{Float64}(undef, c)
     pval        = Vector{Float64}(undef, c)
     for i = 1:c
+        # Make L matrix
+        L       = lcontrast(obj, i)
+        #=
         if typeof(obj.mf.f.rhs.terms[i]) <: InterceptTerm{true}
-            fac[i] = "(Intercept)"
-        elseif typeof(obj.mf.f.rhs.terms[i]) <: InterceptTerm{false} # If zero intercept
+            # I think L matrix for Intercept should represent general mean
+            # For this - L element corresponding to factor should be devided on total number of levels (not coefs)
+            # But because I can't get efficient number of levels for InteractionTerm
+            # I cant't calc it correctly
+        end
+        =#
+        if typeof(obj.mf.f.rhs.terms[i]) <: InterceptTerm{false} # If zero intercept (drop)
             push!(d, i)
             fac[i] = ""
             continue
         else
-            fac[i] = string(obj.mf.f.rhs.terms[i].sym)
+            fac[i] = tname(obj.mf.f.rhs.terms[i])
         end
-        L       = lcontrast(obj, i)
+        # For case when cofs is zero (or NaN) we reduce rank of L-matrix
         for c = 1:length(B)
-            if isnan(B[i]) || iszero(B[i])
-                L[i, :] .= 0
+            if isnan(B[c]) || iszero(B[c])
+                L[:, c] .= 0
             end
         end
         RL = rank(L) # Rank of L matrix
@@ -394,7 +407,6 @@ function typeiii(obj)
         F[i]    = mulαtβα(LB, pinv(Symmetric(θ))) / RL
         df[i]   = RL
         pval[i] = ccdf(FDist(df[i], dof_residual(obj)), F[i])
-  
     end
     if length(d) > 0
         deleteat!(fac, d)
