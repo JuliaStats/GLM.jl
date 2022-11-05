@@ -232,16 +232,15 @@ end
 
 
 ##############################################
-# Group effects table
+# Tests of Between-Subjects Effects
 # Baset on F-statistics
-# The s×p full row rank matrix. The rows are estimable functions. s≥1
+# L: The s×p full row rank matrix. The rows are estimable functions. s≥1 where p number of coefs
 
-using PrettyTables
 struct GroupEffectsTable
-    name
-    df
-    f
-    p
+    name::Vector{String}
+    df::Vector{Float64}
+    f::Vector{Float64}
+    p::Vector{Float64}
 end
 
 """
@@ -263,6 +262,65 @@ function mulαβαtinc!(θ::AbstractMatrix, A::AbstractMatrix, B::AbstractMatrix
     end
     θ
 end
+"""
+a' * B * a
+
+"""
+function mulαtβα(a::AbstractVector, B::AbstractMatrix{T}) where T
+    if length(a) != size(B, 2)::Int  || size(B, 2)::Int  != size(B, 1)::Int  error("Dimention error") end
+    axbm  = axes(B, 1)
+    axbn  = axes(B, 2)
+    c = zero(T)
+    for i ∈ axbm
+        ct = zero(T)
+        for j ∈ axbn
+            @inbounds  ct += B[i, j] * a[j]
+        end
+        @inbounds c += ct * a[i]
+    end
+    c
+end
+
+# See SPSS (GLM/UNIANOVA) and SAS (PROC GLM) documentation 
+# https://www.ibm.com/docs/en/spss-statistics/29.0.0?topic=effects-tests-between-subjects
+# L is a s×p matrix corresponding to plan-matrix of Factor
+# p - number of columns - coefs number
+# s - number of levels for this factor in the model
+# For Example
+# If you have model matrix with Intercept and two factors A and B with 3 and 4 levels
+# with Dummy coding you will have:
+# 
+# I A2 A3 B2 B3 B4
+# 1 1  0  1  0  0
+# 1 1  0  1  0  0
+# 1 1  0  1  0  0
+# 1 1  0  1  0  0
+# 1 0  1  1  0  0
+# 1 0  1  0  1  0
+# 1 0  1  0  1  0
+# 1 0  1  0  1  0
+# 1 0  1  0  1  0
+# 1 0  0  0  0  1
+# 1 0  0  0  0  1
+# 1 0  0  0  0  1
+# 1 0  0  0  0  0
+# 1 0  0  0  0  0
+#
+# Then yoy wil have L matrix fo intercept:
+#
+# 1 0  0  0  0  0 
+#
+# For A:
+#
+# 0 1  0  0  0  0
+# 0 0  1  0  0  0
+#
+# For B:
+#
+# 0 0  0  1  0  0
+# 0 0  0  0  1  0
+# 0 0  0  0  0  1
+#
 """
     lcontrast(obj, i::Int)
 
@@ -290,6 +348,11 @@ function lcontrast(obj, i::Int)
 end
 
 """
+    typeiii(obj)
+
+Calculate F-statistics for Tests of Between-Subjects Effects. 
+Sum of squares and MS not calculated.
+
 """
 function typeiii(obj)
     V           = vcov(obj) 
@@ -300,12 +363,11 @@ function typeiii(obj)
     fac         = Vector{String}(undef, c)
     F           = Vector{Float64}(undef,c)
     df          = Vector{Float64}(undef, c)
-    ndf         = Vector{Float64}(undef, c)
     pval        = Vector{Float64}(undef, c)
     for i = 1:c
         if typeof(obj.mf.f.rhs.terms[i]) <: InterceptTerm{true}
             fac[i] = "(Intercept)"
-        elseif typeof(obj.mf.f.rhs.terms[i]) <: InterceptTerm{false}
+        elseif typeof(obj.mf.f.rhs.terms[i]) <: InterceptTerm{false} # If zero intercept
             push!(d, i)
             fac[i] = ""
             continue
@@ -318,15 +380,19 @@ function typeiii(obj)
                 L[i, :] .= 0
             end
         end
-
+        RL = rank(L) # Rank of L matrix
+        # F-statistics computed:
+        # F[i]    = (L'*B' * pinv(L * V * L') * L * B) / rank(L)
+        # As V is symmetric we can calc only upper triangle
+        # θ = L * V * L'
         θ = zeros(size(L, 1), size(L, 1))
         mulαβαtinc!(θ, L, V)
-
-
-        F[i]    = (B' * L' * pinv(Symmetric(θ)) * L * B)/rank(L)
-
-        df[i]  = rank(L)
-
+        LB = L * B
+        # Then F can be computed:
+        # F[i]    = (LB' * pinv(Symmetric(θ)) * LB)/rank(L)
+        # I think this is more efficient:
+        F[i]    = mulαtβα(LB, pinv(Symmetric(θ))) / RL
+        df[i]   = RL
         pval[i] = ccdf(FDist(df[i], dof_residual(obj)), F[i])
   
     end
@@ -340,6 +406,8 @@ function typeiii(obj)
 
 end
 
+using PrettyTables
+# use PrettyTables because it is fastest way to make table
 function Base.show(io::IO, obj::GroupEffectsTable)
     mx = hcat(obj.name, obj.df, obj.f, obj.p)
     PrettyTables.pretty_table(io, mx; tf = PrettyTables.tf_compact, header = ["Name", "DF" ,"F" ,"Pval"])
