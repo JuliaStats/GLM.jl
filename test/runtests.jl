@@ -1603,3 +1603,30 @@ end
     # 3. 44 / wt == y
     @test GLM.loglik_obs(Binomial(), y, μ, wt, ϕ) ≈ GLM.logpdf(Binomial(Int(wt), μ), 44)
 end
+
+berds1 = CSV.read(joinpath(glm_datadir, "rds1.csv"), DataFrame)
+berds1.Period = categorical(berds1.Period)
+berds1.Subject = categorical(berds1.Subject)
+
+@testset "Tests of Between-Subjects Effects" begin
+    # This is not BE model - no subject 
+    # Against SPSS 28
+    #=
+    GLM Var BY Sequence Period Formulation 
+  /METHOD=SSTYPE(3) 
+  /INTERCEPT=INCLUDE 
+  /PRINT PARAMETER 
+  /CRITERIA=ALPHA(.05) 
+  /DESIGN=Sequence Period Formulation.
+    =#
+    # Intercept not included in test
+    ols  = lm(@formula(Var ~ Sequence+Period+Formulation), berds1)
+    tbl = GLM.typeiii(ols)
+    @test tbl.f[2] ≈ 1.011001 atol = 1.0E-6
+    @test tbl.f[3] ≈ 0.328551 atol = 1.0E-6
+    @test tbl.f[4] ≈ 0.106973 atol = 1.0E-6
+    @test tbl.p[2] ≈ 0.322206 atol = 1.0E-6
+    @test tbl.p[3] ≈ 0.570520 atol = 1.0E-6
+    @test tbl.p[4] ≈ 0.745747 atol = 1.0E-6
+
+end
