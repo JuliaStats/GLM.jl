@@ -352,6 +352,8 @@ tname(t::AbstractTerm) = "$(t.sym)"
 tname(t::InteractionTerm) = join(tname.(t.terms), " & ")
 tname(t::InterceptTerm) = "(Intercept)"
 
+
+
 """
     typeiii(obj)
 
@@ -406,7 +408,11 @@ function typeiii(obj)
         # I think this is more efficient:
         F[i]    = mulαtβα(LB, pinv(Symmetric(θ))) / RL
         df[i]   = RL
-        pval[i] = ccdf(FDist(df[i], dof_residual(obj)), F[i])
+        if iszero(df[i])
+            pval[i] = NaN
+        else
+            pval[i] = ccdf(FDist(df[i], dof_residual(obj)), F[i])
+        end
     end
     if length(d) > 0
         deleteat!(fac, d)
