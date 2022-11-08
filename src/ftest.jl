@@ -406,7 +406,7 @@ function typeiii(obj)
         # Then F can be computed:
         # F[i]    = (LB' * pinv(Symmetric(θ)) * LB)/rank(L)
         # I think this is more efficient:
-        F[i]    = mulαtβα(LB, pinv(Symmetric(θ))) / RL
+        F[i]    = dot(LB, pinv(Symmetric(θ)), LB) / RL
         df[i]   = RL
         if iszero(df[i])
             pval[i] = NaN
