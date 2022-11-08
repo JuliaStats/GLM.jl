@@ -235,14 +235,14 @@ end
 # Tests of Between-Subjects Effects
 # Baset on F-statistics
 # L: The s×p full row rank matrix. The rows are estimable functions. s≥1 where p number of coefs
-
+#=
 struct GroupEffectsTable
     name::Vector{String}
     df::Vector{Float64}
     f::Vector{Float64}
     p::Vector{Float64}
 end
-
+=#
 """
 θ + A * B * A'
 
@@ -262,6 +262,7 @@ function mulαβαtinc!(θ::AbstractMatrix, A::AbstractMatrix, B::AbstractMatrix
     end
     θ
 end
+#=
 """
 a' * B * a
 
@@ -280,7 +281,7 @@ function mulαtβα(a::AbstractVector, B::AbstractMatrix{T}) where T
     end
     c
 end
-
+=#
 # See SPSS (GLM/UNIANOVA) and SAS (PROC GLM) documentation 
 # https://www.ibm.com/docs/en/spss-statistics/29.0.0?topic=effects-tests-between-subjects
 # L is a s×p matrix corresponding to plan-matrix of Factor
@@ -369,7 +370,7 @@ function typeiii(obj)
     d           = Vector{Int}(undef, 0)
     fac         = Vector{String}(undef, c)
     F           = Vector{Float64}(undef,c)
-    df          = Vector{Float64}(undef, c)
+    df          = Vector{Tuple{Float64, Float64}}(undef, c)
     pval        = Vector{Float64}(undef, c)
     for i = 1:c
         # Make L matrix
@@ -407,11 +408,11 @@ function typeiii(obj)
         # F[i]    = (LB' * pinv(Symmetric(θ)) * LB)/rank(L)
         # I think this is more efficient:
         F[i]    = dot(LB, pinv(Symmetric(θ)), LB) / RL
-        df[i]   = RL
-        if iszero(df[i])
+        df[i]   = (RL, dof_residual(obj))
+        if iszero(df[i][1])
             pval[i] = NaN
         else
-            pval[i] = ccdf(FDist(df[i], dof_residual(obj)), F[i])
+            pval[i] = ccdf(FDist(df[i][1], df[i][2]), F[i])
         end
     end
     if length(d) > 0
@@ -420,13 +421,15 @@ function typeiii(obj)
         deleteat!(df, d)
         deleteat!(pval, d)
     end
-    GroupEffectsTable(fac, df, F, pval)
-
+    #GroupEffectsTable(fac, df, F, pval)
+    CoefTable([df, F, pval], ["DF/DDF", "F", "Pr(>F)"], fac, 3, 2)
 end
 
+#=
 using PrettyTables
 # use PrettyTables because it is fastest way to make table
 function Base.show(io::IO, obj::GroupEffectsTable)
     mx = hcat(obj.name, obj.df, obj.f, obj.p)
     PrettyTables.pretty_table(io, mx; tf = PrettyTables.tf_compact, header = ["Name", "DF" ,"F" ,"Pval"])
 end
+=#

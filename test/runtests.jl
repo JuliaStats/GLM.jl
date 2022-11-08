@@ -1622,11 +1622,11 @@ berds1.Subject = categorical(berds1.Subject)
     # Intercept not included in test
     ols  = lm(@formula(Var ~ Sequence+Period+Formulation), berds1)
     tbl = GLM.typeiii(ols)
-    @test tbl.f[2] ≈ 1.011001 atol = 1.0E-6
-    @test tbl.f[3] ≈ 0.328551 atol = 1.0E-6
-    @test tbl.f[4] ≈ 0.106973 atol = 1.0E-6
-    @test tbl.p[2] ≈ 0.322206 atol = 1.0E-6
-    @test tbl.p[3] ≈ 0.570520 atol = 1.0E-6
-    @test tbl.p[4] ≈ 0.745747 atol = 1.0E-6
+    @test tbl.cols[2][2] ≈ 1.011001 atol = 1.0E-6
+    @test tbl.cols[2][3] ≈ 0.328551 atol = 1.0E-6
+    @test tbl.cols[2][4] ≈ 0.106973 atol = 1.0E-6
+    @test tbl.cols[3][2] ≈ 0.322206 atol = 1.0E-6
+    @test tbl.cols[3][3] ≈ 0.570520 atol = 1.0E-6
+    @test tbl.cols[3][4] ≈ 0.745747 atol = 1.0E-6
 
 end
