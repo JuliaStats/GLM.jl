@@ -895,6 +895,18 @@ end
     @test pred3.upper ≈ pred3.prediction + quantile(TDist(dof_residual(mm)), 0.975)*sqrt.(diag(newX*vcov(mm)*newX') .+ deviance(mm)/dof_residual(mm)) ≈
         [3.9288331595737196, 4.077092463922373, 4.762903743958081, 3.82184595169028, 4.034521019386702]
 
+    mm = fit(LinearModel, @formula(y ~ 0 + x1 + x2),
+             DataFrame(y=Ylm, x1=X[:, 1], x2=X[:, 2]))
+    pred4 = predict(mm, DataFrame(newX, :auto), interval=:confidence)
+    @test pred4.prediction == pred2.prediction
+    @test pred4.lower == pred2.lower
+    @test pred4.upper == pred2.upper
+
+    pred5 = predict(mm, DataFrame(newX, :auto), interval=:prediction)
+    @test pred5.prediction == pred3.prediction
+    @test pred5.lower == pred3.lower
+    @test pred5.upper == pred3.upper
+
     # Prediction with dropcollinear (#409)
     x = [1.0 1.0
          1.0 2.0
