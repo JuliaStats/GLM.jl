@@ -43,7 +43,7 @@ A `LinPred` type with a dense QR decomposition (both pivoted and unpivoted) of `
 - `beta0`: base coefficient vector of length `p`
 - `delbeta`: increment to coefficient vector, also of length `p`
 - `scratchbeta`: scratch vector of length `p`, used in `linpred!` method
-- `qr`: either a `QRCompactWY` or `QRPrivoted` object created from `X`, with optional row weights.
+- `qr`: either a `QRCompactWY` or `QRPivoted` object created from `X`, with optional row weights.
 """
 mutable struct DensePredQR{T<:BlasReal,Q} <: DensePred
     X::Matrix{T}                  # model matrix
