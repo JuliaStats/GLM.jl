@@ -153,7 +153,7 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool)
 end
 
 cholpred(X::AbstractMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
-qrpred(X::AbstractMatrix, pivot::Bool=false) = DensePredQR(float(X),pivot)
+qrpred(X::AbstractMatrix, pivot::Bool=false) = DensePredQR(float(X), pivot)
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
