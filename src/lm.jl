@@ -151,9 +151,7 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     elseif method === :stable
         fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear)))
     else
-        @warn "The possible values for keyword argument `method` are `:fast` and `:statble`. " *
-              "Proceedign with `method=:fast`"
-        fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
+        throw(ArgumentError("The only supported values for keyword argument `method` are `:fast` and `:stable`."))
     end
 end
 
