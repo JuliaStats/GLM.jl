@@ -88,7 +88,7 @@ end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     R = p.qr.R 
-    Q = p.qr.Q[:,1:(size(R)[1])]
+    Q = p.qr.Q[:, 1:(size(R, 1)]
     W = Diagonal(wt)
     sqrtW = Diagonal(sqrt.(wt)) 
     p.delbeta = R \ ((Q'*W*Q) \ (Q'*W*r))
