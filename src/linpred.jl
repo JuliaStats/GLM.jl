@@ -111,7 +111,7 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) wh
     p.delbeta = zeros(size(p.delbeta))
     p.delbeta[1:rnk] = R \ ((Q'*W*Q) \ (Q'*W*r))
     p.delbeta = p.qr.P*p.delbeta #for pivoting 
-    p.qr =  pivoted_qr(sqrtW*X)
+    p.qr = pivoted_qr(sqrtW*X)
     return p
 end
 
