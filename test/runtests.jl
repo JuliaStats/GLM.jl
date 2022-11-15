@@ -585,7 +585,8 @@ end
 # Logistic regression using aggregated data and weights
 admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
                       admit = repeat([false, true], inner=[4]),
-                      rank = categorical(repeat(1:4, outer=2)))
+                      rank = categorical(repeat(1:4, outer=2))
+                    )
 
 @testset "Aggregated Binomial LogitLink (FrequencyWeights)" begin
     for distr in (Binomial, Bernoulli)
@@ -1579,7 +1580,10 @@ end
     end
     @testset "Binomial" begin
         f = @formula(admit ~ 1 + rank)        
-        gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial())
+        gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(); rtol=1e-8)
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), 
+                      wts=aweights(admit_agr.count); rtol=1e-08)
+
         mm0_bin = [-0.5  -0.0  -0.0  -0.0
                    -0.5  -0.5  -0.0  -0.0
                    -0.5  -0.0  -0.5  -0.0
@@ -1588,10 +1592,7 @@ end
                     0.5   0.5   0.0   0.0
                     0.5   0.0   0.5   0.0
                     0.5   0.0   0.0   0.5]        
-        @test mm0_bin ≈ GLM.momentmatrix(gm_bin)     
-
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), 
-                      wts=aweights(admit_agr.count); rtol=1e-08)
+        
         mm0_binw = [-15.1475    -0.0      -0.0     -0.0
                     -34.6887   -34.6887   -0.0     -0.0
                     -21.5207    -0.0     -21.5207  -0.0
@@ -1600,37 +1601,18 @@ end
                      34.6887    34.6887    0.0      0.0
                      21.5207     0.0      21.5207   0.0
                       9.85075    0.0       0.0      9.85075]
-        
+
+        @test mm0_bin ≈ GLM.momentmatrix(gm_bin)                           
         @test mm0_binw ≈ GLM.momentmatrix(gm_binw) atol=1e-03
-        Vcov = [0.0660173  -0.0660173  -0.0660173  -0.0660173
-               -0.0660173   0.0948451   0.0660173   0.0660173
-               -0.0660173   0.0660173   0.112484    0.0660173
-               -0.0660173   0.0660173   0.0660173   0.167532]
-
-        ## This is due to differences between chol and qr
-        @test vcov(gm_binw) ≈ Vcov atol=1e-06
-
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(); 
-                      wts=pweights(admit_agr.count), rtol=1e-08)
-        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) atol=1e-05
-        ## This are obtained from stata
-        ## glm admit i.rank [pweight=count], family(binomial)  irls
-        coef_stata = [.16430305, -.75002998, -1.364698,  -1.6867296]
-        @test coef(gm_binw) ≈ coef_stata atol=1e-05
-        ## Stata: uses different residuals degrees of freedom. In this case (n-1) instead of (n-4)
-        ## Also need to give low tolerance (this small differences seem to be due to QR vs Cholesky)
-        @test stderror(gm_binw)*sqrt(5/7) ≈ [1.5118579, 2.1380899, 2.1380899, 2.1380899] atol=1e-02
-
-        ## Stata is also off with fweights
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), wts=fweights(admit_agr.count))
-        ## vs Stata (here stata uses the same df)
-        stata_se = [.25693835, .30796933,  .33538667,   .4093073]  
-        @test stderror(gm_binw) ≈  stata_se atol = 0.001
+        
     end
 
     @testset "Binomial ProbitLink" begin
         f = @formula(admit ~ 1 + rank)        
         gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink())
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink(), 
+                      wts=aweights(admit_agr.count), rtol=1e-8)        
+
         mm0_bin = [-0.7978846  0.0000000  0.0000000  0.0000000
                    -0.7978846 -0.7978846  0.0000000  0.0000000
                    -0.7978846  0.0000000 -0.7978846  0.0000000
@@ -1639,10 +1621,7 @@ end
                     0.7978846  0.7978846  0.0000000  0.0000000
                     0.7978846  0.0000000  0.7978846  0.0000000
                     0.7978846  0.0000000  0.0000000  0.7978846]        
-        @test mm0_bin ≈ GLM.momentmatrix(gm_bin) rtol=1e-06
 
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink(), 
-                      wts=aweights(admit_agr.count))        
         mm0_binw =  [ -24.20695   0.00000   0.00000   0.00000
                       -56.36158 -56.36158   0.00000   0.00000
                       -36.86681   0.00000 -36.86681   0.00000
@@ -1652,18 +1631,8 @@ end
                        36.86681   0.00000  36.86681   0.00000
                        17.52584   0.00000   0.00000  17.52584]
         
-        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) rtol=1e-05
-         
-        Vcov =[ 0.02585008 -0.02585008 -0.02585008 -0.02585008
-               -0.02585008  0.03677007  0.02585008  0.02585008
-               -0.02585008  0.02585008  0.04168393  0.02585008
-               -0.02585008  0.02585008  0.02585008  0.05792112]
-        
-        @test vcov(gm_binw) ≈ Vcov rtol=1e-06
-
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink();
-                      wts=pweights(admit_agr.count), rto=1e-08)
-        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) rtol=1e-05
+        @test mm0_bin ≈ GLM.momentmatrix(gm_bin) rtol=1e-06
+        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) rtol=1e-05                
     end
 
 end

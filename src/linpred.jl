@@ -270,7 +270,8 @@ vcov(x::DensePredChol{T, C, P}, u::AbstractVector, d::Real) where {T,C,P} = rmul
 vcov(x::SparsePredChol{T, C, M, P}, u::AbstractVector, d::Real) where {T,C,M,P} = rmul!(invchol(x), d)
 
 function vcov(pp::DensePredChol{T, C, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T, C}
-    Z = mul!(pp.scratchm1, Diagonal(u), pp.X)
+    #Z = #mul!(pp.scratchm1, Diagonal(u), pp.X)
+    Z = momentmatrix(pp)
     A = invchol(pp)
     if pp.chol isa CholeskyPivoted && rank(pp.chol) != size(A, 1)
         nancols = [all(isnan, col) for col in eachcol(A)]
