@@ -279,7 +279,7 @@ function vcov(pp::DensePredChol{T, C, <:ProbabilityWeights}, u::AbstractVector, 
         B = Zv'Zv
         Av = view(A, nnancols, nnancols)
         V = similar(pp.scratchm2)
-        V[nnancols, nnancols] .= Av*B*Av
+        V[nnancols, nnancols] = Av*B*Av
         V[nancols, :] .= NaN
         V[:, nancols] .= NaN
     else
@@ -323,6 +323,24 @@ function modelmatrix(pp::LinPred; weighted::Bool=isweighted(obj))
     end
     return Z
 end
+
+hatvalues(x::LinPredModel) = hatvalues(x.pp)
+
+function hatvalues(pp::DensePredChol{T, C, W}) where {T, C<:CholeskyPivoted, W}
+    X = modelmatrix(pp; weighted=isweighted(pp))
+    _, k = size(X)    
+    ch = pp.chol
+    rnk = rank(ch)
+    p = ch.p
+    idx = invperm(p)[1:rnk]
+    sum(x -> x^2, view(X, :, 1:rnk)/ch.U[1:rnk, idx], dims=2)
+end
+
+function hatvalues(pp::DensePredChol{T, C, W}) where {T, C<:Cholesky, W}
+    X = modelmatrix(pp; weighted=isweighted(pp))
+    sum(x -> x^2, X/pp.chol.U, dims=2)
+end
+
 
 response(obj::LinPredModel) = obj.rr.y
 

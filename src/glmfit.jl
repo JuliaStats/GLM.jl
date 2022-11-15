@@ -774,12 +774,10 @@ function residuals(r::GlmResp; weighted::Bool=false)
     return dres
 end
 
-
-
-## To be removed once  is merged
+## To be removed once StasAPI PR#  is merged
 momentmatrix(m::RegressionModel) = momentmatrix(m.model)
 
-function momentmatrix(m::GeneralizedLinearModel)
+function momentmatrix(m::GeneralizedLinearModel; weighted::Bool = isweighted(m))
     X = modelmatrix(m; weighted=false)
     r = m.rr.wrkwt .* m.rr.wrkresid
     d = varstruct(m.rr, r)

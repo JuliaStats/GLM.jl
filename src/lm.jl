@@ -46,7 +46,7 @@ updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec
 function deviance(r::LmResp{T,<:AbstractWeights}) where T
     y = r.y
     mu = r.mu
-    wts = r.wts    
+    wts = r.wts
     if wts isa UnitWeights
         v = zero(eltype(y)) + zero(eltype(y)) 
         @inbounds @simd for i in eachindex(y,mu,wts)
@@ -81,15 +81,12 @@ function loglikelihood(r::LmResp{T,<:ProbabilityWeights}) where T
     throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
 end
 
-function residuals(r::LmResp; weighted=false)
+function residuals(r::LmResp; weighted::Bool=false)
     wts = weights(r)
-    res = r.y - r.mu
-    if !weighted
-        res
-    elseif r.wts isa AbstractWeights
-        sqrt.(wts).*res
+    if weighted && !isa(r.wts, UnitWeights)
+        sqrt.(wts) .* (r.y .- r.mu)
     else
-        res
+        r.y .- r.mu
     end
 end
 
@@ -350,28 +347,11 @@ function crossmodelmatrix(model::RegressionModel; weighted::Bool=false)
     return Symmetric(x' * x)
 end
 
-hatvalues(x::LinPredModel) = hatvalues(x.pp)
-
-function hatvalues(pp::DensePredChol{T, C, W}) where {T, C<:CholeskyPivoted, W}
-    X = modelmatrix(pp; weighted=isweighted(pp))
-    _, k = size(X)    
-    ch = pp.chol
-    rnk = rank(ch)
-    p = ch.p 
-    idx = invperm(p)[1:rnk]
-    sum((view(X,:,1:rnk)/ch.U[1:rnk, idx]).^2, dims=2)    
-end
-
-function hatvalues(pp::DensePredChol{T, C, W}) where {T, C<:Cholesky, W}
-    X = modelmatrix(pp; weighted=isweighted(pp))
-    sum((X/pp.chol.U).^2, dims=2)
-end
-
 function StatsBase.cooksdistance(obj::LinearModel)
     u = residuals(obj; weighted=isweighted(obj))
     mse = GLM.dispersion(obj,true)
     k = dof(obj)-1
     hii = hatvalues(obj)
-    D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)    
+    D = @. u^2 * (hii / (1 - hii)^2) / (k*mse) 
     return D
 end

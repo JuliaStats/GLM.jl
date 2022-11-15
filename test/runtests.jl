@@ -130,17 +130,15 @@ end
     ## Standard errors from STATA
     @test stderror(lm_model) ≈ [ 47.22671, .0517617] atol=1e-05    
     @test stderror(glm_model) ≈ [ 47.22671, .0517617] atol=1e-05    
-
     ## Test the non full rank case
     df.Income2 = df.Income*2
     df.Income3 = df.Income*3
-
     f = @formula(FoodExp ~ Income3)
     m1 = lm(f, df, wts = pweights(df.weights))
     f = @formula(FoodExp ~ Income + Income2 + Income3)
     m2 =  lm(f, df, wts = pweights(df.weights))
     @test stderror(m1) ≈ filter(!isnan, stderror(m2))
-
+    
     f = @formula(FoodExp ~ Income3+Income^2)
     m3 =  lm(f, df, wts = pweights(df.weights))
     f = @formula(FoodExp ~ Income + Income2 + Income3+Income^2)
@@ -894,43 +892,20 @@ end
     β = randn(rng, 10)
     y = Bool[rand(rng) < logistic(x) for x in X * β]
     wts = rand(1000)
-    gmsparsev = [fit(LinearModel, X, y; wts=fweights(wts)),
-                 fit(LinearModel, X, sparse(y); wts=fweights(wts)),
-                 fit(LinearModel, Matrix(X), sparse(y); wts=fweights(wts))]
-    gmdense = fit(LinearModel, Matrix(X), y; wts=fweights(wts))
+    for wfun in (fweights, aweights, pweights)
+        
+        gmsparsev = [fit(LinearModel, X, y; wts=wfun(wts)),
+                     fit(LinearModel, X, sparse(y); wts=wfun(wts)),
+                     fit(LinearModel, Matrix(X), sparse(y); wts=wfun(wts))]
+        gmdense = fit(LinearModel, Matrix(X), y; wts=wfun(wts))
 
-    for gmsparse in gmsparsev
-        @test isapprox(deviance(gmsparse), deviance(gmdense))
-        @test isapprox(coef(gmsparse), coef(gmdense))
-        @test isapprox(vcov(gmsparse), vcov(gmdense))
-        @test isapprox(Matrix(modelmatrix(gmsparse; weighted=true)), modelmatrix(gmdense; weighted=true))
+        for gmsparse in gmsparsev
+            @test isapprox(deviance(gmsparse), deviance(gmdense))
+            @test isapprox(coef(gmsparse), coef(gmdense))
+            @test isapprox(vcov(gmsparse), vcov(gmdense))
+            @test isapprox(Matrix(modelmatrix(gmsparse; weighted=true)), modelmatrix(gmdense; weighted=true))
+        end
     end
-
-    gmsparsev = [fit(LinearModel, X, y; wts=aweights(wts)),
-                 fit(LinearModel, X, sparse(y); wts=aweights(wts)),
-                 fit(LinearModel, Matrix(X), sparse(y); wts=aweights(wts))]
-    gmdense = fit(LinearModel, Matrix(X), y; wts=aweights(wts))
-
-    for gmsparse in gmsparsev
-        @test isapprox(deviance(gmsparse), deviance(gmdense))
-        @test isapprox(coef(gmsparse), coef(gmdense))
-        @test isapprox(vcov(gmsparse), vcov(gmdense))
-        @test isapprox(Matrix(modelmatrix(gmsparse; weighted=true)), modelmatrix(gmdense; weighted=true))
-    end
-
-    gmsparsev = [fit(LinearModel, X, y; wts=pweights(wts)),
-                 fit(LinearModel, X, sparse(y); wts=pweights(wts)),
-                 fit(LinearModel, Matrix(X), sparse(y); wts=pweights(wts))]
-    gmdense = fit(LinearModel, Matrix(X), y; wts=pweights(wts))
-
-    for gmsparse in gmsparsev
-        @test isapprox(deviance(gmsparse), deviance(gmdense))
-        @test isapprox(coef(gmsparse), coef(gmdense))
-        @test isapprox(vcov(gmsparse), vcov(gmdense))
-        @test isapprox(Matrix(modelmatrix(gmsparse; weighted=true)), modelmatrix(gmdense; weighted=true))
-    end
-
-
 end
 
 @testset "Predict" begin
@@ -1567,10 +1542,12 @@ end
 
 @testset "momentmatrix" begin
     @testset "Poisson" begin
-        dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
-        Outcome = categorical(repeat(string.('A':'C'), outer = 3)),
-        Treatment = categorical(repeat(string.('a':'c'), inner = 3)),
-        Weights = [0.3, 0.2, .9, .8, .2, .3, .4, .8, .9])
+        dobson = DataFrame(
+            Counts = [18.,17,15,20,10,20,25,13,12],
+            Outcome = categorical(repeat(string.('A':'C'), outer = 3)),
+            Treatment = categorical(repeat(string.('a':'c'), inner = 3)),
+            Weights = [0.3, 0.2, .9, .8, .2, .3, .4, .8, .9]
+        )
 
         f = @formula(Counts ~ 1 + Outcome + Treatment)
         
@@ -1597,15 +1574,11 @@ end
                       1.8686815106332157 0.0 0.0 0.0 1.8686815106332157; 
                       0.010149793505874801 0.010149793505874801 0.0 0.0 0.010149793505874801; 
                      -1.8788313148033928 -0.0 -1.8788313148033928 -0.0 -1.8788313148033928]
-        
-        
-        
         @test mm0_pois ≈  GLM.momentmatrix(gm_pois) atol=1e-06
         @test mm0_poisw ≈  GLM.momentmatrix(gm_poisw) atol=1e-06
     end
     @testset "Binomial" begin
-        f = @formula(admit ~ 1 + rank)
-        
+        f = @formula(admit ~ 1 + rank)        
         gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial())
         mm0_bin = [-0.5  -0.0  -0.0  -0.0
                    -0.5  -0.5  -0.0  -0.0
@@ -1617,27 +1590,29 @@ end
                     0.5   0.0   0.0   0.5]        
         @test mm0_bin ≈ GLM.momentmatrix(gm_bin)     
 
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), wts=aweights(admit_agr.count))
-        mm0_binw =  [-15.1475    -0.0      -0.0     -0.0
-                     -34.6887   -34.6887   -0.0     -0.0
-                     -21.5207    -0.0     -21.5207  -0.0
-                      -9.85075   -0.0      -0.0     -9.85075
-                      15.1475     0.0       0.0      0.0
-                      34.6887    34.6887    0.0      0.0
-                      21.5207     0.0      21.5207   0.0
-                       9.85075    0.0       0.0      9.85075]
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), 
+                      wts=aweights(admit_agr.count); rtol=1e-08)
+        mm0_binw = [-15.1475    -0.0      -0.0     -0.0
+                    -34.6887   -34.6887   -0.0     -0.0
+                    -21.5207    -0.0     -21.5207  -0.0
+                     -9.85075   -0.0      -0.0     -9.85075
+                     15.1475     0.0       0.0      0.0
+                     34.6887    34.6887    0.0      0.0
+                     21.5207     0.0      21.5207   0.0
+                      9.85075    0.0       0.0      9.85075]
         
         @test mm0_binw ≈ GLM.momentmatrix(gm_binw) atol=1e-03
-        Vcov =[ 0.0660173  -0.0660173  -0.0660173  -0.0660173
+        Vcov = [0.0660173  -0.0660173  -0.0660173  -0.0660173
                -0.0660173   0.0948451   0.0660173   0.0660173
                -0.0660173   0.0660173   0.112484    0.0660173
                -0.0660173   0.0660173   0.0660173   0.167532]
 
-        ## This is due to divverences between chol and qr
-        @test vcov(gm_binw) ≈ Vcov atol=1e-03
+        ## This is due to differences between chol and qr
+        @test vcov(gm_binw) ≈ Vcov atol=1e-06
 
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), wts=pweights(admit_agr.count))
-        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) atol=1e-03
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(); 
+                      wts=pweights(admit_agr.count), rtol=1e-08)
+        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) atol=1e-05
         ## This are obtained from stata
         ## glm admit i.rank [pweight=count], family(binomial)  irls
         coef_stata = [.16430305, -.75002998, -1.364698,  -1.6867296]
@@ -1654,8 +1629,7 @@ end
     end
 
     @testset "Binomial ProbitLink" begin
-        f = @formula(admit ~ 1 + rank)
-        
+        f = @formula(admit ~ 1 + rank)        
         gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink())
         mm0_bin = [-0.7978846  0.0000000  0.0000000  0.0000000
                    -0.7978846 -0.7978846  0.0000000  0.0000000
@@ -1667,8 +1641,8 @@ end
                     0.7978846  0.0000000  0.0000000  0.7978846]        
         @test mm0_bin ≈ GLM.momentmatrix(gm_bin) rtol=1e-06
 
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink(), wts=aweights(admit_agr.count))
-        
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink(), 
+                      wts=aweights(admit_agr.count))        
         mm0_binw =  [ -24.20695   0.00000   0.00000   0.00000
                       -56.36158 -56.36158   0.00000   0.00000
                       -36.86681   0.00000 -36.86681   0.00000
@@ -1685,26 +1659,12 @@ end
                -0.02585008  0.02585008  0.04168393  0.02585008
                -0.02585008  0.02585008  0.02585008  0.05792112]
         
-        ## This is due to divverences between chol and qr
         @test vcov(gm_binw) ≈ Vcov rtol=1e-06
 
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink(), wts=pweights(admit_agr.count))
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink();
+                      wts=pweights(admit_agr.count), rto=1e-08)
         @test mm0_binw ≈ GLM.momentmatrix(gm_binw) rtol=1e-05
-        ## This are obtained from stata
-        ## glm admit i.rank [pweight=count], family(binomial)  irls
-        #coef_stata = []
-        #@test coef(gm_binw) ≈ coef_stata rtol=1e-05
-        ## Stata: uses different residuals degrees of freedom. In this case (n-1) instead of (n-4)
-        ## Also need to give low tolerance (this small differences seem to be due to QR vs Cholesky)
-        #@test stderror(gm_binw)*sqrt(5/7) ≈ [] atol=1e-02
-
-        ## Stata is also off with fweights
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), wts=fweights(admit_agr.count))
-        ## vs Stata (here stata uses the same df)
-        stata_se = [.25693835, .30796933,  .33538667,   .4093073]  
-        @test stderror(gm_binw) ≈  stata_se rtol = 1e-03
     end
-
 
 end
 
