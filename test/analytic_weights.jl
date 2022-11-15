@@ -2,33 +2,33 @@ rng = StableRNG(123)
 
 x1 = rand(rng, 25)
 x2 = ifelse.(randn(rng, 25) .> 0, 1, 0)
-
 y = ifelse.(0.004 .- 0.01 .* x1 .+ 1.5 .* x2 .+ randn(rng, 25) .> 0, 1, 0)
 w = rand(rng, 25) * 6
 w = floor.(w) .+ 1
-
-
 df = DataFrame(y=y, x1=x1, x2=x2, w=w)
 
-clotting = DataFrame(u=log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
+clotting = DataFrame(
+    u=log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
     lot1=[118, 58, 42, 35, 27, 25, 21, 19, 18],
-    w=[1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7])
+    w=[1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7]
+)
 
 quine.aweights = log.(3 .+ 3 .* quine.Days)
 quine.pweights = 1.0 ./ (quine.aweights ./ sum(quine.aweights))
 quine.fweights = floor.(quine.aweights)
 
-dobson = DataFrame(Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
+dobson = DataFrame(
+    Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
     Outcome=categorical(repeat(string.('A':'C'), outer=3)),
     Treatment=categorical(repeat(string.('a':'c'), inner=3)),
     w=[1, 2, 1, 2, 3, 4, 3, 2, 1]
 )
 
-
 @testset "GLM: Binomial with LogitLink link - AnalyticWeights" begin
-    model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), LogitLink(), wts=aweights(df.w), atol=1e-08,rtol=1e-08)
+    model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), LogitLink(), wts=aweights(df.w), 
+                         atol=1e-08, rtol=1e-08)
     @test deviance(model) ≈ 39.58120350785813 rtol = 1e-06
-    @test loglikelihood(model) ≈ -19.79060175392906 rtol = 1e-06
+    @test loglikelihood(model) ≈ -19.79060175392906 rtol = 1e-06    
     @test coef(model) ≈ [0.6333582770515337, 1.8861277804531265, 18.61281712203539] rtol = 1e-06
     @test stderror(model) ≈ [0.9021013750843575, 2.063002891039618, 2337.217357530545] rtol = 1e-07
     @test aic(model) ≈ 45.58120350785812 rtol = 1e-07
@@ -61,7 +61,8 @@ dobson = DataFrame(Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
 end
 
 @testset "GLM: Binomial with ProbitLink link - AnalyticWeights" begin
-    model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), ProbitLink(), wts=aweights(df.w), rtol=1e-09)
+    model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), ProbitLink(), 
+                         wts=aweights(df.w), rtol=1e-09)
     @test deviance(model) ≈ 39.595360462143866 rtol = 1e-06
     @test loglikelihood(model) ≈ -19.797680231071933 rtol = 1e-06
     @test coef(model) ≈ [0.42120722997197313, 1.0416447141541567, 4.916910225354065] rtol = 1e-07
@@ -99,8 +100,6 @@ end
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), CauchitLink(), wts=aweights(df.w), rtol=1e-08, atol=1e-08)
     @test deviance(model) ≈ 39.627559015619845 rtol = 1e-07
     @test loglikelihood(model) ≈ -19.813779507809922 rtol = 1e-07
-
-
     @test aic(model) ≈ 45.627559015619845 rtol = 1e-07
     @test bic(model) ≈ 49.28418649022444 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈ [ 1.003054020887253      0.1815783979426737     0.0; 
@@ -166,7 +165,8 @@ end
 end
 
 @testset "GLM: Gamma with InverseLink link - AnalyticWeights" begin
-    model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), InverseLink(), wts=aweights(clotting.w), atol=1e-07, rtol=1e-08)
+    model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), InverseLink(), 
+                wts=aweights(clotting.w), atol=1e-07, rtol=1e-08)
     @test deviance(model) ≈ 0.03933389380881642 rtol = 1e-07
     @test loglikelihood(model) ≈ -43.359078787690514 rtol = 1e-07
     @test coef(model) ≈ [-0.017217012596343607, 0.015649040406186487] rtol = 1e-07
@@ -185,7 +185,8 @@ end
 end
 
 @testset "GLM: Gamma with IdentityLink link - AnalyticWeights" begin
-    model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(), wts=aweights(clotting.w), rtol=1e-16, atol=1e-16, minstepfac=0.00001)
+    model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(), 
+                wts=aweights(clotting.w), rtol=1e-16, atol=1e-16, minstepfac=0.00001)
     @test deviance(model) ≈ 1.3435348802929383 rtol = 1e-07
     @test loglikelihood(model) ≈ -101.19916126647321 rtol = 1e-07
     @test coef(model) ≈ [86.45700434128152, -15.320695650698417] rtol = 1e-05
@@ -204,7 +205,8 @@ end
 end
 
 @testset "GLM: Gamma with LogLink link - AnalyticWeights" begin
-    model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(), wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
+    model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(), 
+                wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
     @test deviance(model) ≈ 0.41206342934199663 rtol = 1e-07
     @test loglikelihood(model) ≈ -81.79777246247532 rtol = 1e-07
     @test coef(model) ≈ [5.325107090308856, -0.5495682740033511] rtol = 1e-07
@@ -223,7 +225,8 @@ end
 end
 
 @testset "GLM: Gamma with InverseLink link - AnalyticWeights" begin
-    model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), InverseLink(), wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
+    model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), InverseLink(), 
+                wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
     @test deviance(model) ≈ 0.03933389380881642 rtol = 1e-07
     @test loglikelihood(model) ≈ -43.359078787690514 rtol = 1e-07
     @test coef(model) ≈ [-0.017217012596343607, 0.015649040406186487] rtol = 1e-07
@@ -242,7 +245,8 @@ end
 end
 
 @testset "GLM: InverseGaussian with InverseSquareLink link - AnalyticWeights" begin
-    model = glm(@formula(lot1 ~ 1 + u), clotting, InverseGaussian(), InverseSquareLink(), wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
+    model = glm(@formula(lot1 ~ 1 + u), clotting, InverseGaussian(), InverseSquareLink(), 
+                wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
     @test deviance(model) ≈ 0.021377370485120707 rtol = 1e-07
     @test loglikelihood(model) ≈ -86.82546665077861 rtol = 1e-07
     @test coef(model) ≈ [-0.0012633718975150973, 0.0008126490405747128] rtol = 1e-07
@@ -260,14 +264,18 @@ end
                                       8424.676595366931   38797.069483575455] rtol = 1e-06
 end
 
-@testset "GLM:  with LogLink link - AnalyticWeights" begin
-    model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(2), LogLink(), wts=aweights(quine.aweights), atol=1e-08, rtol=1e-08)
-
+@testset "GLM:  NegativeBinomial with LogLink link - AnalyticWeights" begin
+    model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(2), 
+                LogLink(), wts=aweights(quine.aweights), atol=1e-08, rtol=1e-08)
 
     @test deviance(model) ≈ 624.7631999565588 rtol = 1e-07
     @test loglikelihood(model) ≈ -2004.5939464322778 rtol = 1e-07
-    @test coef(model) ≈ [3.02411915515531, -0.4641576651688563, 0.0718560942992554, -0.47848540911607984, 0.09677889908013552, 0.3562972562034356, 0.3480161821981514] rtol = 1e-07
-    @test stderror(model) ≈ [0.1950707397084349, 0.13200639191036218, 0.1373161597645507, 0.2088476016141468, 0.20252412726336674, 0.21060778935484836, 0.16126722793064027] rtol = 1e-07
+    @test coef(model) ≈ [3.02411915515531, -0.4641576651688563, 0.0718560942992554, 
+                        -0.47848540911607984, 0.09677889908013552, 0.3562972562034356, 
+                        0.3480161821981514] rtol = 1e-07
+    @test stderror(model) ≈ [0.1950707397084349, 0.13200639191036218, 0.1373161597645507, 
+                             0.2088476016141468, 0.20252412726336674, 0.21060778935484836, 
+                             0.16126722793064027] rtol = 1e-07
     ## Tests below are broken because dof(model)==8 instead of 7
     @test_broken aic(model) ≈ 4023.1878928645556 rtol = 1e-07
     @test_broken bic(model) ≈ 4044.073139216514 rtol = 1e-07
@@ -421,12 +429,17 @@ end
     ] rtol = 1e-04
 end
 
-@testset "GLM:  with LogLink link - AnalyticWeights" begin
-    model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(2), LogLink(), wts=aweights(quine.aweights), rtol=1e-08, atol=1e-08)
+@testset "GLM:  NegativeBinomial with LogLink link - AnalyticWeights" begin
+    model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, 
+                NegativeBinomial(2), LogLink(), wts=aweights(quine.aweights), rtol=1e-08, atol=1e-08)
     @test deviance(model) ≈ 624.7631999565588 rtol = 1e-07
     @test loglikelihood(model) ≈ -2004.5939464322778 rtol = 1e-07
-    @test coef(model) ≈ [3.02411915515531, -0.4641576651688563, 0.0718560942992554, -0.47848540911607984, 0.09677889908013552, 0.3562972562034356, 0.3480161821981514] rtol = 1e-07
-    @test stderror(model) ≈ [0.1950707397084349, 0.13200639191036218, 0.1373161597645507, 0.2088476016141468, 0.20252412726336674, 0.21060778935484836, 0.16126722793064027] rtol = 1e-07
+    @test coef(model) ≈ [3.02411915515531, -0.4641576651688563, 0.0718560942992554, 
+                        -0.47848540911607984, 0.09677889908013552, 0.3562972562034356, 
+                        0.3480161821981514] rtol = 1e-07
+    @test stderror(model) ≈ [0.1950707397084349, 0.13200639191036218, 0.1373161597645507, 
+                             0.2088476016141468, 0.20252412726336674, 0.21060778935484836, 
+                             0.16126722793064027] rtol = 1e-07
     @test_broken aic(model) ≈ 4023.1878928645556 rtol = 1e-07
     @test_broken bic(model) ≈ 4044.073139216514 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈ [
@@ -579,12 +592,17 @@ end
     ] rtol = 1e-04
 end
 
-@testset "GLM:  with SqrtLink link - AnalyticWeights" begin
-    model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(2), SqrtLink(), wts=aweights(quine.aweights), rtol=1e-08, atol=1e-09)
+@testset "GLM:  NegativeBinomial with SqrtLink link - AnalyticWeights" begin
+    model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(2), 
+                SqrtLink(), wts=aweights(quine.aweights), rtol=1e-08, atol=1e-09)
     @test deviance(model) ≈ 626.6464732988984 rtol = 1e-07
     @test loglikelihood(model) ≈ -2005.5355831034462 rtol = 1e-07
-    @test coef(model) ≈ [4.733877229152363, -1.007977895471349, 0.02522392818548873, -0.9859743168046422, 0.2132095063819721, 0.7456070470961186, 0.5840284357554036] rtol = 1e-07
-    @test stderror(model) ≈ [0.42307979153860564, 0.286636744566765, 0.29612422536777805, 0.42042723748229144, 0.45565954626859695, 0.4766324296069839, 0.3235019638755972] rtol = 1e-06
+    @test coef(model) ≈ [4.733877229152363, -1.007977895471349, 0.02522392818548873, 
+                        -0.9859743168046422, 0.2132095063819721, 0.7456070470961186, 
+                        0.5840284357554036] rtol = 1e-07
+    @test stderror(model) ≈ [0.42307979153860564, 0.286636744566765, 0.29612422536777805, 
+                             0.42042723748229144, 0.45565954626859695, 0.4766324296069839, 
+                             0.3235019638755972] rtol = 1e-06
     @test_broken aic(model) ≈ 4025.0711662068925 rtol = 1e-07
     @test_broken bic(model) ≈ 4045.956412558851 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈ [
@@ -735,4 +753,3 @@ end
         0.3453894161447818 0.3453894161447818 0.0 0.0 0.0 0.3453894161447818 0.0
         3.2758115948278728 3.2758115948278728 0.0 0.0 0.0 3.2758115948278728 0.0] rtol = 1e-04
 end
-

@@ -62,6 +62,7 @@ function deviance(r::LmResp{T,<:AbstractWeights}) where T
 end
 
 weights(r::LmResp) = r.wts
+isweighted(r::LmResp) = weights(r) isa Union{AnalyticWeights, FrequencyWeights, ProbabilityWeights}
 
 nobs(r::LmResp{<:Any,W}) where {W<:FrequencyWeights} = sum(r.wts)
 nobs(r::LmResp{<:Any,W}) where {W<:AbstractWeights} = oftype(sum(one(eltype(r.wts))), length(r.y))
@@ -83,7 +84,7 @@ end
 
 function residuals(r::LmResp; weighted::Bool=false)
     wts = weights(r)
-    if weighted && !isa(r.wts, UnitWeights)
+    if weighted && isweighted(r)
         sqrt.(wts) .* (r.y .- r.mu)
     else
         r.y .- r.mu
