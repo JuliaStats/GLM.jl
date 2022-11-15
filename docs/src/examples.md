@@ -91,7 +91,7 @@ By default, the `lm` method uses the `Cholesky` factorization which is known as 
 ```jldoctest
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7]);
 
-julia> ols = lm(@formula(Y ~ X), data; method=:stable)
+julia> ols = lm(@formula(Y ~ X), data; method=:qr)
 StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredQR{Float64, LinearAlgebra.QRPivoted{Float64, Matrix{Float64}, Vector{Float64}, Vector{Int64}}}}, Matrix{Float64}}
 
 Y ~ 1 + X

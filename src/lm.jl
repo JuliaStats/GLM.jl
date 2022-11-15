@@ -121,15 +121,15 @@ const FIT_LM_DOC = """
     `0.0` and all associated statistics are set to `NaN`.
 
     `method` controls which decomposition method will be used in the `lm` method.
-    If `method=:fast` (the default), then the `Cholesky` decomposition method will be used.
-    If `method=:stable`, then the `QR` decomposition method will be used.
+    If `method=:cholesky` (the default), then the `Cholesky` decomposition method will be used.
+    If `method=:qr`, then the `QR` decomposition method will be used.
     """
 
 """
     fit(LinearModel, formula, data, allowrankdeficient=false;
-       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:fast)
+       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky)
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
-        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:fast)
+        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
 Fit a linear model to data.
 
@@ -138,7 +138,7 @@ $FIT_LM_DOC
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
              wts::AbstractVector{<:Real}=similar(y, 0),
-             method::Symbol=:fast,
+             method::Symbol=:cholesky,
              dropcollinear::Bool=true)
     if allowrankdeficient_dep !== nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
@@ -146,20 +146,20 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
         dropcollinear = allowrankdeficient_dep
     end
     
-    if method === :fast
+    if method === :cholesky
         fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
-    elseif method === :stable
+    elseif method === :qr
         fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear)))
     else
-        throw(ArgumentError("The only supported values for keyword argument `method` are `:fast` and `:stable`."))
+        throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
     end
 end
 
 """
     lm(formula, data, allowrankdeficient=false;
-       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:fast)
+       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky)
     lm(X::AbstractMatrix, y::AbstractVector;
-       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:fast)
+       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
 Fit a linear model to data.
 An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, method=method)`

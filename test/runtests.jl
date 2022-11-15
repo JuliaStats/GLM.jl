@@ -277,7 +277,7 @@ end
 
 @testset "Linear model with QR method" begin
     @testset "lm with QR method" begin
-        lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form; method=:stable)
+        lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form; method=:qr)
         test_show(lm1)
         @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
         Σ = [6.136653061224592e-05 -9.464489795918525e-05
@@ -299,8 +299,8 @@ end
     end
 
     @testset "QR linear model with and without dropcollinearity" begin 
-        lm1 = lm(@formula(OptDen ~ Carb), form; method=:stable)
-        lm2 = lm(@formula(OptDen ~ Carb), form; method=:stable, dropcollinear=false)
+        lm1 = lm(@formula(OptDen ~ Carb), form; method=:qr)
+        lm2 = lm(@formula(OptDen ~ Carb), form; method=:qr, dropcollinear=false)
         @test coef(lm1) ≈ coef(lm2)
         @test stderror(lm1) ≈ stderror(lm2)
         @test r2(lm1) ≈ r2(lm2)
@@ -321,8 +321,8 @@ end
         N = nrow(df)
         df.weights = repeat(1:5, Int(N/5))
         f = @formula(FoodExp ~ Income)
-        lm_qr_model = lm(f, df, wts = df.weights; method=:stable)
-        lm_model = lm(f, df, wts = df.weights; method=:fast)
+        lm_qr_model = lm(f, df, wts = df.weights; method=:qr)
+        lm_model = lm(f, df, wts = df.weights; method=:cholesky)
         @test coef(lm_model) ≈ coef(lm_qr_model)
         @test stderror(lm_model) ≈ stderror(lm_qr_model)
         @test r2(lm_model) ≈ r2(lm_qr_model)
@@ -343,7 +343,7 @@ end
         # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt1.dat
 
         data = DataFrame(x = 60:70, y = 130:140)
-        mdl = lm(@formula(y ~ 0 + x), data; method=:stable)
+        mdl = lm(@formula(y ~ 0 + x), data; method=:qr)
         @test coef(mdl) ≈ [2.07438016528926]
         @test stderror(mdl) ≈ [0.165289256198347E-01]
         @test GLM.dispersion(mdl.model) ≈ 3.56753034006338
@@ -366,7 +366,7 @@ end
         # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt2.dat
 
         data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
-        mdl = lm(@formula(y ~ 0 + x), data; method=:stable)
+        mdl = lm(@formula(y ~ 0 + x), data; method=:qr)
         @test coef(mdl) ≈ [0.727272727272727]
         @test stderror(mdl) ≈ [0.420827318078432E-01]
         @test GLM.dispersion(mdl.model) ≈ 0.369274472937998
@@ -386,8 +386,8 @@ end
         y = [3, 4, 4]
 
         data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
-        mdl1 = lm(@formula(y ~ 0 + x), data; method=:stable)
-        mdl2 = lm(X, y; method=:stable)
+        mdl1 = lm(@formula(y ~ 0 + x), data; method=:qr)
+        mdl2 = lm(X, y; method=:qr)
 
         @test coef(mdl1) ≈ coef(mdl2)
         @test stderror(mdl1) ≈ stderror(mdl2)
@@ -406,7 +406,7 @@ end
     @testset "Test QR method with NASTY data" begin
         x =  [1, 2, 3, 4, 5, 6, 7, 8, 9]
         nasty = DataFrame(X = x, TINY = 1.0E-12*x)
-        mdl = lm(@formula(X ~ TINY), nasty; method=:stable)
+        mdl = lm(@formula(X ~ TINY), nasty; method=:qr)
 
         @test coef(mdl) ≈ [0, 1.0E+12]
         @test dof(mdl) ≈ 3
@@ -423,16 +423,16 @@ end
         X = ModelMatrix(ModelFrame(f, dfrm)).m
         y = X * (1:size(X, 2)) + 0.1 * randn(rng, size(X, 1))
         inds = deleteat!(collect(1:length(y)), 7:8)
-        m1 = fit(LinearModel, X, y; method=:stable)
+        m1 = fit(LinearModel, X, y; method=:qr)
         @test isapprox(deviance(m1), 0.12160301538297297)
         Xmissingcell = X[inds, :]
         ymissingcell = y[inds]
-        m2p = fit(LinearModel, Xmissingcell, ymissingcell; method=:stable)
+        m2p = fit(LinearModel, Xmissingcell, ymissingcell; method=:qr)
         @test isa(m2p.pp.qr, QRPivoted)
         @test rank(m2p.pp.qr.R) == 11
         @test isapprox(deviance(m2p), 0.1215758392280204)
     
-        m2p_dep_pos = lm(Xmissingcell, ymissingcell, true; method=:stable)
+        m2p_dep_pos = lm(Xmissingcell, ymissingcell, true; method=:qr)
         @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
                     "argument `dropcollinear` instead. Proceeding with positional argument value: true")
         fit(LinearModel, Xmissingcell, ymissingcell, true)
@@ -441,7 +441,7 @@ end
         @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
         @test isapprox(coef(m2p_dep_pos), coef(m2p))
     
-        m2p_dep_pos_kw = lm(Xmissingcell, ymissingcell, true; dropcollinear = false, method=:stable)
+        m2p_dep_pos_kw = lm(Xmissingcell, ymissingcell, true; dropcollinear = false, method=:qr)
         @test isa(m2p_dep_pos_kw.pp.qr, QRPivoted)
         @test rank(m2p_dep_pos_kw.pp.qr.R) == rank(m2p.pp.qr.R)
         @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
