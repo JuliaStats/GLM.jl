@@ -35,7 +35,7 @@ end
 """
     DensePredQR
 
-A `LinPred` type with a dense QR decomposition (both pivoted and unpivoted) of `X`
+A `LinPred` type with a dense QR decomposition of `X`
 
 # Members
 
@@ -88,7 +88,7 @@ end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     R = p.qr.R 
-    Q = p.qr.Q[:, 1:(size(R, 1)]
+    Q = @view p.qr.Q[:, 1:size(R, 1)]
     W = Diagonal(wt)
     sqrtW = Diagonal(sqrt.(wt)) 
     p.delbeta = R \ ((Q'*W*Q) \ (Q'*W*r))
@@ -104,7 +104,7 @@ end
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
     R = p.qr.R[:,1:rnk] 
-    Q = p.qr.Q[:,1:(size(R)[1])]
+    Q = @view p.qr.Q[:, 1:size(R, 1)]
     W = Diagonal(wt)
     sqrtW = Diagonal(sqrt.(wt))
     X = p.X
@@ -163,7 +163,7 @@ function cholesky(p::DensePredChol{T}) where T<:FP
     c = p.chol
     Cholesky(copy(cholfactors(c)), c.uplo, c.info)
 end
-cholesky!(p::DensePredQR{T}) where {T<:FP} = p.chol
+cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U', 0)
 
 function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where T<:BlasReal
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.X), r))
@@ -268,8 +268,7 @@ LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 
 function invqr(x::DensePredQR{T,<: QRCompactWY}) where T
     Q,R = x.qr
-    #Rinv = inv(R) - which one is better inv(R) or R\I?
-    Rinv = R\I
+    Rinv = inv(R)
     Rinv*Rinv'
 end
 
@@ -278,7 +277,7 @@ function invqr(x::DensePredQR{T,<: QRPivoted}) where T
     rnk = rank(R)
     p = length(x.delbeta)
     if rnk == p
-        Rinv = R\I
+        Rinv = inv(R)
         xinv = Rinv*Rinv'
         ipiv = invperm(pv)
         return xinv[ipiv, ipiv]

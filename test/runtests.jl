@@ -42,8 +42,8 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(aicc(lm1), -24.409684288095946)
     @test isapprox(bic(lm1), -37.03440588041178)
     lm2 = fit(LinearModel, hcat(ones(6), 10form.Carb), form.OptDen, true)
-#    @test isa(lm2.pp.chol, CholeskyPivoted)
-#    @test lm2.pp.chol.piv == [2, 1]
+    @test isa(lm2.pp.chol, CholeskyPivoted)
+    @test lm2.pp.chol.piv == [2, 1]
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
     lm3 = lm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), contrasts=Dict(:x=>DummyCoding()))
     lm4 = lm(@formula(y~x), (y=1:25, x=categorical(repeat(1:5, 5))))
@@ -296,13 +296,6 @@ end
         @test isapprox(aic(lm1), -36.409684288095946)
         @test isapprox(aicc(lm1), -24.409684288095946)
         @test isapprox(bic(lm1), -37.03440588041178)
-        lm2 = fit(LinearModel, hcat(ones(6), 10form.Carb), form.OptDen, true)
-        @test isa(lm2.pp.chol, CholeskyPivoted)
-        @test lm2.pp.chol.piv == [2, 1]
-        @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
-        lm3 = lm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), contrasts=Dict(:x=>DummyCoding()))
-        lm4 = lm(@formula(y~x), (y=1:25, x=categorical(repeat(1:5, 5))))
-        @test coef(lm3) == coef(lm4) ≈ [11, 1, 2, 3, 4]
     end
 
     @testset "QR linear model with and without dropcollinearity" begin 
@@ -415,7 +408,7 @@ end
         nasty = DataFrame(X = x, TINY = 1.0E-12*x)
         mdl = lm(@formula(X ~ TINY), nasty; method=:stable)
 
-        @test coef(mdl) ≈ [-5.921189464667501e-16, 1.000000000000000e+12]
+        @test coef(mdl) ≈ [0, 1.0E+12]
         @test dof(mdl) ≈ 3
         @test r2(mdl) ≈ 1.0
         @test adjr2(mdl) ≈ 1.0
@@ -441,14 +434,14 @@ end
     
         m2p_dep_pos = lm(Xmissingcell, ymissingcell, true; method=:stable)
         @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
-                    "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
+                    "argument `dropcollinear` instead. Proceeding with positional argument value: true")
+        fit(LinearModel, Xmissingcell, ymissingcell, true)
         @test isa(m2p_dep_pos.pp.qr, QRPivoted)
         @test rank(m2p_dep_pos.pp.qr.R) == rank(m2p.pp.qr.R)
         @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
         @test isapprox(coef(m2p_dep_pos), coef(m2p))
     
-        m2p_dep_pos_kw = fit(LinearModel, Xmissingcell, ymissingcell, true;
-            dropcollinear = false, method=:stable)
+        m2p_dep_pos_kw = lm(Xmissingcell, ymissingcell, true; dropcollinear = false, method=:stable)
         @test isa(m2p_dep_pos_kw.pp.qr, QRPivoted)
         @test rank(m2p_dep_pos_kw.pp.qr.R) == rank(m2p.pp.qr.R)
         @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
@@ -1086,11 +1079,11 @@ end
 
     p1 = predict(m1, x, interval=:confidence)
     #predict uses chol hence removed
-    #p2 = predict(m2, x, interval=:confidence)
+    p2 = predict(m2, x, interval=:confidence)
 
-    #@test p1.prediction ≈ p2.prediction
-    #@test p1.upper ≈ p2.upper
-    #@test p1.lower ≈ p2.lower
+    @test p1.prediction ≈ p2.prediction
+    @test p1.upper ≈ p2.upper
+    @test p1.lower ≈ p2.lower
 
     # Prediction with dropcollinear and complex column permutations (#431)
     x = [1.0 100.0 1.2
@@ -1102,11 +1095,11 @@ end
     m2 = lm(x, y, dropcollinear=false)
 
     p1 = predict(m1, x, interval=:confidence)
-    #p2 = predict(m2, x, interval=:confidence)
+    p2 = predict(m2, x, interval=:confidence)
 
-    #@test p1.prediction ≈ p2.prediction
-    #@test p1.upper ≈ p2.upper
-    #@test p1.lower ≈ p2.lower
+    @test p1.prediction ≈ p2.prediction
+    @test p1.upper ≈ p2.upper
+    @test p1.lower ≈ p2.lower
 
     # Deprecated argument value
     @test predict(m1, x, interval=:confint) == p1
