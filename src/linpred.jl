@@ -56,7 +56,7 @@ function DensePredQR(X::AbstractMatrix, beta0::AbstractVector, pivot::Bool=false
     n, p = size(X)
     length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
     T = eltype(X)
-    F = pivot ? pivoted_qr(X) : qr(X)
+    F = pivot ? pivoted_qr!(copy(X)) : qr!(copy(X))
     DensePredQR(Matrix{T}(X),
         Vector{T}(beta0),
         zeros(T, p),
@@ -66,7 +66,7 @@ end
 function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
     n, p = size(X)
     T = eltype(X)
-    F = pivot ? pivoted_qr(X) : qr(X)
+    F = pivot ? pivoted_qr!(copy(X)) : qr(copy(X))
     DensePredQR(Matrix{T}(X),
         zeros(T, p),
         zeros(T, p),
@@ -111,7 +111,7 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) wh
     p.delbeta = zeros(size(p.delbeta))
     p.delbeta[1:rnk] = R \ ((Q'*W*Q) \ (Q'*W*r))
     p.delbeta = p.qr.P*p.delbeta #for pivoting 
-    p.qr = pivoted_qr(sqrtW*X)
+    p.qr = pivoted_qr!(sqrtW*X)
     return p
 end
 
