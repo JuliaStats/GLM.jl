@@ -127,9 +127,13 @@ end
 
     lm_model = lm(f, df, wts = pweights(df.weights))
     glm_model = glm(f, df, Normal(), wts = pweights(df.weights))
-    ## Standard errors from STATA
-    @test stderror(lm_model) ≈ [ 47.22671, .0517617] atol=1e-05    
-    @test stderror(glm_model) ≈ [ 47.22671, .0517617] atol=1e-05    
+    ## Standard errors from svyglm
+    ## Note: Stata and R use different degrees of freedom adjustments
+    ##       1. State uses dof_residual
+    ##       2. R uses n-1
+    ## We follow R
+    @test stderror(lm_model) ≈ [47.1257, .0516509] atol=1e-05   
+    @test stderror(glm_model) ≈ [47.1257, .0516509] atol=1e-05
     ## Test the non full rank case
     df.Income2 = df.Income*2
     df.Income3 = df.Income*3
@@ -1638,3 +1642,4 @@ end
 end
 
 include("analytic_weights.jl")
+include("probability_weights.jl")

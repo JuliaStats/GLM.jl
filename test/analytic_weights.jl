@@ -28,7 +28,7 @@ dobson = DataFrame(
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), LogitLink(), wts=aweights(df.w), 
                          atol=1e-08, rtol=1e-08)
     @test deviance(model) ≈ 39.58120350785813 rtol = 1e-06
-    @test loglikelihood(model) ≈ -19.79060175392906 rtol = 1e-06    
+    @test loglikelihood(model) ≈ -19.79060175392906 rtol = 1e-06
     @test coef(model) ≈ [0.6333582770515337, 1.8861277804531265, 18.61281712203539] rtol = 1e-06
     @test stderror(model) ≈ [0.9021013750843575, 2.063002891039618, 2337.217357530545] rtol = 1e-07
     @test aic(model) ≈ 45.58120350785812 rtol = 1e-07

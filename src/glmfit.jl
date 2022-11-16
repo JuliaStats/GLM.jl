@@ -779,12 +779,7 @@ momentmatrix(m::RegressionModel) = momentmatrix(m.model)
 
 function momentmatrix(m::GeneralizedLinearModel; weighted::Bool = isweighted(m))
     X = modelmatrix(m; weighted=false)
-    r = m.rr.wrkwt .* m.rr.wrkresid
-    d = varstruct(m.rr, r)
-    return mul!(m.pp.scratchm1, Diagonal(r.*d), m.pp.X)
+    #r = m.rr.wrkwt .* m.rr.wrkresid
+    r, d = varstruct(m)
+    return mul!(m.pp.scratchm1, Diagonal(r.*d), X)
 end
-
-varstruct(rr::GlmResp{<:Any, <:Union{Normal, Poisson, Binomial, Bernoulli, NegativeBinomial}},
-                   r::AbstractArray) = 1
-varstruct(rr::GlmResp{<:Any, <:Union{Gamma, Geometric, InverseGaussian}},
-                   r::AbstractArray) = sum(rr.wrkwt)/sum(abs2, r)

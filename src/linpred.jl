@@ -255,24 +255,30 @@ invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), siz
 working_residuals(x::LinPredModel) = x.rr.wrkresid
 working_weights(x::LinPredModel) = x.rr.wrkwt
 
+## Rewrite vcov
+struct IID end
+struct NIID end
+
 function vcov(x::LinPredModel)
-    d = dispersion(x, true)
-    u = working_residuals(x).*working_weights(x)
-    V = vcov(x.pp, u, d)
-    if x.pp.wts isa ProbabilityWeights
-        V*(nobs(x)/dof_residual(x))
+    if weights(x) isa ProbabilityWeights
+        ## df with ProbabilityWeights  n-1
+        vcov(NIID(), x).*dof_residual(x)/(nobs(x)-1)
     else
-        V
+        vcov(IID(), x)
     end
 end
 
-vcov(x::DensePredChol{T, C, P}, u::AbstractVector, d::Real) where {T,C,P} = rmul!(invchol(x), d)
-vcov(x::SparsePredChol{T, C, M, P}, u::AbstractVector, d::Real) where {T,C,M,P} = rmul!(invchol(x), d)
+vcov(::IID, x::LinPredModel) = rmul!(invchol(x.pp), dispersion(x, true))
 
-function vcov(pp::DensePredChol{T, C, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T, C}
-    #Z = #mul!(pp.scratchm1, Diagonal(u), pp.X)
-    Z = momentmatrix(pp)
-    A = invchol(pp)
+function vcov(::NIID, x::LinPredModel)
+    s = nobs(x)/dof_residual(x)
+    mm = momentmatrix(x)
+    _, d = varstruct(x)
+    A = invchol(x.pp)./d
+    _vcov(x.pp, mm, A).*s
+end
+
+function _vcov(pp::DensePredChol, Z::Matrix, A::Matrix)   
     if pp.chol isa CholeskyPivoted && rank(pp.chol) != size(A, 1)
         nancols = [all(isnan, col) for col in eachcol(A)]
         nnancols = .!nancols
@@ -280,25 +286,22 @@ function vcov(pp::DensePredChol{T, C, <:ProbabilityWeights}, u::AbstractVector, 
         B = Zv'Zv
         Av = view(A, nnancols, nnancols)
         V = similar(pp.scratchm2)
-        V[nnancols, nnancols] = Av*B*Av
+        V[nnancols, nnancols] = Av * B * Av
         V[nancols, :] .= NaN
         V[:, nancols] .= NaN
     else
         B = mul!(pp.scratchm2, Z', Z)
-        V = A*B*A
+        V = A * B * A
     end
     return V
 end
-
-function vcov(pp::SparsePredChol{T, C, M, <:ProbabilityWeights}, u::AbstractVector, d::Real) where {T, C, M}
-    ## Note: SparsePredChol does not handle rankdeficient cases
-    Z = mul!(pp.scratchm1, Diagonal(u), pp.X)
-    A = invchol(pp)
-    B = Z'*Z
-    V = A*B*A
-    return V
+    
+function _vcov(pp::SparsePredChol, Z::Matrix, A::Matrix)
+        ## SparsePredChol does not handle rankdeficient cases
+        B = Z'*Z
+        V = A*B*A
+        return V
 end
-
 
 function cor(x::LinPredModel)
     Σ = vcov(x)
@@ -316,7 +319,7 @@ modelframe(obj::LinPredModel) = obj.fr
 
 modelmatrix(obj::LinPredModel; weighted::Bool=isweighted(obj)) = modelmatrix(obj.pp; weighted=weighted)
 
-function modelmatrix(pp::LinPred; weighted::Bool=isweighted(obj))
+function modelmatrix(pp::LinPred; weighted::Bool=isweighted(pp))
     Z = if weighted
         mul!(pp.scratchm1, Diagonal(sqrt.(pp.wts)), pp.X)
     else
@@ -366,3 +369,14 @@ coef(obj::LinPredModel) = coef(obj.pp)
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
 
 hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))
+
+function varstruct(x::LinPredModel)
+    wrkwt = working_weights(x)
+    wrkres = working_residuals(x)
+    r = wrkwt .* wrkres
+    if x.rr.d isa Union{Gamma, Geometric, InverseGaussian}
+        r, sum(wrkwt)/sum(abs2, r)
+    else
+        r, 1.0
+    end
+end

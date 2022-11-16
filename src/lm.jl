@@ -335,6 +335,13 @@ function momentmatrix(m::LinearModel; weighted=isweighted(m))
     end
 end
 
+function varstruct(x::LinearModel)
+    wrkwt = working_weights(x)
+    wrkres = working_residuals(x)
+    r = wrkwt .* wrkres
+    return r, 1.0
+end
+
 """
     cooksdistance(obj::LinearModel)
 
