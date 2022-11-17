@@ -280,8 +280,8 @@ working_weights(x::LinPredModel) = x.rr.wrkwt
 
 function vcov(x::LinPredModel)
     if weights(x) isa ProbabilityWeights
-        ## df with ProbabilityWeights  n-1
-        s = nobs(x)/dof_residual(x)
+        ## df with ProbabilityWeights  n-1        
+        s = nobs(x)/(nobs(x) - 1)
         mm = momentmatrix(x)
         A = invloglikhessian(x)
         _vcov(x.pp, mm, A).*s
