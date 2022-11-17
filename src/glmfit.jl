@@ -289,7 +289,8 @@ function nulldeviance(m::GeneralizedLinearModel)
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, r.link, wts=wts, offset=offset,
+                    X, y, d, r.link; wts=wts, offset=offset,
+                    dropcollinear=isa(m.pp.chol, CholeskyPivoted),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         dev = deviance(nullm)
@@ -352,7 +353,8 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, r.link, wts=wts, offset=offset,
+                    X, y, d, r.link; wts=wts, offset=offset,
+                    dropcollinear=isa(m.pp.chol, CholeskyPivoted),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         ll = loglikelihood(nullm)
@@ -360,7 +362,10 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     return ll
 end
 
-dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
+function dof(x::GeneralizedLinearModel)
+    modelrank = linpred_rank(x.pp)
+    dispersion_parameter(x.rr.d) ? modelrank + 1 : modelrank
+end
 
 function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real,
                atol::Real, rtol::Real, start)
@@ -536,6 +541,12 @@ const FIT_GLM_DOC = """
     for a list of built-in links).
 
     # Keyword Arguments
+    - `dropcollinear::Bool=true`: Controls whether or not `lm` accepts a model matrix which
+      is less-than-full rank.
+      If `true` (the default) the coefficient for redundant linearly dependent columns is
+      `0.0` and all associated statistics are set to `NaN`.
+      Typically from a set of linearly-dependent columns the last ones are identified as redundant
+      (however, the exact selection of columns identified as redundant is not guaranteed).
     - `dofit::Bool=true`: Determines whether model will be fit
     - `wts::AbstractWeights=uweights(length(y))`: Weights of observations.
       Allowed weights are `AnalyticalWeights`, `FrequencyWeights`, or `ProbabilityWeights`.
@@ -569,6 +580,7 @@ function fit(::Type{M},
     y::AbstractVector{<:Real},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
+    dropcollinear::Bool = true,
     dofit::Bool = true,
     wts::AbstractVector{<:Real} = uweights(length(y)),
     offset::AbstractVector{<:Real} = similar(y, 0),
@@ -577,6 +589,7 @@ function fit(::Type{M},
     if size(X, 1) != size(y, 1)
         throw(DimensionMismatch("number of rows in X and y must match"))
     end
+
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
     _wts = if wts isa AbstractWeights
         wts
@@ -602,9 +615,9 @@ fit(::Type{M},
 
 """
     glm(formula, data,
-        distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
+        distr::UnivariateDistribution, link::Link = canonicallink(distr); <keyword arguments>)
     glm(X::AbstractMatrix, y::AbstractVector,
-        distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
+        distr::UnivariateDistribution, link::Link = canonicallink(distr); <keyword arguments>)
 
 Fit a generalized linear model to data. Alias for `fit(GeneralizedLinearModel, ...)`.
 
