@@ -602,7 +602,7 @@ function fit(::Type{M},
         throw(ArgumentError("`wts` should be an AbstractVector coercible to AbstractWeights"))
     end
     rr = GlmResp(y, d, l, offset, _wts)
-    res = M(rr, cholpred(X, false, _wts), false)
+    res = M(rr, cholpred(X, dropcollinear, _wts), false)
     return dofit ? fit!(res; fitargs...) : res
 end
 
@@ -789,11 +789,16 @@ end
 
 ## 
 momentmatrix(m::RegressionModel) = momentmatrix(m.model)
+invloglikhessian(m::RegressionModel) = invloglikhessian(m.model)
 leverage(m::RegressionModel) = leverage(m.model)
 
 function momentmatrix(m::GeneralizedLinearModel; weighted::Bool = isweighted(m))
     X = modelmatrix(m; weighted=false)
-    #r = m.rr.wrkwt .* m.rr.wrkresid
     r, d = varstruct(m)
     return mul!(m.pp.scratchm1, Diagonal(r.*d), X)
+end
+
+function invloglikhessian(m::GeneralizedLinearModel)
+    r, d = varstruct(m)
+    return invchol(m.pp)/d
 end

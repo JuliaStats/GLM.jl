@@ -333,6 +333,8 @@ function momentmatrix(m::LinearModel; weighted=isweighted(m))
     end
 end
 
+invloglikhessian(m::LinearModel) = invchol(m.pp)
+
 function varstruct(x::LinearModel)
     wrkwt = working_weights(x)
     wrkres = working_residuals(x)

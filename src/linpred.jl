@@ -278,27 +278,16 @@ invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), siz
 working_residuals(x::LinPredModel) = x.rr.wrkresid
 working_weights(x::LinPredModel) = x.rr.wrkwt
 
-## Rewrite vcov
-struct IID end
-struct NIID end
-
 function vcov(x::LinPredModel)
     if weights(x) isa ProbabilityWeights
         ## df with ProbabilityWeights  n-1
-        vcov(NIID(), x).*dof_residual(x)/(nobs(x)-1)
+        s = nobs(x)/dof_residual(x)
+        mm = momentmatrix(x)
+        A = invloglikhessian(x)
+        _vcov(x.pp, mm, A).*s
     else
-        vcov(IID(), x)
+        rmul!(invchol(x.pp), dispersion(x, true))
     end
-end
-
-vcov(::IID, x::LinPredModel) = rmul!(invchol(x.pp), dispersion(x, true))
-
-function vcov(::NIID, x::LinPredModel)
-    s = nobs(x)/dof_residual(x)
-    mm = momentmatrix(x)
-    _, d = varstruct(x)
-    A = invchol(x.pp)./d
-    _vcov(x.pp, mm, A).*s
 end
 
 function _vcov(pp::DensePredChol, Z::Matrix, A::Matrix)   
@@ -353,7 +342,6 @@ end
 
 leverage(x::LinPredModel) = leverage(x.pp)
 
-
 function leverage(pp::DensePredChol{T, C, W}) where {T, C<:CholeskyPivoted, W}
     X = modelmatrix(pp; weighted=isweighted(pp))
     _, k = size(X)    
@@ -368,7 +356,6 @@ function leverage(pp::DensePredChol{T, C, W}) where {T, C<:Cholesky, W}
     X = modelmatrix(pp; weighted=isweighted(pp))
     sum(x -> x^2, X/pp.chol.U, dims=2)
 end
-
 
 response(obj::LinPredModel) = obj.rr.y
 
