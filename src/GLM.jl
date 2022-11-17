@@ -12,7 +12,8 @@ module GLM
     import Statistics: cor
     import StatsBase: coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
                       loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
-                      fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², PValue, weights
+                      fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², 
+                      PValue, weights, leverage
     import StatsFuns: xlogy
     import SpecialFunctions: erfc, erfcinv, digamma, trigamma
     import StatsModels: hasintercept
@@ -20,7 +21,7 @@ module GLM
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
            fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
            cooksdistance, hasintercept, dispersion, weights, AnalyticWeights, ProbabilityWeights, FrequencyWeights, 
-           UnitWeights, uweights, fweights, pweights, aweights
+           UnitWeights, uweights, fweights, pweights, aweights, leverage
 
     export
         # types

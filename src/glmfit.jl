@@ -774,8 +774,9 @@ function residuals(r::GlmResp; weighted::Bool=false)
     return dres
 end
 
-## To be removed once StasAPI PR#  is merged
+## 
 momentmatrix(m::RegressionModel) = momentmatrix(m.model)
+leverage(m::RegressionModel) = leverage(m.model)
 
 function momentmatrix(m::GeneralizedLinearModel; weighted::Bool = isweighted(m))
     X = modelmatrix(m; weighted=false)

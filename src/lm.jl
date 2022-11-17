@@ -359,7 +359,7 @@ function StatsBase.cooksdistance(obj::LinearModel)
     u = residuals(obj; weighted=isweighted(obj))
     mse = GLM.dispersion(obj,true)
     k = dof(obj)-1
-    hii = hatvalues(obj)
+    hii = leverage(obj)
     D = @. u^2 * (hii / (1 - hii)^2) / (k*mse) 
     return D
 end

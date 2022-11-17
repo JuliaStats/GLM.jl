@@ -328,9 +328,10 @@ function modelmatrix(pp::LinPred; weighted::Bool=isweighted(pp))
     return Z
 end
 
-hatvalues(x::LinPredModel) = hatvalues(x.pp)
+leverage(x::LinPredModel) = leverage(x.pp)
 
-function hatvalues(pp::DensePredChol{T, C, W}) where {T, C<:CholeskyPivoted, W}
+
+function leverage(pp::DensePredChol{T, C, W}) where {T, C<:CholeskyPivoted, W}
     X = modelmatrix(pp; weighted=isweighted(pp))
     _, k = size(X)    
     ch = pp.chol
@@ -340,7 +341,7 @@ function hatvalues(pp::DensePredChol{T, C, W}) where {T, C<:CholeskyPivoted, W}
     sum(x -> x^2, view(X, :, 1:rnk)/ch.U[1:rnk, idx], dims=2)
 end
 
-function hatvalues(pp::DensePredChol{T, C, W}) where {T, C<:Cholesky, W}
+function leverage(pp::DensePredChol{T, C, W}) where {T, C<:Cholesky, W}
     X = modelmatrix(pp; weighted=isweighted(pp))
     sum(x -> x^2, X/pp.chol.U, dims=2)
 end
