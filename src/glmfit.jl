@@ -285,7 +285,8 @@ function nulldeviance(m::GeneralizedLinearModel)
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, r.link, wts=wts, offset=offset,
+                    X, y, d, r.link; wts=wts, offset=offset,
+                    dropcollinear=isa(m.pp.chol, CholeskyPivoted),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         dev = deviance(nullm)
@@ -339,7 +340,8 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, r.link, wts=wts, offset=offset,
+                    X, y, d, r.link; wts=wts, offset=offset,
+                    dropcollinear=isa(m.pp.chol, CholeskyPivoted),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         ll = loglikelihood(nullm)
@@ -347,7 +349,10 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     return ll
 end
 
-dof(x::GeneralizedLinearModel) = dispersion_parameter(x.rr.d) ? length(coef(x)) + 1 : length(coef(x))
+function dof(x::GeneralizedLinearModel)
+    modelrank = linpred_rank(x.pp)
+    dispersion_parameter(x.rr.d) ? modelrank + 1 : modelrank
+end
 
 function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real,
                atol::Real, rtol::Real, start)
@@ -553,6 +558,7 @@ function fit(::Type{M},
     y::AbstractVector{<:Real},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
+    dropcollinear::Bool = true,
     dofit::Union{Bool, Nothing} = nothing,
     wts::AbstractVector{<:Real}      = similar(y, 0),
     offset::AbstractVector{<:Real}   = similar(y, 0),
@@ -569,7 +575,7 @@ function fit(::Type{M},
     end
 
     rr = GlmResp(y, d, l, offset, wts)
-    res = M(rr, cholpred(X), nothing, false)
+    res = M(rr, cholpred(X, dropcollinear), nothing, false)
     return dofit ? fit!(res; fitargs...) : res
 end
 
@@ -587,6 +593,7 @@ function fit(::Type{M},
              l::Link=canonicallink(d);
              offset::Union{AbstractVector, Nothing} = nothing,
              wts::Union{AbstractVector, Nothing} = nothing,
+             dropcollinear::Bool = true,
              dofit::Union{Bool, Nothing} = nothing,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
              fitargs...) where {M<:AbstractGLM}
@@ -606,15 +613,15 @@ function fit(::Type{M},
     off = offset === nothing ? similar(y, 0) : offset
     wts = wts === nothing ? similar(y, 0) : wts
     rr = GlmResp(y, d, l, off, wts)
-    res = M(rr, cholpred(X), f, false)
+    res = M(rr, cholpred(X, dropcollinear), f, false)
     return dofit ? fit!(res; fitargs...) : res
 end
 
 """
     glm(formula, data,
-        distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
+        distr::UnivariateDistribution, link::Link = canonicallink(distr); <keyword arguments>)
     glm(X::AbstractMatrix, y::AbstractVector,
-        distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
+        distr::UnivariateDistribution, link::Link = canonicallink(distr); <keyword arguments>)
 
 Fit a generalized linear model to data. Alias for `fit(GeneralizedLinearModel, ...)`.
 

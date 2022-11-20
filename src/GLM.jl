@@ -92,6 +92,12 @@ module GLM
     end
 
     const COMMON_FIT_KWARGS_DOCS = """
+        - `dropcollinear::Bool=true`: Controls whether or not a model matrix
+          less-than-full rank is accepted.
+          If `true` (the default) the coefficient for redundant linearly dependent columns is
+          `0.0` and all associated statistics are set to `NaN`.
+          Typically from a set of linearly-dependent columns the last ones are identified as redundant
+          (however, the exact selection of columns identified as redundant is not guaranteed).
         - `wts::Vector=similar(y,0)`: Prior frequency (a.k.a. case) weights of observations.
           Such weights are equivalent to repeating each observation a number of times equal
           to its weight. Do note that this interpretation gives equal point estimates but

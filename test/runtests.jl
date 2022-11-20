@@ -766,8 +766,8 @@ end
 
     # Poisson with categorical predictors, weights and offset
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat), anorexia,
-                    Poisson(), LogLink(), offset=log.(anorexia.Prewt),
-                    wts=repeat(1:4, outer=18), rtol=1e-8)
+                    Poisson(), LogLink(); offset=log.(anorexia.Prewt),
+                    wts=repeat(1:4, outer=18), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3.model)
     @test GLM.cancancel(nointglm3.model.rr)
     test_show(nointglm3)
@@ -1678,4 +1678,160 @@ end
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
     m = glm(@formula(y ~ x), df, Normal(), IdentityLink())
     @test formula(m)::FormulaTerm === m.formula
+end
+
+@testset "dropcollinear with GLMs" begin
+    data = DataFrame(x1=[4, 5, 9, 6, 5], x2=[5, 3, 6, 7, 1], 
+                     x3=[4.2, 4.6, 8.4, 6.2, 4.2], y=[14, 14, 24, 20, 11])
+
+    @testset "Check normal with identity link against equivalent linear model" begin
+        mdl1 = lm(@formula(y ~ x1 + x2 + x3), data; dropcollinear=true)
+        mdl2 = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
+                   dropcollinear=true)
+
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1)[1:3] ≈ stderror(mdl2)[1:3]
+        @test isnan(stderror(mdl1)[4])
+        @test dof(mdl1) == dof(mdl2)
+        @test dof_residual(mdl1) == dof_residual(mdl2)
+        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+    end
+    @testset "Check against equivalent linear model when dropcollinear = false" begin
+        mdl1 = lm(@formula(y ~ x1 + x2), data; dropcollinear=false)
+        mdl2 = glm(@formula(y ~ x1 + x2), data, Normal(), IdentityLink();
+                   dropcollinear=false)
+
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test dof(mdl1) == dof(mdl2)
+        @test dof_residual(mdl1) == dof_residual(mdl2)
+        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+    end
+
+    @testset "Check normal with identity link against outputs from R" begin
+        mdl = glm(@formula(y ~ x1 + x2 + x3), data, Normal(), IdentityLink();
+                   dropcollinear=true)
+        @test coef(mdl) ≈ [1.350439882697950, 1.740469208211143, 1.171554252199414, 0.0]
+        @test stderror(mdl)[1:3] ≈ [0.58371400875263, 0.10681694901238, 0.08531532203251]
+        @test dof(mdl) == 4
+        @test dof_residual(mdl) == 2
+        @test GLM.dispersion(mdl.model, true) ≈ 0.1341642228738996
+        @test deviance(mdl) ≈ 0.2683284457477991
+        @test loglikelihood(mdl) ≈ 0.2177608775670037
+        @test aic(mdl) ≈ 7.564478244866
+        @test predict(mdl) ≈ [14.17008797653959, 13.56744868035191, 24.04398826979472,
+                              19.99413489736071, 11.22434017595308]
+    end
+
+    num_rows = 100
+    dfrm = DataFrame()
+    dfrm.x1 = randn(StableRNG(123), num_rows)
+    dfrm.x2 = randn(StableRNG(1234), num_rows)
+    dfrm.x3 = 2*dfrm.x1 + 3*dfrm.x2
+    dfrm.y = Int.(randn(StableRNG(12345), num_rows) .> 0)
+
+    @testset "Test Logistic Regression Outputs from R" begin
+        mdl = glm(@formula(y ~ x1 + x2 + x3), dfrm, Binomial(), LogitLink();
+                  dropcollinear=true)
+        @test coef(mdl) ≈ [-0.1402582892604246, 0.1362176272953289, 0, -0.1134751362230204] atol = 1.0E-6
+        stderr = stderror(mdl)
+        @test isnan(stderr[3]) == true
+        @test vcat(stderr[1:2], stderr[4])  ≈ [0.20652049856206, 0.25292632684716, 0.07496476901643] atol = 1.0E-4
+        @test deviance(mdl) ≈ 135.68506068159
+        @test loglikelihood(mdl) ≈ -67.8425303407948
+        @test dof(mdl) == 3
+        @test dof_residual(mdl) == 98
+        @test aic(mdl) ≈ 141.68506068159
+        @test GLM.dispersion(mdl.model, true) ≈ 1
+        @test predict(mdl)[1:3] ≈ [0.4241893070433117, 0.3754516361306202, 0.6327877688720133] atol = 1.0E-6
+        @test confint(mdl)[1:2,1:2] ≈ [-0.5493329715011036 0.26350316142056085;
+                                       -0.3582545657827583 0.64313795309765587] atol = 1.0E-1
+    end
+
+    @testset "`rankdeficient` test case of lm in glm" begin
+        rng = StableRNG(1234321)
+        # an example of rank deficiency caused by a missing cell in a table
+        dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
+                          categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
+                          [:G, :H])
+        f = @formula(0 ~ 1 + G*H)
+        X = ModelMatrix(ModelFrame(f, dfrm)).m
+        y = X * (1:size(X, 2)) + 0.1 * randn(rng, size(X, 1))
+        inds = deleteat!(collect(1:length(y)), 7:8)
+        m1 = fit(GeneralizedLinearModel, X, y, Normal())
+        @test isapprox(deviance(m1), 0.12160301538297297)
+        Xmissingcell = X[inds, :]
+        ymissingcell = y[inds]
+        @test_throws PosDefException m2 = glm(Xmissingcell, ymissingcell, Normal();
+            dropcollinear=false)
+        m2p = glm(Xmissingcell, ymissingcell, Normal(); dropcollinear=true)
+        @test isa(m2p.pp.chol, CholeskyPivoted)
+        @test rank(m2p.pp.chol) == 11
+        @test isapprox(deviance(m2p), 0.1215758392280204)
+        @test isapprox(coef(m2p), [0.9772643585228885, 8.903341608496437, 3.027347397503281,
+            3.9661379199401257, 5.079410103608552, 6.1944618141188625, 0.0, 7.930328728005131,
+            8.879994918604757, 2.986388408421915, 10.84972230524356, 11.844809275711485])
+        @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7,:])
+
+        m2p_dep_pos = glm(Xmissingcell, ymissingcell, Normal())
+        @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
+                    "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
+        @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
+        @test rank(m2p_dep_pos.pp.chol) == rank(m2p.pp.chol)
+        @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
+        @test isapprox(coef(m2p_dep_pos), coef(m2p))
+    end
+
+    @testset "`rankdeficient` test in GLM with Gamma distribution" begin
+        rng = StableRNG(1234321)
+        # an example of rank deficiency caused by a missing cell in a table
+        dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
+                          categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
+                          [:G, :H])
+        f = @formula(0 ~ 1 + G*H)
+        X = ModelMatrix(ModelFrame(f, dfrm)).m
+        y = X * (1:size(X, 2)) + 0.1 * randn(rng, size(X, 1))
+        inds = deleteat!(collect(1:length(y)), 7:8)
+        m1 = fit(GeneralizedLinearModel, X, y, Gamma())
+        @test isapprox(deviance(m1), 0.0407069934950098)
+        Xmissingcell = X[inds, :]
+        ymissingcell = y[inds]
+        @test_throws PosDefException glm(Xmissingcell, ymissingcell, Gamma(); dropcollinear=false)
+        m2p = glm(Xmissingcell, ymissingcell, Gamma(); dropcollinear=true)
+        @test isa(m2p.pp.chol, CholeskyPivoted)
+        @test rank(m2p.pp.chol) == 11
+        @test isapprox(deviance(m2p), 0.04070377141288433)
+        @test isapprox(coef(m2p), [ 1.0232644374837732, -0.0982622592717195, -0.7735523403010212,
+            -0.820974608805111, -0.8581573302333557, -0.8838279927663583, 0.0, 0.667219148331652,
+            0.7087696966674913, 0.011287703617517712, 0.6816245514668273, 0.7250492032072612])
+        @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7,:])
+
+        m2p_dep_pos = fit(GeneralizedLinearModel, Xmissingcell, ymissingcell, Gamma())
+        @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
+                    "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
+        @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
+        @test rank(m2p_dep_pos.pp.chol) == rank(m2p.pp.chol)
+        @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
+        @test isapprox(coef(m2p_dep_pos), coef(m2p))
+    end
+end
+
+@testset "Floating point error in Binomial loglik" begin
+    @test_throws InexactError GLM._safe_int(1.3)
+    @test GLM._safe_int(1) === 1
+    # see issue 503
+    y, μ, wt, ϕ = 0.6376811594202898, 0.8492925285671102, 69.0, NaN
+    # due to floating point:
+    # 1. y * wt == 43.99999999999999 
+    # 2. 44 / y == wt
+    # 3. 44 / wt == y
+    @test GLM.loglik_obs(Binomial(), y, μ, wt, ϕ) ≈ GLM.logpdf(Binomial(Int(wt), μ), 44)
 end

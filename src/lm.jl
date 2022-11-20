@@ -113,10 +113,6 @@ const FIT_LM_DOC = """
 
     # Keyword Arguments
     $COMMON_FIT_KWARGS_DOCS
-    - `dropcollinear::Bool=false` controls whether or not `lm` accepts a model matrix which
-      is less-than-full rank. If `true` (the default), only the first of each set of
-      linearly-dependent columns is used. The coefficient for redundant linearly dependent
-      columns is `0.0` and all associated statistics are set to `NaN`.
     """
 
 """
@@ -167,9 +163,7 @@ $FIT_LM_DOC
 lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
     fit(LinearModel, X, y, allowrankdeficient_dep; kwargs...)
 
-dof(x::LinearModel) = length(coef(x)) + 1
-
-dof(obj::LinearModel{<:LmResp,<:DensePredChol{<:Real,<:CholeskyPivoted}}) = obj.pp.chol.rank + 1
+dof(x::LinearModel) = linpred_rank(x.pp) + 1
 
 """
     deviance(obj::LinearModel)
