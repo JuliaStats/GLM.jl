@@ -45,8 +45,9 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isa(lm2.pp.chol, CholeskyPivoted)
     @test lm2.pp.chol.piv == [2, 1]
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
-    # Deprecated method
+    # Deprecated methods
     @test lm1.model === lm1
+    @test lm1.mf.f == formula(lm1)
 end
 
 @testset "Linear Model Cook's Distance" begin
@@ -293,8 +294,9 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
     @test isapprox(bic(gm1), 57.74744128863877)
     @test isapprox(coef(gm1)[1:3],
         [3.044522437723423,-0.45425527227759555,-0.29298712468147375])
-    # Deprecated method
+    # Deprecated methods
     @test gm1.model === gm1
+    @test gm1.mf.f == formula(gm1)
 end
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm
@@ -422,7 +424,7 @@ end
     gm7p = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat), anorexia,
                Poisson(), LogLink(), offset=log.(anorexia.Prewt), rtol=1e-8)
 
-    @test GLM.cancancel(gm7p.model.rr)
+    @test GLM.cancancel(gm7p.rr)
     test_show(gm7p)
     @test deviance(gm7p) ≈ 39.686114742427705
     @test nulldeviance(gm7p) ≈ 54.749010639715294
@@ -439,7 +441,7 @@ end
                 Poisson(), LogLink(), offset=log.(anorexia.Prewt),
                 wts=repeat(1:4, outer=18), rtol=1e-8)
 
-    @test GLM.cancancel(gm7pw.model.rr)
+    @test GLM.cancancel(gm7pw.rr)
     test_show(gm7pw)
     @test deviance(gm7pw) ≈ 90.17048668870225
     @test nulldeviance(gm7pw) ≈ 139.63782826574652
@@ -732,9 +734,9 @@ end
 @testset "GLM with no intercept" begin
     # Gamma with single numeric predictor
     nointglm1 = fit(GeneralizedLinearModel, @formula(lot1 ~ 0 + u), clotting, Gamma())
-    @test !hasintercept(nointglm1.model)
-    @test !GLM.cancancel(nointglm1.model.rr)
-    @test isa(GLM.Link(nointglm1.model), InverseLink)
+    @test !hasintercept(nointglm1)
+    @test !GLM.cancancel(nointglm1.rr)
+    @test isa(GLM.Link(nointglm1), InverseLink)
     test_show(nointglm1)
     @test dof(nointglm1) == 2
     @test deviance(nointglm1) ≈ 0.6629903395245351
@@ -745,13 +747,13 @@ end
     @test aicc(nointglm1) ≈ 71.21377945777526
     @test bic(nointglm1) ≈ 69.6082286124477
     @test coef(nointglm1) ≈ [0.009200201253724151]
-    @test GLM.dispersion(nointglm1.model, true) ≈ 0.10198331431820506
+    @test GLM.dispersion(nointglm1, true) ≈ 0.10198331431820506
     @test stderror(nointglm1) ≈ [0.000979309363228589]
 
     # Bernoulli with numeric predictors
     nointglm2 = fit(GeneralizedLinearModel, @formula(admit ~ 0 + gre + gpa), admit, Bernoulli())
-    @test !hasintercept(nointglm2.model)
-    @test GLM.cancancel(nointglm2.model.rr)
+    @test !hasintercept(nointglm2)
+    @test GLM.cancancel(nointglm2.rr)
     test_show(nointglm2)
     @test dof(nointglm2) == 2
     @test deviance(nointglm2) ≈ 503.5584368354113
@@ -768,8 +770,8 @@ end
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat), anorexia,
                     Poisson(), LogLink(); offset=log.(anorexia.Prewt),
                     wts=repeat(1:4, outer=18), rtol=1e-8, dropcollinear=false)
-    @test !hasintercept(nointglm3.model)
-    @test GLM.cancancel(nointglm3.model.rr)
+    @test !hasintercept(nointglm3)
+    @test GLM.cancancel(nointglm3.rr)
     test_show(nointglm3)
     @test deviance(nointglm3) ≈ 90.17048668870225
     @test nulldeviance(nointglm3) ≈ 159.32999067102548
@@ -1694,7 +1696,7 @@ end
         @test isnan(stderror(mdl1)[4])
         @test dof(mdl1) == dof(mdl2)
         @test dof_residual(mdl1) == dof_residual(mdl2)
-        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test GLM.dispersion(mdl1, true) ≈ GLM.dispersion(mdl2,true)
         @test deviance(mdl1) ≈ deviance(mdl2)
         @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
         @test aic(mdl1) ≈ aic(mdl2)
@@ -1709,7 +1711,7 @@ end
         @test stderror(mdl1) ≈ stderror(mdl2)
         @test dof(mdl1) == dof(mdl2)
         @test dof_residual(mdl1) == dof_residual(mdl2)
-        @test GLM.dispersion(mdl1.model, true) ≈ GLM.dispersion(mdl2.model,true)
+        @test GLM.dispersion(mdl1, true) ≈ GLM.dispersion(mdl2,true)
         @test deviance(mdl1) ≈ deviance(mdl2)
         @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
         @test aic(mdl1) ≈ aic(mdl2)
@@ -1723,7 +1725,7 @@ end
         @test stderror(mdl)[1:3] ≈ [0.58371400875263, 0.10681694901238, 0.08531532203251]
         @test dof(mdl) == 4
         @test dof_residual(mdl) == 2
-        @test GLM.dispersion(mdl.model, true) ≈ 0.1341642228738996
+        @test GLM.dispersion(mdl, true) ≈ 0.1341642228738996
         @test deviance(mdl) ≈ 0.2683284457477991
         @test loglikelihood(mdl) ≈ 0.2177608775670037
         @test aic(mdl) ≈ 7.564478244866
@@ -1750,7 +1752,7 @@ end
         @test dof(mdl) == 3
         @test dof_residual(mdl) == 98
         @test aic(mdl) ≈ 141.68506068159
-        @test GLM.dispersion(mdl.model, true) ≈ 1
+        @test GLM.dispersion(mdl, true) ≈ 1
         @test predict(mdl)[1:3] ≈ [0.4241893070433117, 0.3754516361306202, 0.6327877688720133] atol = 1.0E-6
         @test confint(mdl)[1:2,1:2] ≈ [-0.5493329715011036 0.26350316142056085;
                                        -0.3582545657827583 0.64313795309765587] atol = 1.0E-1
