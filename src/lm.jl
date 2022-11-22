@@ -268,29 +268,31 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     end
     if interval === nothing
         return retmean
-    elseif mm.pp.chol isa CholeskyPivoted &&
-        mm.pp.chol.rank < size(mm.pp.chol, 2)
-        throw(ArgumentError("prediction intervals are currently not implemented " *
-                            "when some independent variables have been dropped " *
-                            "from the model due to collinearity"))
+    elseif mm.pp isa DensePredChol 
+        if  mm.pp.chol isa CholeskyPivoted && 
+            mm.pp.chol.rank < size(mm.pp.chol, 2)
+                throw(ArgumentError("prediction intervals are currently not implemented " *
+                                    "when some independent variables have been dropped " *
+                                    "from the model due to collinearity"))
+        end
+    elseif mm.pp isa DensePredQR
+        if rank(mm.pp.qr.R) < size(mm.pp.qr.R, 2)
+            throw(ArgumentError("prediction intervals are currently not implemented " *
+                                "when some independent variables have been dropped " *
+                                "from the model due to collinearity"))
+        end
     end
     length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
-    chol = cholesky!(mm.pp)
-    # get the R matrix from the QR factorization
-    if chol isa CholeskyPivoted
-        ip = invperm(chol.p)
-        R = chol.U[ip, ip]
-    else
-        R = chol.U
-    end
-    residvar = ones(size(newx,2)) * deviance(mm)/dof_residual(mm)
-    if interval == :confidence
-        retvariance = (newx/R).^2 * residvar
-    elseif interval == :prediction
-        retvariance = (newx/R).^2 * residvar .+ deviance(mm)/dof_residual(mm)
-    else
+
+    if interval ∉ [:confidence, :prediction]
         error("only :confidence and :prediction intervals are defined")
     end
+
+    retvariance = diag(newx*vcov(mm)*newx')
+    if interval == :prediction
+        retvariance = retvariance .+ deviance(mm)/dof_residual(mm)
+    end
+    
     retinterval = quantile(TDist(dof_residual(mm)), (1. - level)/2) * sqrt.(retvariance)
     (prediction = retmean, lower = retmean .+ retinterval, upper = retmean .- retinterval)
 end

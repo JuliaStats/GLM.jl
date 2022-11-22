@@ -447,6 +447,141 @@ end
         @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
         @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
     end
+    @testset "Predict with QR Method" begin
+        rng = StableRNG(123)
+        X = rand(rng, 10, 2)
+        newX = rand(rng, 5, 2)
+        off = rand(rng, 10)
+        newoff = rand(rng, 5)
+    
+        """
+        gm11 = fit(GeneralizedLinearModel, X, Y, Binomial())
+        @test isapprox(predict(gm11), Y)
+        @test predict(gm11) == fitted(gm11)
+        
+        newX = rand(rng, 5, 2)
+        newY = logistic.(newX * coef(gm11))
+        gm11_pred1 = predict(gm11, newX)
+        gm11_pred2 = predict(gm11, newX; interval=:confidence, interval_method=:delta)
+        gm11_pred3 = predict(gm11, newX; interval=:confidence, interval_method=:transformation)
+        @test gm11_pred1 == gm11_pred2.prediction == gm11_pred3.prediction≈ newY
+        J = newX.*last.(GLM.inverselink.(LogitLink(), newX*coef(gm11)))
+        se_pred = sqrt.(diag(J*vcov(gm11)*J'))
+        @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975).*se_pred ≈
+            [0.20478201781547786, 0.2894172253195125, 0.17487705636545708, 0.024943206131575357, 0.41670326978944977]
+        @test gm11_pred2.upper ≈ gm11_pred2.prediction .+ quantile(Normal(), 0.975).*se_pred ≈
+            [0.6813754418027714, 0.9516561735593941, 1.0370309285468602, 0.5950732511233356, 1.192883895763427]
+    
+        @test ndims(gm11_pred1) == 1
+    
+        @test ndims(gm11_pred2.prediction) == 1
+        @test ndims(gm11_pred2.upper) == 1
+        @test ndims(gm11_pred2.lower) == 1
+    
+        @test ndims(gm11_pred3.prediction) == 1
+        @test ndims(gm11_pred3.upper) == 1
+        @test ndims(gm11_pred3.lower) == 1
+    
+        off = rand(rng, 10)
+        newoff = rand(rng, 5)
+    
+        @test_throws ArgumentError predict(gm11, newX, offset=newoff)
+    
+        gm12 = fit(GeneralizedLinearModel, X, Y, Binomial(), offset=off)
+        @test_throws ArgumentError predict(gm12, newX)
+        @test isapprox(predict(gm12, newX, offset=newoff),
+            logistic.(newX * coef(gm12) .+ newoff))
+    
+        # Prediction from DataFrames
+        d = DataFrame(X, :auto)
+        d.y = Y
+    
+        gm13 = fit(GeneralizedLinearModel, @formula(y ~ 0 + x1 + x2), d, Binomial())
+        @test predict(gm13) ≈ predict(gm13, d[:,[:x1, :x2]])
+        @test predict(gm13) ≈ predict(gm13, d)
+    
+        newd = DataFrame(newX, :auto)
+        predict(gm13, newd) """
+    
+        Ylm = X * [0.8, 1.6] + 0.8randn(rng, 10)
+        mm = fit(LinearModel, X, Ylm; method=:qr)
+        pred1 = predict(mm, newX)
+        pred2 = predict(mm, newX, interval=:confidence)
+        se_pred = sqrt.(diag(newX*vcov(mm)*newX'))
+    
+        @test pred1 == pred2.prediction ≈
+            [1.1382137814295972, 1.2097057044789292, 1.7983095679661645, 1.0139576473310072, 0.9738243263215998]
+        @test pred2.lower ≈ pred2.prediction - quantile(TDist(dof_residual(mm)), 0.975)*se_pred ≈
+            [0.5483482828723035, 0.3252331944785751, 0.6367574076909834, 0.34715818536935505, -0.41478974520958345]
+        @test pred2.upper ≈ pred2.prediction + quantile(TDist(dof_residual(mm)), 0.975)*se_pred ≈
+            [1.7280792799868907, 2.0941782144792835, 2.9598617282413455, 1.6807571092926594, 2.362438397852783]
+    
+        @test ndims(pred1) == 1
+    
+        @test ndims(pred2.prediction) == 1
+        @test ndims(pred2.lower) == 1
+        @test ndims(pred2.upper) == 1
+    
+        pred3 = predict(mm, newX, interval=:prediction)
+        @test pred1 == pred3.prediction ≈
+            [1.1382137814295972, 1.2097057044789292, 1.7983095679661645, 1.0139576473310072, 0.9738243263215998]
+        @test pred3.lower ≈ pred3.prediction - quantile(TDist(dof_residual(mm)), 0.975)*sqrt.(diag(newX*vcov(mm)*newX') .+ deviance(mm)/dof_residual(mm)) ≈
+            [-1.6524055967145255, -1.6576810549645142, -1.1662846080257512, -1.7939306570282658, -2.0868723667435027]
+        @test pred3.upper ≈ pred3.prediction + quantile(TDist(dof_residual(mm)), 0.975)*sqrt.(diag(newX*vcov(mm)*newX') .+ deviance(mm)/dof_residual(mm)) ≈
+            [3.9288331595737196, 4.077092463922373, 4.762903743958081, 3.82184595169028, 4.034521019386702]
+    
+        # Prediction with dropcollinear (#409)
+        x = [1.0 1.0
+             1.0 2.0
+             1.0 -1.0]
+        y = [1.0, 3.0, -2.0]
+        m1 = lm(x, y; dropcollinear=true, method=:qr)
+        m2 = lm(x, y; dropcollinear=false, method=:qr)
+    
+        p1 = predict(m1, x, interval=:confidence)
+        #predict uses chol hence removed
+        p2 = predict(m2, x, interval=:confidence)
+    
+        @test p1.prediction ≈ p2.prediction
+        @test p1.upper ≈ p2.upper
+        @test p1.lower ≈ p2.lower
+    
+        # Prediction with dropcollinear and complex column permutations (#431)
+        x = [1.0 100.0 1.2
+             1.0 20000.0 2.3
+             1.0 -1000.0 4.6
+             1.0 5000 2.4]
+        y = [1.0, 3.0, -2.0, 4.5]
+        m1 = lm(x, y; dropcollinear=true, method=:qr)
+        m2 = lm(x, y; dropcollinear=false, method=:qr)
+    
+        p1 = predict(m1, x, interval=:confidence)
+        p2 = predict(m2, x, interval=:confidence)
+    
+        @test p1.prediction ≈ p2.prediction
+        @test p1.upper ≈ p2.upper
+        @test p1.lower ≈ p2.lower
+    
+        # Deprecated argument value
+        @test predict(m1, x, interval=:confint) == p1
+    
+        # Prediction intervals would give incorrect results when some variables
+        # have been dropped due to collinearity (#410)
+        x = [1.0 1.0 2.0
+             1.0 2.0 3.0
+             1.0 -1.0 0.0]
+        y = [1.0, 3.0, -2.0]
+        m1 = lm(x, y; method=:qr)
+        m2 = lm(x[:, 1:2], y; method=:qr)
+    
+        @test predict(m1) ≈ predict(m2)
+        @test_broken predict(m1, interval=:confidence) ≈
+            predict(m2, interval=:confidence)
+        @test_broken predict(m1, interval=:prediction) ≈
+            predict(m2, interval=:prediction)
+        @test_throws ArgumentError predict(m1, x, interval=:confidence)
+        @test_throws ArgumentError predict(m1, x, interval=:prediction)
+    end
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
