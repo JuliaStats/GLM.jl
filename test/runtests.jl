@@ -21,7 +21,7 @@ end
 
 linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
 
-@testset "lm" begin
+@testset "lm with cholesky" begin
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
     test_show(lm1)
     @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
@@ -50,7 +50,29 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test coef(lm3) == coef(lm4) ≈ [11, 1, 2, 3, 4]
 end
 
-@testset "Linear Model Cook's Distance" begin
+@testset "lm with QR method" begin
+    lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form; method=:qr)
+    test_show(lm1)
+    @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
+    Σ = [6.136653061224592e-05 -9.464489795918525e-05
+        -9.464489795918525e-05 1.831836734693908e-04]
+    @test isapprox(vcov(lm1), Σ)
+    @test isapprox(cor(lm1.model), Diagonal(diag(Σ))^(-1/2)*Σ*Diagonal(diag(Σ))^(-1/2))
+    @test dof(lm1) == 3
+    @test isapprox(deviance(lm1), 0.0002992000000000012)
+    @test isapprox(loglikelihood(lm1), 21.204842144047973)
+    @test isapprox(nulldeviance(lm1), 0.3138488333333334)
+    @test isapprox(nullloglikelihood(lm1), 0.33817870295676444)
+    @test r²(lm1) == r2(lm1)
+    @test isapprox(r²(lm1), 0.9990466748057584)
+    @test adjr²(lm1) == adjr2(lm1)
+    @test isapprox(adjr²(lm1), 0.998808343507198)
+    @test isapprox(aic(lm1), -36.409684288095946)
+    @test isapprox(aicc(lm1), -24.409684288095946)
+    @test isapprox(bic(lm1), -37.03440588041178)
+end
+
+@testset "Linear Model with Cholesky and Cook's Distance" begin
     st_df = DataFrame( 
         Y=[6.4, 7.4, 10.4, 15.1, 12.3 , 11.4],
         XA=[1.5, 6.5, 11.5, 19.9, 17.0, 15.5],
@@ -79,10 +101,40 @@ end
     t_lm_colli = lm(@formula(Y ~ XA + XC), st_df, dropcollinear=true)
     # Currently fails as the collinear variable is not dropped from `modelmatrix(obj)`
     @test_throws ArgumentError isapprox(st_df.CooksD_base, cooksdistance(t_lm_colli))
-
 end
 
-@testset "linear model with weights" begin 
+@testset "Linear Model with QR and Cook's Distance" begin
+    st_df = DataFrame( 
+        Y=[6.4, 7.4, 10.4, 15.1, 12.3 , 11.4],
+        XA=[1.5, 6.5, 11.5, 19.9, 17.0, 15.5],
+        XB=[1.8, 7.8, 11.8, 20.5, 17.3, 15.8], 
+        XC=[3., 13., 23., 39.8, 34., 31.],
+        # values from SAS proc reg
+        CooksD_base=[1.4068501943, 0.176809102, 0.0026655177, 1.0704009915, 0.0875726457, 0.1331183932], 
+        CooksD_noint=[0.0076891801, 0.0302993877, 0.0410262965, 0.0294348488, 0.0691589296, 0.0273045538], 
+        CooksD_multi=[1.7122291956, 18.983407026, 0.000118078, 0.8470797843, 0.0715921999, 0.1105843157],
+        )
+
+    # linear regression
+    t_lm_base = lm(@formula(Y ~ XA), st_df; method=:qr)
+    @test isapprox(st_df.CooksD_base, cooksdistance(t_lm_base))
+
+    # linear regression, no intercept 
+    t_lm_noint = lm(@formula(Y ~ XA +0), st_df; method=:qr)
+    @test isapprox(st_df.CooksD_noint, cooksdistance(t_lm_noint))
+
+    # linear regression, two collinear variables (Variance inflation factor ≊ 250)
+    t_lm_multi = lm(@formula(Y ~ XA + XB), st_df; method=:qr)
+    @test isapprox(st_df.CooksD_multi, cooksdistance(t_lm_multi))
+
+    # linear regression, two full collinear variables (XC = 2 XA) hence should get the same results as the original
+    # after pivoting
+    t_lm_colli = lm(@formula(Y ~ XA + XC), st_df; dropcollinear=true, method=:qr)
+    # Currently fails as the collinear variable is not dropped from `modelmatrix(obj)`
+    @test_throws ArgumentError isapprox(st_df.CooksD_base, cooksdistance(t_lm_colli))
+end
+
+@testset "linear model with cholesky and weights" begin 
     df = dataset("quantreg", "engel")
     N = nrow(df)
     df.weights = repeat(1:5, Int(N/5))
@@ -103,7 +155,48 @@ end
     @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
 end
 
-@testset "rankdeficient" begin
+@testset "linear model with QR and weights" begin 
+    df = dataset("quantreg", "engel")
+    N = nrow(df)
+    df.weights = repeat(1:5, Int(N/5))
+    f = @formula(FoodExp ~ Income)
+    lm_qr_model = lm(f, df, wts = df.weights; method=:qr)
+    lm_model = lm(f, df, wts = df.weights; method=:cholesky)
+    @test coef(lm_model) ≈ coef(lm_qr_model)
+    @test stderror(lm_model) ≈ stderror(lm_qr_model)
+    @test r2(lm_model) ≈ r2(lm_qr_model)
+    @test adjr2(lm_model) ≈ adjr2(lm_qr_model)
+    @test vcov(lm_model) ≈ vcov(lm_qr_model)
+    @test predict(lm_model) ≈ predict(lm_qr_model)
+    @test loglikelihood(lm_model) ≈ loglikelihood(lm_qr_model)
+    @test nullloglikelihood(lm_model) ≈ nullloglikelihood(lm_qr_model)
+    @test residuals(lm_model) ≈ residuals(lm_qr_model)
+    @test aic(lm_model) ≈ aic(lm_qr_model)
+    @test aicc(lm_model) ≈ aicc(lm_qr_model)
+    @test bic(lm_model) ≈ bic(lm_qr_model)
+    @test GLM.dispersion(lm_model.model) ≈ GLM.dispersion(lm_qr_model.model)
+end
+
+@testset "linear model with QR dropcollinearity" begin
+    # for full rank design matrix, both should give same results
+    lm1 = lm(@formula(OptDen ~ Carb), form; method=:qr, dropcollinear=true)
+    lm2 = lm(@formula(OptDen ~ Carb), form; method=:qr, dropcollinear=false)
+    @test coef(lm1) ≈ coef(lm2)
+    @test stderror(lm1) ≈ stderror(lm2)
+    @test r2(lm1) ≈ r2(lm2)
+    @test adjr2(lm1) ≈ adjr2(lm2)
+    @test vcov(lm1) ≈ vcov(lm2)
+    @test predict(lm1) ≈ predict(lm2)
+    @test loglikelihood(lm1) ≈ loglikelihood(lm2)
+    @test nullloglikelihood(lm1) ≈ nullloglikelihood(lm2)
+    @test residuals(lm1) ≈ residuals(lm2)
+    @test aic(lm1) ≈ aic(lm2)
+    @test aicc(lm1) ≈ aicc(lm2)
+    @test bic(lm1) ≈ bic(lm2)
+    @test GLM.dispersion(lm1.model) ≈ GLM.dispersion(lm2.model)
+end
+
+@testset "linear model with cholesky and rankdeficieny" begin
     rng = StableRNG(1234321)
     # an example of rank deficiency caused by a missing cell in a table
     dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
@@ -142,7 +235,42 @@ end
     @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
 end
 
-@testset "saturated linear model" begin
+@testset "linear model with qr and rankdeficieny" begin
+    rng = StableRNG(1234321)
+    # an example of rank deficiency caused by a missing cell in a table
+    dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
+                     categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
+                     [:G, :H])
+    f = @formula(0 ~ 1 + G*H)
+    X = ModelMatrix(ModelFrame(f, dfrm)).m
+    y = X * (1:size(X, 2)) + 0.1 * randn(rng, size(X, 1))
+    inds = deleteat!(collect(1:length(y)), 7:8)
+    m1 = fit(LinearModel, X, y; method=:qr)
+    @test isapprox(deviance(m1), 0.12160301538297297)
+    Xmissingcell = X[inds, :]
+    ymissingcell = y[inds]
+    m2p = fit(LinearModel, Xmissingcell, ymissingcell; method=:qr)
+    @test isa(m2p.pp.qr, QRPivoted)
+    @test rank(m2p.pp.qr.R) == 11
+    @test isapprox(deviance(m2p), 0.1215758392280204)
+
+    m2p_dep_pos = lm(Xmissingcell, ymissingcell, true; method=:qr)
+    @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
+                "argument `dropcollinear` instead. Proceeding with positional argument value: true")
+    fit(LinearModel, Xmissingcell, ymissingcell, true)
+    @test isa(m2p_dep_pos.pp.qr, QRPivoted)
+    @test rank(m2p_dep_pos.pp.qr.R) == rank(m2p.pp.qr.R)
+    @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
+    @test isapprox(coef(m2p_dep_pos), coef(m2p))
+
+    m2p_dep_pos_kw = lm(Xmissingcell, ymissingcell, true; dropcollinear = false, method=:qr)
+    @test isa(m2p_dep_pos_kw.pp.qr, QRPivoted)
+    @test rank(m2p_dep_pos_kw.pp.qr.R) == rank(m2p.pp.qr.R)
+    @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
+    @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
+end
+
+@testset "saturated linear model with cholesky" begin
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
     model = lm(@formula(y ~ x), df)
     ct = coeftable(model)
@@ -207,7 +335,47 @@ end
     @test_broken glm(@formula(y ~ x1 + x2), df, Normal(), IdentityLink())
 end
 
-@testset "Linear model with no intercept" begin
+@testset "saturated linear model with qr" begin
+    df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
+    model = lm(@formula(y ~ x), df; method=:qr)
+    ct = coeftable(model)
+    @test dof_residual(model) == 0
+    @test dof(model) == 4
+    @test isinf(GLM.dispersion(model.model))
+    @test coef(model) ≈ [1, 1, 2]
+    @test isequal(hcat(ct.cols[2:end]...),
+                  [Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf])
+
+    model = lm(@formula(y ~ 0 + x), df; method=:qr)
+    ct = coeftable(model)
+    @test dof_residual(model) == 0
+    @test dof(model) == 4
+    @test isinf(GLM.dispersion(model.model))
+    @test coef(model) ≈ [1, 2, 3]
+    @test isequal(hcat(ct.cols[2:end]...),
+                  [Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf])
+
+    # Saturated and rank-deficient model
+    df = DataFrame(x1=["a", "b", "c"], x2=["a", "b", "c"], y=[1, 2, 3])
+    model = lm(@formula(y ~ x1 + x2), df; method=:qr)
+    ct = coeftable(model)
+    @test dof_residual(model) == 0
+    @test dof(model) == 4
+    @test isinf(GLM.dispersion(model.model))
+    @test coef(model) ≈ [1, 1, 2, 0, 0]
+    @test isequal(hcat(ct.cols[2:end]...),
+                  [Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf
+                   Inf 0.0 1.0 -Inf Inf
+                   NaN NaN NaN  NaN NaN
+                   NaN NaN NaN  NaN NaN])
+end
+
+@testset "Linear model with cholesky and without intercept" begin
     @testset "Test with NoInt1 Dataset" begin
         # test case to test r2 for no intercept model
         # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt1.dat
@@ -275,69 +443,7 @@ end
     end
 end
 
-@testset "Linear model with QR method" begin
-    @testset "lm with QR method" begin
-        lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form; method=:qr)
-        test_show(lm1)
-        @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
-        Σ = [6.136653061224592e-05 -9.464489795918525e-05
-            -9.464489795918525e-05 1.831836734693908e-04]
-        @test isapprox(vcov(lm1), Σ)
-        @test isapprox(cor(lm1.model), Diagonal(diag(Σ))^(-1/2)*Σ*Diagonal(diag(Σ))^(-1/2))
-        @test dof(lm1) == 3
-        @test isapprox(deviance(lm1), 0.0002992000000000012)
-        @test isapprox(loglikelihood(lm1), 21.204842144047973)
-        @test isapprox(nulldeviance(lm1), 0.3138488333333334)
-        @test isapprox(nullloglikelihood(lm1), 0.33817870295676444)
-        @test r²(lm1) == r2(lm1)
-        @test isapprox(r²(lm1), 0.9990466748057584)
-        @test adjr²(lm1) == adjr2(lm1)
-        @test isapprox(adjr²(lm1), 0.998808343507198)
-        @test isapprox(aic(lm1), -36.409684288095946)
-        @test isapprox(aicc(lm1), -24.409684288095946)
-        @test isapprox(bic(lm1), -37.03440588041178)
-    end
-
-    @testset "QR linear model with and without dropcollinearity" begin 
-        lm1 = lm(@formula(OptDen ~ Carb), form; method=:qr)
-        lm2 = lm(@formula(OptDen ~ Carb), form; method=:qr, dropcollinear=false)
-        @test coef(lm1) ≈ coef(lm2)
-        @test stderror(lm1) ≈ stderror(lm2)
-        @test r2(lm1) ≈ r2(lm2)
-        @test adjr2(lm1) ≈ adjr2(lm2)
-        @test vcov(lm1) ≈ vcov(lm2)
-        @test predict(lm1) ≈ predict(lm2)
-        @test loglikelihood(lm1) ≈ loglikelihood(lm2)
-        @test nullloglikelihood(lm1) ≈ nullloglikelihood(lm2)
-        @test residuals(lm1) ≈ residuals(lm2)
-        @test aic(lm1) ≈ aic(lm2)
-        @test aicc(lm1) ≈ aicc(lm2)
-        @test bic(lm1) ≈ bic(lm2)
-        @test GLM.dispersion(lm1.model) ≈ GLM.dispersion(lm2.model)
-    end
-
-    @testset "QR linear model with weights" begin 
-        df = dataset("quantreg", "engel")
-        N = nrow(df)
-        df.weights = repeat(1:5, Int(N/5))
-        f = @formula(FoodExp ~ Income)
-        lm_qr_model = lm(f, df, wts = df.weights; method=:qr)
-        lm_model = lm(f, df, wts = df.weights; method=:cholesky)
-        @test coef(lm_model) ≈ coef(lm_qr_model)
-        @test stderror(lm_model) ≈ stderror(lm_qr_model)
-        @test r2(lm_model) ≈ r2(lm_qr_model)
-        @test adjr2(lm_model) ≈ adjr2(lm_qr_model)
-        @test vcov(lm_model) ≈ vcov(lm_qr_model)
-        @test predict(lm_model) ≈ predict(lm_qr_model)
-        @test loglikelihood(lm_model) ≈ loglikelihood(lm_qr_model)
-        @test nullloglikelihood(lm_model) ≈ nullloglikelihood(lm_qr_model)
-        @test residuals(lm_model) ≈ residuals(lm_qr_model)
-        @test aic(lm_model) ≈ aic(lm_qr_model)
-        @test aicc(lm_model) ≈ aicc(lm_qr_model)
-        @test bic(lm_model) ≈ bic(lm_qr_model)
-        @test GLM.dispersion(lm_model.model) ≈ GLM.dispersion(lm_qr_model.model)
-    end
-
+@testset "Linear model with qr and without intercept" begin
     @testset "Test QR method with NoInt1 Dataset" begin
         # test case to test r2 for no intercept model
         # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt1.dat
@@ -403,185 +509,17 @@ end
         @test nullloglikelihood(mdl1) ≈ nullloglikelihood(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
     end
-    @testset "Test QR method with NASTY data" begin
-        x =  [1, 2, 3, 4, 5, 6, 7, 8, 9]
-        nasty = DataFrame(X = x, TINY = 1.0E-12*x)
-        mdl = lm(@formula(X ~ TINY), nasty; method=:qr)
+end
 
-        @test coef(mdl) ≈ [0, 1.0E+12]
-        @test dof(mdl) ≈ 3
-        @test r2(mdl) ≈ 1.0
-        @test adjr2(mdl) ≈ 1.0
-    end
-    @testset "Test QR method with dropcollinearity" begin
-        rng = StableRNG(1234321)
-        # an example of rank deficiency caused by a missing cell in a table
-        dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
-                         categorical(repeat(string.('a':'c'), inner = 2, outer = 4))],
-                         [:G, :H])
-        f = @formula(0 ~ 1 + G*H)
-        X = ModelMatrix(ModelFrame(f, dfrm)).m
-        y = X * (1:size(X, 2)) + 0.1 * randn(rng, size(X, 1))
-        inds = deleteat!(collect(1:length(y)), 7:8)
-        m1 = fit(LinearModel, X, y; method=:qr)
-        @test isapprox(deviance(m1), 0.12160301538297297)
-        Xmissingcell = X[inds, :]
-        ymissingcell = y[inds]
-        m2p = fit(LinearModel, Xmissingcell, ymissingcell; method=:qr)
-        @test isa(m2p.pp.qr, QRPivoted)
-        @test rank(m2p.pp.qr.R) == 11
-        @test isapprox(deviance(m2p), 0.1215758392280204)
-    
-        m2p_dep_pos = lm(Xmissingcell, ymissingcell, true; method=:qr)
-        @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
-                    "argument `dropcollinear` instead. Proceeding with positional argument value: true")
-        fit(LinearModel, Xmissingcell, ymissingcell, true)
-        @test isa(m2p_dep_pos.pp.qr, QRPivoted)
-        @test rank(m2p_dep_pos.pp.qr.R) == rank(m2p.pp.qr.R)
-        @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
-        @test isapprox(coef(m2p_dep_pos), coef(m2p))
-    
-        m2p_dep_pos_kw = lm(Xmissingcell, ymissingcell, true; dropcollinear = false, method=:qr)
-        @test isa(m2p_dep_pos_kw.pp.qr, QRPivoted)
-        @test rank(m2p_dep_pos_kw.pp.qr.R) == rank(m2p.pp.qr.R)
-        @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
-        @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
-    end
-    @testset "Predict with QR Method" begin
-        rng = StableRNG(123)
-        X = rand(rng, 10, 2)
-        newX = rand(rng, 5, 2)
-        off = rand(rng, 10)
-        newoff = rand(rng, 5)
-    
-        """
-        gm11 = fit(GeneralizedLinearModel, X, Y, Binomial())
-        @test isapprox(predict(gm11), Y)
-        @test predict(gm11) == fitted(gm11)
-        
-        newX = rand(rng, 5, 2)
-        newY = logistic.(newX * coef(gm11))
-        gm11_pred1 = predict(gm11, newX)
-        gm11_pred2 = predict(gm11, newX; interval=:confidence, interval_method=:delta)
-        gm11_pred3 = predict(gm11, newX; interval=:confidence, interval_method=:transformation)
-        @test gm11_pred1 == gm11_pred2.prediction == gm11_pred3.prediction≈ newY
-        J = newX.*last.(GLM.inverselink.(LogitLink(), newX*coef(gm11)))
-        se_pred = sqrt.(diag(J*vcov(gm11)*J'))
-        @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975).*se_pred ≈
-            [0.20478201781547786, 0.2894172253195125, 0.17487705636545708, 0.024943206131575357, 0.41670326978944977]
-        @test gm11_pred2.upper ≈ gm11_pred2.prediction .+ quantile(Normal(), 0.975).*se_pred ≈
-            [0.6813754418027714, 0.9516561735593941, 1.0370309285468602, 0.5950732511233356, 1.192883895763427]
-    
-        @test ndims(gm11_pred1) == 1
-    
-        @test ndims(gm11_pred2.prediction) == 1
-        @test ndims(gm11_pred2.upper) == 1
-        @test ndims(gm11_pred2.lower) == 1
-    
-        @test ndims(gm11_pred3.prediction) == 1
-        @test ndims(gm11_pred3.upper) == 1
-        @test ndims(gm11_pred3.lower) == 1
-    
-        off = rand(rng, 10)
-        newoff = rand(rng, 5)
-    
-        @test_throws ArgumentError predict(gm11, newX, offset=newoff)
-    
-        gm12 = fit(GeneralizedLinearModel, X, Y, Binomial(), offset=off)
-        @test_throws ArgumentError predict(gm12, newX)
-        @test isapprox(predict(gm12, newX, offset=newoff),
-            logistic.(newX * coef(gm12) .+ newoff))
-    
-        # Prediction from DataFrames
-        d = DataFrame(X, :auto)
-        d.y = Y
-    
-        gm13 = fit(GeneralizedLinearModel, @formula(y ~ 0 + x1 + x2), d, Binomial())
-        @test predict(gm13) ≈ predict(gm13, d[:,[:x1, :x2]])
-        @test predict(gm13) ≈ predict(gm13, d)
-    
-        newd = DataFrame(newX, :auto)
-        predict(gm13, newd) """
-    
-        Ylm = X * [0.8, 1.6] + 0.8randn(rng, 10)
-        mm = fit(LinearModel, X, Ylm; method=:qr)
-        pred1 = predict(mm, newX)
-        pred2 = predict(mm, newX, interval=:confidence)
-        se_pred = sqrt.(diag(newX*vcov(mm)*newX'))
-    
-        @test pred1 == pred2.prediction ≈
-            [1.1382137814295972, 1.2097057044789292, 1.7983095679661645, 1.0139576473310072, 0.9738243263215998]
-        @test pred2.lower ≈ pred2.prediction - quantile(TDist(dof_residual(mm)), 0.975)*se_pred ≈
-            [0.5483482828723035, 0.3252331944785751, 0.6367574076909834, 0.34715818536935505, -0.41478974520958345]
-        @test pred2.upper ≈ pred2.prediction + quantile(TDist(dof_residual(mm)), 0.975)*se_pred ≈
-            [1.7280792799868907, 2.0941782144792835, 2.9598617282413455, 1.6807571092926594, 2.362438397852783]
-    
-        @test ndims(pred1) == 1
-    
-        @test ndims(pred2.prediction) == 1
-        @test ndims(pred2.lower) == 1
-        @test ndims(pred2.upper) == 1
-    
-        pred3 = predict(mm, newX, interval=:prediction)
-        @test pred1 == pred3.prediction ≈
-            [1.1382137814295972, 1.2097057044789292, 1.7983095679661645, 1.0139576473310072, 0.9738243263215998]
-        @test pred3.lower ≈ pred3.prediction - quantile(TDist(dof_residual(mm)), 0.975)*sqrt.(diag(newX*vcov(mm)*newX') .+ deviance(mm)/dof_residual(mm)) ≈
-            [-1.6524055967145255, -1.6576810549645142, -1.1662846080257512, -1.7939306570282658, -2.0868723667435027]
-        @test pred3.upper ≈ pred3.prediction + quantile(TDist(dof_residual(mm)), 0.975)*sqrt.(diag(newX*vcov(mm)*newX') .+ deviance(mm)/dof_residual(mm)) ≈
-            [3.9288331595737196, 4.077092463922373, 4.762903743958081, 3.82184595169028, 4.034521019386702]
-    
-        # Prediction with dropcollinear (#409)
-        x = [1.0 1.0
-             1.0 2.0
-             1.0 -1.0]
-        y = [1.0, 3.0, -2.0]
-        m1 = lm(x, y; dropcollinear=true, method=:qr)
-        m2 = lm(x, y; dropcollinear=false, method=:qr)
-    
-        p1 = predict(m1, x, interval=:confidence)
-        #predict uses chol hence removed
-        p2 = predict(m2, x, interval=:confidence)
-    
-        @test p1.prediction ≈ p2.prediction
-        @test p1.upper ≈ p2.upper
-        @test p1.lower ≈ p2.lower
-    
-        # Prediction with dropcollinear and complex column permutations (#431)
-        x = [1.0 100.0 1.2
-             1.0 20000.0 2.3
-             1.0 -1000.0 4.6
-             1.0 5000 2.4]
-        y = [1.0, 3.0, -2.0, 4.5]
-        m1 = lm(x, y; dropcollinear=true, method=:qr)
-        m2 = lm(x, y; dropcollinear=false, method=:qr)
-    
-        p1 = predict(m1, x, interval=:confidence)
-        p2 = predict(m2, x, interval=:confidence)
-    
-        @test p1.prediction ≈ p2.prediction
-        @test p1.upper ≈ p2.upper
-        @test p1.lower ≈ p2.lower
-    
-        # Deprecated argument value
-        @test predict(m1, x, interval=:confint) == p1
-    
-        # Prediction intervals would give incorrect results when some variables
-        # have been dropped due to collinearity (#410)
-        x = [1.0 1.0 2.0
-             1.0 2.0 3.0
-             1.0 -1.0 0.0]
-        y = [1.0, 3.0, -2.0]
-        m1 = lm(x, y; method=:qr)
-        m2 = lm(x[:, 1:2], y; method=:qr)
-    
-        @test predict(m1) ≈ predict(m2)
-        @test_broken predict(m1, interval=:confidence) ≈
-            predict(m2, interval=:confidence)
-        @test_broken predict(m1, interval=:prediction) ≈
-            predict(m2, interval=:prediction)
-        @test_throws ArgumentError predict(m1, x, interval=:confidence)
-        @test_throws ArgumentError predict(m1, x, interval=:prediction)
-    end
+@testset "linear model with QR method and NASTY data" begin
+    x =  [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    nasty = DataFrame(X = x, TINY = 1.0E-12*x)
+    mdl = lm(@formula(X ~ TINY), nasty; method=:qr)
+
+    @test coef(mdl) ≈ [0, 1.0E+12]
+    @test dof(mdl) ≈ 3
+    @test r2(mdl) ≈ 1.0
+    @test adjr2(mdl) ≈ 1.0
 end
 
 dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
@@ -1124,7 +1062,7 @@ end
     end
 end
 
-@testset "Predict" begin
+@testset "Predict with Cholesky" begin
     rng = StableRNG(123)
     X = rand(rng, 10, 2)
     Y = logistic.(X * [3; -3])
@@ -1257,6 +1195,94 @@ end
     @test_throws ArgumentError predict(m1, x, interval=:prediction)
 end
 
+@testset "Predict with QR" begin
+    # only `lm` part 
+    rng = StableRNG(123)
+    X = rand(rng, 10, 2)
+    newX = rand(rng, 5, 2)
+    off = rand(rng, 10)
+    newoff = rand(rng, 5)
+
+    Ylm = X * [0.8, 1.6] + 0.8randn(rng, 10)
+    mm = fit(LinearModel, X, Ylm; method=:qr)
+    pred1 = predict(mm, newX)
+    pred2 = predict(mm, newX, interval=:confidence)
+    se_pred = sqrt.(diag(newX*vcov(mm)*newX'))
+
+    @test pred1 == pred2.prediction ≈
+        [1.1382137814295972, 1.2097057044789292, 1.7983095679661645, 1.0139576473310072, 0.9738243263215998]
+    @test pred2.lower ≈ pred2.prediction - quantile(TDist(dof_residual(mm)), 0.975)*se_pred ≈
+        [0.5483482828723035, 0.3252331944785751, 0.6367574076909834, 0.34715818536935505, -0.41478974520958345]
+    @test pred2.upper ≈ pred2.prediction + quantile(TDist(dof_residual(mm)), 0.975)*se_pred ≈
+        [1.7280792799868907, 2.0941782144792835, 2.9598617282413455, 1.6807571092926594, 2.362438397852783]
+
+    @test ndims(pred1) == 1
+
+    @test ndims(pred2.prediction) == 1
+    @test ndims(pred2.lower) == 1
+    @test ndims(pred2.upper) == 1
+
+    pred3 = predict(mm, newX, interval=:prediction)
+    @test pred1 == pred3.prediction ≈
+        [1.1382137814295972, 1.2097057044789292, 1.7983095679661645, 1.0139576473310072, 0.9738243263215998]
+    @test pred3.lower ≈ pred3.prediction - quantile(TDist(dof_residual(mm)), 0.975)*sqrt.(diag(newX*vcov(mm)*newX') .+ deviance(mm)/dof_residual(mm)) ≈
+        [-1.6524055967145255, -1.6576810549645142, -1.1662846080257512, -1.7939306570282658, -2.0868723667435027]
+    @test pred3.upper ≈ pred3.prediction + quantile(TDist(dof_residual(mm)), 0.975)*sqrt.(diag(newX*vcov(mm)*newX') .+ deviance(mm)/dof_residual(mm)) ≈
+        [3.9288331595737196, 4.077092463922373, 4.762903743958081, 3.82184595169028, 4.034521019386702]
+
+    # Prediction with dropcollinear (#409)
+    x = [1.0 1.0
+         1.0 2.0
+         1.0 -1.0]
+    y = [1.0, 3.0, -2.0]
+    m1 = lm(x, y; dropcollinear=true, method=:qr)
+    m2 = lm(x, y; dropcollinear=false, method=:qr)
+
+    p1 = predict(m1, x, interval=:confidence)
+    #predict uses chol hence removed
+    p2 = predict(m2, x, interval=:confidence)
+
+    @test p1.prediction ≈ p2.prediction
+    @test p1.upper ≈ p2.upper
+    @test p1.lower ≈ p2.lower
+
+    # Prediction with dropcollinear and complex column permutations (#431)
+    x = [1.0 100.0 1.2
+         1.0 20000.0 2.3
+         1.0 -1000.0 4.6
+         1.0 5000 2.4]
+    y = [1.0, 3.0, -2.0, 4.5]
+    m1 = lm(x, y; dropcollinear=true, method=:qr)
+    m2 = lm(x, y; dropcollinear=false, method=:qr)
+
+    p1 = predict(m1, x, interval=:confidence)
+    p2 = predict(m2, x, interval=:confidence)
+
+    @test p1.prediction ≈ p2.prediction
+    @test p1.upper ≈ p2.upper
+    @test p1.lower ≈ p2.lower
+
+    # Deprecated argument value
+    @test predict(m1, x, interval=:confint) == p1
+
+    # Prediction intervals would give incorrect results when some variables
+    # have been dropped due to collinearity (#410)
+    x = [1.0 1.0 2.0
+         1.0 2.0 3.0
+         1.0 -1.0 0.0]
+    y = [1.0, 3.0, -2.0]
+    m1 = lm(x, y; method=:qr)
+    m2 = lm(x[:, 1:2], y; method=:qr)
+
+    @test predict(m1) ≈ predict(m2)
+    @test_broken predict(m1, interval=:confidence) ≈
+        predict(m2, interval=:confidence)
+    @test_broken predict(m1, interval=:prediction) ≈
+        predict(m2, interval=:prediction)
+    @test_throws ArgumentError predict(m1, x, interval=:confidence)
+    @test_throws ArgumentError predict(m1, x, interval=:prediction)
+end
+
 @testset "GLM confidence intervals" begin
     X = [fill(1,50) range(0,1, length=50)]
     Y = vec([0 0 0 1 0 1 1 0 0 0 0 0 0 0 1 0 1 1 0 1 1 0 1 0 0 1 1 1 0 1 1 1 1 1 0 1 0 1 1 1 0 1 1 1 1 1 1 1 1 1])
@@ -1283,7 +1309,7 @@ end
     @test_throws ArgumentError predict(gm, newX, interval=:undefined)
 end
 
-@testset "F test comparing to null model" begin
+@testset "F test with cholesky comparing to null model" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
                   Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
@@ -1292,6 +1318,61 @@ end
     nullmod = lm(@formula(Result~1), d).model
     bothmod = lm(@formula(Result~Other+Treatment), d).model
     nointerceptmod = lm(reshape(d.Treatment, :, 1), d.Result)
+
+    ft1 = ftest(mod)
+    ft1base = ftest(nullmod, mod)
+    @test ft1.nobs == ft1base.nobs
+    @test ft1.dof ≈ dof(mod) - dof(nullmod)
+    @test ft1.fstat ≈ ft1base.fstat[2]
+    @test ft1.pval ≈ ft1base.pval[2]
+    if VERSION >= v"1.6.0"
+        @test sprint(show, ft1) == """
+            F-test against the null model:
+            F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-07"""
+    else
+        @test sprint(show, ft1) == """
+            F-test against the null model:
+            F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-7"""
+    end
+
+    ft2 = ftest(othermod)
+    ft2base = ftest(nullmod, othermod)
+    @test ft2.nobs == ft2base.nobs
+    @test ft2.dof ≈ dof(othermod) - dof(nullmod)
+    @test ft2.fstat ≈ ft2base.fstat[2]
+    @test ft2.pval ≈ ft2base.pval[2]
+    @test sprint(show, ft2) == """
+        F-test against the null model:
+        F-statistic: 1.12 on 12 observations and 2 degrees of freedom, p-value: 0.3690"""
+
+    ft3 = ftest(bothmod)
+    ft3base = ftest(nullmod, bothmod)
+    @test ft3.nobs == ft3base.nobs
+    @test ft3.dof ≈ dof(bothmod) - dof(nullmod)
+    @test ft3.fstat ≈ ft3base.fstat[2]
+    @test ft3.pval ≈ ft3base.pval[2]
+    if VERSION >= v"1.6.0"
+        @test sprint(show, ft3) == """
+            F-test against the null model:
+            F-statistic: 81.97 on 12 observations and 3 degrees of freedom, p-value: <1e-05"""
+    else
+        @test sprint(show, ft3) == """
+            F-test against the null model:
+            F-statistic: 81.97 on 12 observations and 3 degrees of freedom, p-value: <1e-5"""
+    end
+
+    @test_throws ArgumentError ftest(nointerceptmod)
+end
+
+@testset "F test with qr comparing to null model" begin
+    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
+                  Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
+                  Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
+    mod = lm(@formula(Result~Treatment), d; method=:qr).model
+    othermod = lm(@formula(Result~Other), d; method=:qr).model
+    nullmod = lm(@formula(Result~1), d; method=:qr).model
+    bothmod = lm(@formula(Result~Other+Treatment), d; method=:qr).model
+    nointerceptmod = lm(reshape(d.Treatment, :, 1), d.Result; method=:qr)
 
     ft1 = ftest(mod)
     ft1base = ftest(nullmod, mod)
@@ -1611,7 +1692,7 @@ end
     @test hasintercept(secondcolinterceptmod)
 end
 
-@testset "Views" begin
+@testset "Views with Cholesky method" begin
     @testset "#444" begin
         X = randn(10, 2)
         y = X*ones(2) + randn(10)
@@ -1668,6 +1749,68 @@ end
         ys_altview = @view ys[rows]
         glm_dense_alt = lm(xs_altcopy, ys_altcopy)
         glm_views_alt = lm(xs_altview, ys_altview)
+        # exact equality fails in the final decimal digit for Julia 1.9
+        @test coef(glm_dense_alt) ≈ coef(glm_views_alt)
+    end
+end
+
+@testset "Views with QR method" begin
+    @testset "#444" begin
+        X = randn(10, 2)
+        y = X*ones(2) + randn(10)
+        @test coef(glm(X, y, Normal(), IdentityLink())) ==
+            coef(glm(view(X, 1:10, :), view(y, 1:10), Normal(), IdentityLink()))
+
+        x, y, w = rand(100, 2), rand(100), rand(100)
+        lm1 = lm(x, y)
+        lm2 = lm(x, view(y, :))
+        lm3 = lm(view(x, :, :), y)
+        lm4 = lm(view(x, :, :), view(y, :))
+        @test coef(lm1) == coef(lm2) == coef(lm3) == coef(lm4)
+
+        lm5 = lm(x, y, wts=w)
+        lm6 = lm(x, view(y, :), wts=w)
+        lm7 = lm(view(x, :, :), y, wts=w)
+        lm8 = lm(view(x, :, :), view(y, :), wts=w)
+        lm9 = lm(x, y, wts=view(w, :))
+        lm10 = lm(x, view(y, :), wts=view(w, :))
+        lm11 = lm(view(x, :, :), y, wts=view(w, :))
+        lm12 = lm(view(x, :, :), view(y, :), wts=view(w, :))
+        @test coef(lm5) == coef(lm6) == coef(lm7) == coef(lm8) == coef(lm9) == coef(lm10) ==
+            coef(lm11) == coef(lm12)
+
+        x, y, w = rand(100, 2), rand(Bool, 100), rand(100)
+        glm1 = glm(x, y, Binomial())
+        glm2 = glm(x, view(y, :), Binomial())
+        glm3 = glm(view(x, :, :), y, Binomial())
+        glm4 = glm(view(x, :, :), view(y, :), Binomial())
+        @test coef(glm1) == coef(glm2) == coef(glm3) == coef(glm4)
+
+        glm5 = glm(x, y, Binomial(), wts=w)
+        glm6 = glm(x, view(y, :), Binomial(), wts=w)
+        glm7 = glm(view(x, :, :), y, Binomial(), wts=w)
+        glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=w)
+        glm9 = glm(x, y, Binomial(), wts=view(w, :))
+        glm10 = glm(x, view(y, :), Binomial(), wts=view(w, :))
+        glm11 = glm(view(x, :, :), y, Binomial(), wts=view(w, :))
+        glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=view(w, :))
+        @test coef(glm5) == coef(glm6) == coef(glm7) == coef(glm8) == coef(glm9) == coef(glm10) ==
+            coef(glm11) == coef(glm12)
+    end
+    @testset "Views: #213, #470" begin
+        xs = randn(46, 3)
+        ys = randn(46)
+        glm_dense = lm(xs, ys; method=:qr)
+        glm_views = lm(@view(xs[1:end, 1:end]), ys; method=:qr)
+        @test coef(glm_dense) == coef(glm_views)
+        rows = 1:2:size(xs,1)
+        cols = 1:2:size(xs,2)
+        xs_altcopy = xs[rows, cols]
+        xs_altview = @view xs[rows, cols]
+        ys_altcopy = ys[rows]
+        ys_altview = @view ys[rows]
+        glm_dense_alt = lm(xs_altcopy, ys_altcopy; method=:qr)
+        glm_views_alt = lm(xs_altview, ys_altview; method=:qr)
         # exact equality fails in the final decimal digit for Julia 1.9
         @test coef(glm_dense_alt) ≈ coef(glm_views_alt)
     end
