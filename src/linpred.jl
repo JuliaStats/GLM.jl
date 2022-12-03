@@ -254,17 +254,34 @@ end
 stderror(x::LinPredModel) = sqrt.(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
-    println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
+    println(io, nameof(typeof(obj)), '\n')
+    obj.formula !== nothing && println(io, obj.formula, '\n')
+    println(io, "Coefficients:\n", coeftable(obj))
 end
 
-modelframe(obj::LinPredModel) = obj.fr
+function modelframe(f::FormulaTerm, data, contrasts::AbstractDict, ::Type{M}) where M
+    Tables.istable(data) ||
+        throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
+    t = Tables.columntable(data)
+    msg = StatsModels.checknamesexist(f, t)
+    msg != "" && throw(ArgumentError(msg))
+    data, _ = StatsModels.missing_omit(t, f)
+    sch = schema(f, data, contrasts)
+    f = apply_schema(f, sch, M)
+    f, modelcols(f, data)
+end
+
 modelmatrix(obj::LinPredModel) = obj.pp.X
 response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
-StatsModels.formula(obj::LinPredModel) = modelframe(obj).formula
 residuals(obj::LinPredModel) = residuals(obj.rr)
+
+function formula(obj::LinPredModel)
+    obj.formula === nothing && throw(ArgumentError("model was fitted without a formula"))
+    return obj.formula
+end
 
 """
     nobs(obj::LinearModel)
@@ -283,6 +300,8 @@ end
 
 coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
+coefnames(x::LinPredModel) =
+    x.formula === nothing ? ["x$i" for i in 1:length(coef(x))] : coefnames(formula(x).rhs)
 
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
 
@@ -290,3 +309,37 @@ hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size
 
 linpred_rank(x::LinPred) = length(x.beta0)
 linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = x.chol.rank
+
+_coltype(::ContinuousTerm{T}) where {T} = T
+
+# Function common to all LinPred models, but documented separately
+# for LinearModel and GeneralizedLinearModel
+function StatsBase.predict(mm::LinPredModel, data;
+                           interval::Union{Symbol,Nothing}=nothing,
+                           kwargs...)
+    Tables.istable(data) ||
+        throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
+
+    f = formula(mm)
+    t = Tables.columntable(data)
+    cols, nonmissings = StatsModels.missing_omit(t, f.rhs)
+    newx = modelcols(f.rhs, cols)
+    prediction = Tables.allocatecolumn(Union{_coltype(f.lhs), Missing}, length(nonmissings))
+    fill!(prediction, missing)
+    if interval === nothing
+        predict!(view(prediction, nonmissings), mm, newx;
+                 interval=interval, kwargs...)
+        return prediction
+    else
+        # Finding integer indices once is faster
+        nonmissinginds = findall(nonmissings)
+        lower = Vector{Union{Float64, Missing}}(missing, length(nonmissings))
+        upper = Vector{Union{Float64, Missing}}(missing, length(nonmissings))
+        tup = (prediction=view(prediction, nonmissinginds),
+               lower=view(lower, nonmissinginds),
+               upper=view(upper, nonmissinginds))
+        predict!(tup, mm, newx;
+                 interval=interval, kwargs...)
+        return (prediction=prediction, lower=lower, upper=upper)
+    end
+end
