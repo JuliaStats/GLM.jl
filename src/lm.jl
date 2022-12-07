@@ -325,29 +325,3 @@ function confint(obj::LinearModel; level::Real=0.95)
     hcat(coef(obj),coef(obj)) + stderror(obj) *
     quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
-
-"""
-    cooksdistance(obj::LinearModel)
-
-Compute [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance)
-for each observation in linear model `obj`, giving an estimate of the influence
-of each data point.
-Currently only implemented for linear models without weights.
-"""
-function StatsBase.cooksdistance(obj::LinearModel)
-    u = residuals(obj)
-    mse = dispersion(obj,true)
-    k = dof(obj)-1
-    d_res = dof_residual(obj)
-    X = modelmatrix(obj)
-    XtX = crossmodelmatrix(obj)
-    k == size(X,2) || throw(ArgumentError("Models with collinear terms are not currently supported."))
-    wts = obj.rr.wts
-    if isempty(wts)
-        hii = diag(X * inv(XtX) * X')
-    else
-        throw(ArgumentError("Weighted models are not currently supported."))
-    end
-    D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
-    return D
-end

@@ -120,6 +120,7 @@ module GLM
     include("glmfit.jl")
     include("ftest.jl")
     include("negbinfit.jl")
+    include("influence.jl")
     include("deprecated.jl")
 
 end # module

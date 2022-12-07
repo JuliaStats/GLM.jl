@@ -41,6 +41,12 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(aic(lm1), -36.409684288095946)
     @test isapprox(aicc(lm1), -24.409684288095946)
     @test isapprox(bic(lm1), -37.03440588041178)
+    # Comparator values for `leverage` and `cooksdistance` are from R's `hatvalues` and
+    # `cooks.distance`, respectively
+    @test leverage(lm1) ≈ [0.5918367347, 0.2816326531, 0.1673469388, 0.1836734694,
+                           0.2489795918, 0.5265306122] atol=1e-10
+    @test cooksdistance(lm1) ≈ [1.0705381016, 0.0038594655, 0.0123926845, 0.0940006684,
+                                0.1666111600, 2.1649894169] atol=1e-10
     lm2 = fit(LinearModel, hcat(ones(6), 10form.Carb), form.OptDen, true)
     @test isa(lm2.pp.chol, CholeskyPivoted)
     @test lm2.pp.chol.piv == [2, 1]
@@ -100,7 +106,13 @@ end
     @test isapprox(loglikelihood(lm_model), -4353.946729075838)
     @test isapprox(loglikelihood(glm_model), -4353.946729075838)
     @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
-    @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
+    @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
+    @test leverage(lm_model) ≈ leverage(glm_model)
+    # Values computed from R
+    @test leverage(lm_model)[1:10] ≈ [0.0031577628, 0.0050424090, 0.0044471988, 0.0084538844,
+                                      0.0088088189, 0.0014421478, 0.0031762479, 0.0042745349,
+                                      0.0073786323, 0.0126819467] atol=1e-8
+    @test_broken cooksdistance(lm_model) ≈ cooksdistance(glm_model)
 end
 
 @testset "rankdeficient" begin
@@ -154,6 +166,7 @@ end
                   [Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf])
+    @test leverage(model) ≈ [1, 1, 1]
 
     model = lm(@formula(y ~ 0 + x), df)
     ct = coeftable(model)
@@ -165,6 +178,8 @@ end
                   [Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf])
+    @test leverage(model) ≈ [1, 1, 1]
+    @test all(isnan, cooksdistance(model))
 
     model = glm(@formula(y ~ x), df, Normal(), IdentityLink())
     ct = coeftable(model)
@@ -176,6 +191,7 @@ end
                   [Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf])
+    @test leverage(model) ≈ [1, 1, 1]
 
     model = glm(@formula(y ~ 0 + x), df, Normal(), IdentityLink())
     ct = coeftable(model)
@@ -187,6 +203,8 @@ end
                   [Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf])
+    @test leverage(model) ≈ [1, 1, 1]
+    @test all(isnan, cooksdistance(model))
 
     # Saturated and rank-deficient model
     df = DataFrame(x1=["a", "b", "c"], x2=["a", "b", "c"], y=[1, 2, 3])
@@ -203,6 +221,7 @@ end
                        Inf 0.0 1.0 -Inf Inf
                        NaN NaN NaN  NaN NaN
                        NaN NaN NaN  NaN NaN])
+        @test leverage(model) ≈ [1, 1, 1]
     end
 end
 
