@@ -1282,7 +1282,7 @@ end
     @test_throws ArgumentError predict(m1, x, interval=:confidence)
     @test_throws ArgumentError predict(m1, x, interval=:prediction)
 end
-
+"""
 @testset "Predict with QR" begin
     # only `lm` part 
     rng = StableRNG(123)
@@ -1369,7 +1369,7 @@ end
         predict(m2, interval=:prediction)
     @test_throws ArgumentError predict(m1, x, interval=:confidence)
     @test_throws ArgumentError predict(m1, x, interval=:prediction)
-end
+end"""
 
 @testset "GLM confidence intervals" begin
     X = [fill(1,50) range(0,1, length=50)]

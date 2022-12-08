@@ -415,37 +415,3 @@ function StatsBase.predict(mm::LinPredModel, data;
         return (prediction=prediction, lower=lower, upper=upper)
     end
 end
-
-_coltype(::ContinuousTerm{T}) where {T} = T
-
-# Function common to all LinPred models, but documented separately
-# for LinearModel and GeneralizedLinearModel
-function StatsBase.predict(mm::LinPredModel, data;
-                           interval::Union{Symbol,Nothing}=nothing,
-                           kwargs...)
-    Tables.istable(data) ||
-        throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
-
-    f = formula(mm)
-    t = Tables.columntable(data)
-    cols, nonmissings = StatsModels.missing_omit(t, f.rhs)
-    newx = modelcols(f.rhs, cols)
-    prediction = Tables.allocatecolumn(Union{_coltype(f.lhs), Missing}, length(nonmissings))
-    fill!(prediction, missing)
-    if interval === nothing
-        predict!(view(prediction, nonmissings), mm, newx;
-                 interval=interval, kwargs...)
-        return prediction
-    else
-        # Finding integer indices once is faster
-        nonmissinginds = findall(nonmissings)
-        lower = Vector{Union{Float64, Missing}}(missing, length(nonmissings))
-        upper = Vector{Union{Float64, Missing}}(missing, length(nonmissings))
-        tup = (prediction=view(prediction, nonmissinginds),
-               lower=view(lower, nonmissinginds),
-               upper=view(upper, nonmissinginds))
-        predict!(tup, mm, newx;
-                 interval=interval, kwargs...)
-        return (prediction=prediction, lower=lower, upper=upper)
-    end
-end
