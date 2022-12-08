@@ -20,7 +20,7 @@ julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
    3 │     3      7
 
 julia> ols = lm(@formula(Y ~ X), data)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
+LinearModel
 
 Y ~ 1 + X
 
@@ -117,7 +117,7 @@ julia> data = DataFrame(X=[1,2,2], Y=[1,0,1])
    3 │     2      1
 
 julia> probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
-StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, Binomial{Float64}, ProbitLink}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
+GeneralizedLinearModel
 
 Y ~ 1 + X
 
@@ -158,7 +158,7 @@ julia> quine = dataset("MASS", "quine")
                      131 rows omitted
 
 julia> nbrmodel = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
-StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, NegativeBinomial{Float64}, LogLink}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
+GeneralizedLinearModel
 
 Days ~ 1 + Eth + Sex + Age + Lrn
 
@@ -176,7 +176,7 @@ Lrn: SL       0.296768     0.185934   1.60    0.1105  -0.0676559   0.661191
 ────────────────────────────────────────────────────────────────────────────
 
 julia> nbrmodel = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink())
-StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, NegativeBinomial{Float64}, LogLink}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
+GeneralizedLinearModel
 
 Days ~ 1 + Eth + Sex + Age + Lrn
 
@@ -193,7 +193,7 @@ Age: F3       0.356955     0.247228   1.44    0.1488  -0.127602    0.841513
 Lrn: SL       0.292138     0.18565    1.57    0.1156  -0.0717297   0.656006
 ────────────────────────────────────────────────────────────────────────────
 
-julia> println("Estimated theta = ", round(nbrmodel.model.rr.d.r, digits=5))
+julia> println("Estimated theta = ", round(nbrmodel.rr.d.r, digits=5))
 Estimated theta = 1.27489
 
 ```
@@ -225,7 +225,7 @@ julia> form = dataset("datasets", "Formaldehyde")
    6 │     0.9    0.782
 
 julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
+LinearModel
 
 OptDen ~ 1 + Carb
 
@@ -274,7 +274,7 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
                                                     35 rows omitted
 
 julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
+LinearModel
 
 SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
 
@@ -382,7 +382,7 @@ julia> dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
    9 │    13.0  3        3
 
 julia> gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
-StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, Poisson{Float64}, LogLink}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
+GeneralizedLinearModel
 
 Counts ~ 1 + Outcome + Treatment
 
@@ -439,7 +439,7 @@ julia> round(optimal_bic.minimizer, digits = 5) # Optimal λ
 0.40935
 
 julia> glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(optimal_bic.minimizer)) # Best model
-StatsModels.TableRegressionModel{GeneralizedLinearModel{GLM.GlmResp{Vector{Float64}, Normal{Float64}, PowerLink}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
+GeneralizedLinearModel
 
 Volume ~ 1 + Height + Girth
 
