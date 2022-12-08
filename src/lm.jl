@@ -146,21 +146,6 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     end
 end
 
-function fit(::Type{LinearModel}, f::FormulaTerm, data,
-             allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
-             wts::Union{AbstractVector{<:Real}, Nothing}=nothing,
-             dropcollinear::Bool=true,
-             contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
-    f, (y, X) = modelframe(f, data, contrasts, LinearModel)
-    wts === nothing && (wts = similar(y, 0))
-    fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), f))
-    elseif method === :qr
-        fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear)))
-    else
-        throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
-    end
-end
-
 """
     lm(formula, data;
        [wts::AbstractVector], dropcollinear::Bool=true,
