@@ -820,38 +820,3 @@ function checky(y, d::Binomial)
     end
     return nothing
 end
-
-const _RESIDUAL_TYPES = [:deviance, :pearson, :response, :working]
-
-"""
-    residuals(model::GeneralizedLinearModel; type=:deviance)
-
-Return the residuals of a GLM.
-
-Supported values for `type` are:
-- `:deviance` (the default): the signed square root of the element-wise
-  contribution to the deviance
-- `:response`: the difference between the observed and fitted values
-- `:working`: working residuals (used during the IRLS process)
-- `:pearson`: Pearson residuals, i.e., response residuals scaled
-    by the standard error of the response
-"""
-function residuals(model::GeneralizedLinearModel; type=:deviance)
-    type in _RESIDUAL_TYPES ||
-        throw(ArgumentError("Unsupported type `$(type)``; supported types are" *
-                            "$(_RESIDUAL_TYPES)"))
-    # TODO: add in optimized method for normal with identity link
-    if type == :response
-        return response(model) - fitted(model)
-    elseif type == :deviance
-        # XXX I think this might be the same as
-        # 2 * wrkresid, but I'm not 100% sure if that holds across families
-        return sign.(response(model) .- fitted(model)) .* sqrt.(model.rr.devresid)
-    elseif type == :pearson
-        return  sign.(response(model) .- fitted(model)) .* sqrt.(model.rr.wrkwt) .* abs.(model.rr.wrkresid)
-    elseif type == :working
-        return model.rr.wrkresid
-    else
-        error("An error has occurred. Please file an issue on GitHub.")
-    end
-end

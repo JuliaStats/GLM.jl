@@ -54,14 +54,14 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
 end
 
 @testset "Linear Model Cook's Distance" begin
-    st_df = DataFrame(
+    st_df = DataFrame( 
         Y=[6.4, 7.4, 10.4, 15.1, 12.3 , 11.4],
         XA=[1.5, 6.5, 11.5, 19.9, 17.0, 15.5],
-        XB=[1.8, 7.8, 11.8, 20.5, 17.3, 15.8],
+        XB=[1.8, 7.8, 11.8, 20.5, 17.3, 15.8], 
         XC=[3., 13., 23., 39.8, 34., 31.],
         # values from SAS proc reg
-        CooksD_base=[1.4068501943, 0.176809102, 0.0026655177, 1.0704009915, 0.0875726457, 0.1331183932],
-        CooksD_noint=[0.0076891801, 0.0302993877, 0.0410262965, 0.0294348488, 0.0691589296, 0.0273045538],
+        CooksD_base=[1.4068501943, 0.176809102, 0.0026655177, 1.0704009915, 0.0875726457, 0.1331183932], 
+        CooksD_noint=[0.0076891801, 0.0302993877, 0.0410262965, 0.0294348488, 0.0691589296, 0.0273045538], 
         CooksD_multi=[1.7122291956, 18.983407026, 0.000118078, 0.8470797843, 0.0715921999, 0.1105843157],
         )
 
@@ -69,7 +69,7 @@ end
     t_lm_base = lm(@formula(Y ~ XA), st_df)
     @test isapprox(st_df.CooksD_base, cooksdistance(t_lm_base))
 
-    # linear regression, no intercept
+    # linear regression, no intercept 
     t_lm_noint = lm(@formula(Y ~ XA +0), st_df)
     @test isapprox(st_df.CooksD_noint, cooksdistance(t_lm_noint))
 
@@ -85,7 +85,7 @@ end
 
 end
 
-@testset "linear model with weights" begin
+@testset "linear model with weights" begin 
     df = dataset("quantreg", "engel")
     N = nrow(df)
     df.weights = repeat(1:5, Int(N/5))
@@ -97,17 +97,13 @@ end
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
     @test isapprox(r2(lm_model), 0.8330258148644486)
     @test isapprox(adjr2(lm_model), 0.832788298242634)
-    @test isapprox(vcov(lm_model), [88.02760245551447 -0.06772589439264813;
+    @test isapprox(vcov(lm_model), [88.02760245551447 -0.06772589439264813; 
                                     -0.06772589439264813 6.670664781664879e-5])
     @test isapprox(first(predict(lm_model)), 357.57694841780994)
     @test isapprox(loglikelihood(lm_model), -4353.946729075838)
     @test isapprox(loglikelihood(glm_model), -4353.946729075838)
     @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
-    @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
-
-    # this should be elementwise true (which is a stronger condition than
-    # vectors being approximately equal) the so we test elementwise
-    @test all(residuals(glm_model; type=:response) .≈ residuals(lm_model))
+    @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
 end
 
 @testset "rankdeficient" begin
@@ -792,8 +788,8 @@ end
     @test aic(gm22) ≈ 1112.7422553284146
     @test aicc(gm22) ≈ 1113.7933502189255
     @test bic(gm22) ≈ 1136.6111083020812
-    @test coef(gm22)[1:7] ≈ [2.8978546663153897, -0.5701067649409168, 0.08040181505082235,
-                            -0.4497584898742737, 0.08622664933901254, 0.3558996662512287,
+    @test coef(gm22)[1:7] ≈ [2.8978546663153897, -0.5701067649409168, 0.08040181505082235, 
+                            -0.4497584898742737, 0.08622664933901254, 0.3558996662512287, 
                              0.29016080736927813]
     @test stderror(gm22) ≈ [0.22754287093719366, 0.15274755092180423, 0.15928431669166637,
                             0.23853372776980591, 0.2354231414867577, 0.24750780320597515,
@@ -1769,7 +1765,7 @@ end
 end
 
 @testset "dropcollinear with GLMs" begin
-    data = DataFrame(x1=[4, 5, 9, 6, 5], x2=[5, 3, 6, 7, 1],
+    data = DataFrame(x1=[4, 5, 9, 6, 5], x2=[5, 3, 6, 7, 1], 
                      x3=[4.2, 4.6, 8.4, 6.2, 4.2], y=[14, 14, 24, 20, 11])
 
     @testset "Check normal with identity link against equivalent linear model" begin
@@ -1918,7 +1914,7 @@ end
     # see issue 503
     y, μ, wt, ϕ = 0.6376811594202898, 0.8492925285671102, 69.0, NaN
     # due to floating point:
-    # 1. y * wt == 43.99999999999999
+    # 1. y * wt == 43.99999999999999 
     # 2. 44 / y == wt
     # 3. 44 / wt == y
     @test GLM.loglik_obs(Binomial(), y, μ, wt, ϕ) ≈ GLM.logpdf(Binomial(Int(wt), μ), 44)
