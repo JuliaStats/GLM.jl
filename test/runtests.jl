@@ -809,6 +809,27 @@ end
     @test aicc(gm23) ≈ aicc(gm24)
     @test bic(gm23) ≈ bic(gm24)
     @test predict(gm23) ≈ predict(gm24)
+
+    @test isapprox(residuals(gm23; type=:deviance)[1:10],
+                   [-1.691255, -0.706297, -0.519149, -0.961134, -0.961134, 
+                    -0.234178, 0.17945, 0.279821, -0.803948, -0.803948];
+                     atol=1e-6)
+    @test isapprox(residuals(gm23; type=:pearson)[1:10],
+                   [-0.902477, -0.550709, -0.433453, -0.680948, -0.680948, 
+                    -0.216258, 0.190345, 0.306518, -0.604398, -0.604398];
+                   atol=1e-5)
+    @test isapprox(residuals(gm23; type=:response)[1:10],
+                   [-23.089885, -14.089885, -11.089885, -11.723055, -11.723055, 
+                   -3.723055, 3.276945, 5.276945, -9.919, -9.919];
+                   atol=1e-5)
+    @test isapprox(residuals(gm23; type=:working)[1:10],
+                    [0.03668, 0.022383, 0.017617, 0.041919, 0.041919, 
+                     0.013313, -0.011718, -0.018869, 0.039141, 0.039141];
+                     atol=1e-6)
+
+    for rtype in GLM._RESIDUAL_TYPES
+        @test isapprox(residuals.([gm23, gm24]; type=rtype)...; atol=1e-6)
+    end
 end
 
 @testset "GLM with no intercept" begin
