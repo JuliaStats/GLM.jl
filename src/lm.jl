@@ -299,11 +299,17 @@ function StatsModels.predict!(res::Union{AbstractVector,
         length(res) == size(newx, 1) ||
             throw(DimensionMismatch("length of `res` must equal the number of rows in `newx`"))
         res .= newx * coef(mm)
-    elseif mm.pp.chol isa CholeskyPivoted &&
+        #return res
+    elseif mm.pp isa DensePredChol && 
+        mm.pp.chol isa CholeskyPivoted &&
         mm.pp.chol.rank < size(mm.pp.chol, 2)
+            throw(ArgumentError("prediction intervals are currently not implemented " *
+                       "when some independent variables have been dropped " *
+                       "from the model due to collinearity"))
+    elseif mm.pp isa DensePredQR && rank(mm.pp.qr.R) < size(mm.pp.qr.R, 2)
         throw(ArgumentError("prediction intervals are currently not implemented " *
-                            "when some independent variables have been dropped " *
-                            "from the model due to collinearity"))
+                   "when some independent variables have been dropped " *
+                   "from the model due to collinearity"))
     else
         res isa NamedTuple ||
             throw(ArgumentError("`res` must be a `NamedTuple` when `interval` is " *
@@ -312,18 +318,33 @@ function StatsModels.predict!(res::Union{AbstractVector,
         length(prediction) == length(lower) == length(upper) == size(newx, 1) ||
             throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newx`"))
         length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
-        chol = cholesky!(mm.pp)
-        # get the R matrix from the QR factorization
-        if chol isa CholeskyPivoted
-            ip = invperm(chol.p)
-            R = chol.U[ip, ip]
-        else
-            R = chol.U
+        
+        if mm.pp isa DensePredChol
+            chol = cholesky!(mm.pp)
+            # get the R matrix from the QR factorization
+            if chol isa CholeskyPivoted
+                ip = invperm(chol.p)
+                R = chol.U[ip, ip]
+            else
+                R = chol.U
+            end
+        elseif mm.pp isa DensePredQR
+            qr = mm.pp.qr
+            if qr isa QRPivoted
+                Q,R,pv = qr
+                ipiv = invperm(pv)
+                R = R[ipiv, ipiv]
+            else
+                R = qr.R
+            end
         end
+                
         dev = deviance(mm)
         dofr = dof_residual(mm)
         residvar = fill(dev/dofr, size(newx, 2), 1)
         ret = dropdims((newx/R).^2 * residvar, dims=2)
+        #ret = diag(newx*vcov(mm)*newx')
+        #@info ret, ret1
         if interval == :prediction
             ret .+= dev/dofr
         elseif interval != :confidence
@@ -336,6 +357,44 @@ function StatsModels.predict!(res::Union{AbstractVector,
     end
     return res
 end
+
+"""function predict(mm::LinearModel, newx::AbstractMatrix;
+                 interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95)
+    retmean = newx * coef(mm)
+    if interval === :confint
+        Base.depwarn("interval=:confint is deprecated in favor of interval=:confidence", :predict)
+        interval = :confidence
+    end
+    if interval === nothing
+        return retmean
+    elseif mm.pp isa DensePredChol 
+        if  mm.pp.chol isa CholeskyPivoted && 
+            mm.pp.chol.rank < size(mm.pp.chol, 2)
+            throw(ArgumentError("prediction intervals are currently not implemented " *
+                       "when some independent variables have been dropped " *
+                       "from the model due to collinearity"))
+        end
+    elseif mm.pp isa DensePredQR
+        if rank(mm.pp.qr.R) < size(mm.pp.qr.R, 2)
+        throw(ArgumentError("prediction intervals are currently not implemented " *
+                   "when some independent variables have been dropped " *
+                   "from the model due to collinearity"))
+        end
+    end
+    length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
+
+    if interval ∉ [:confidence, :prediction]
+        error("only :confidence and :prediction intervals are defined")
+    end
+
+    retvariance = diag(newx*vcov(mm)*newx')
+    if interval == :prediction
+        retvariance = retvariance .+ deviance(mm)/dof_residual(mm)
+    end
+
+    retinterval = quantile(TDist(dof_residual(mm)), (1. - level)/2) * sqrt.(retvariance)
+    (prediction = retmean, lower = retmean .+ retinterval, upper = retmean .- retinterval)
+end"""
 
 function confint(obj::LinearModel; level::Real=0.95)
     hcat(coef(obj),coef(obj)) + stderror(obj) *
@@ -367,3 +426,5 @@ function StatsBase.cooksdistance(obj::LinearModel)
     D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
     return D
 end
+
+

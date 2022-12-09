@@ -21,7 +21,7 @@ end
 
 linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
 
-@testset "lm with cholesky" begin
+@testset "LM with Cholesky" begin
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
     test_show(lm1)
     @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
@@ -50,7 +50,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test lm1.mf.f == formula(lm1)
 end
 
-@testset "lm with QR method" begin
+@testset "LM with QR method" begin
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form; method=:qr)
     test_show(lm1)
     @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
@@ -70,6 +70,9 @@ end
     @test isapprox(aic(lm1), -36.409684288095946)
     @test isapprox(aicc(lm1), -24.409684288095946)
     @test isapprox(bic(lm1), -37.03440588041178)
+    # Deprecated methods
+    @test lm1.model === lm1
+    @test lm1.mf.f == formula(lm1)
 end
 
 @testset "Linear Model with Cholesky and Cook's Distance" begin
@@ -134,7 +137,7 @@ end
     @test_throws ArgumentError isapprox(st_df.CooksD_base, cooksdistance(t_lm_colli))
 end
 
-@testset "linear model with cholesky and weights" begin 
+@testset "Linear model with Cholesky and weights" begin 
     df = dataset("quantreg", "engel")
     N = nrow(df)
     df.weights = repeat(1:5, Int(N/5))
@@ -155,7 +158,7 @@ end
     @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
 end
 
-@testset "linear model with QR and weights" begin 
+@testset "Linear model with QR and weights" begin 
     df = dataset("quantreg", "engel")
     N = nrow(df)
     df.weights = repeat(1:5, Int(N/5))
@@ -174,10 +177,10 @@ end
     @test aic(lm_model) ≈ aic(lm_qr_model)
     @test aicc(lm_model) ≈ aicc(lm_qr_model)
     @test bic(lm_model) ≈ bic(lm_qr_model)
-    @test GLM.dispersion(lm_model.model) ≈ GLM.dispersion(lm_qr_model.model)
+    @test GLM.dispersion(lm_model) ≈ GLM.dispersion(lm_qr_model)
 end
 
-@testset "linear model with QR dropcollinearity" begin
+@testset "Linear model with QR dropcollinearity" begin
     # for full rank design matrix, both should give same results
     lm1 = lm(@formula(OptDen ~ Carb), form; method=:qr, dropcollinear=true)
     lm2 = lm(@formula(OptDen ~ Carb), form; method=:qr, dropcollinear=false)
@@ -193,10 +196,10 @@ end
     @test aic(lm1) ≈ aic(lm2)
     @test aicc(lm1) ≈ aicc(lm2)
     @test bic(lm1) ≈ bic(lm2)
-    @test GLM.dispersion(lm1.model) ≈ GLM.dispersion(lm2.model)
+    @test GLM.dispersion(lm1) ≈ GLM.dispersion(lm2)
 end
 
-@testset "linear model with cholesky and rankdeficieny" begin
+@testset "Linear model with Cholesky and rankdeficieny" begin
     rng = StableRNG(1234321)
     # an example of rank deficiency caused by a missing cell in a table
     dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
@@ -235,7 +238,7 @@ end
     @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
 end
 
-@testset "linear model with qr and rankdeficieny" begin
+@testset "Linear model with QR and rankdeficieny" begin
     rng = StableRNG(1234321)
     # an example of rank deficiency caused by a missing cell in a table
     dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner = 6)),
@@ -270,7 +273,7 @@ end
     @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
 end
 
-@testset "saturated linear model with cholesky" begin
+@testset "Saturated linear model with Cholesky" begin
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
     model = lm(@formula(y ~ x), df)
     ct = coeftable(model)
@@ -335,13 +338,13 @@ end
     @test_broken glm(@formula(y ~ x1 + x2), df, Normal(), IdentityLink())
 end
 
-@testset "saturated linear model with qr" begin
+@testset "Saturated linear model with QR" begin
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
     model = lm(@formula(y ~ x), df; method=:qr)
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
-    @test isinf(GLM.dispersion(model.model))
+    @test isinf(GLM.dispersion(model))
     @test coef(model) ≈ [1, 1, 2]
     @test isequal(hcat(ct.cols[2:end]...),
                   [Inf 0.0 1.0 -Inf Inf
@@ -352,7 +355,7 @@ end
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
-    @test isinf(GLM.dispersion(model.model))
+    @test isinf(GLM.dispersion(model))
     @test coef(model) ≈ [1, 2, 3]
     @test isequal(hcat(ct.cols[2:end]...),
                   [Inf 0.0 1.0 -Inf Inf
@@ -365,7 +368,7 @@ end
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
-    @test isinf(GLM.dispersion(model.model))
+    @test isinf(GLM.dispersion(model))
     @test coef(model) ≈ [1, 1, 2, 0, 0]
     @test isequal(hcat(ct.cols[2:end]...),
                   [Inf 0.0 1.0 -Inf Inf
@@ -429,7 +432,7 @@ end
 
         @test coef(mdl1) ≈ coef(mdl2)
         @test stderror(mdl1) ≈ stderror(mdl2)
-        @test GLM.dispersion(mdl1.model) ≈ GLM.dispersion(mdl2)
+        @test GLM.dispersion(mdl1) ≈ GLM.dispersion(mdl2)
         @test dof(mdl1) ≈ dof(mdl2)
         @test dof_residual(mdl1) ≈ dof_residual(mdl2)
         @test r2(mdl1) ≈ r2(mdl2)
@@ -443,7 +446,75 @@ end
     end
 end
 
-@testset "linear model with QR method and NASTY data" begin
+@testset "Linear model with qr and without intercept" begin
+    @testset "Test with NoInt1 Dataset" begin
+        # test case to test r2 for no intercept model
+        # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt1.dat
+
+        data = DataFrame(x = 60:70, y = 130:140)
+        mdl = lm(@formula(y ~ 0 + x), data; method=:qr)
+        @test coef(mdl) ≈ [2.07438016528926]
+        @test stderror(mdl) ≈ [0.165289256198347E-01]
+        @test GLM.dispersion(mdl) ≈ 3.56753034006338
+        @test dof(mdl) == 2
+        @test dof_residual(mdl) == 10
+        @test r2(mdl) ≈ 0.999365492298663
+        @test adjr2(mdl) ≈ 0.9993020415285
+        @test nulldeviance(mdl) ≈ 200585.00000000000
+        @test deviance(mdl) ≈ 127.2727272727272
+        @test aic(mdl) ≈ 62.149454400575
+        @test loglikelihood(mdl) ≈ -29.07472720028775
+        @test nullloglikelihood(mdl) ≈ -69.56936343308669
+        @test predict(mdl) ≈ [124.4628099173554, 126.5371900826446, 128.6115702479339,
+                              130.6859504132231, 132.7603305785124, 134.8347107438017,
+                              136.9090909090909, 138.9834710743802, 141.0578512396694,
+                              143.1322314049587, 145.2066115702479]
+    end
+    @testset "Test with NoInt2 Dataset" begin
+        # test case to test r2 for no intercept model
+        # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt2.dat
+
+        data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
+        mdl = lm(@formula(y ~ 0 + x), data; method=:qr)
+        @test coef(mdl) ≈ [0.727272727272727]
+        @test stderror(mdl) ≈ [0.420827318078432E-01]
+        @test GLM.dispersion(mdl) ≈ 0.369274472937998
+        @test dof(mdl) == 2
+        @test dof_residual(mdl) == 2
+        @test r2(mdl) ≈ 0.993348115299335
+        @test adjr2(mdl) ≈ 0.990022172949
+        @test nulldeviance(mdl) ≈ 41.00000000000000
+        @test deviance(mdl) ≈ 0.27272727272727
+        @test aic(mdl) ≈ 5.3199453808329
+        @test loglikelihood(mdl) ≈ -0.6599726904164597
+        @test nullloglikelihood(mdl) ≈ -8.179255266668315
+        @test predict(mdl) ≈ [2.909090909090908, 3.636363636363635, 4.363636363636362]
+    end
+    @testset "Test with without formula" begin
+        X = [4 5 6]'
+        y = [3, 4, 4]
+
+        data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
+        mdl1 = lm(@formula(y ~ 0 + x), data; method=:qr)
+        mdl2 = lm(X, y; method=:qr)
+
+        @test coef(mdl1) ≈ coef(mdl2)
+        @test stderror(mdl1) ≈ stderror(mdl2)
+        @test GLM.dispersion(mdl1) ≈ GLM.dispersion(mdl2)
+        @test dof(mdl1) ≈ dof(mdl2)
+        @test dof_residual(mdl1) ≈ dof_residual(mdl2)
+        @test r2(mdl1) ≈ r2(mdl2)
+        @test adjr2(mdl1) ≈ adjr2(mdl2)
+        @test nulldeviance(mdl1) ≈ nulldeviance(mdl2)
+        @test deviance(mdl1) ≈ deviance(mdl2)
+        @test aic(mdl1) ≈ aic(mdl2)
+        @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
+        @test nullloglikelihood(mdl1) ≈ nullloglikelihood(mdl2)
+        @test predict(mdl1) ≈ predict(mdl2)
+    end
+end
+
+@testset "Linear model with QR method and NASTY data" begin
     x =  [1, 2, 3, 4, 5, 6, 7, 8, 9]
     nasty = DataFrame(X = x, TINY = 1.0E-12*x)
     mdl = lm(@formula(X ~ TINY), nasty; method=:qr)
@@ -1282,7 +1353,7 @@ end
     @test_throws ArgumentError predict(m1, x, interval=:confidence)
     @test_throws ArgumentError predict(m1, x, interval=:prediction)
 end
-"""
+
 @testset "Predict with QR" begin
     # only `lm` part 
     rng = StableRNG(123)
@@ -1369,7 +1440,7 @@ end
         predict(m2, interval=:prediction)
     @test_throws ArgumentError predict(m1, x, interval=:confidence)
     @test_throws ArgumentError predict(m1, x, interval=:prediction)
-end"""
+end
 
 @testset "GLM confidence intervals" begin
     X = [fill(1,50) range(0,1, length=50)]
@@ -1456,10 +1527,10 @@ end
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
                   Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
-    mod = lm(@formula(Result~Treatment), d; method=:qr).model
-    othermod = lm(@formula(Result~Other), d; method=:qr).model
-    nullmod = lm(@formula(Result~1), d; method=:qr).model
-    bothmod = lm(@formula(Result~Other+Treatment), d; method=:qr).model
+    mod = lm(@formula(Result~Treatment), d; method=:qr)
+    othermod = lm(@formula(Result~Other), d; method=:qr)
+    nullmod = lm(@formula(Result~1), d; method=:qr)
+    bothmod = lm(@formula(Result~Other+Treatment), d; method=:qr)
     nointerceptmod = lm(reshape(d.Treatment, :, 1), d.Result; method=:qr)
 
     ft1 = ftest(mod)
@@ -1844,24 +1915,21 @@ end
     @testset "#444" begin
         X = randn(10, 2)
         y = X*ones(2) + randn(10)
-        @test coef(glm(X, y, Normal(), IdentityLink())) ==
-            coef(glm(view(X, 1:10, :), view(y, 1:10), Normal(), IdentityLink()))
-
         x, y, w = rand(100, 2), rand(100), rand(100)
-        lm1 = lm(x, y)
-        lm2 = lm(x, view(y, :))
-        lm3 = lm(view(x, :, :), y)
-        lm4 = lm(view(x, :, :), view(y, :))
+        lm1 = lm(x, y; method=:qr)
+        lm2 = lm(x, view(y, :); method=:qr)
+        lm3 = lm(view(x, :, :), y; method=:qr)
+        lm4 = lm(view(x, :, :), view(y, :); method=:qr)
         @test coef(lm1) == coef(lm2) == coef(lm3) == coef(lm4)
 
-        lm5 = lm(x, y, wts=w)
-        lm6 = lm(x, view(y, :), wts=w)
-        lm7 = lm(view(x, :, :), y, wts=w)
-        lm8 = lm(view(x, :, :), view(y, :), wts=w)
-        lm9 = lm(x, y, wts=view(w, :))
-        lm10 = lm(x, view(y, :), wts=view(w, :))
-        lm11 = lm(view(x, :, :), y, wts=view(w, :))
-        lm12 = lm(view(x, :, :), view(y, :), wts=view(w, :))
+        lm5 = lm(x, y, wts=w, method=:qr)
+        lm6 = lm(x, view(y, :), wts=w,  method=:qr)
+        lm7 = lm(view(x, :, :), y, wts=w,  method=:qr)
+        lm8 = lm(view(x, :, :), view(y, :), wts=w,  method=:qr)
+        lm9 = lm(x, y, wts=view(w, :),  method=:qr)
+        lm10 = lm(x, view(y, :), wts=view(w, :),  method=:qr)
+        lm11 = lm(view(x, :, :), y, wts=view(w, :),  method=:qr)
+        lm12 = lm(view(x, :, :), view(y, :), wts=view(w, :),  method=:qr)
         @test coef(lm5) == coef(lm6) == coef(lm7) == coef(lm8) == coef(lm9) == coef(lm10) ==
             coef(lm11) == coef(lm12)
 
@@ -1871,17 +1939,6 @@ end
         glm3 = glm(view(x, :, :), y, Binomial())
         glm4 = glm(view(x, :, :), view(y, :), Binomial())
         @test coef(glm1) == coef(glm2) == coef(glm3) == coef(glm4)
-
-        glm5 = glm(x, y, Binomial(), wts=w)
-        glm6 = glm(x, view(y, :), Binomial(), wts=w)
-        glm7 = glm(view(x, :, :), y, Binomial(), wts=w)
-        glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=w)
-        glm9 = glm(x, y, Binomial(), wts=view(w, :))
-        glm10 = glm(x, view(y, :), Binomial(), wts=view(w, :))
-        glm11 = glm(view(x, :, :), y, Binomial(), wts=view(w, :))
-        glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=view(w, :))
-        @test coef(glm5) == coef(glm6) == coef(glm7) == coef(glm8) == coef(glm9) == coef(glm10) ==
-            coef(glm11) == coef(glm12)
     end
     @testset "Views: #213, #470" begin
         xs = randn(46, 3)
