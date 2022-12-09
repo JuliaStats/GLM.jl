@@ -338,13 +338,13 @@ function StatsModels.predict!(res::Union{AbstractVector,
                 R = qr.R
             end
         end
-                
+
         dev = deviance(mm)
         dofr = dof_residual(mm)
         residvar = fill(dev/dofr, size(newx, 2), 1)
         ret = dropdims((newx/R).^2 * residvar, dims=2)
-        #ret = diag(newx*vcov(mm)*newx')
-        #@info ret, ret1
+        # We can calculate `ret` compactfully with the following, but it might be less efficient 
+        # ret = diag(newx*vcov(mm)*newx')
         if interval == :prediction
             ret .+= dev/dofr
         elseif interval != :confidence
@@ -357,44 +357,6 @@ function StatsModels.predict!(res::Union{AbstractVector,
     end
     return res
 end
-
-"""function predict(mm::LinearModel, newx::AbstractMatrix;
-                 interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95)
-    retmean = newx * coef(mm)
-    if interval === :confint
-        Base.depwarn("interval=:confint is deprecated in favor of interval=:confidence", :predict)
-        interval = :confidence
-    end
-    if interval === nothing
-        return retmean
-    elseif mm.pp isa DensePredChol 
-        if  mm.pp.chol isa CholeskyPivoted && 
-            mm.pp.chol.rank < size(mm.pp.chol, 2)
-            throw(ArgumentError("prediction intervals are currently not implemented " *
-                       "when some independent variables have been dropped " *
-                       "from the model due to collinearity"))
-        end
-    elseif mm.pp isa DensePredQR
-        if rank(mm.pp.qr.R) < size(mm.pp.qr.R, 2)
-        throw(ArgumentError("prediction intervals are currently not implemented " *
-                   "when some independent variables have been dropped " *
-                   "from the model due to collinearity"))
-        end
-    end
-    length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
-
-    if interval ∉ [:confidence, :prediction]
-        error("only :confidence and :prediction intervals are defined")
-    end
-
-    retvariance = diag(newx*vcov(mm)*newx')
-    if interval == :prediction
-        retvariance = retvariance .+ deviance(mm)/dof_residual(mm)
-    end
-
-    retinterval = quantile(TDist(dof_residual(mm)), (1. - level)/2) * sqrt.(retvariance)
-    (prediction = retmean, lower = retmean .+ retinterval, upper = retmean .- retinterval)
-end"""
 
 function confint(obj::LinearModel; level::Real=0.95)
     hcat(coef(obj),coef(obj)) + stderror(obj) *
