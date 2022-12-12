@@ -117,8 +117,8 @@ const FIT_LM_DOC = """
 
 """
     fit(LinearModel, formula::FormulaTerm, data;
-        [wts::AbstractVector], dropcollinear::Bool=true,
-        contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(), method::Symbol=:cholesky)
+        [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky
+        contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
         wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
@@ -129,8 +129,8 @@ $FIT_LM_DOC
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
              wts::AbstractVector{<:Real}=similar(y, 0),
-             method::Symbol=:cholesky,
-             dropcollinear::Bool=true)
+             dropcollinear::Bool=true,
+             method::Symbol=:cholesky)
     if allowrankdeficient_dep !== nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
@@ -166,8 +166,8 @@ end
 
 """
     lm(formula, data;
-       [wts::AbstractVector], dropcollinear::Bool=true,
-       contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(), method::Symbol=:cholesky)
+       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky
+       contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     lm(X::AbstractMatrix, y::AbstractVector;
        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
@@ -299,7 +299,6 @@ function StatsModels.predict!(res::Union{AbstractVector,
         length(res) == size(newx, 1) ||
             throw(DimensionMismatch("length of `res` must equal the number of rows in `newx`"))
         res .= newx * coef(mm)
-        #return res
     elseif mm.pp isa DensePredChol && 
         mm.pp.chol isa CholeskyPivoted &&
         mm.pp.chol.rank < size(mm.pp.chol, 2)
@@ -321,7 +320,6 @@ function StatsModels.predict!(res::Union{AbstractVector,
         
         if mm.pp isa DensePredChol
             chol = cholesky!(mm.pp)
-            # get the R matrix from the QR factorization
             if chol isa CholeskyPivoted
                 ip = invperm(chol.p)
                 R = chol.U[ip, ip]

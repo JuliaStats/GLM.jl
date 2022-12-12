@@ -283,7 +283,7 @@ function invqr(x::DensePredQR{T,<: QRPivoted}) where T
         return xinv[ipiv, ipiv]
     else
         Rsub = R[1:rnk, 1:rnk]
-        RsubInv = Rsub\I
+        RsubInv = inv(Rsub)
         xinv = fill(convert(T, NaN), (p,p))
         xinv[1:rnk, 1:rnk] = RsubInv*RsubInv'
         ipiv = invperm(pv)
