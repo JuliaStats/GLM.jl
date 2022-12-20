@@ -85,8 +85,7 @@ julia> data = DataFrame(y = rand(rng, 100), x = categorical(repeat([1, 2, 3, 4],
 
 
 julia> lm(@formula(y ~ x), data)
-
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, UnitWeights{Int64}}}, Matrix{Float64}}
+LinearModel
 
 y ~ 1 + x
 
@@ -109,8 +108,7 @@ julia> using StableRNGs
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = repeat([1, 2, 3, 4], 25));
 
 julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
-
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, UnitWeights{Int64}}}, Matrix{Float64}}
+LinearModel
 
 y ~ 1 + x
 
@@ -154,7 +152,7 @@ julia> using StableRNGs, DataFrames, GLM
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = randn(StableRNG(2), 100), weights = repeat([1, 2, 3, 4], 25), );
 
 julia> m = lm(@formula(y ~ x), data)
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, UnitWeights{Int64}}}, Matrix{Float64}}
+LinearModel
 
 y ~ 1 + x
 
@@ -167,7 +165,7 @@ x            -0.0500249   0.0307201  -1.63    0.1066  -0.110988  0.0109382
 ──────────────────────────────────────────────────────────────────────────
 
 julia> m_aweights = lm(@formula(y ~ x), data, wts=aweights(data.weights))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, AnalyticWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, AnalyticWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
+LinearModel
 
 y ~ 1 + x
 
@@ -180,7 +178,7 @@ x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
 ──────────────────────────────────────────────────────────────────────────
 
 julia> m_fweights = lm(@formula(y ~ x), data, wts=fweights(data.weights))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, FrequencyWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, FrequencyWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
+LinearModel
 
 y ~ 1 + x
 
@@ -193,7 +191,7 @@ x            -0.0478667   0.0193863  -2.47    0.0142  -0.0860494  -0.00968394
 ─────────────────────────────────────────────────────────────────────────────
 
 julia> m_pweights = lm(@formula(y ~ x), data, wts=pweights(data.weights))
-StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}, ProbabilityWeights{Int64, Int64, Vector{Int64}}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, ProbabilityWeights{Int64, Int64, Vector{Int64}}}}, Matrix{Float64}}
+LinearModel
 
 y ~ 1 + x
 

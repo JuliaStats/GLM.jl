@@ -24,9 +24,8 @@ The most general approach to fitting a model is with the `fit` function, as in
 ```jldoctest
 julia> using GLM, StableRNGs
 
-
-julia> fit(LinearModel, hcat(ones(10), 1:10), randn(StableRNG(12321), 10))
-LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, UnitWeights{Int64}}}:
+julia> fit(LinearModel, hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
+LinearModel
 
 Coefficients:
 ────────────────────────────────────────────────────────────────
@@ -41,9 +40,8 @@ This model can also be fit as
 ```jldoctest
 julia> using GLM, StableRNGs
 
-
-julia> lm(hcat(ones(10), 1:10), randn(StableRNG(12321), 10))
-LinearModel{GLM.LmResp{Vector{Float64}, UnitWeights{Int64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}, UnitWeights{Int64}}}:
+julia> lm(hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
+LinearModel
 
 Coefficients:
 ────────────────────────────────────────────────────────────────

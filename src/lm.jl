@@ -94,16 +94,19 @@ end
 """
     LinearModel
 
-A combination of a [`LmResp`](@ref) and a [`LinPred`](@ref)
+A combination of a [`LmResp`](@ref), a [`LinPred`](@ref),
+and possibly a `FormulaTerm`
 
 # Members
 
 - `rr`: a `LmResp` object
 - `pp`: a `LinPred` object
+- `f`: either a `FormulaTerm` object or `nothing`
 """
 struct LinearModel{L<:LmResp,T<:LinPred} <: LinPredModel
     rr::L
     pp::T
+    formula::Union{FormulaTerm,Nothing}
 end
 
 LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
@@ -123,26 +126,14 @@ const FIT_LM_DOC = """
     in columns (including if appropriate the intercept), and `y` must be a vector holding
     values of the dependent variable.
 
-    The keyword argument `wts` can be an `AbstractWeights` vector specifying prior weights
-    for observations. Allowed types are:
-    - `UnitWeights`: no weighting (all weights equal to 1).
-    - `Analyticaweights`: describe a non-random relative importance (usually between 0 and 1)
-      for each observation.
-    - `FrequencyWeights`: describe the number of times (or frequency) each observation was seen.
-    - `ProbabilityWeights`: represent the inverse of the sampling probability for each observation,
-      providing a correction mechanism for under- or over-sampling certain population groups.
-    These weights give equal point estimates but different standard errors.
-    If a non-`AbstractWeights` vector is passed (deprecated), it is coerced to `FrequencyWeights`.
-
-    `dropcollinear` controls whether or not `lm` accepts a model matrix which
-    is less-than-full rank. If `true` (the default), only the first of each set of
-    linearly-dependent columns is used. The coefficient for redundant linearly dependent columns is
-    `0.0` and all associated statistics are set to `NaN`.
+    # Keyword Arguments
+    $COMMON_FIT_KWARGS_DOCS
     """
 
 """
-    fit(LinearModel, formula, data, allowrankdeficient=false;
-       [wts::AbstractVector], dropcollinear::Bool=true)
+    fit(LinearModel, formula::FormulaTerm, data;
+        [wts::AbstractVector], dropcollinear::Bool=true,
+        contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
         wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
 
@@ -170,12 +161,35 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     else
         throw(ArgumentError("`wts` should be an `AbstractVector` coercible to `AbstractWeights`"))
     end
-    fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts)))
+    fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), nothing))    
+end
+
+function fit(::Type{LinearModel}, f::FormulaTerm, data,
+             allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
+             wts::Union{Nothing, AbstractVector{<:Real}}=nothing,
+             dropcollinear::Bool=true,
+             contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
+    
+             f, (y, X) = modelframe(f, data, contrasts, LinearModel)
+             wts = wts === nothing ? uweights(length(y)) : wts
+             _wts = if wts isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights, UnitWeights}
+                wts
+            elseif wts isa AbstractVector
+                Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
+                         "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                         "by coercing `wts` to `FrequencyWeights`", :fit)
+                fweights(wts)
+            else
+                throw(ArgumentError("`wts` should be an `AbstractVector` coercible to `AbstractWeights`"))
+            end
+    
+    fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), f))
 end
 
 """
-    lm(formula, data, allowrankdeficient=false;
-       [wts::AbstractVector], dropcollinear::Bool=true)
+    lm(formula, data;
+       [wts::AbstractVector], dropcollinear::Bool=true,
+       contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     lm(X::AbstractMatrix, y::AbstractVector;
        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
 
@@ -266,9 +280,10 @@ function coeftable(mm::LinearModel; level::Real=0.95)
         ci = [isnan(t) ? NaN : -Inf for t in tt]
     end
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
+    cn = coefnames(mm)
     CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
               ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
-              ["x$i" for i = 1:size(mm.pp.X, 2)], 4, 3)
+              cn, 4, 3)
 end
 
 """
@@ -283,39 +298,70 @@ Valid values of `interval` are `:confidence` delimiting the  uncertainty of the
 predicted relationship, and `:prediction` delimiting estimated bounds for new data points.
 """
 function predict(mm::LinearModel, newx::AbstractMatrix;
-                 interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95)
-    retmean = newx * coef(mm)
+                 interval::Union{Symbol,Nothing}=nothing, level::Real=0.95)
+    retmean = similar(view(newx, :, 1))
+    if interval === nothing
+        res = retmean
+        predict!(res, mm, newx)
+    else
+        res = (prediction=retmean, lower=similar(retmean), upper=similar(retmean))
+        predict!(res, mm, newx, interval=interval, level=level)
+    end
+    return res
+end
+
+function StatsModels.predict!(res::Union{AbstractVector,
+                                         NamedTuple{(:prediction, :lower, :upper),
+                                                    <:NTuple{3, AbstractVector}}},
+                              mm::LinearModel, newx::AbstractMatrix;
+                              interval::Union{Symbol, Nothing}=nothing,
+                              level::Real=0.95)
     if interval === :confint
         Base.depwarn("interval=:confint is deprecated in favor of interval=:confidence", :predict)
         interval = :confidence
     end
     if interval === nothing
-        return retmean
+        res isa AbstractVector ||
+            throw(ArgumentError("`res` must be a vector when `interval == nothing` or is omitted"))
+        length(res) == size(newx, 1) ||
+            throw(DimensionMismatch("length of `res` must equal the number of rows in `newx`"))
+        res .= newx * coef(mm)
     elseif mm.pp.chol isa CholeskyPivoted &&
         mm.pp.chol.rank < size(mm.pp.chol, 2)
         throw(ArgumentError("prediction intervals are currently not implemented " *
                             "when some independent variables have been dropped " *
                             "from the model due to collinearity"))
-    end
-    !isweighted(mm) || error("prediction with confidence intervals not yet implemented for weighted regression")
-    chol = cholesky!(mm.pp)
-    # get the R matrix from the QR factorization
-    if chol isa CholeskyPivoted
-        ip = invperm(chol.p)
-        R = chol.U[ip, ip]
     else
-        R = chol.U
+        res isa NamedTuple ||
+            throw(ArgumentError("`res` must be a `NamedTuple` when `interval` is " *
+                                "`:confidence` or `:prediction`"))
+        prediction, lower, upper = res
+        length(prediction) == length(lower) == length(upper) == size(newx, 1) ||
+            throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newx`"))
+        mm.rr.wts isa UnitWeights  || error("prediction with confidence intervals not yet implemented for weighted regression")
+        chol = cholesky!(mm.pp)
+        # get the R matrix from the QR factorization
+        if chol isa CholeskyPivoted
+            ip = invperm(chol.p)
+            R = chol.U[ip, ip]
+        else
+            R = chol.U
+        end
+        dev = deviance(mm)
+        dofr = dof_residual(mm)
+        residvar = fill(dev/dofr, size(newx, 2), 1)
+        ret = dropdims((newx/R).^2 * residvar, dims=2)
+        if interval == :prediction
+            ret .+= dev/dofr
+        elseif interval != :confidence
+            error("only :confidence and :prediction intervals are defined")
+        end
+        ret .= quantile(TDist(dofr), (1 - level)/2) .* sqrt.(ret)
+        prediction .= newx * coef(mm)
+        lower .= prediction .+ ret
+        upper .= prediction -+ ret
     end
-    residvar = ones(size(newx,2)) * deviance(mm)/dof_residual(mm)
-    if interval == :confidence
-        retvariance = (newx/R).^2 * residvar
-    elseif interval == :prediction
-        retvariance = (newx/R).^2 * residvar .+ deviance(mm)/dof_residual(mm)
-    else
-        error("only :confidence and :prediction intervals are defined")
-    end
-    retinterval = quantile(TDist(dof_residual(mm)), (1. - level)/2) * sqrt.(retvariance)
-    (prediction = retmean, lower = retmean .+ retinterval, upper = retmean .- retinterval)
+    return res
 end
 
 function confint(obj::LinearModel; level::Real=0.95)
