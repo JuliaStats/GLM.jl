@@ -1310,7 +1310,6 @@ end
     m2 = lm(x, y, dropcollinear=false)
 
     p1 = predict(m1, x, interval=:confidence)
-    #predict uses chol hence removed
     p2 = predict(m2, x, interval=:confidence)
 
     @test p1.prediction ≈ p2.prediction
