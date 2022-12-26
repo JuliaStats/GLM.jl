@@ -515,7 +515,7 @@ end
 end
 
 @testset "Linear model with QR method and NASTY data" begin
-    x =  [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    x = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     nasty = DataFrame(X = x, TINY = 1.0E-12*x)
     mdl = lm(@formula(X ~ TINY), nasty; method=:qr)
 
