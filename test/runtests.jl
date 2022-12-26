@@ -1467,7 +1467,7 @@ end
     @test_throws ArgumentError predict(gm, newX, interval=:undefined)
 end
 
-@testset "F test with cholesky comparing to null model" begin
+@testset "F test with Cholesky comparing to null model" begin
     d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, .9, 1, 1, 2.2, 2, 2],
                   Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
