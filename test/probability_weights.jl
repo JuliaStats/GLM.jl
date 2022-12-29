@@ -176,9 +176,9 @@ end
         0.3562972562034377,
         0.34801618219815034,
     ] rtol = 1e-04
-    ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
-    ## here the test is actually right!
-    ## @test_broken dof_residual(model) == 139.0    
+    ## Test shouldbe broken because of https://github.com/JuliaStats/GLM.jl/issues/509
+    ## but since negbinomial is correct, by mistake
+    @test dof_residual(model) == 139.0    
     @test stderror(model) ≈ [
         0.20080246284436692,
         0.14068933863735536,
@@ -210,9 +210,10 @@ end
         0.7456070470961171,
         0.5840284357554048,
     ] rtol = 1e-07
-    ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
-    ## This is right, by mistake!
-    ## @test_broken dof_residual(model) == 139.0    
+    
+    ## Test should be broken because of https://github.com/JuliaStats/GLM.jl/issues/509. 
+    ## However, in the negative binomial case the test passes
+    @test dof_residual(model) == 139.0    
     @test stderror(model) ≈ [
         0.4156607040373307,
         0.30174203746555045,

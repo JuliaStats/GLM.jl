@@ -591,8 +591,7 @@ end
 # Logistic regression using aggregated data and weights
 admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
                       admit = repeat([false, true], inner=[4]),
-                      rank = categorical(repeat(1:4, outer=2))
-                    )
+                      rank = categorical(repeat(1:4, outer=2)))
 
 @testset "Aggregated Binomial LogitLink (FrequencyWeights)" begin
     for distr in (Binomial, Bernoulli)
@@ -910,7 +909,7 @@ end
             @test isapprox(deviance(gmsparse), deviance(gmdense))
             @test isapprox(coef(gmsparse), coef(gmdense))
             @test isapprox(vcov(gmsparse), vcov(gmdense))
-            @test isapprox(Matrix(modelmatrix(gmsparse; weighted=true)), modelmatrix(gmdense; weighted=true))
+            @test isapprox(modelmatrix(gmsparse; weighted=true), modelmatrix(gmdense; weighted=true))
         end
     end
 end

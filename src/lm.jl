@@ -43,7 +43,7 @@ end
 
 updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
 
-function deviance(r::LmResp{T,<:AbstractWeights}) where T
+function deviance(r::LmResp) where T
     y = r.y
     mu = r.mu
     wts = r.wts
@@ -72,10 +72,10 @@ function loglikelihood(r::LmResp{T,<:Union{UnitWeights, FrequencyWeights}}) wher
     -n/2 * (log(2π * deviance(r)/n) + 1)
 end
 
-function loglikelihood(r::LmResp{T,<:AbstractWeights}) where T
+function loglikelihood(r::LmResp{T,<:AnalyticWeights}) where T
     N = length(r.y)
     n = sum(log, weights(r))
-    0.5*(n - N * (log(2π * deviance(r)/N) + 1))
+    (n - N * (log(2π * deviance(r)/N) + 1))/2
 end
 
 function loglikelihood(r::LmResp{T,<:ProbabilityWeights}) where T
@@ -369,13 +369,14 @@ function confint(obj::LinearModel; level::Real=0.95)
     quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
 
-function momentmatrix(m::LinearModel; weighted=isweighted(m)) 
+function momentmatrix(m::LinearModel) 
     X = modelmatrix(m; weighted=false)
     r = residuals(m; weighted=false)
-    if weighted && isweighted(m)
-        return X .* r .* weights(m)
+    mm = X .* r
+    if isweighted(m)
+        mm .* weights(m)
     else
-        return X .* r
+        mm
     end
 end
 
@@ -385,7 +386,7 @@ function varstruct(x::LinearModel)
     wrkwt = working_weights(x)
     wrkres = working_residuals(x)
     r = wrkwt .* wrkres
-    return r, 1.0
+    return r, one(eltype(r))
 end
 
 """
@@ -406,6 +407,6 @@ function StatsBase.cooksdistance(obj::LinearModel)
     mse = GLM.dispersion(obj,true)
     k = dof(obj)-1
     hii = leverage(obj)
-    D = @. u^2 * (hii / (1 - hii)^2) / (k*mse) 
+    D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
     return D
 end

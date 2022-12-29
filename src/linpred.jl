@@ -136,13 +136,13 @@ function cholesky(p::DensePredChol{T}) where T<:FP
 end
 cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U', 0)
 
-function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where T<:BlasReal
     X = p.wts isa UnitWeights ? p.scratchm1 .= p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}) where T<:BlasReal
     ch = p.chol
     X = p.wts isa UnitWeights ? p.scratchm1 .= p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     delbeta = mul!(p.delbeta, adjoint(X), r)
@@ -280,7 +280,8 @@ working_weights(x::LinPredModel) = x.rr.wrkwt
 
 function vcov(x::LinPredModel)
     if weights(x) isa ProbabilityWeights
-        ## df with ProbabilityWeights  n-1        
+        ## n-1 degrees of freedom - This is coherent with the `R` package `survey`, 
+        ## `STATA` uses n-k
         s = nobs(x)/(nobs(x) - 1)
         mm = momentmatrix(x)
         A = invloglikhessian(x)
@@ -309,10 +310,10 @@ function _vcov(pp::DensePredChol, Z::Matrix, A::Matrix)
 end
     
 function _vcov(pp::SparsePredChol, Z::Matrix, A::Matrix)
-        ## SparsePredChol does not handle rankdeficient cases
-        B = Z'*Z
-        V = A*B*A
-        return V
+    ## SparsePredChol does not handle rankdeficient cases
+    B = Z'*Z
+    V = A*B*A
+    return V
 end
 
 function cor(x::LinPredModel)
@@ -401,18 +402,6 @@ coefnames(x::LinPredModel) =
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
 
 hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))
-
-
-function varstruct(x::LinPredModel)
-    wrkwt = working_weights(x)
-    wrkres = working_residuals(x)
-    r = wrkwt .* wrkres
-    if x.rr.d isa Union{Gamma, Geometric, InverseGaussian}
-        r, sum(wrkwt)/sum(abs2, r)
-    else
-        r, 1.0
-    end
-end
 
 linpred_rank(x::LinPred) = length(x.beta0)
 linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = x.chol.rank

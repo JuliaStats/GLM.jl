@@ -106,7 +106,7 @@ function updateμ!(r::GlmResp{T,D,L,<:AbstractWeights}, linPr::T) where {T<:FPVe
     updateμ!(r)
     if isweighted(r)
         map!(*, r.devresid, r.devresid, r.wts)
-        map!(*, r.wrkwt, r.wrkwt, r.wts)    
+        map!(*, r.wrkwt, r.wrkwt, r.wts)
     end
     return r
 end
@@ -274,7 +274,7 @@ function nulldeviance(m::GeneralizedLinearModel)
     d      = r.d
     offset = r.offset
     hasint = hasintercept(m)
-    dev    = zero(eltype(y))    
+    dev    = zero(eltype(y))
     if isempty(offset) # Faster method
         if isweighted(m)
             mu = hasint ?
@@ -306,7 +306,7 @@ loglikelihood(m::AbstractGLM) = loglikelihood(m.rr)
 function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
     y = r.y
     mu = r.mu
-    wts = weights(r)    
+    wts = weights(r)
     d = r.d
     ll = zero(eltype(mu))
     n = nobs(r)
@@ -325,7 +325,7 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
     else
         @inbounds for i in eachindex(y, mu, wts)
             throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
-        end       
+        end
     end
     return ll
 end
@@ -351,7 +351,7 @@ function nullloglikelihood(m::GeneralizedLinearModel)
         else
             @inbounds for i in eachindex(y, wts)
                 ll += loglik_apweights_obs(d, y[i], mu, wts[i], δ, sumwt, N)
-            end        
+            end
         end
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
@@ -578,7 +578,7 @@ function fit(::Type{M},
     wts::AbstractVector{<:Real} = uweights(length(y)),
     offset::AbstractVector{<:Real} = similar(y, 0),
     fitargs...) where {M<:AbstractGLM}
-    
+
     if dofit === nothing
         dofit = true
     else
@@ -647,7 +647,7 @@ function fit(::Type{M},
     end
 
     off = offset === nothing ? similar(y, 0) : offset
-    
+
     rr = GlmResp(y, d, l, off, _wts)
     res = M(rr, cholpred(X, dropcollinear, _wts), f, false)
     return dofit ? fit!(res; fitargs...) : res
@@ -863,12 +863,12 @@ nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = sum(r.wts)
 
 function residuals(r::GlmResp; weighted::Bool=false)
     y, η, μ = r.y, r.eta, r.mu
-    dres = similar(μ)    
+    dres = similar(μ)
 
     @inbounds for i in eachindex(y, μ)
-        μi = μ[i] 
+        μi = μ[i]
         yi = y[i]
-        dres[i] = sqrt(max(0, devresid(r.d, yi, μi)))*sign(yi-μi)        
+        dres[i] = sqrt(max(0, devresid(r.d, yi, μi)))*sign(yi-μi)
     end
 
     if weighted
@@ -878,15 +878,21 @@ function residuals(r::GlmResp; weighted::Bool=false)
     return dres
 end
 
-## 
-# momentmatrix(m::LinPredModel) = momentmatrix(m.model)
-# invloglikhessian(m::LinPredModel) = invloglikhessian(m.model)
-# leverage(m::LinPredModel) = leverage(m.model)
-
-function momentmatrix(m::GeneralizedLinearModel; weighted::Bool = isweighted(m))
+function momentmatrix(m::GeneralizedLinearModel)
     X = modelmatrix(m; weighted=false)
     r, d = varstruct(m)
     return mul!(m.pp.scratchm1, Diagonal(r.*d), X)
+end
+
+function varstruct(x::GeneralizedLinearModel)
+    wrkwt = working_weights(x)
+    wrkres = working_residuals(x)
+    r = wrkwt .* wrkres
+    if x.rr.d isa Union{Gamma, Geometric, InverseGaussian}
+        r, sum(wrkwt)/sum(abs2, r)
+    else
+        r, 1.0
+    end
 end
 
 function invloglikhessian(m::GeneralizedLinearModel)
