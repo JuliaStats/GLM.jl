@@ -103,7 +103,7 @@ end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
-    R = p.qr.R[:,1:rnk] 
+    R = @view p.qr.R[:, 1:rnk] 
     Q = @view p.qr.Q[:, 1:size(R, 1)]
     W = Diagonal(wt)
     sqrtW = Diagonal(sqrt.(wt))
