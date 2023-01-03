@@ -93,7 +93,7 @@ function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) 
     sqrtW = Diagonal(sqrt.(wt)) 
     p.delbeta = R \ ((Q'*W*Q) \ (Q'*W*r))
     X = p.X
-    p.qr = qr(sqrtW*X)
+    p.qr = qr!(sqrtW*X)
     return p
 end
 
