@@ -303,8 +303,8 @@ function StatsModels.predict!(res::Union{AbstractVector,
         mm.pp.chol isa CholeskyPivoted &&
         mm.pp.chol.rank < size(mm.pp.chol, 2)
             throw(ArgumentError("prediction intervals are currently not implemented " *
-                       "when some independent variables have been dropped " *
-                       "from the model due to collinearity"))
+                                "when some independent variables have been dropped " *
+                                "from the model due to collinearity"))
     elseif mm.pp isa DensePredQR && rank(mm.pp.qr.R) < size(mm.pp.qr.R, 2)
         throw(ArgumentError("prediction intervals are currently not implemented " *
                    "when some independent variables have been dropped " *
