@@ -117,7 +117,7 @@ const FIT_LM_DOC = """
 
 """
     fit(LinearModel, formula::FormulaTerm, data;
-        [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky
+        [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
         contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
         wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
