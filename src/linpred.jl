@@ -56,7 +56,7 @@ function DensePredQR(X::AbstractMatrix, beta0::AbstractVector, pivot::Bool=false
     n, p = size(X)
     length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
     T = eltype(X)
-    F = pivot ? pivoted_qr!(copy(X)) : qr!(copy(X))
+    F = pivot ? pivoted_qr!(copy(X)) : qr(X)
     DensePredQR(Matrix{T}(X),
         Vector{T}(beta0),
         zeros(T, p),
