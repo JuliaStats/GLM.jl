@@ -66,7 +66,7 @@ end
 function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
     n, p = size(X)
     T = eltype(X)
-    F = pivot ? pivoted_qr!(copy(X)) : qr(copy(X))
+    F = pivot ? pivoted_qr!(copy(X)) : qr(X)
     DensePredQR(Matrix{T}(X),
         zeros(T, p),
         zeros(T, p),
