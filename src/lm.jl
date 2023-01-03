@@ -166,7 +166,7 @@ end
 
 """
     lm(formula, data;
-       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky
+       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
        contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     lm(X::AbstractMatrix, y::AbstractVector;
        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
