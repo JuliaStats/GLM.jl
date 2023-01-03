@@ -307,8 +307,8 @@ function StatsModels.predict!(res::Union{AbstractVector,
                                 "from the model due to collinearity"))
     elseif mm.pp isa DensePredQR && rank(mm.pp.qr.R) < size(mm.pp.qr.R, 2)
         throw(ArgumentError("prediction intervals are currently not implemented " *
-                   "when some independent variables have been dropped " *
-                   "from the model due to collinearity"))
+                            "when some independent variables have been dropped " *
+                            "from the model due to collinearity"))
     else
         res isa NamedTuple ||
             throw(ArgumentError("`res` must be a `NamedTuple` when `interval` is " *
