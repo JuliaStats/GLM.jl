@@ -446,7 +446,7 @@ end
     end
 end
 
-@testset "Linear model with qr and without intercept" begin
+@testset "Linear model with QR and without intercept" begin
     @testset "Test with NoInt1 Dataset" begin
         # test case to test r2 for no intercept model
         # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt1.dat
