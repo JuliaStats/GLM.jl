@@ -317,32 +317,10 @@ function StatsModels.predict!(res::Union{AbstractVector,
         length(prediction) == length(lower) == length(upper) == size(newx, 1) ||
             throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newx`"))
         length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
-        
-        if mm.pp isa DensePredChol
-            chol = mm.pp.chol #cholesky!(mm.pp)
-            if chol isa CholeskyPivoted
-                ip = invperm(chol.p)
-                R = chol.U[ip, ip]
-            else
-                R = chol.U
-            end
-        elseif mm.pp isa DensePredQR
-            qr = mm.pp.qr
-            if qr isa QRPivoted
-                Q,R,pv = qr
-                ip = invperm(pv)
-                R = R[ip, ip]
-            else
-                R = qr.R
-            end
-        end
 
         dev = deviance(mm)
         dofr = dof_residual(mm)
-        residvar = fill(dev/dofr, size(newx, 2), 1)
-        ret = dropdims((newx/R).^2 * residvar, dims=2)
-        # We can calculate `ret` compactfully with the following, but it might be less efficient 
-        # ret = diag(newx*vcov(mm)*newx')
+        ret = diag(newx*vcov(mm)*newx')
         if interval == :prediction
             ret .+= dev/dofr
         elseif interval != :confidence
