@@ -98,7 +98,17 @@ function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) 
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
-    return delbeta!(p, r, ones(size(r)))
+    rnk = rank(p.qr.R)
+    if rnk === length(p.delbeta)
+        p.delbeta = p.qr\r
+        return p
+    end
+    R = @view p.qr.R[:, 1:rnk] 
+    Q = @view p.qr.Q[:, 1:size(R, 1)]
+    p.delbeta = zeros(size(p.delbeta))
+    p.delbeta[1:rnk] = R \ ((Q'*Q) \ (Q'*r))
+    p.delbeta = p.qr.P*p.delbeta
+    return p
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
