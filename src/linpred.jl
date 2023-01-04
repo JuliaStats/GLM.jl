@@ -55,8 +55,8 @@ end
 function DensePredQR(X::AbstractMatrix, beta0::AbstractVector, pivot::Bool=false)
     n, p = size(X)
     length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
-    T = eltype(X)
-    F = pivot ? pivoted_qr!(copy(X)) : qr(X)
+    T = typeof(float(zero(eltype(X)))) #eltype(X)
+    F = pivot ? pivoted_qr!(float(copy(X))) : qr(float(X))
     DensePredQR(Matrix{T}(X),
         Vector{T}(beta0),
         zeros(T, p),
@@ -65,8 +65,8 @@ function DensePredQR(X::AbstractMatrix, beta0::AbstractVector, pivot::Bool=false
 end
 function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
     n, p = size(X)
-    T = eltype(X)
-    F = pivot ? pivoted_qr!(copy(X)) : qr(X)
+    F = pivot ? pivoted_qr!(float(copy(X))) : qr(float(X))
+    T = typeof(float(zero(eltype(X)))) #eltype(X)
     DensePredQR(Matrix{T}(X),
         zeros(T, p),
         zeros(T, p),
@@ -153,7 +153,7 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool)
 end
 
 cholpred(X::AbstractMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
-qrpred(X::AbstractMatrix, pivot::Bool=false) = DensePredQR(float(X), pivot)
+qrpred(X::AbstractMatrix, pivot::Bool=false) = DensePredQR(X, pivot)
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
@@ -163,7 +163,6 @@ function cholesky(p::DensePredChol{T}) where T<:FP
     c = p.chol
     Cholesky(copy(cholfactors(c)), c.uplo, c.info)
 end
-cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U', 0)
 
 function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where T<:BlasReal
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.X), r))

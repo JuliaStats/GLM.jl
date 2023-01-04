@@ -180,6 +180,25 @@ end
     @test GLM.dispersion(lm_model) ≈ GLM.dispersion(lm_qr_model)
 end
 
+@testset "Linear model with Cholesky dropcollinearity" begin
+    # for full rank design matrix, both should give same results
+    lm1 = lm(@formula(OptDen ~ Carb), form; method=:cholesky, dropcollinear=true)
+    lm2 = lm(@formula(OptDen ~ Carb), form; method=:cholesky, dropcollinear=false)
+    @test coef(lm1) ≈ coef(lm2)
+    @test stderror(lm1) ≈ stderror(lm2)
+    @test r2(lm1) ≈ r2(lm2)
+    @test adjr2(lm1) ≈ adjr2(lm2)
+    @test vcov(lm1) ≈ vcov(lm2)
+    @test predict(lm1) ≈ predict(lm2)
+    @test loglikelihood(lm1) ≈ loglikelihood(lm2)
+    @test nullloglikelihood(lm1) ≈ nullloglikelihood(lm2)
+    @test residuals(lm1) ≈ residuals(lm2)
+    @test aic(lm1) ≈ aic(lm2)
+    @test aicc(lm1) ≈ aicc(lm2)
+    @test bic(lm1) ≈ bic(lm2)
+    @test GLM.dispersion(lm1) ≈ GLM.dispersion(lm2)
+end
+
 @testset "Linear model with QR dropcollinearity" begin
     # for full rank design matrix, both should give same results
     lm1 = lm(@formula(OptDen ~ Carb), form; method=:qr, dropcollinear=true)

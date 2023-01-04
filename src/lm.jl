@@ -319,7 +319,7 @@ function StatsModels.predict!(res::Union{AbstractVector,
         length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
         
         if mm.pp isa DensePredChol
-            chol = cholesky!(mm.pp)
+            chol = mm.pp.chol #cholesky!(mm.pp)
             if chol isa CholeskyPivoted
                 ip = invperm(chol.p)
                 R = chol.U[ip, ip]
@@ -330,8 +330,8 @@ function StatsModels.predict!(res::Union{AbstractVector,
             qr = mm.pp.qr
             if qr isa QRPivoted
                 Q,R,pv = qr
-                ipiv = invperm(pv)
-                R = R[ipiv, ipiv]
+                ip = invperm(pv)
+                R = R[ip, ip]
             else
                 R = qr.R
             end
