@@ -51,29 +51,31 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY, QRPivoted}} <: Dens
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
     qr::Q
-end
-function DensePredQR(X::AbstractMatrix, beta0::AbstractVector, pivot::Bool=false)
-    n, p = size(X)
-    length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
-    T = typeof(float(zero(eltype(X)))) #eltype(X)
-    F = pivot ? pivoted_qr!(float(copy(X))) : qr(float(X))
-    DensePredQR(Matrix{T}(X),
-        Vector{T}(beta0),
-        zeros(T, p),
-        zeros(T, p),
-        F)
-end
-function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
-    n, p = size(X)
-    F = pivot ? pivoted_qr!(float(copy(X))) : qr(float(X))
-    T = typeof(float(zero(eltype(X)))) #eltype(X)
-    DensePredQR(Matrix{T}(X),
-        zeros(T, p),
-        zeros(T, p),
-        zeros(T, p),
-        F)
-end
 
+    function DensePredQR(X::AbstractMatrix, beta0::AbstractVector, pivot::Bool=false)
+        n, p = size(X)
+        length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
+        T = typeof(float(zero(eltype(X)))) #eltype(X)
+        Q = pivot ? QRPivoted : QRCompactWY
+        F = pivot ? pivoted_qr!(float(copy(X))) : qr(float(X))
+        new{T,Q}(Matrix{T}(X),
+            Vector{T}(beta0),
+            zeros(T, p),
+            zeros(T, p),
+            F)
+    end
+    function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
+        n, p = size(X)
+        T = typeof(float(zero(eltype(X)))) #eltype(X)
+        Q = pivot ? QRPivoted : QRCompactWY
+        F = pivot ? pivoted_qr!(float(copy(X))) : qr(float(X))
+        new{T,Q}(Matrix{T}(X),
+            zeros(T, p),
+            zeros(T, p),
+            zeros(T, p),
+            F)
+    end
+end
 """
     delbeta!(p::LinPred, r::Vector)
 
