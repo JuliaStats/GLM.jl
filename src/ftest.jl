@@ -235,14 +235,6 @@ end
 # Tests of Between-Subjects Effects
 # Baset on F-statistics
 # L: The s×p full row rank matrix. The rows are estimable functions. s≥1 where p number of coefs
-#=
-struct GroupEffectsTable
-    name::Vector{String}
-    df::Vector{Float64}
-    f::Vector{Float64}
-    p::Vector{Float64}
-end
-=#
 """
 θ + A * B * A'
 
@@ -251,37 +243,21 @@ Change θ (only upper triangle). B is symmetric.
 function mulαβαtinc!(θ::AbstractMatrix, A::AbstractMatrix, B::AbstractMatrix)
     axb  = axes(B, 1)
     sa   = size(A, 1)
-    for m ∈ 1:sa
-        for n ∈ m:sa
-            for j ∈ axb
-                @inbounds for i ∈ axb
-                    θ[m, n] +=  A[m, i] * B[i, j] * A[n, j]
+    for j ∈ axb
+        for i ∈ axb
+            @inbounds Bij = B[i, j]
+            for n ∈ 1:sa
+                @inbounds Anj = A[n, j]
+                BijAnj = Bij * Anj
+                @simd for m ∈ 1:n
+                    @inbounds θ[m, n] +=  A[m, i] * BijAnj
                 end
             end
         end
     end
     θ
 end
-#=
-"""
-a' * B * a
 
-"""
-function mulαtβα(a::AbstractVector, B::AbstractMatrix{T}) where T
-    if length(a) != size(B, 2)::Int  || size(B, 2)::Int  != size(B, 1)::Int  error("Dimention error") end
-    axbm  = axes(B, 1)
-    axbn  = axes(B, 2)
-    c = zero(T)
-    for i ∈ axbm
-        ct = zero(T)
-        for j ∈ axbn
-            @inbounds  ct += B[i, j] * a[j]
-        end
-        @inbounds c += ct * a[i]
-    end
-    c
-end
-=#
 # See SPSS (GLM/UNIANOVA) and SAS (PROC GLM) documentation 
 # https://www.ibm.com/docs/en/spss-statistics/29.0.0?topic=effects-tests-between-subjects
 # L is a s×p matrix corresponding to plan-matrix of Factor
@@ -307,7 +283,7 @@ end
 # 1 0  0  0  0  0
 # 1 0  0  0  0  0
 #
-# Then yoy wil have L matrix fo intercept:
+# Then you wil have L matrix for intercept:
 #
 # 1 0  0  0  0  0 
 #
@@ -353,8 +329,6 @@ tname(t::AbstractTerm) = "$(t.sym)"
 tname(t::InteractionTerm) = join(tname.(t.terms), " & ")
 tname(t::InterceptTerm) = "(Intercept)"
 
-
-
 """
     typeiii(obj)
 
@@ -375,14 +349,6 @@ function typeiii(obj)
     for i = 1:c
         # Make L matrix
         L       = lcontrast(obj, i)
-        #=
-        if typeof(obj.mf.f.rhs.terms[i]) <: InterceptTerm{true}
-            # I think L matrix for Intercept should represent general mean
-            # For this - L element corresponding to factor should be devided on total number of levels (not coefs)
-            # But because I can't get efficient number of levels for InteractionTerm
-            # I cant't calc it correctly
-        end
-        =#
         if typeof(obj.mf.f.rhs.terms[i]) <: InterceptTerm{false} # If zero intercept (drop)
             push!(d, i)
             fac[i] = ""
@@ -406,7 +372,6 @@ function typeiii(obj)
         LB = L * B
         # Then F can be computed:
         # F[i]    = (LB' * pinv(Symmetric(θ)) * LB)/rank(L)
-        # I think this is more efficient:
         F[i]    = dot(LB, pinv(Symmetric(θ)), LB) / RL
         df[i]   = (RL, dof_residual(obj))
         if iszero(df[i][1])
@@ -421,15 +386,5 @@ function typeiii(obj)
         deleteat!(df, d)
         deleteat!(pval, d)
     end
-    #GroupEffectsTable(fac, df, F, pval)
     CoefTable([df, F, pval], ["DF/DDF", "F", "Pr(>F)"], fac, 3, 2)
 end
-
-#=
-using PrettyTables
-# use PrettyTables because it is fastest way to make table
-function Base.show(io::IO, obj::GroupEffectsTable)
-    mx = hcat(obj.name, obj.df, obj.f, obj.p)
-    PrettyTables.pretty_table(io, mx; tf = PrettyTables.tf_compact, header = ["Name", "DF" ,"F" ,"Pval"])
-end
-=#
