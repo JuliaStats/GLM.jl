@@ -44,6 +44,7 @@ A `LinPred` type with a dense QR decomposition of `X`
 - `delbeta`: increment to coefficient vector, also of length `p`
 - `scratchbeta`: scratch vector of length `p`, used in `linpred!` method
 - `qr`: either a `QRCompactWY` or `QRPivoted` object created from `X`, with optional row weights.
+- `scratchm1`: scratch Matrix{T} of the same size as `X`
 """
 mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY, QRPivoted}} <: DensePred
     X::Matrix{T}                  # model matrix
@@ -51,29 +52,32 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY, QRPivoted}} <: Dens
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
     qr::Q
+    scratchm1::Matrix{T}
 
     function DensePredQR(X::AbstractMatrix, beta0::AbstractVector, pivot::Bool=false)
         n, p = size(X)
         length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
-        T = typeof(float(zero(eltype(X)))) #eltype(X)
+        T = typeof(float(zero(eltype(X))))
         Q = pivot ? QRPivoted : QRCompactWY
         F = pivot ? pivoted_qr!(float(copy(X))) : qr(float(X))
         new{T,Q}(Matrix{T}(X),
             Vector{T}(beta0),
             zeros(T, p),
             zeros(T, p),
-            F)
+            F,
+            similar(X, T))
     end
     function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
         n, p = size(X)
-        T = typeof(float(zero(eltype(X)))) #eltype(X)
+        T = typeof(float(zero(eltype(X))))
         Q = pivot ? QRPivoted : QRCompactWY
         F = pivot ? pivoted_qr!(float(copy(X))) : qr(float(X))
         new{T,Q}(Matrix{T}(X),
             zeros(T, p),
             zeros(T, p),
             zeros(T, p),
-            F)
+            F,
+            similar(X, T))
     end
 end
 """
@@ -84,18 +88,26 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 function delbeta! end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where T<:BlasReal
+    rnk = rank(p.qr.R)
+    rnk === length(p.delbeta) || 
+        throw(error("One or more columns in the design matrix are linearly dependent on others"))
     p.delbeta = p.qr\r
+    mul!(p.scratchm1, Diagonal(ones(size(r))), p.X)
     return p
 end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
-    R = p.qr.R 
-    Q = @view p.qr.Q[:, 1:size(R, 1)]
+    rnk = rank(p.qr.R)
+    rnk === length(p.delbeta) || 
+        throw(error("One or more columns in the design matrix are linearly dependent on others"))
+    X = p.X
     W = Diagonal(wt)
     sqrtW = Diagonal(sqrt.(wt)) 
-    p.delbeta = R \ ((Q'*W*Q) \ (Q'*W*r))
-    X = p.X
-    p.qr = qr!(sqrtW*X)
+    mul!(p.scratchm1, sqrtW, X)
+    mul!(p.delbeta, X'W, r)
+    qnr = qr(p.scratchm1)
+    Rinv = inv(qnr.R)
+    p.delbeta = Rinv * Rinv' * p.delbeta
     return p
 end
 
@@ -103,27 +115,45 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
     if rnk === length(p.delbeta)
         p.delbeta = p.qr\r
-        return p
+    else
+        R = @view p.qr.R[:, 1:rnk] 
+        Q = @view p.qr.Q[:, 1:size(R, 1)]
+        piv = p.qr.p
+        p.delbeta = zeros(size(p.delbeta))
+        p.delbeta[1:rnk] = R \ Q'r
+        invpermute!(p.delbeta, piv)
     end
-    R = @view p.qr.R[:, 1:rnk] 
-    Q = @view p.qr.Q[:, 1:size(R, 1)]
-    p.delbeta = zeros(size(p.delbeta))
-    p.delbeta[1:rnk] = R \ ((Q'*Q) \ (Q'*r))
-    p.delbeta = p.qr.P*p.delbeta
+    mul!(p.scratchm1, Diagonal(ones(size(r))), p.X)
     return p
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
-    R = @view p.qr.R[:, 1:rnk] 
-    Q = @view p.qr.Q[:, 1:size(R, 1)]
+    X = p.X
     W = Diagonal(wt)
     sqrtW = Diagonal(sqrt.(wt))
-    X = p.X
-    p.delbeta = zeros(size(p.delbeta))
-    p.delbeta[1:rnk] = R \ ((Q'*W*Q) \ (Q'*W*r))
-    p.delbeta = p.qr.P*p.delbeta #for pivoting 
-    p.qr = pivoted_qr!(sqrtW*X)
+    delbeta = p.delbeta
+    scratchm2 = similar(X, T)
+    mul!(p.scratchm1, sqrtW, X)
+    mul!(scratchm2, W, X)
+    mul!(delbeta, transpose(scratchm2), r)
+
+    if rnk === length(p.delbeta)
+        qnr = qr(p.scratchm1)
+        Rinv = inv(qnr.R)
+        p.delbeta = Rinv * Rinv' * delbeta
+    else
+        qnr = pivoted_qr!(copy(p.scratchm1))
+        R = @view qnr.R[1:rnk, 1:rnk]
+        Rinv = inv(R)
+        piv = qnr.p
+        permute!(delbeta, piv)
+        for k=(rnk+1):length(delbeta)
+            delbeta[k] = -zero(T)
+        end
+        p.delbeta[1:rnk] = Rinv * Rinv' * view(delbeta, 1:rnk)
+        invpermute!(delbeta, piv)
+    end
     return p
 end
 
@@ -217,7 +247,7 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vecto
     mul!(delbeta, transpose(p.scratchm1), r)
     # calculate delbeta = (X'WX)\X'Wr
     rnk = rank(p.chol)
-    if rnk == length(delbeta)
+    if rnk === length(delbeta)
         cf = cholfactors(p.chol)
         cf .= p.scratchm2[piv, piv]
         cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
@@ -278,13 +308,13 @@ LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)
 LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 
 function invqr(x::DensePredQR{T,<: QRCompactWY}) where T
-    Q,R = x.qr
+    Q,R = qr(x.scratchm1)
     Rinv = inv(R)
     Rinv*Rinv'
 end
 
 function invqr(x::DensePredQR{T,<: QRPivoted}) where T
-    Q,R,pv = x.qr
+    Q,R,pv = pivoted_qr!(copy(x.scratchm1))
     rnk = rank(R)
     p = length(x.delbeta)
     if rnk == p
@@ -392,6 +422,12 @@ hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size
 linpred_rank(x::LinPred) = length(x.beta0)
 linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = rank(x.chol)
 linpred_rank(x::DensePredQR{<:Any,<:QRPivoted}) = rank(x.qr.R)
+
+ispivoted(x::LinPred) = false
+ispivoted(x::DensePredChol{<:Any, <:CholeskyPivoted}) = true
+ispivoted(x::DensePredQR{<:Any,<:QRPivoted}) = true
+
+decomposition_method(x::LinPred) = isa(x, DensePredQR) ? :qr : :cholesky
 
 _coltype(::ContinuousTerm{T}) where {T} = T
 
