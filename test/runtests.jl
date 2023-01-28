@@ -1300,7 +1300,7 @@ end
                 negbin(@formula(y ~ 1), df, method=:qr, maxiter = maxiter,
                     # set minstepfac to a very small value to avoid an ErrorException
                     # instead of a ConvergenceException
-                    minstepfac=1e-20)
+                    minstepfac=1e-12)
             catch err
                 if err isa ConvergenceException
                     @test err.iters == maxiter
