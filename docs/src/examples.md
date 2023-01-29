@@ -108,7 +108,6 @@ Suppose we have `y = [1, 2, 3, 4, 5]` and `x = [1.0E-12, 2.0E-12, 3.0E-12, 4.0E-
 Clearly y = 0 + 1.0E12 * x. So if we fit a linear model `y ~ x` then the estimate of the intercept should be `0` and the estimate of slop should be `1.0E12`.
 The following example shows that `QR` decomposition works better for ill-conditioned design matrix. The linear model with the `Cholesky` decomposition method is unable to estimate parameters correctly whereas the linear model with the `QR` decomposition does.
 
-
 ```jldoctest
 julia> y = [1, 2, 3, 4, 5];
 
@@ -139,7 +138,7 @@ Coefficients:
                    Coef.   Std. Error                    t  Pr(>|t|)    Lower 95%    Upper 95%
 ──────────────────────────────────────────────────────────────────────────────────────────────
 (Intercept)  7.94411e-16  1.2026e-15                  0.66    0.5561  -3.0328e-15  4.62162e-15
-x            1.0e12       0.000362597  2757880273211543.50    <1e-45   1.0e12      1.0e12
+x            1.0e12       0.000362597  2757880273211543.50    <1e-99   1.0e12      1.0e12
 ──────────────────────────────────────────────────────────────────────────────────────────────
 ```
 
