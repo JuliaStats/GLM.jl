@@ -89,7 +89,7 @@ function delbeta! end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
-    rnk === length(p.delbeta) || 
+    rnk == length(p.delbeta) || 
         throw(error("One or more columns in the design matrix are linearly dependent on others"))
     p.delbeta = p.qr\r
     mul!(p.scratchm1, Diagonal(ones(size(r))), p.X)
@@ -98,7 +98,7 @@ end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
-    rnk === length(p.delbeta) || 
+    rnk == length(p.delbeta) || 
         throw(error("One or more columns in the design matrix are linearly dependent on others"))
     X = p.X
     W = Diagonal(wt)
@@ -113,7 +113,7 @@ end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
-    if rnk === length(p.delbeta)
+    if rnk == length(p.delbeta)
         p.delbeta = p.qr\r
     else
         R = @view p.qr.R[:, 1:rnk] 
@@ -138,7 +138,7 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) wh
     mul!(scratchm2, W, X)
     mul!(delbeta, transpose(scratchm2), r)
 
-    if rnk === length(p.delbeta)
+    if rnk == length(p.delbeta)
         qnr = qr(p.scratchm1)
         Rinv = inv(qnr.R)
         p.delbeta = Rinv * Rinv' * delbeta
@@ -247,7 +247,7 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vecto
     mul!(delbeta, transpose(p.scratchm1), r)
     # calculate delbeta = (X'WX)\X'Wr
     rnk = rank(p.chol)
-    if rnk === length(delbeta)
+    if rnk == length(delbeta)
         cf = cholfactors(p.chol)
         cf .= p.scratchm2[piv, piv]
         cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))

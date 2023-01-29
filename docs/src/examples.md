@@ -117,17 +117,13 @@ julia> nasty = DataFrame(y = y, x = x);
 
 julia> mdl1 = lm(@formula(y ~ x), nasty; method=:cholesky);
 
-julia> round.(coef(mdl1))
-2-element Vector{Float64}:
- 3.0
- 0.0
-
 julia> mdl2 = lm(@formula(y ~ x), nasty; method=:qr);
 
-julia> round.(coef(mdl2))
-2-element Vector{Float64}:
- 0.0
- 1.0e12
+julia> coef(mdl1) ≈ [0, 1.0E12]
+false
+
+julia> coef(mdl2) ≈ [0, 1.0E12]
+true
 ```
 
 ## Probit regression
