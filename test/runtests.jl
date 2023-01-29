@@ -107,7 +107,7 @@ end
 
     # this should be elementwise true (which is a stronger condition than
     # vectors being approximately equal) the so we test elementwise
-    @test all(residuals(glm_model) .≈ residuals(lm_model))
+    @test all(residuals(glm_model, type = :working) .≈ residuals(lm_model))
 end
 
 @testset "rankdeficient" begin
