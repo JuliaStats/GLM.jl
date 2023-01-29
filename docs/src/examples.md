@@ -129,7 +129,6 @@ Coefficients:
 x              0.0  NaN         NaN       NaN     NaN        NaN
 ──────────────────────────────────────────────────────────────────────
 
-
 julia> lm(@formula(y ~ x), nasty; method=:qr)
 LinearModel
 
