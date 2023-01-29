@@ -124,7 +124,7 @@ julia> round.(coef(mdl1))
 
 julia> mdl2 = lm(@formula(y ~ x), nasty; method=:qr);
 
-julia> round.(coef(mdl2); digits=6)
+julia> round.(coef(mdl2))
 2-element Vector{Float64}:
  0.0
  1.0e12
