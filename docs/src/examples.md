@@ -115,31 +115,19 @@ julia> x = [1.0E-12, 2.0E-12, 3.0E-12, 4.0E-12, 5.0E-12];
 
 julia> nasty = DataFrame(y = y, x = x);
 
-julia> lm(@formula(y ~ x), nasty; method=:cholesky)
-LinearModel
+julia> mdl1 = lm(@formula(y ~ x), nasty; method=:cholesky);
 
-y ~ 1 + x
+julia> round.(coef(mdl1))
+2-element Vector{Float64}:
+ 3.0
+ 0.0
 
-Coefficients:
-──────────────────────────────────────────────────────────────────────
-             Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
-──────────────────────────────────────────────────────────────────────
-(Intercept)    3.0    0.707107    4.24    0.0132    1.03676    4.96324
-x              0.0  NaN         NaN       NaN     NaN        NaN
-──────────────────────────────────────────────────────────────────────
+julia> mdl2 = lm(@formula(y ~ x), nasty; method=:qr);
 
-julia> lm(@formula(y ~ x), nasty; method=:qr)
-LinearModel
-
-y ~ 1 + x
-
-Coefficients:
-──────────────────────────────────────────────────────────────────────────────────────────────
-                   Coef.   Std. Error                    t  Pr(>|t|)    Lower 95%    Upper 95%
-──────────────────────────────────────────────────────────────────────────────────────────────
-(Intercept)  7.94411e-16  1.2026e-15                  0.66    0.5561  -3.0328e-15  4.62162e-15
-x            1.0e12       0.000362597  2757880273211543.50    <1e-99   1.0e12      1.0e12
-──────────────────────────────────────────────────────────────────────────────────────────────
+julia> round.(coef(mdl2); digits=6)
+2-element Vector{Float64}:
+ 0.0
+ 1.0e12
 ```
 
 ## Probit regression
