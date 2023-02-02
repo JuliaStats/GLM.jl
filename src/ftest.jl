@@ -303,16 +303,42 @@ end
 L-contrast matrix for `i` fixed effect.
 """
 function lcontrast(obj, i::Int)
-    n = length(obj.mf.f.rhs.terms)
+    n = length(obj.formula.rhs.terms)
+    cn = length(coef(obj))
     if i > n || n < 1 error("Factor number out of range 1-$(n)") end
-    p    = size(obj.mm.m, 2) # number of coefs
-    inds = findall(x -> x==i, obj.mm.assign)
-    if typeof(obj.mf.f.rhs.terms[i]) <: CategoricalTerm
-        mxc   = zeros(size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1), p)
+    term = obj.formula.rhs.terms[i]
+    prev = 0
+    if i > 1
+        for j = 1:i-1
+            prev += width(obj.formula.rhs.terms[j])
+        end
+    end
+    #=
+    if isa(term, CategoricalTerm)
+        cm = term.contrasts.matrix
+        mx = zeros(Float64, size(cm, 1), cn)
+        view(mx, :, prev+1:prev+width(term)) .= cm
+    elseif isa(term, InteractionTerm)
+        m = width(term)
+        mx = zeros(Float64, m, cn)
+        for j = 1:m 
+            mx[j, j+prev] = 1
+        end
+    else
+        mx = zeros(Float64, 1, cn)
+        mx[1, prev+1] = 1
+    end
+    mx
+    =#
+    
+    p    = length(coef(obj)) # number of coefs
+    inds = prev+1:prev+width(term)
+    if typeof(term) <: CategoricalTerm
+        mxc   = zeros(size(term.contrasts.matrix, 1), p)
         mxcv  = view(mxc, :, inds)
-        mxcv .= obj.mf.f.rhs.terms[i].contrasts.matrix
-        mx    = zeros(size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1) - 1, p)
-        for i = 2:size(obj.mf.f.rhs.terms[i].contrasts.matrix, 1) # correct for zero-intercept model
+        mxcv .= term.contrasts.matrix
+        mx    = zeros(size(term.contrasts.matrix, 1) - 1, p)
+        for i = 2:size(term.contrasts.matrix, 1) # correct for zero-intercept model
             mx[i-1, :] .= mxc[i, :] - mxc[1, :]
         end
     else
@@ -322,6 +348,7 @@ function lcontrast(obj, i::Int)
         end
     end
     mx
+    
 end
 
 tname(t::AbstractTerm) = "$(t.sym)"
@@ -339,7 +366,7 @@ function typeiii(obj)
     V           = vcov(obj) 
     replace!(V, NaN => 0) # Some values can be NaN - replace it to zero
     B           = coef(obj)   
-    c           = length(obj.mf.f.rhs.terms)
+    c           = length(obj.formula.rhs.terms)
     d           = Vector{Int}(undef, 0)
     fac         = Vector{String}(undef, c)
     F           = Vector{Float64}(undef,c)
@@ -348,12 +375,12 @@ function typeiii(obj)
     for i = 1:c
         # Make L matrix
         L       = lcontrast(obj, i)
-        if typeof(obj.mf.f.rhs.terms[i]) <: InterceptTerm{false} # If zero intercept (drop)
+        if typeof(obj.formula.rhs.terms[i]) <: InterceptTerm{false} # If zero intercept (drop)
             push!(d, i)
             fac[i] = ""
             continue
         else
-            fac[i] = tname(obj.mf.f.rhs.terms[i])
+            fac[i] = tname(obj.formula.rhs.terms[i])
         end
         # For case when cofs is zero (or NaN) we reduce rank of L-matrix
         for c = 1:length(B)

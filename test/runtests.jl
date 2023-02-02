@@ -1854,6 +1854,7 @@ berds1.Subject = categorical(berds1.Subject)
   /DESIGN=Sequence Period Formulation.
     =#
     # Intercept not included in test
+    
     # Basic model
     ols  = lm(@formula(Var ~ Sequence+Period+Formulation), berds1)
     tbl = GLM.typeiii(ols)
@@ -1863,19 +1864,33 @@ berds1.Subject = categorical(berds1.Subject)
     @test tbl.cols[3][2] ≈ 0.322206 atol = 1.0E-6
     @test tbl.cols[3][3] ≈ 0.570520 atol = 1.0E-6
     @test tbl.cols[3][4] ≈ 0.745747 atol = 1.0E-6
+    #=
+    GLM Var BY Sequence Period Formulation 
+  /METHOD=SSTYPE(3) 
+  /INTERCEPT=EXCLUDE 
+  /PRINT PARAMETER 
+  /CRITERIA=ALPHA(.05) 
+  /DESIGN=Sequence Period Formulation.
+    =#
+
     # Zero intercep
     ols  = lm(@formula(Var ~ 0+Sequence+Period+Formulation), berds1)
     tbl = GLM.typeiii(ols)
-
     @test tbl.cols[2][1] ≈ 1.011001 atol = 1.0E-6
     @test tbl.cols[2][2] ≈ 0.328551 atol = 1.0E-6
     @test tbl.cols[2][3] ≈ 0.106973 atol = 1.0E-6
     @test tbl.cols[3][1] ≈ 0.322206 atol = 1.0E-6
     @test tbl.cols[3][2] ≈ 0.570520 atol = 1.0E-6
     @test tbl.cols[3][3] ≈ 0.745747 atol = 1.0E-6
+
     # Crossed factors
     ols  = lm(@formula(Var ~ 1+Sequence&Period), berds1)
     tbl = GLM.typeiii(ols)
     @test tbl.cols[2][2] ≈ 0.482175 atol = 1.0E-6
     @test tbl.cols[3][2] ≈ 0.696996 atol = 1.0E-6
+
+    # Crossed factors (zero - intercept)
+    ols  = lm(@formula(Var ~ 0+Sequence&Period), berds1)
+    tbl = GLM.typeiii(ols)
+    @test tbl.cols[2][1] ≈ 87.103976 atol = 1.0E-6
 end
