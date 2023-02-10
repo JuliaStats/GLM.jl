@@ -4,23 +4,10 @@
 
 StatsBase.leverage(model::LinPredModel) = _leverage(model, model.pp)
 
-# TODO: Delete this once the minimum required Julia version is set to something recent
-if VERSION >= v"1.3.0-DEV.94"
-    const _diagm = diagm
-else
-    function _diagm(n::Integer, m::Integer, v::AbstractVector)
-        length(v) == min(n, m) || throw(DimensionMismatch())
-        D = similar(v, (n, m))
-        fill!(D, zero(eltype(D)))
-        copyto!(view(D, diagind(D)), v)
-        return D
-    end
-end
-
 function _leverage(_, pred::DensePredQR)
     Q = pred.qr.Q
     r = linpred_rank(pred)
-    y = _diagm(size(Q, 1), r, trues(r))
+    y = diagm(size(Q, 1), r, trues(r))
     Z = Q * y
     return vec(sum(abs2, Z; dims=1))
 end
@@ -37,7 +24,7 @@ function _leverage(model, pred::DensePredChol{<:Any,<:CholeskyPivoted})
     if any(x -> isapprox(x, zero(x)), diag(C.L))
         Q = qr!(X).Q
         r = rank(C)
-        y = _diagm(size(Q, 1), r, trues(r))
+        y = diagm(size(Q, 1), r, trues(r))
         X = Q * y
     else
         choldiv!(C, X)
