@@ -104,7 +104,7 @@ end
 function DensePredChol(X::AbstractMatrix, pivot::Bool)
     F = Hermitian(float(X'X))
     T = eltype(F)
-    F = pivot ? pivoted_cholesky!(F, tol = -one(T), check = false) : cholesky!(F)
+    F = pivot ? pivoted_cholesky!(F, tol = 0, check = false) : cholesky!(F)
     DensePredChol(Matrix{T}(X),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
