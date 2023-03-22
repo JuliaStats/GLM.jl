@@ -166,26 +166,21 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vecto
     # delbeta = X'Wr
     mul!(delbeta, transpose(p.scratchm1), r)
     # calculate delbeta = (X'WX)\X'Wr
+    cf = cholfactors(p.chol)
+    cf .= p.scratchm2
+    p.chol = cholesky!(Hermitian(cf), Val(true), tol = 0, check = false)
     rnk = rank(p.chol)
-    if rnk == length(delbeta)
-        cf = cholfactors(p.chol)
-        cf .= p.scratchm2[piv, piv]
-        cholesky!(Hermitian(cf, Symbol(p.chol.uplo)))
-        ldiv!(p.chol, delbeta)
-    else
-        permute!(delbeta, piv)
-        for k=(rnk+1):length(delbeta)
-            delbeta[k] = -zero(T)
-        end
-        # shift full rank column to 1:rank
-        cf = cholfactors(p.chol)
-        cf .= p.scratchm2[piv, piv]
-        cholesky!(Hermitian(view(cf, 1:rnk, 1:rnk), Symbol(p.chol.uplo)))
-        ldiv!(Cholesky(view(cf, 1:rnk, 1:rnk), Symbol(p.chol.uplo), p.chol.info),
-              view(delbeta, 1:rnk))
-        invpermute!(delbeta, piv)
+    permute!(delbeta, piv)
+    for k = (rnk + 1):length(delbeta)
+        delbeta[k] = -zero(T)
     end
-    p
+    ldiv!(
+        Cholesky(view(cf, 1:rnk, 1:rnk), Symbol(p.chol.uplo), p.chol.info),
+        view(delbeta, 1:rnk)
+    )
+    invpermute!(delbeta, piv)
+
+    return p
 end
 
 mutable struct SparsePredChol{T,M<:SparseMatrixCSC,C} <: GLM.LinPred
