@@ -1,0 +1,9 @@
+[deps]
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+GLM = "38e38edf-8417-5370-95a0-9cbb8c7f171a"
+PGFPlotsX = "8314cec4-20b6-5062-9cdb-752b83310925"
+PerfChecker = "6309bf6b-a531-4b08-891e-8ee981e5c424"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+StatsModels = "3eaba693-59b7-5ba5-a881-562e759f1c8d"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
