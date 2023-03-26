@@ -22,8 +22,8 @@ Their arguments must be:
   then a valid formula is `@formula(Y ~ X1 + X2)`
 - `data`: a table in the Tables.jl definition, e.g. a data frame;
   rows with `missing` values are ignored
-- `X` a matrix holding values of the independent/predictor variable(s) in columns
-- `y` a vector holding values of the dependent/response variable
+- `X` a matrix holding values of the independent/predictor/feature variable(s) in columns
+- `y` a vector holding values of the dependent/response/target variable
   (including if appropriate the intercept)
 - `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Geometric()`, `Normal()`, `Poisson()`, or `NegativeBinomial(θ)`
 - `link`: chosen from the list below, for example, `LogitLink()` is a valid link for the `Binomial()` family
