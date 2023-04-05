@@ -22,7 +22,7 @@ end
 linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
 
 @testset "LM with Cholesky" begin
-    lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
+    lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form; method=:cholesky)
     test_show(lm1)
     @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
     Σ = [6.136653061224592e-05 -9.464489795918525e-05
@@ -41,7 +41,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(aic(lm1), -36.409684288095946)
     @test isapprox(aicc(lm1), -24.409684288095946)
     @test isapprox(bic(lm1), -37.03440588041178)
-    lm2 = fit(LinearModel, hcat(ones(6), 10form.Carb), form.OptDen, true)
+    lm2 = fit(LinearModel, hcat(ones(6), 10form.Carb), form.OptDen, true; method=:cholesky)
     @test isa(lm2.pp.chol, CholeskyPivoted)
     @test lm2.pp.chol.piv == [2, 1]
     @test isapprox(coef(lm1), coef(lm2) .* [1., 10.])
@@ -88,20 +88,20 @@ end
         )
 
     # linear regression
-    t_lm_base = lm(@formula(Y ~ XA), st_df)
+    t_lm_base = lm(@formula(Y ~ XA), st_df; method=:cholesky)
     @test isapprox(st_df.CooksD_base, cooksdistance(t_lm_base))
 
     # linear regression, no intercept 
-    t_lm_noint = lm(@formula(Y ~ XA +0), st_df)
+    t_lm_noint = lm(@formula(Y ~ XA +0), st_df; method=:cholesky)
     @test isapprox(st_df.CooksD_noint, cooksdistance(t_lm_noint))
 
     # linear regression, two collinear variables (Variance inflation factor ≊ 250)
-    t_lm_multi = lm(@formula(Y ~ XA + XB), st_df)
+    t_lm_multi = lm(@formula(Y ~ XA + XB), st_df; method=:cholesky)
     @test isapprox(st_df.CooksD_multi, cooksdistance(t_lm_multi))
 
     # linear regression, two full collinear variables (XC = 2 XA) hence should get the same results as the original
     # after pivoting
-    t_lm_colli = lm(@formula(Y ~ XA + XC), st_df, dropcollinear=true)
+    t_lm_colli = lm(@formula(Y ~ XA + XC), st_df; dropcollinear=true, method=:cholesky)
     # Currently fails as the collinear variable is not dropped from `modelmatrix(obj)`
     @test_throws ArgumentError isapprox(st_df.CooksD_base, cooksdistance(t_lm_colli))
 end
@@ -142,8 +142,8 @@ end
     N = nrow(df)
     df.weights = repeat(1:5, Int(N/5))
     f = @formula(FoodExp ~ Income)
-    lm_model = lm(f, df, wts = df.weights)
-    glm_model = glm(f, df, Normal(), wts = df.weights)
+    lm_model = lm(f, df, wts = df.weights; method=:cholesky)
+    glm_model = glm(f, df, Normal(), wts = df.weights; method=:cholesky)
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
@@ -164,7 +164,7 @@ end
     df.weights = repeat(1:5, Int(N/5))
     f = @formula(FoodExp ~ Income)
     lm_qr_model = lm(f, df, wts = df.weights; method=:qr)
-    lm_model = lm(f, df, wts = df.weights; method=:cholesky)
+    lm_model = lm(f, df; wts = df.weights, method=:cholesky)
     @test coef(lm_model) ≈ coef(lm_qr_model)
     @test stderror(lm_model) ≈ stderror(lm_qr_model)
     @test r2(lm_model) ≈ r2(lm_qr_model)
@@ -228,12 +228,12 @@ end
     X = ModelMatrix(ModelFrame(f, dfrm)).m
     y = X * (1:size(X, 2)) + 0.1 * randn(rng, size(X, 1))
     inds = deleteat!(collect(1:length(y)), 7:8)
-    m1 = fit(LinearModel, X, y)
+    m1 = fit(LinearModel, X, y; method=:cholesky)
     @test isapprox(deviance(m1), 0.12160301538297297)
     Xmissingcell = X[inds, :]
     ymissingcell = y[inds]
     #@test_throws PosDefException m2 = fit(LinearModel, Xmissingcell, ymissingcell; dropcollinear=false)
-    m2p = fit(LinearModel, Xmissingcell, ymissingcell)
+    m2p = fit(LinearModel, Xmissingcell, ymissingcell; method=:cholesky)
     @test isa(m2p.pp.chol, CholeskyPivoted)
     @test rank(m2p.pp.chol) == 11
     @test isapprox(deviance(m2p), 0.1215758392280204)
@@ -242,7 +242,7 @@ end
         8.879994918604757, 2.986388408421915, 10.84972230524356, 11.844809275711485])
     @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7,:])
 
-    m2p_dep_pos = fit(LinearModel, Xmissingcell, ymissingcell, true)
+    m2p_dep_pos = fit(LinearModel, Xmissingcell, ymissingcell, true; method=:cholesky)
     @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
                 "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
     @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
@@ -250,7 +250,7 @@ end
     @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
     @test isapprox(coef(m2p_dep_pos), coef(m2p))
 
-    m2p_dep_pos_kw = fit(LinearModel, Xmissingcell, ymissingcell, true; dropcollinear = false)
+    m2p_dep_pos_kw = fit(LinearModel, Xmissingcell, ymissingcell, true; method=:cholesky, dropcollinear = false)
     @test isa(m2p_dep_pos_kw.pp.chol, CholeskyPivoted)
     @test rank(m2p_dep_pos_kw.pp.chol) == rank(m2p.pp.chol)
     @test isapprox(deviance(m2p_dep_pos_kw), deviance(m2p))
@@ -294,7 +294,7 @@ end
 
 @testset "Saturated linear model with Cholesky" begin
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
-    model = lm(@formula(y ~ x), df)
+    model = lm(@formula(y ~ x), df; method=:cholesky)
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
@@ -305,7 +305,7 @@ end
                    Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf])
 
-    model = lm(@formula(y ~ 0 + x), df)
+    model = lm(@formula(y ~ 0 + x), df; method=:cholesky)
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
@@ -316,7 +316,7 @@ end
                    Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf])
 
-    model = glm(@formula(y ~ x), df, Normal(), IdentityLink())
+    model = glm(@formula(y ~ x), df, Normal(), IdentityLink(); method=:cholesky)
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
@@ -327,7 +327,7 @@ end
                    Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf])
 
-    model = glm(@formula(y ~ 0 + x), df, Normal(), IdentityLink())
+    model = glm(@formula(y ~ 0 + x), df, Normal(), IdentityLink(); method=:cholesky)
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
@@ -340,7 +340,7 @@ end
 
     # Saturated and rank-deficient model
     df = DataFrame(x1=["a", "b", "c"], x2=["a", "b", "c"], y=[1, 2, 3])
-    model = lm(@formula(y ~ x1 + x2), df)
+    model = lm(@formula(y ~ x1 + x2), df; method=:cholesky)
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
@@ -403,7 +403,7 @@ end
         # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt1.dat
 
         data = DataFrame(x = 60:70, y = 130:140)
-        mdl = lm(@formula(y ~ 0 + x), data)
+        mdl = lm(@formula(y ~ 0 + x), data; method=:cholesky)
         @test coef(mdl) ≈ [2.07438016528926]
         @test stderror(mdl) ≈ [0.165289256198347E-01]
         @test GLM.dispersion(mdl) ≈ 3.56753034006338
@@ -426,7 +426,7 @@ end
         # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt2.dat
 
         data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
-        mdl = lm(@formula(y ~ 0 + x), data)
+        mdl = lm(@formula(y ~ 0 + x), data; method=:cholesky)
         @test coef(mdl) ≈ [0.727272727272727]
         @test stderror(mdl) ≈ [0.420827318078432E-01]
         @test GLM.dispersion(mdl) ≈ 0.369274472937998
@@ -446,7 +446,7 @@ end
         y = [3, 4, 4]
 
         data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
-        mdl1 = lm(@formula(y ~ 0 + x), data)
+        mdl1 = lm(@formula(y ~ 0 + x), data; method=:cholesky)
         mdl2 = lm(X, y)
 
         @test coef(mdl1) ≈ coef(mdl2)
@@ -3055,7 +3055,7 @@ end
         @test isapprox(deviance(m1), 0.12160301538297297)
         Xmissingcell = X[inds, :]
         ymissingcell = y[inds]
-        @test_throws ErrorException m2 = glm(Xmissingcell, ymissingcell, Normal();
+        @test_throws RankDeficientException m2 = glm(Xmissingcell, ymissingcell, Normal();
             dropcollinear=false, method=:qr)
         m2p = glm(Xmissingcell, ymissingcell, Normal(); dropcollinear=true, method=:qr)
         @test isa(m2p.pp.qr, QRPivoted)
@@ -3085,7 +3085,7 @@ end
         @test isapprox(deviance(m1), 0.0407069934950098)
         Xmissingcell = X[inds, :]
         ymissingcell = y[inds]
-        @test_throws ErrorException glm(Xmissingcell, ymissingcell, Gamma();
+        @test_throws RankDeficientException glm(Xmissingcell, ymissingcell, Gamma();
                                          dropcollinear=false, method=:qr)
         m2p = glm(Xmissingcell, ymissingcell, Gamma(); dropcollinear=true, method=:qr)
         @test isa(m2p.pp.qr, QRPivoted)

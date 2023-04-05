@@ -89,8 +89,7 @@ function delbeta! end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
-    rnk == length(p.delbeta) || 
-        throw(error("One or more columns in the design matrix are linearly dependent on others"))
+    rnk == length(p.delbeta) || throw(RankDeficientException(rnk))
     p.delbeta = p.qr\r
     mul!(p.scratchm1, Diagonal(ones(size(r))), p.X)
     return p
@@ -98,8 +97,7 @@ end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
-    rnk == length(p.delbeta) || 
-        throw(error("One or more columns in the design matrix are linearly dependent on others"))
+    rnk == length(p.delbeta) || throw(RankDeficientException(rnk))
     X = p.X
     W = Diagonal(wt)
     sqrtW = Diagonal(sqrt.(wt)) 
@@ -421,6 +419,7 @@ hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size
 
 linpred_rank(x::LinPred) = length(x.beta0)
 linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = rank(x.chol)
+linpred_rank(x::DensePredChol{<:Any, <:Cholesky}) = rank(x.chol.U)
 linpred_rank(x::DensePredQR{<:Any,<:QRPivoted}) = rank(x.qr.R)
 
 ispivoted(x::LinPred) = false
