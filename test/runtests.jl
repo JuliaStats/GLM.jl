@@ -292,9 +292,9 @@ end
     @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
 end
 
-@testset "Saturated linear model with Cholesky" begin
+@testset "saturated linear model" begin
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
-    model = lm(@formula(y ~ x), df; method=:cholesky)
+    model = lm(@formula(y ~ x), df)
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
@@ -305,7 +305,7 @@ end
                    Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf])
 
-    model = lm(@formula(y ~ 0 + x), df; method=:cholesky)
+    model = lm(@formula(y ~ 0 + x), df)
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
@@ -316,7 +316,7 @@ end
                    Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf])
 
-    model = glm(@formula(y ~ x), df, Normal(), IdentityLink(); method=:cholesky)
+    model = glm(@formula(y ~ x), df, Normal(), IdentityLink())
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
@@ -327,7 +327,7 @@ end
                    Inf 0.0 1.0 -Inf Inf
                    Inf 0.0 1.0 -Inf Inf])
 
-    model = glm(@formula(y ~ 0 + x), df, Normal(), IdentityLink(); method=:cholesky)
+    model = glm(@formula(y ~ 0 + x), df, Normal(), IdentityLink())
     ct = coeftable(model)
     @test dof_residual(model) == 0
     @test dof(model) == 4
@@ -340,21 +340,20 @@ end
 
     # Saturated and rank-deficient model
     df = DataFrame(x1=["a", "b", "c"], x2=["a", "b", "c"], y=[1, 2, 3])
-    model = lm(@formula(y ~ x1 + x2), df; method=:cholesky)
-    ct = coeftable(model)
-    @test dof_residual(model) == 0
-    @test dof(model) == 4
-    @test isinf(GLM.dispersion(model))
-    @test coef(model) ≈ [1, 1, 2, 0, 0]
-    @test isequal(hcat(ct.cols[2:end]...),
-                  [Inf 0.0 1.0 -Inf Inf
-                   Inf 0.0 1.0 -Inf Inf
-                   Inf 0.0 1.0 -Inf Inf
-                   NaN NaN NaN  NaN NaN
-                   NaN NaN NaN  NaN NaN])
-
-    # TODO: add tests similar to the one above once this model can be fitted
-    @test_broken glm(@formula(y ~ x1 + x2), df, Normal(), IdentityLink())
+    for model in (lm(@formula(y ~ x1 + x2), df),
+                  glm(@formula(y ~ x1 + x2), df, Normal(), IdentityLink()))
+        ct = coeftable(model)
+        @test dof_residual(model) == 0
+        @test dof(model) == 4
+        @test isinf(GLM.dispersion(model))
+        @test coef(model) ≈ [1, 1, 2, 0, 0]
+        @test isequal(hcat(ct.cols[2:end]...),
+                      [Inf 0.0 1.0 -Inf Inf
+                       Inf 0.0 1.0 -Inf Inf
+                       Inf 0.0 1.0 -Inf Inf
+                       NaN NaN NaN  NaN NaN
+                       NaN NaN NaN  NaN NaN])
+    end
 end
 
 @testset "Saturated linear model with QR" begin
