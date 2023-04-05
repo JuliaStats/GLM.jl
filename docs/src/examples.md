@@ -86,7 +86,7 @@ julia> round.(vcov(ols); digits=5)
   0.38889  -0.16667
  -0.16667   0.08333
 ```
-By default, the `lm` method uses the `Cholesky` factorization which is known as fast but numerically unstable, especially for ill-conditioned design matrices. You can use the `method` keyword argument to apply a more stable `QR` factorization method.
+By default, the `lm` method uses the Cholesky factorization which is known as fast but numerically unstable, especially for ill-conditioned design matrices. You can use the `method` keyword argument to apply a more stable QR factorization method.
 
 ```jldoctest
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7]);
@@ -106,7 +106,7 @@ X             2.5         0.288675   8.66    0.0732   -1.16797    6.16797
 ```
 Suppose we have `y = [1, 2, 3, 4, 5]` and `x = [1.0E-12, 2.0E-12, 3.0E-12, 4.0E-12, 5.0E-12]`.
 Clearly y = 0 + 1.0E12 * x. So if we fit a linear model `y ~ x` then the estimate of the intercept should be `0` and the estimate of slop should be `1.0E12`.
-The following example shows that `QR` decomposition works better for ill-conditioned design matrix. The linear model with the `Cholesky` decomposition method is unable to estimate parameters correctly whereas the linear model with the `QR` decomposition does.
+The following example shows that QR decomposition works better for ill-conditioned design matrix. The linear model with the Cholesky decomposition method is unable to estimate parameters correctly whereas the linear model with the QR decomposition does.
 
 ```jldoctest; filter = [r"^\(Intercept\).*$", r"^x.*$", r"e.*$"]
 julia> y = [1, 2, 3, 4, 5];
