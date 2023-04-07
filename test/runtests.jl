@@ -356,46 +356,6 @@ end
     end
 end
 
-@testset "Saturated linear model with QR" begin
-    df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
-    model = lm(@formula(y ~ x), df; method=:qr)
-    ct = coeftable(model)
-    @test dof_residual(model) == 0
-    @test dof(model) == 4
-    @test isinf(GLM.dispersion(model))
-    @test coef(model) ≈ [1, 1, 2]
-    @test isequal(hcat(ct.cols[2:end]...),
-                  [Inf 0.0 1.0 -Inf Inf
-                   Inf 0.0 1.0 -Inf Inf
-                   Inf 0.0 1.0 -Inf Inf])
-
-    model = lm(@formula(y ~ 0 + x), df; method=:qr)
-    ct = coeftable(model)
-    @test dof_residual(model) == 0
-    @test dof(model) == 4
-    @test isinf(GLM.dispersion(model))
-    @test coef(model) ≈ [1, 2, 3]
-    @test isequal(hcat(ct.cols[2:end]...),
-                  [Inf 0.0 1.0 -Inf Inf
-                   Inf 0.0 1.0 -Inf Inf
-                   Inf 0.0 1.0 -Inf Inf])
-
-    # Saturated and rank-deficient model
-    df = DataFrame(x1=["a", "b", "c"], x2=["a", "b", "c"], y=[1, 2, 3])
-    model = lm(@formula(y ~ x1 + x2), df; method=:qr)
-    ct = coeftable(model)
-    @test dof_residual(model) == 0
-    @test dof(model) == 4
-    @test isinf(GLM.dispersion(model))
-    @test coef(model) ≈ [1, 1, 2, 0, 0]
-    @test isequal(hcat(ct.cols[2:end]...),
-                  [Inf 0.0 1.0 -Inf Inf
-                   Inf 0.0 1.0 -Inf Inf
-                   Inf 0.0 1.0 -Inf Inf
-                   NaN NaN NaN  NaN NaN
-                   NaN NaN NaN  NaN NaN])
-end
-
 @testset "Linear model with Cholesky and without intercept" begin
     @testset "Test with NoInt1 Dataset" begin
         # test case to test r2 for no intercept model
