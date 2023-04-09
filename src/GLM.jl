@@ -104,7 +104,7 @@ module GLM
           `0.0` and all associated statistics are set to `NaN`.
           Typically from a set of linearly-dependent columns the last ones are identified as redundant
           (however, the exact selection of columns identified as redundant is not guaranteed).
-        - `method::Symbol=:cholesky`: Controls which decomposition method will be used in the `lm` method.
+        - `method::Symbol=:cholesky`: Controls which decomposition method to use.
           If `method=:cholesky` (the default), then the `Cholesky` decomposition method will be used.
           If `method=:qr`, then the `QR` decomposition method (which is more stable
           but slower) will be used.
