@@ -579,9 +579,9 @@ function fit(::Type{M},
 
     rr = GlmResp(y, d, l, offset, wts)
 
-    if method === :cholesky
+    if method == :cholesky
         res = M(rr, cholpred(X, dropcollinear), nothing, false)
-    elseif method === :qr
+    elseif method == :qr
         res = M(rr, qrpred(X, dropcollinear), nothing, false)
     else
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
@@ -626,9 +626,9 @@ function fit(::Type{M},
     wts = wts === nothing ? similar(y, 0) : wts
     rr = GlmResp(y, d, l, off, wts)
     
-    if method === :cholesky
+    if method == :cholesky
         res = M(rr, cholpred(X, dropcollinear), f, false)
-    elseif method === :qr
+    elseif method == :qr
         res = M(rr, qrpred(X, dropcollinear), f, false)
     else
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
