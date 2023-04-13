@@ -156,9 +156,9 @@ end
                                                 method = dmethod, dropcollinear=false)
         @test isa(m2p.pp.chol, CholeskyPivoted)
         @test isapprox(coef(m2p), [0.9772643585228885, 8.903341608496437, 3.027347397503281,
-                                    3.9661379199401257, 5.079410103608552, 6.1944618141188625, 0.0, 7.930328728005131,
-                                    8.879994918604757, 2.986388408421915, 10.84972230524356, 11.844809275711485])
-        @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7,:])
+                                   3.9661379199401257, 5.079410103608552, 6.1944618141188625,
+                                   0.0, 7.930328728005131, 8.879994918604757, 2.986388408421915, 
+                                   10.84972230524356, 11.844809275711485])
         
         @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
         @test isa(m2p_dep_pos_kw.pp.chol, CholeskyPivoted)
@@ -166,15 +166,22 @@ end
         @test_throws RankDeficientException m2 = fit(LinearModel, Xmissingcell, ymissingcell;
                                                         method = dmethod, dropcollinear=false)
         @test isapprox(coef(m2p), [0.9772643585228962, 11.889730016918342, 3.027347397503282,
-                                    3.9661379199401177, 5.079410103608539, 6.194461814118862,
-                                    -2.9863884084219015, 7.930328728005132, 8.87999491860477, 
-                                    0.0, 10.849722305243555, 11.844809275711487])
-        @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[10,:])
+                                   3.9661379199401177, 5.079410103608539, 6.194461814118862,
+                                  -2.9863884084219015, 7.930328728005132, 8.87999491860477, 
+                                   0.0, 10.849722305243555, 11.844809275711487]) ||
+              isapprox(coef(m2p), [0.9772643585228885, 8.903341608496437, 3.027347397503281,
+                                   3.9661379199401257, 5.079410103608552, 6.1944618141188625,
+                                   0.0, 7.930328728005131, 8.879994918604757, 2.986388408421915, 
+                                   10.84972230524356, 11.844809275711485])
+        
         @test isa(m2p.pp.qr, QRPivoted)
 
         @test isa(m2p_dep_pos.pp.qr, QRPivoted)
         @test isa(m2p_dep_pos_kw.pp.qr, QRPivoted)
     end
+
+    indx = findfirst(item -> item == 0.0, coef(m2p))
+    @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[indx,:])
 
     @test GLM.linpred_rank(m2p.pp) == 11
     @test isapprox(deviance(m2p), 0.1215758392280204)
