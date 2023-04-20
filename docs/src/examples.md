@@ -105,9 +105,9 @@ X             2.5         0.288675   8.66    0.0732   -1.16797    6.16797
 ─────────────────────────────────────────────────────────────────────────
 ```
 The following example shows that QR decomposition works better for an ill-conditioned design matrix. The linear model with the Cholesky decomposition method is unable to estimate parameters correctly whereas the linear model with the QR decomposition does.
-Note that, the condition number of the design matrix is quite high (≈ 3.52e7).
+Note that, the condition number of the design matrix is quite high (≈ 3.52e7). Since the Cholesky method aggressively detect multicollinearity, if you ever encounter multicollinearity in any GLM model with Cholesky, it is worth trying the same model with QR decomposition. 
 
-```
+```jldoctest
 julia> X = [-0.4011512997627107 0.6368622664511552;
             -0.0808472925693535 0.12835204623364604;
             -0.16931095045225217 0.2687956795496601;
@@ -129,7 +129,7 @@ Coefficients:
     Coef.  Std. Error             t  Pr(>|t|)  Lower 95%  Upper 95%
 ───────────────────────────────────────────────────────────────────
 x1    5.0  2.53054e-8  197586428.62    <1e-63        5.0        5.0
-x2   10.0  1.59395e-8  627370993.89    <1e-67       10.0       10.0
+x2   10.0  1.59395e-8  627370993.89    <1e-99       10.0       10.0
 ───────────────────────────────────────────────────────────────────
 
 
