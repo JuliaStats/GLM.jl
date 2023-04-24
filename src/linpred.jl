@@ -69,6 +69,7 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY, QRPivoted}} <: Dens
             F,
             similar(X, T))
     end
+    
     function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
         n, p = size(X)
         T = typeof(float(zero(eltype(X))))

@@ -86,7 +86,7 @@ julia> round.(vcov(ols); digits=5)
   0.38889  -0.16667
  -0.16667   0.08333
 ```
-By default, the `lm` method uses the Cholesky factorization which is known as fast but numerically unstable, especially for ill-conditioned design matrices. You can use the `method` keyword argument to apply a more stable QR factorization method.
+By default, the `lm` method uses the Cholesky factorization which is known as fast but numerically unstable, especially for ill-conditioned design matrices. Also, the Cholesky method aggressively detects multicollinearity. You can use the `method` keyword argument to apply a more stable QR factorization method.
 
 ```jldoctest
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7]);
@@ -105,8 +105,7 @@ X             2.5         0.288675   8.66    0.0732   -1.16797    6.16797
 ─────────────────────────────────────────────────────────────────────────
 ```
 The following example shows that QR decomposition works better for an ill-conditioned design matrix. The linear model with the Cholesky decomposition method is unable to estimate parameters correctly whereas the linear model with the QR decomposition does.
-Note that, the condition number of the design matrix is quite high (≈ 3.52e7). Since the Cholesky method aggressively detect multicollinearity, if you ever encounter multicollinearity in any GLM model with Cholesky, it is worth trying the same model with QR decomposition. 
-
+Note that, the condition number of the design matrix is quite high (≈ 3.52e7).
 ```
 julia> X = [-0.4011512997627107 0.6368622664511552;
             -0.0808472925693535 0.12835204623364604;
@@ -143,6 +142,41 @@ x1   5.28865   0.103248    51.22    <1e-10    5.05056    5.52674
 x2  10.1818    0.0650348  156.56    <1e-14   10.0318    10.3318
 ────────────────────────────────────────────────────────────────
 ```
+Since the Cholesky method aggressively detect multicollinearity, if you ever encounter multicollinearity in any GLM model with Cholesky, it is worth trying the same model with QR decomposition. In the following example, we have `y = [1, 2, 3, 4, 5]` and `x = [1.0E-12, 2.0E-12, 3.0E-12, 4.0E-12, 5.0E-12]`. Clearly y = 0 + 1.0E12 * x. So if we fit a linear model `y ~ x` then the estimate of the intercept should be `0` and the estimate of slop should be `1.0E12`. The Cholesky method detects multicollinearity in the design matrix and is unable to estimate properly whereas the QR decomposition estimates correctly.
+```
+julia> y = [1, 2, 3, 4, 5];
+
+julia> x = [1.0E-12, 2.0E-12, 3.0E-12, 4.0E-12, 5.0E-12];
+
+julia> nasty = DataFrame(y = y, x = x);
+
+julia> mdl1 = lm(@formula(y ~ x), nasty; method=:cholesky)
+LinearModel
+
+y ~ 1 + x
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────
+             Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
+──────────────────────────────────────────────────────────────────────
+(Intercept)    3.0    0.707107    4.24    0.0132    1.03676    4.96324
+x              0.0  NaN         NaN       NaN     NaN        NaN
+──────────────────────────────────────────────────────────────────────
+
+julia> mdl2 = lm(@formula(y ~ x), nasty; method=:qr)
+LinearModel
+
+y ~ 1 + x
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────────────────────────────
+                   Coef.   Std. Error                    t  Pr(>|t|)    Lower 95%    Upper 95%
+──────────────────────────────────────────────────────────────────────────────────────────────
+(Intercept)  7.94411e-16  1.2026e-15                  0.66    0.5561  -3.0328e-15  4.62162e-15
+x            1.0e12       0.000362597  2757880273211543.50    <1e-99   1.0e12      1.0e12
+──────────────────────────────────────────────────────────────────────────────────────────────
+```
+
 
 ## Probit regression
 ```jldoctest
