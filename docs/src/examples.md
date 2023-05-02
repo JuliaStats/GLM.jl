@@ -155,39 +155,50 @@ x2  10.1112    0.053489   189.03    <1e-15    9.98781   10.2345
 julia> loglikelihood(modelqr) > loglikelihood(modelchol)
 true
 ```
-Since the Cholesky method aggressively detect multicollinearity, if you ever encounter multicollinearity in any GLM model with Cholesky, it is worth trying the same model with QR decomposition. In the following example, we have `y = [1, 2, 3, 4, 5]` and `x = [1.0E-12, 2.0E-12, 3.0E-12, 4.0E-12, 5.0E-12]`. Clearly y = 0 + 1.0E12 * x. So if we fit a linear model `y ~ x` then the estimate of the intercept should be `0` and the estimate of slop should be `1.0E12`. The Cholesky method detects multicollinearity in the design matrix and is unable to estimate properly whereas the QR decomposition estimates correctly.
-```
-julia> y = [1, 2, 3, 4, 5];
+Since the Cholesky method aggressively detect multicollinearity, if you ever encounter multicollinearity in any GLM model with Cholesky, it is worth trying the same model with QR decomposition. The following example is taken from `Introductory Econometrics: A Modern Approach, 7e" by Jeffrey M. Wooldridge`. The dataset is used studying the relationship between firm size—often measured by annual sales—and spending on research and development (R&D). The following shows that for the given model, the Cholesky method detects multicollinearity in the design matrix and hence can't estimate properly whereas the QR method estimates correctly.
 
-julia> x = [1.0E-12, 2.0E-12, 3.0E-12, 4.0E-12, 5.0E-12];
+```jldoctest
+julia> y = [9.42190647125244, 2.084805727005, 3.9376676082611, 2.61976027488708, 4.04761934280395, 2.15384602546691,
+            2.66240668296813, 4.39475727081298, 5.74520826339721, 3.59616208076477, 1.54265284538269, 2.59368276596069,
+            1.80476510524749, 1.69270837306976, 3.04201245307922, 2.18389105796813, 2.73844122886657, 2.88134002685546,
+            2.46666669845581, 3.80616021156311, 5.12149810791015, 6.80378007888793, 3.73669862747192, 1.21332454681396,
+            2.54629635810852, 5.1612901687622, 1.86798071861267, 1.21465551853179, 6.31019830703735, 1.02669405937194, 
+            2.50623273849487, 1.5936255455017];
 
-julia> nasty = DataFrame(y = y, x = x);
+julia> x = [4570.2001953125, 2830, 596.799987792968, 133.600006103515, 42, 390, 93.9000015258789, 907.900024414062,
+            19773, 39709, 2936.5, 2513.80004882812, 1124.80004882812, 921.599975585937, 2432.60009765625, 6754,
+            1066.30004882812, 3199.89990234375, 150, 509.700012207031, 1452.69995117187, 8995, 1212.30004882812,
+            906.599975585937, 2592, 201.5, 2617.80004882812, 502.200012207031, 2824, 292.200012207031, 7621, 1631.5];
 
-julia> mdl1 = lm(@formula(y ~ x), nasty; method=:cholesky)
+julia> rdchem = DataFrame(rdintens=y, sales=x);
+
+julia> mdl = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:cholesky)
 LinearModel
 
-y ~ 1 + x
+rdintens ~ 1 + sales + :(sales ^ 2)
 
 Coefficients:
-──────────────────────────────────────────────────────────────────────
-             Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
-──────────────────────────────────────────────────────────────────────
-(Intercept)    3.0    0.707107    4.24    0.0132    1.03676    4.96324
-x              0.0  NaN         NaN       NaN     NaN        NaN
-──────────────────────────────────────────────────────────────────────
+───────────────────────────────────────────────────────────────────────────────────────
+                    Coef.     Std. Error       t  Pr(>|t|)      Lower 95%     Upper 95%
+───────────────────────────────────────────────────────────────────────────────────────
+(Intercept)   0.0          NaN            NaN       NaN     NaN            NaN
+sales         0.000852509    0.000156784    5.44    <1e-05    0.000532313    0.00117271
+sales ^ 2    -1.97385e-8     4.56287e-9    -4.33    0.0002   -2.90571e-8    -1.04199e-8
+───────────────────────────────────────────────────────────────────────────────────────
 
-julia> mdl2 = lm(@formula(y ~ x), nasty; method=:qr)
+julia> mdl = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:qr)
 LinearModel
 
-y ~ 1 + x
+rdintens ~ 1 + sales + :(sales ^ 2)
 
 Coefficients:
-──────────────────────────────────────────────────────────────────────────────────────────────
-                   Coef.   Std. Error                    t  Pr(>|t|)    Lower 95%    Upper 95%
-──────────────────────────────────────────────────────────────────────────────────────────────
-(Intercept)  7.94411e-16  1.2026e-15                  0.66    0.5561  -3.0328e-15  4.62162e-15
-x            1.0e12       0.000362597  2757880273211543.50    <1e-99   1.0e12      1.0e12
-──────────────────────────────────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────────────────────
+                    Coef.   Std. Error      t  Pr(>|t|)    Lower 95%    Upper 95%
+─────────────────────────────────────────────────────────────────────────────────
+(Intercept)   2.61251      0.429442      6.08    <1e-05   1.73421     3.49082
+sales         0.000300571  0.000139295   2.16    0.0394   1.56805e-5  0.000585462
+sales ^ 2    -6.94594e-9   3.72614e-9   -1.86    0.0725  -1.45667e-8  6.7487e-10
+─────────────────────────────────────────────────────────────────────────────────
 ```
 
 
