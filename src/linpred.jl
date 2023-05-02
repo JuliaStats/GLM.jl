@@ -53,22 +53,6 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY, QRPivoted}} <: Dens
     scratchbeta::Vector{T}
     qr::Q
     scratchm1::Matrix{T}
-
-    function DensePredQR(X::AbstractMatrix, beta0::AbstractVector, pivot::Bool=false)
-        n, p = size(X)
-        length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
-        T = typeof(float(zero(eltype(X))))
-        Q = pivot ? QRPivoted : QRCompactWY
-        fX = float(X)
-        cfX = fX === X ? copy(fX) : fX
-        F = pivot ? pivoted_qr!(cfX) : qr!(cfX)
-        new{T,Q}(Matrix{T}(X),
-            Vector{T}(beta0),
-            zeros(T, p),
-            zeros(T, p),
-            F,
-            similar(X, T))
-    end
     
     function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
         n, p = size(X)

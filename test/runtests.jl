@@ -1993,3 +1993,8 @@ end
     # 3. 44 / wt == y
     @test GLM.loglik_obs(Binomial(), y, μ, wt, ϕ) ≈ GLM.logpdf(Binomial(Int(wt), μ), 44)
 end
+
+@testset "GLM with wrong option value in method argument" begin
+    @test_throws ArgumentError lm(@formula(OptDen ~ Carb), form; method=:pr)
+    @test_throws ArgumentError glm(@formula(OptDen ~ Carb), form, Normal(); method=:pr)
+end
