@@ -152,11 +152,8 @@ x1   5.17647   0.0849184   60.96    <1e-11    4.98065    5.37229
 x2  10.1112    0.053489   189.03    <1e-15    9.98781   10.2345
 ────────────────────────────────────────────────────────────────
 
-julia> loglikelihood(modelqr)
-181.55053822233305
-
-julia> loglikelihood(modelchol)
-171.96292275113052
+julia> loglikelihood(modelqr) > loglikelihood(modelchol)
+true
 ```
 Since the Cholesky method aggressively detect multicollinearity, if you ever encounter multicollinearity in any GLM model with Cholesky, it is worth trying the same model with QR decomposition. In the following example, we have `y = [1, 2, 3, 4, 5]` and `x = [1.0E-12, 2.0E-12, 3.0E-12, 4.0E-12, 5.0E-12]`. Clearly y = 0 + 1.0E12 * x. So if we fit a linear model `y ~ x` then the estimate of the intercept should be `0` and the estimate of slop should be `1.0E12`. The Cholesky method detects multicollinearity in the design matrix and is unable to estimate properly whereas the QR decomposition estimates correctly.
 ```
