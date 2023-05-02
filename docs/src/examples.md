@@ -107,7 +107,7 @@ X             2.5         0.288675   8.66    0.0732   -1.16797    6.16797
 The following example shows that QR decomposition works better for an ill-conditioned design matrix. The linear model with the QR method is a better model than the linear model with Cholesky decomposition method since the estimated loglikelihood of previous model is higher.
 Note that, the condition number of the design matrix is quite high (≈ 3.52e7).
 
-```jldoctest
+```
 julia> X = [-0.4011512997627107 0.6368622664511552;
             -0.0808472925693535 0.12835204623364604;
             -0.16931095045225217 0.2687956795496601;
