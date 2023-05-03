@@ -155,7 +155,15 @@ x2  10.1112    0.053489   189.03    <1e-15    9.98781   10.2345
 julia> loglikelihood(modelqr) > loglikelihood(modelchol)
 true
 ```
-Since the Cholesky, especially with `dropcollinear = true`, method aggressively detects multicollinearity, if you ever encounter multicollinearity in any GLM model with Cholesky, it is worth trying the same model with QR decomposition. The following example is taken from `Introductory Econometrics: A Modern Approach, 7e" by Jeffrey M. Wooldridge`. The dataset is used to study the relationship between firm size—often measured by annual sales—and spending on research and development (R&D). The following shows that for the given model, the Cholesky method detects multicollinearity in the design matrix with dropcollinear=true and hence does not estimate all parameters as opposed to QR.
+Since the Cholesky method with `dropcollinear = true` aggressively detects multicollinearity,
+if you ever encounter multicollinearity in any GLM model with Cholesky,
+it is worth trying the same model with QR decomposition.
+The following example is taken from `Introductory Econometrics: A Modern Approach, 7e" by Jeffrey M. Wooldridge`.
+The dataset is used to study the relationship between firm size—often measured by annual sales—and spending on
+research and development (R&D).
+The following shows that for the given model,
+the Cholesky method detects multicollinearity in the design matrix with `dropcollinear=true`
+and hence does not estimate all parameters as opposed to QR.
 
 ```jldoctest
 julia> y = [9.42190647125244, 2.084805727005, 3.9376676082611, 2.61976027488708, 4.04761934280395, 2.15384602546691,
