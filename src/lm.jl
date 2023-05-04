@@ -117,10 +117,10 @@ const FIT_LM_DOC = """
 
 """
     fit(LinearModel, formula::FormulaTerm, data;
-        [wts::AbstractVector], dropcollinear::Bool=true,
+        [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
         contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
-        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
+        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
 Fit a linear model to data.
 
@@ -129,34 +129,50 @@ $FIT_LM_DOC
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
              wts::AbstractVector{<:Real}=similar(y, 0),
-             dropcollinear::Bool=true)
+             dropcollinear::Bool=true,
+             method::Symbol=:cholesky)
     if allowrankdeficient_dep !== nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
         dropcollinear = allowrankdeficient_dep
     end
-    fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), nothing))
+    
+    if method === :cholesky
+        fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), nothing))
+    elseif method === :qr
+        fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear), nothing))
+    else
+        throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
+    end
 end
 
 function fit(::Type{LinearModel}, f::FormulaTerm, data,
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
              wts::Union{AbstractVector{<:Real}, Nothing}=nothing,
              dropcollinear::Bool=true,
+             method::Symbol=:cholesky,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     f, (y, X) = modelframe(f, data, contrasts, LinearModel)
     wts === nothing && (wts = similar(y, 0))
-    fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), f))
+
+    if method === :cholesky
+        fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), f))
+    elseif method === :qr
+        fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear), f))
+    else
+        throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
+    end
 end
 
 """
     lm(formula, data;
-       [wts::AbstractVector], dropcollinear::Bool=true,
+       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
        contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     lm(X::AbstractMatrix, y::AbstractVector;
-       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
+       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
 Fit a linear model to data.
-An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear)`
+An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, method=method)`
 
 $FIT_LM_DOC
 """
@@ -283,8 +299,13 @@ function StatsModels.predict!(res::Union{AbstractVector,
         length(res) == size(newx, 1) ||
             throw(DimensionMismatch("length of `res` must equal the number of rows in `newx`"))
         res .= newx * coef(mm)
-    elseif mm.pp.chol isa CholeskyPivoted &&
+    elseif mm.pp isa DensePredChol && 
+        mm.pp.chol isa CholeskyPivoted &&
         mm.pp.chol.rank < size(mm.pp.chol, 2)
+            throw(ArgumentError("prediction intervals are currently not implemented " *
+                                "when some independent variables have been dropped " *
+                                "from the model due to collinearity"))
+    elseif mm.pp isa DensePredQR && rank(mm.pp.qr.R) < size(mm.pp.qr.R, 2)
         throw(ArgumentError("prediction intervals are currently not implemented " *
                             "when some independent variables have been dropped " *
                             "from the model due to collinearity"))
@@ -296,18 +317,10 @@ function StatsModels.predict!(res::Union{AbstractVector,
         length(prediction) == length(lower) == length(upper) == size(newx, 1) ||
             throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newx`"))
         length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
-        chol = cholesky!(mm.pp)
-        # get the R matrix from the QR factorization
-        if chol isa CholeskyPivoted
-            ip = invperm(chol.p)
-            R = chol.U[ip, ip]
-        else
-            R = chol.U
-        end
+
         dev = deviance(mm)
         dofr = dof_residual(mm)
-        residvar = fill(dev/dofr, size(newx, 2), 1)
-        ret = dropdims((newx/R).^2 * residvar, dims=2)
+        ret = diag(newx*vcov(mm)*newx')
         if interval == :prediction
             ret .+= dev/dofr
         elseif interval != :confidence
