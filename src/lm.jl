@@ -122,10 +122,10 @@ const FIT_LM_DOC = """
     """
 
 """
-    fit(LinearModel, formula, data, allowrankdeficient=false;
-       [wts::AbstractVector], dropcollinear::Bool=true)
+    fit(LinearModel, formula, data;
+       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky)
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
-        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
+        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
 Fit a linear model to data.
 
@@ -134,23 +134,31 @@ $FIT_LM_DOC
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
              wts::AbstractVector{<:Real}=similar(y, 0),
-             dropcollinear::Bool=true)
+             dropcollinear::Bool=true,
+             method::Symbol=:cholesky)
     if allowrankdeficient_dep !== nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
         dropcollinear = allowrankdeficient_dep
     end
-    fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
+
+    if method === :cholesky
+        fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
+    elseif method === :qr
+        fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear)))
+    else
+        throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
+    end
 end
 
 """
-    lm(formula, data, allowrankdeficient=false;
-       [wts::AbstractVector], dropcollinear::Bool=true)
+    lm(formula, data;
+       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
     lm(X::AbstractMatrix, y::AbstractVector;
-       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
+       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
 Fit a linear model to data.
-An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear)`
+An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, method=method)`
 
 $FIT_LM_DOC
 """
@@ -256,31 +264,32 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     end
     if interval === nothing
         return retmean
-    elseif mm.pp.chol isa CholeskyPivoted &&
+    elseif mm.pp isa DensePredChol && 
+        mm.pp.chol isa CholeskyPivoted &&
         mm.pp.chol.rank < size(mm.pp.chol, 2)
+            throw(ArgumentError("prediction intervals are currently not implemented " *
+                                "when some independent variables have been dropped " *
+                                "from the model due to collinearity"))
+    elseif mm.pp isa DensePredQR && rank(mm.pp.qr.R) < size(mm.pp.qr.R, 2)
         throw(ArgumentError("prediction intervals are currently not implemented " *
                             "when some independent variables have been dropped " *
                             "from the model due to collinearity"))
     end
     length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
-    chol = cholesky!(mm.pp)
-    # get the R matrix from the QR factorization
-    if chol isa CholeskyPivoted
-        ip = invperm(chol.p)
-        R = chol.U[ip, ip]
-    else
-        R = chol.U
-    end
-    residvar = ones(size(newx,2)) * deviance(mm)/dof_residual(mm)
-    if interval == :confidence
-        retvariance = (newx/R).^2 * residvar
-    elseif interval == :prediction
-        retvariance = (newx/R).^2 * residvar .+ deviance(mm)/dof_residual(mm)
-    else
+
+    dev = deviance(mm)
+    dofr = dof_residual(mm)
+    ret = diag(newx*vcov(mm)*newx')
+    if interval == :prediction
+        ret .+= dev/dofr
+    elseif interval != :confidence
         error("only :confidence and :prediction intervals are defined")
     end
-    retinterval = quantile(TDist(dof_residual(mm)), (1. - level)/2) * sqrt.(retvariance)
-    (prediction = retmean, lower = retmean .+ retinterval, upper = retmean .- retinterval)
+    ret .= quantile(TDist(dofr), (1 - level)/2) .* sqrt.(ret)
+    retmean .= newx * coef(mm)
+    lower = retmean .+ ret
+    upper = retmean -+ ret
+    (prediction = retmean, lower = lower, upper = upper)
 end
 
 function confint(obj::LinearModel; level::Real=0.95)

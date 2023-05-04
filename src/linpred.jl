@@ -35,7 +35,7 @@ end
 """
     DensePredQR
 
-A `LinPred` type with a dense, unpivoted QR decomposition of `X`
+A `LinPred` type with a dense QR decomposition of `X`
 
 # Members
 
@@ -43,28 +43,32 @@ A `LinPred` type with a dense, unpivoted QR decomposition of `X`
 - `beta0`: base coefficient vector of length `p`
 - `delbeta`: increment to coefficient vector, also of length `p`
 - `scratchbeta`: scratch vector of length `p`, used in `linpred!` method
-- `qr`: a `QRCompactWY` object created from `X`, with optional row weights.
+- `qr`: either a `QRCompactWY` or `QRPivoted` object created from `X`, with optional row weights.
+- `scratchm1`: scratch Matrix{T} of the same size as `X`
 """
-mutable struct DensePredQR{T<:BlasReal} <: DensePred
+mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY, QRPivoted}} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
-    qr::QRCompactWY{T}
-    function DensePredQR{T}(X::Matrix{T}, beta0::Vector{T}) where T
+    qr::Q
+    scratchm1::Matrix{T}
+    
+    function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
         n, p = size(X)
-        length(beta0) == p || throw(DimensionMismatch("length(β0) ≠ size(X,2)"))
-        new{T}(X, beta0, zeros(T,p), zeros(T,p), qr(X))
-    end
-    function DensePredQR{T}(X::Matrix{T}) where T
-        n, p = size(X)
-        new{T}(X, zeros(T, p), zeros(T,p), zeros(T,p), qr(X))
+        T = typeof(float(zero(eltype(X))))
+        Q = pivot ? QRPivoted : QRCompactWY
+        fX = float(X)
+        cfX = fX === X ? copy(fX) : fX
+        F = pivot ? pivoted_qr!(cfX) : qr!(cfX)
+        new{T,Q}(Matrix{T}(X),
+            zeros(T, p),
+            zeros(T, p),
+            zeros(T, p),
+            F,
+            similar(X, T))
     end
 end
-DensePredQR(X::Matrix, beta0::Vector) = DensePredQR{eltype(X)}(X, beta0)
-DensePredQR(X::Matrix{T}) where T = DensePredQR{T}(X, zeros(T, size(X,2)))
-convert(::Type{DensePredQR{T}}, X::Matrix{T}) where {T} = DensePredQR{T}(X, zeros(T, size(X, 2)))
-
 """
     delbeta!(p::LinPred, r::Vector)
 
@@ -72,8 +76,71 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 """
 function delbeta! end
 
-function delbeta!(p::DensePredQR{T}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where T<:BlasReal
+    rnk = rank(p.qr.R)
+    rnk == length(p.delbeta) || throw(RankDeficientException(rnk))
     p.delbeta = p.qr\r
+    mul!(p.scratchm1, Diagonal(ones(size(r))), p.X)
+    return p
+end
+
+function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+    rnk = rank(p.qr.R)
+    rnk == length(p.delbeta) || throw(RankDeficientException(rnk))
+    X = p.X
+    W = Diagonal(wt)
+    sqrtW = Diagonal(sqrt.(wt)) 
+    mul!(p.scratchm1, sqrtW, X)
+    mul!(p.delbeta, X'W, r)
+    qnr = qr(p.scratchm1)
+    Rinv = inv(qnr.R)
+    p.delbeta = Rinv * Rinv' * p.delbeta
+    return p
+end
+
+function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
+    rnk = rank(p.qr.R)
+    if rnk == length(p.delbeta)
+        p.delbeta = p.qr\r
+    else
+        R = @view p.qr.R[:, 1:rnk] 
+        Q = @view p.qr.Q[:, 1:size(R, 1)]
+        piv = p.qr.p
+        p.delbeta = zeros(size(p.delbeta))
+        p.delbeta[1:rnk] = R \ Q'r
+        invpermute!(p.delbeta, piv)
+    end
+    mul!(p.scratchm1, Diagonal(ones(size(r))), p.X)
+    return p
+end
+
+function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+    rnk = rank(p.qr.R)
+    X = p.X
+    W = Diagonal(wt)
+    sqrtW = Diagonal(sqrt.(wt))
+    delbeta = p.delbeta
+    scratchm2 = similar(X, T)
+    mul!(p.scratchm1, sqrtW, X)
+    mul!(scratchm2, W, X)
+    mul!(delbeta, transpose(scratchm2), r)
+
+    if rnk == length(p.delbeta)
+        qnr = qr(p.scratchm1)
+        Rinv = inv(qnr.R)
+        p.delbeta = Rinv * Rinv' * delbeta
+    else
+        qnr = pivoted_qr!(copy(p.scratchm1))
+        R = @view qnr.R[1:rnk, 1:rnk]
+        Rinv = inv(R)
+        piv = qnr.p
+        permute!(delbeta, piv)
+        for k=(rnk+1):length(delbeta)
+            delbeta[k] = -zero(T)
+        end
+        p.delbeta[1:rnk] = Rinv * Rinv' * view(delbeta, 1:rnk)
+        invpermute!(delbeta, piv)
+    end
     return p
 end
 
@@ -115,6 +182,7 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool)
 end
 
 cholpred(X::AbstractMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
+qrpred(X::AbstractMatrix, pivot::Bool=false) = DensePredQR(X, pivot)
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
@@ -124,7 +192,6 @@ function cholesky(p::DensePredChol{T}) where T<:FP
     c = p.chol
     Cholesky(copy(cholfactors(c)), c.uplo, c.info)
 end
-cholesky!(p::DensePredQR{T}) where {T<:FP} = Cholesky{T,typeof(p.X)}(p.qr.R, 'U', 0)
 
 function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where T<:BlasReal
     ldiv!(p.chol, mul!(p.delbeta, transpose(p.X), r))
@@ -227,7 +294,33 @@ end
 LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)
 LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 
+function invqr(x::DensePredQR{T,<: QRCompactWY}) where T
+    Q,R = qr(x.scratchm1)
+    Rinv = inv(R)
+    Rinv*Rinv'
+end
+
+function invqr(x::DensePredQR{T,<: QRPivoted}) where T
+    Q,R,pv = pivoted_qr!(copy(x.scratchm1))
+    rnk = rank(R)
+    p = length(x.delbeta)
+    if rnk == p
+        Rinv = inv(R)
+        xinv = Rinv*Rinv'
+        ipiv = invperm(pv)
+        return xinv[ipiv, ipiv]
+    else
+        Rsub = R[1:rnk, 1:rnk]
+        RsubInv = inv(Rsub)
+        xinv = fill(convert(T, NaN), (p,p))
+        xinv[1:rnk, 1:rnk] = RsubInv*RsubInv'
+        ipiv = invperm(pv)
+        return xinv[ipiv, ipiv]
+    end
+end
+
 invchol(x::DensePred) = inv(cholesky!(x))
+
 function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
     ch = x.chol
     rnk = rank(ch)
@@ -242,8 +335,14 @@ function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
     ipiv = invperm(ch.p)
     res[ipiv, ipiv]
 end
+
 invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
-vcov(x::LinPredModel) = rmul!(invchol(x.pp), dispersion(x, true))
+
+inverse(x::DensePred) = invchol(x)
+inverse(x::DensePredQR) = invqr(x)
+inverse(x::SparsePredChol) = invchol(x)
+
+vcov(x::LinPredModel) = rmul!(inverse(x.pp), dispersion(x, true))
 
 function cor(x::LinPredModel)
     Σ = vcov(x)
@@ -289,4 +388,46 @@ dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
 hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))
 
 linpred_rank(x::LinPred) = length(x.beta0)
-linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = x.chol.rank
+linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = rank(x.chol)
+linpred_rank(x::DensePredChol{<:Any, <:Cholesky}) = rank(x.chol.U)
+linpred_rank(x::DensePredQR{<:Any,<:QRPivoted}) = rank(x.qr.R)
+
+ispivoted(x::LinPred) = false
+ispivoted(x::DensePredChol{<:Any, <:CholeskyPivoted}) = true
+ispivoted(x::DensePredQR{<:Any,<:QRPivoted}) = true
+
+decomposition_method(x::LinPred) = isa(x, DensePredQR) ? :qr : :cholesky
+
+_coltype(::ContinuousTerm{T}) where {T} = T
+
+# Function common to all LinPred models, but documented separately
+# for LinearModel and GeneralizedLinearModel
+function StatsBase.predict(mm::LinPredModel, data;
+                           interval::Union{Symbol,Nothing}=nothing,
+                           kwargs...)
+    Tables.istable(data) ||
+        throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
+
+    f = formula(mm)
+    t = Tables.columntable(data)
+    cols, nonmissings = StatsModels.missing_omit(t, f.rhs)
+    newx = modelcols(f.rhs, cols)
+    prediction = Tables.allocatecolumn(Union{_coltype(f.lhs), Missing}, length(nonmissings))
+    fill!(prediction, missing)
+    if interval === nothing
+        predict!(view(prediction, nonmissings), mm, newx;
+                 interval=interval, kwargs...)
+        return prediction
+    else
+        # Finding integer indices once is faster
+        nonmissinginds = findall(nonmissings)
+        lower = Vector{Union{Float64, Missing}}(missing, length(nonmissings))
+        upper = Vector{Union{Float64, Missing}}(missing, length(nonmissings))
+        tup = (prediction=view(prediction, nonmissinginds),
+               lower=view(lower, nonmissinginds),
+               upper=view(upper, nonmissinginds))
+        predict!(tup, mm, newx;
+                 interval=interval, kwargs...)
+        return (prediction=prediction, lower=lower, upper=upper)
+    end
+end

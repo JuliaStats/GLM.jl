@@ -89,6 +89,12 @@ module GLM
         pivoted_cholesky!(A; kwargs...) = cholesky!(A, RowMaximum(); kwargs...)
     end
 
+    @static if VERSION < v"1.7.0"
+        pivoted_qr!(A; kwargs...) = qr!(A, Val(true); kwargs...)
+    else
+        pivoted_qr!(A; kwargs...) = qr!(A, ColumnNorm(); kwargs...)
+    end
+
     include("linpred.jl")
     include("lm.jl")
     include("glmtools.jl")
