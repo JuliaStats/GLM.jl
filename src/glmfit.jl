@@ -841,7 +841,7 @@ function residuals(model::GeneralizedLinearModel; type=:deviance)
         throw(ArgumentError("Unsupported type `$(type)``; supported types are" *
                             "$(_RESIDUAL_TYPES)"))
     # TODO: add in optimized method for normal with identity link
-    if type == :response
+    if type === :response
         return response(model) - fitted(model)
     elseif type == :deviance
         # XXX I think this might be the same as
