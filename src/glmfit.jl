@@ -847,9 +847,9 @@ function residuals(model::GeneralizedLinearModel; type=:deviance)
         # XXX I think this might be the same as
         # 2 * wrkresid, but I'm not 100% sure if that holds across families
         return sign.(response(model) .- fitted(model)) .* sqrt.(model.rr.devresid)
-    elseif type == :pearson
-        return  sign.(response(model) .- fitted(model)) .* sqrt.(model.rr.wrkwt) .* abs.(model.rr.wrkresid)
-    elseif type == :working
+    elseif type === :pearson
+        return copysign.(model.rr.wrkresid, response(model) .- fitted(model)) .* sqrt.(model.rr.wrkwt)
+    elseif type === :working
         return model.rr.wrkresid
     else
         error("An error has occurred. Please file an issue on GitHub.")
