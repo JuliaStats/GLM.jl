@@ -540,7 +540,7 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
     @test isapprox(residuals(gm8; type=:pearson),
                    [-0.03954973, 0.08891786, 0.04981284, 0.0293319,
                     -0.03797433, 0.001112991, -0.02842204, -0.03708843, -0.02614107];
-                    atol=1e-5)
+                   atol=1e-5)
 end
 
 @testset "InverseGaussian" begin
