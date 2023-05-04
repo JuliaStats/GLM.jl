@@ -843,7 +843,7 @@ function residuals(model::GeneralizedLinearModel; type=:deviance)
     # TODO: add in optimized method for normal with identity link
     if type === :response
         return response(model) - fitted(model)
-    elseif type == :deviance
+    elseif type === :deviance
         # XXX I think this might be the same as
         # 2 * wrkresid, but I'm not 100% sure if that holds across families
         return sign.(response(model) .- fitted(model)) .* sqrt.(model.rr.devresid)
