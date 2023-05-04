@@ -60,6 +60,8 @@ In both cases, `link` may specify the link function
 # Keyword Arguments
 - `initialθ::Real=Inf`: Starting value for shape parameter θ. If it is `Inf`
   then the initial value will be estimated by fitting a Poisson distribution.
+- `dropcollinear::Bool=true`: See `dropcollinear` for [`glm`](@ref)
+- `method::Symbol=:cholesky`: See `method` for [`glm`](@ref)
 - `maxiter::Integer=30`: See `maxiter` for [`glm`](@ref)
 - `atol::Real=1.0e-6`: See `atol` for [`glm`](@ref)
 - `rtol::Real=1.0e-6`: See `rtol` for [`glm`](@ref)
@@ -69,6 +71,8 @@ function negbin(F,
                 D,
                 args...;
                 initialθ::Real=Inf,
+                dropcollinear::Bool=true,
+                method::Symbol=:cholesky,
                 maxiter::Integer=30,
                 minstepfac::Real=0.001,
                 atol::Real=1e-6,
@@ -103,10 +107,12 @@ function negbin(F,
     # fit a Poisson regression model if the user does not specify an initial θ
     if isinf(initialθ)
         regmodel = glm(F, D, Poisson(), args...;
-                       maxiter=maxiter, atol=atol, rtol=rtol, verbose=verbose, kwargs...)
+                       dropcollinear=dropcollinear, method=method, maxiter=maxiter,
+                       atol=atol, rtol=rtol, verbose=verbose, kwargs...)
     else
         regmodel = glm(F, D, NegativeBinomial(initialθ), args...;
-                       maxiter=maxiter, atol=atol, rtol=rtol, verbose=verbose, kwargs...)
+                       dropcollinear=dropcollinear, method=method, maxiter=maxiter,
+                       atol=atol, rtol=rtol, verbose=verbose, kwargs...)
     end
 
     μ = regmodel.model.rr.mu
@@ -131,8 +137,9 @@ function negbin(F,
         end
         verbose && println("[ Alternating iteration ", i, ", θ = ", θ, " ]")
         regmodel = glm(F, D, NegativeBinomial(θ), args...;
-                       maxiter=maxiter, atol=atol, rtol=rtol, verbose=verbose, kwargs...)
-        μ = regmodel.model.rr.mu
+                       dropcollinear=dropcollinear, method=method, maxiter=maxiter,
+                       atol=atol, rtol=rtol, verbose=verbose, kwargs...)
+        μ = regmodel.rr.mu
         prevθ = θ
         θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)
         δ = prevθ - θ
