@@ -18,21 +18,6 @@ Return the linear predictor `p.X * (p.beta0 .+ f * p.delbeta)`
 linpred(p::LinPred, f::Real=1.) = linpred!(Vector{eltype(p.X)}(undef, size(p.X, 1)), p, f)
 
 """
-    installbeta!(p::LinPred, f::Real=1.0)
-
-Install `pbeta0 .+= f * p.delbeta` and zero out `p.delbeta`.  Return the updated `p.beta0`.
-"""
-function installbeta!(p::LinPred, f::Real=1.)
-    beta0 = p.beta0
-    delbeta = p.delbeta
-    @inbounds for i = eachindex(beta0,delbeta)
-        beta0[i] += delbeta[i]*f
-        delbeta[i] = 0
-    end
-    beta0
-end
-
-"""
     DensePredQR
 
 A `LinPred` type with a dense QR decomposition of `X`
@@ -207,7 +192,7 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}) where T<:
     else
         permute!(delbeta, ch.p)
         for k=(rnk+1):length(delbeta)
-            delbeta[k] = -zero(T)
+            delbeta[k] = zero(T)
         end
         LAPACK.potrs!(ch.uplo, view(ch.factors, 1:rnk, 1:rnk), view(delbeta, 1:rnk))
         invpermute!(delbeta, ch.p)
