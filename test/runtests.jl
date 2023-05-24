@@ -56,6 +56,19 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     # Deprecated methods
     @test lm1.model === lm1
     @test lm1.mf.f == formula(lm1)
+
+    @testset "low level constructors" begin
+        X = [ones(10) randn(10)]
+        y = X*ones(2) + randn(10)*0.1
+        r = GLM.LmResp(y)
+        pch = GLM.DensePredChol(X, false)
+        pqr = GLM.DensePredQR(X)
+        β̂ = X\y
+        @test coef(fit!(LinearModel(r, pch, nothing))) ≈ β̂
+        @test coef(fit!(LinearModel(r, pqr, nothing))) ≈ β̂
+        # Test last one once more to ensure that no state in pqr affects the result
+        @test coef(fit!(LinearModel(r, pqr, nothing))) ≈ β̂
+    end
 end
 
 @testset "Cook's Distance in Linear Model with $dmethod" for dmethod in (:cholesky, :qr)
