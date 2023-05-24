@@ -2,3 +2,6 @@
 
 @deprecate confint(obj::LinearModel, level::Real) confint(obj, level=level)
 @deprecate confint(obj::AbstractGLM, level::Real) confint(obj, level=level)
+
+@deprecate installbeta!(p) (p.beta0 .= p.delbeta) false
+@deprecate installbeta!(p, f) (p.beta0 .+= p.delbeta .* f) false

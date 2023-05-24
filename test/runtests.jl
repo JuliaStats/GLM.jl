@@ -56,6 +56,19 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     lm3 = lm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), contrasts=Dict(:x=>DummyCoding()))
     lm4 = lm(@formula(y~x), (y=1:25, x=categorical(repeat(1:5, 5))))
     @test coef(lm3) == coef(lm4) ≈ [11, 1, 2, 3, 4]
+
+    @testset "low level constructors" begin
+        X = [ones(10) randn(10)]
+        y = X*ones(2) + randn(10)*0.1
+        r = GLM.LmResp(y)
+        pch = GLM.DensePredChol(X, false)
+        pqr = GLM.DensePredQR(X)
+        β̂ = X\y
+        @test coef(fit!(LinearModel(r, pch))) ≈ β̂
+        @test coef(fit!(LinearModel(r, pqr))) ≈ β̂
+        # Test last one once more to ensure that no state in pqr affects the result
+        @test coef(fit!(LinearModel(r, pqr))) ≈ β̂
+    end
 end
 
 @testset "Cook's Distance in Linear Model with $dmethod" for dmethod in (:cholesky, :qr)

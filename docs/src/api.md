@@ -64,7 +64,6 @@ fit
 StatsBase.deviance
 GLM.dispersion
 GLM.ftest
-GLM.installbeta!
 StatsBase.nobs
 StatsBase.nulldeviance
 StatsBase.predict

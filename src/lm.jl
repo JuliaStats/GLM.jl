@@ -92,10 +92,10 @@ LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 function StatsBase.fit!(obj::LinearModel)
     if isempty(obj.rr.wts)
         delbeta!(obj.pp, obj.rr.y)
-    else 
+    else
         delbeta!(obj.pp, obj.rr.y, obj.rr.wts)
     end
-    installbeta!(obj.pp)     
+    obj.pp.beta0 .= obj.pp.delbeta
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
     return obj
 end

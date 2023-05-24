@@ -374,7 +374,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
         delbeta!(p, wrkresp(r), r.wrkwt)
         linpred!(lp, p)
         updateμ!(r, lp)
-        installbeta!(p)
+        p.beta0 .= p.delbeta
     else
         # otherwise copy starting values for β
         copy!(p.beta0, start)
@@ -412,7 +412,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
                 isa(e, DomainError) ? (dev = Inf) : rethrow(e)
             end
         end
-        installbeta!(p, f)
+        p.beta0 .+= p.delbeta .* f
 
         # Test for convergence
         verbose && println("Iteration: $i, deviance: $dev, diff.dev.:$(devold - dev)")
