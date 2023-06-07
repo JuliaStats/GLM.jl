@@ -349,7 +349,7 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
 @testset "Poisson GLM with $dmethod" for dmethod in (:cholesky, :qr)
     gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
               dobson, Poisson(); method=dmethod)
-    @test GLM.cancancel(gm1.rr)
+    @test GLM.cancancel(gm1.model.rr)
     test_show(gm1)
     @test dof(gm1) == 5
     @test isapprox(deviance(gm1), 5.12914107700115, rtol = 1e-7)
@@ -371,7 +371,7 @@ admit.rank = categorical(admit.rank)
     for dmethod in (:cholesky, :qr)
         gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit, distr();
                 method=dmethod)
-        @test GLM.cancancel(gm2.rr)
+        @test GLM.cancancel(gm2.model.rr)
         test_show(gm2)
         @test dof(gm2) == 6
         @test deviance(gm2) ≈ 458.5174924758994
@@ -408,7 +408,7 @@ end
 @testset "Bernoulli CauchitLink with $dmethod" for dmethod in (:cholesky, :qr)
     gm4 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
               Binomial(), CauchitLink(); method=dmethod)
-    @test !GLM.cancancel(gm4.rr)
+    @test !GLM.cancancel(gm4.model.rr)
     test_show(gm4)
     @test dof(gm4) == 6
     @test isapprox(deviance(gm4), 459.3401112751141)
@@ -423,7 +423,7 @@ end
 @testset "Bernoulli CloglogLink with $dmethod" for dmethod in (:cholesky, :qr)
     gm5 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
               Binomial(), CloglogLink(); method=dmethod)
-    @test !GLM.cancancel(gm5.rr)
+    @test !GLM.cancancel(gm5.model.rr)
     test_show(gm5)
     @test dof(gm5) == 6
     @test isapprox(deviance(gm5), 458.89439629612616)
@@ -454,7 +454,7 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
     gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
               Normal(), IdentityLink(), method=dmethod,
               offset=Array{Float64}(anorexia.Prewt))
-    @test GLM.cancancel(gm6.rr)
+    @test GLM.cancancel(gm6.model.rr)
     test_show(gm6)
     @test dof(gm6) == 5
     @test isapprox(deviance(gm6), 3311.262619919613)
@@ -474,7 +474,7 @@ end
 @testset "Normal LogLink offset with $dmethod" for dmethod in (:cholesky, :qr)
     gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
               Normal(), LogLink(), method=dmethod, offset=anorexia.Prewt, rtol=1e-8)
-    @test !GLM.cancancel(gm7.rr)
+    @test !GLM.cancancel(gm7.model.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
     @test isapprox(nulldeviance(gm7), 507625.1718547432)
@@ -527,7 +527,7 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
 
 @testset "Gamma with $dmethod" for dmethod in (:cholesky, :qr)
     gm8 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(); method=dmethod)
-    @test !GLM.cancancel(gm8.rr)
+    @test !GLM.cancancel(gm8.model.rr)
     @test isa(GLM.Link(gm8), InverseLink)
     test_show(gm8)
     @test dof(gm8) == 3
@@ -546,7 +546,7 @@ end
 @testset "InverseGaussian with $dmethod" for dmethod in (:cholesky, :qr)
     gm8a = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, InverseGaussian();
                method=dmethod)
-    @test !GLM.cancancel(gm8a.rr)
+    @test !GLM.cancancel(gm8a.model.rr)
     @test isa(GLM.Link(gm8a), InverseSquareLink)
     test_show(gm8a)
     @test dof(gm8a) == 3
@@ -565,7 +565,7 @@ end
 @testset "Gamma LogLink with $dmethod" for dmethod in (:cholesky, :qr)
     gm9 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(),
               method=dmethod, rtol=1e-8, atol=0.0)
-    @test !GLM.cancancel(gm9.rr)
+    @test !GLM.cancancel(gm9.model.rr)
     test_show(gm9)
     @test dof(gm9) == 3
     @test deviance(gm9) ≈ 0.16260829451739
@@ -583,7 +583,7 @@ end
 @testset "Gamma IdentityLink with $dmethod" for dmethod in (:cholesky, :qr)
     gm10 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink();
                method=dmethod, rtol=1e-8, atol=0.0)
-    @test !GLM.cancancel(gm10.rr)
+    @test !GLM.cancancel(gm10.model.rr)
     test_show(gm10)
     @test dof(gm10) == 3
     @test isapprox(deviance(gm10), 0.60845414895344)
@@ -682,7 +682,7 @@ quine = dataset("MASS", "quine")
 @testset "NegativeBinomial LogLink Fixed θ with $dmethod" for dmethod in (:cholesky, :qr)
     gm18 = fit(GeneralizedLinearModel, @formula(Days ~ Eth+Sex+Age+Lrn), quine,
                NegativeBinomial(2.0), LogLink(), method=dmethod)
-    @test !GLM.cancancel(gm18.rr)
+    @test !GLM.cancancel(gm18.model.rr)
     test_show(gm18)
     @test dof(gm18) == 8
     @test isapprox(deviance(gm18), 239.11105911824325, rtol = 1e-7)
@@ -879,7 +879,7 @@ end
     # Gamma with single numeric predictor
     nointglm1 = glm(@formula(lot1 ~ 0 + u), clotting, Gamma(); method=dmethod)
     @test !hasintercept(nointglm1)
-    @test !GLM.cancancel(nointglm1.rr)
+    @test !GLM.cancancel(nointglm1.model.rr)
     @test isa(GLM.Link(nointglm1), InverseLink)
     test_show(nointglm1)
     @test dof(nointglm1) == 2
@@ -897,7 +897,7 @@ end
     # Bernoulli with numeric predictors
     nointglm2 = glm(@formula(admit ~ 0 + gre + gpa), admit, Bernoulli(); method=dmethod)
     @test !hasintercept(nointglm2)
-    @test GLM.cancancel(nointglm2.rr)
+    @test GLM.cancancel(nointglm2.model.rr)
     test_show(nointglm2)
     @test dof(nointglm2) == 2
     @test deviance(nointglm2) ≈ 503.5584368354113
@@ -915,7 +915,7 @@ end
                     Poisson(), LogLink(); method=dmethod, offset=log.(anorexia.Prewt),
                     wts=repeat(1:4, outer=18), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3)
-    @test GLM.cancancel(nointglm3.rr)
+    @test GLM.cancancel(nointglm3.model.rr)
     test_show(nointglm3)
     @test deviance(nointglm3) ≈ 90.17048668870225
     @test nulldeviance(nointglm3) ≈ 159.32999067102548
@@ -1129,9 +1129,9 @@ end
     newd = DataFrame(newX, :auto)
     @test predict(mmd, newd) == predict(mm, newX)
     @test predict(mmd, newd; interval=:confidence) ==
-        predict(mm, newX; interval=:confidence)
+        DataFrame(predict(mm, newX; interval=:confidence))
     @test predict(mmd, newd; interval=:prediction) ==
-        predict(mm, newX; interval=:prediction)
+        DataFrame(predict(mm, newX; interval=:prediction))
 
 
     # Prediction from DataFrames with missing values
@@ -1771,9 +1771,9 @@ end
 
 @testset "dofit argument" begin
     gm1 = glm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
-              dofit=true)
+              dofit=true).model
     gm2 = glm(@formula(y~x), (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
-              dofit=false)
+              dofit=false).model
     @test gm1.fit
     @test !gm2.fit
     fit!(gm2)
@@ -1783,10 +1783,10 @@ end
     # Deprecated
     gm1 = fit(GeneralizedLinearModel, @formula(y~x),
              (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
-             dofit=true)
+             dofit=true).model
     gm2 = fit(GeneralizedLinearModel, @formula(y~x),
              (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
-             dofit=false)
+             dofit=false).model
     @test gm1.fit
     @test !gm2.fit
     fit!(gm2)
@@ -1795,19 +1795,13 @@ end
 end
 
 @testset "formula accessor" begin
-    m = lm(rand(10, 2), rand(10))
-    @test_throws ArgumentError formula(m)
-
-    m = glm(rand(10, 2), rand(10), Normal(), IdentityLink())
-    @test_throws ArgumentError formula(m)
-
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
     m = lm(@formula(y ~ x), df)
-    @test formula(m)::FormulaTerm === m.formula
+    @test formula(m)::FormulaTerm === m.mf.f
 
     df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
     m = glm(@formula(y ~ x), df, Normal(), IdentityLink())
-    @test formula(m)::FormulaTerm === m.formula
+    @test formula(m)::FormulaTerm === m.mf.f
 end
 
 @testset "dropcollinear in GLM with Cholesky" begin
