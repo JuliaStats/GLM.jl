@@ -92,7 +92,7 @@ By default, the `lm` method uses the Cholesky factorization which is known as fa
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7]);
 
 julia> ols = lm(@formula(Y ~ X), data; method=:qr)
-LinearModel
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredQR{Float64, LinearAlgebra.QRPivoted}}, Matrix{Float64}}
 
 Y ~ 1 + X
 
@@ -181,7 +181,7 @@ julia> x = [4570.2001953125, 2830, 596.799987792968, 133.600006103515, 42, 390, 
 julia> rdchem = DataFrame(rdintens=y, sales=x);
 
 julia> mdl = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:cholesky)
-LinearModel
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
 
 rdintens ~ 1 + sales + :(sales ^ 2)
 
@@ -195,7 +195,7 @@ sales ^ 2    -1.97385e-8     4.56287e-9    -4.33    0.0002   -2.90571e-8    -1.0
 ───────────────────────────────────────────────────────────────────────────────────────
 
 julia> mdl = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:qr)
-LinearModel
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredQR{Float64, LinearAlgebra.QRPivoted}}, Matrix{Float64}}
 
 rdintens ~ 1 + sales + :(sales ^ 2)
 
