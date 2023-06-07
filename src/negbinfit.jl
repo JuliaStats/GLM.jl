@@ -38,6 +38,9 @@ function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
     θ
 end
 
+_rr(m::StatsModels.TableRegressionModel{<:GeneralizedLinearModel}) = m.model.rr
+_rr(m::GeneralizedLinearModel) = m.rr
+
 """
     negbin(formula, data, [link::Link];
            <keyword arguments>)
@@ -139,7 +142,8 @@ function negbin(F,
         regmodel = glm(F, D, NegativeBinomial(θ), args...;
                        dropcollinear=dropcollinear, method=method, maxiter=maxiter,
                        atol=atol, rtol=rtol, verbose=verbose, kwargs...)
-        μ = regmodel.rr.mu
+            
+        μ = _rr(regmodel).mu
         prevθ = θ
         θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)
         δ = prevθ - θ

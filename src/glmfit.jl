@@ -643,6 +643,8 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
     end
 end
 
+dispersion(m::StatsModels.TableRegressionModel{<:AbstractGLM}, args...; kwargs...) = dispersion(m.model, args...; kwargs...)
+
 """
     predict(mm::AbstractGLM, newX::AbstractMatrix; offset::FPVector=eltype(newX)[],
             interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95,

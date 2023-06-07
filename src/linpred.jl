@@ -386,6 +386,7 @@ coef(obj::LinPredModel) = coef(obj.pp)
 dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
 
 hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))
+hasintercept(m::StatsModels.TableRegressionModel{<:LinPredModel}) = hasintercept(m.mf.f)
 
 linpred_rank(x::LinPred) = length(x.beta0)
 linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = rank(x.chol)
