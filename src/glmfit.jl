@@ -614,8 +614,9 @@ $FIT_GLM_DOC
 """
 glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
 
-GLM.Link(r::GlmResp) = r.link
-GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
+Link(r::GlmResp) = r.link
+Link(m::GeneralizedLinearModel) = Link(m.rr)
+Link(m::StatsModels.TableRegressionModel{GeneralizedLinearModel}) = Link(m.model)
 
 Distributions.Distribution(r::GlmResp{T,D,L}) where {T,D,L} = D
 Distributions.Distribution(m::GeneralizedLinearModel) = Distribution(m.rr)
