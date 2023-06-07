@@ -267,7 +267,7 @@ end
 
         data = DataFrame(x = 60:70, y = 130:140)
         
-        mdl = lm(@formula(y ~ 0 + x), data; method=:cholesky)
+        mdl = lm(@formula(y ~ 0 + x), data; method=dmethod)
         @test coef(mdl) ≈ [2.07438016528926]
         @test stderror(mdl) ≈ [0.165289256198347E-01]
         @test GLM.dispersion(mdl.model) ≈ 3.56753034006338
@@ -291,7 +291,7 @@ end
 
         data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
         
-        mdl = lm(@formula(y ~ 0 + x), data; method=:cholesky)
+        mdl = lm(@formula(y ~ 0 + x), data; method=dmethod)
         @test coef(mdl) ≈ [0.727272727272727]
         @test stderror(mdl) ≈ [0.420827318078432E-01]
         @test GLM.dispersion(mdl.model) ≈ 0.369274472937998
