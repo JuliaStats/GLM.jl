@@ -256,8 +256,23 @@ Valid values of `interval` are `:confidence` delimiting the  uncertainty of the
 predicted relationship, and `:prediction` delimiting estimated bounds for new data points.
 """
 function predict(mm::LinearModel, newx::AbstractMatrix;
-                 interval::Union{Symbol,Nothing}=nothing, level::Real = 0.95)
-    retmean = newx * coef(mm)
+                 interval::Union{Symbol,Nothing}=nothing, level::Real=0.95)
+    retmean = similar(view(newx, :, 1))
+    if interval === nothing
+        res = retmean
+        predict!(res, mm, newx)
+    else
+        res = (prediction=retmean, lower=similar(retmean), upper=similar(retmean))
+        predict!(res, mm, newx, interval=interval, level=level)
+    end
+    return res
+end
+function StatsModels.predict!(res::Union{AbstractVector,
+                                         NamedTuple{(:prediction, :lower, :upper),
+                                                    <:NTuple{3, AbstractVector}}},
+                              mm::LinearModel, newx::AbstractMatrix;
+                              interval::Union{Symbol, Nothing}=nothing,
+                              level::Real=0.95)
     if interval === :confint
         Base.depwarn("interval=:confint is deprecated in favor of interval=:confidence", :predict)
         interval = :confidence
@@ -286,7 +301,6 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
         length(prediction) == length(lower) == length(upper) == size(newx, 1) ||
             throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newx`"))
         length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
-
         dev = deviance(mm)
         dofr = dof_residual(mm)
         ret = diag(newx*vcov(mm)*newx')
@@ -300,26 +314,9 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
         lower .= prediction .+ ret
         upper .= prediction -+ ret
     end
-    length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
-    chol = cholesky!(mm.pp)
-    # get the R matrix from the QR factorization
-    if chol isa CholeskyPivoted
-        ip = invperm(chol.p)
-        R = chol.U[ip, ip]
-    else
-        R = chol.U
-    end
-    residvar = ones(size(newx,2)) * deviance(mm)/dof_residual(mm)
-    if interval == :confidence
-        retvariance = (newx/R).^2 * residvar
-    elseif interval == :prediction
-        retvariance = (newx/R).^2 * residvar .+ deviance(mm)/dof_residual(mm)
-    else
-        error("only :confidence and :prediction intervals are defined")
-    end
-    retinterval = quantile(TDist(dof_residual(mm)), (1. - level)/2) * sqrt.(retvariance)
-    (prediction = retmean, lower = retmean .+ retinterval, upper = retmean .- retinterval)
+    return res
 end
+
 
 function confint(obj::LinearModel; level::Real=0.95)
     hcat(coef(obj),coef(obj)) + stderror(obj) *
