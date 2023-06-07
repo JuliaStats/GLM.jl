@@ -616,7 +616,7 @@ glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwarg
 
 Link(r::GlmResp) = r.link
 Link(m::GeneralizedLinearModel) = Link(m.rr)
-Link(m::StatsModels.TableRegressionModel{GeneralizedLinearModel}) = Link(m.model)
+Link(m::StatsModels.TableRegressionModel{<:GeneralizedLinearModel}) = Link(m.model)
 
 Distributions.Distribution(r::GlmResp{T,D,L}) where {T,D,L} = D
 Distributions.Distribution(m::GeneralizedLinearModel) = Distribution(m.rr)
