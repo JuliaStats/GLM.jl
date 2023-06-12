@@ -361,22 +361,18 @@ response(obj::LinPredModel) = obj.rr.y
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
 
-function residuals(model::LinPredModel; type=:response)
+function residuals(model::LinPredModel; type=:deviance)
     type in _RESIDUAL_TYPES ||
         throw(ArgumentError("Unsupported type `$(type)``; supported types are" *
                             "$(_RESIDUAL_TYPES)"))
-    # TODO: add in optimized method for normal with identity link
-    length(model.rr.wts) == 0 && return residuals(model.rr)
-
-    if type === :response || type === :working
-        return response(model) - fitted(model)
-    elseif type === :deviance || type === :pearson
-        return (response(model) .- fitted(model)) .* sqrt.(model.rr.wts)
+    
+    resid = response(model) - fitted(model)
+    if length(model.rr.wts) > 0 && (type === :deviance || type === :pearson)
+        return resid .* sqrt.(model.rr.wts)
     else
-        error("An error has occurred. Please file an issue on GitHub.")
+        return resid
     end
 end
-# residuals(obj::LinPredModel) = residuals(obj.rr)
 
 function formula(obj::LinPredModel)
     obj.formula === nothing && throw(ArgumentError("model was fitted without a formula"))

@@ -844,6 +844,7 @@ end
 const _RESIDUAL_TYPES = [:deviance, :pearson, :response, :working]
 
 """
+    residuals(model::LinearModel; type=:deviance)
     residuals(model::GeneralizedLinearModel; type=:deviance)
 
 Return the residuals of a GLM.
@@ -852,7 +853,7 @@ Supported values for `type` are:
 - `:deviance` (the default): the signed square root of the element-wise
   contribution to the deviance
 - `:response`: the difference between the observed and fitted values
-- `:working`: working residuals (used during the IRLS process)
+- `:working`: working residuals (used during the IRLS process). For a linear model, it is same as `:response`. 
 - `:pearson`: Pearson residuals, i.e., response residuals scaled
     by the standard error of the response
 """

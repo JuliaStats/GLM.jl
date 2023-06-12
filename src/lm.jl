@@ -70,8 +70,6 @@ function loglikelihood(r::LmResp)
     -n/2 * (log(2π * deviance(r)/n) + 1)
 end
 
-residuals(r::LmResp) = r.y - r.mu
-
 """
     LinearModel
 

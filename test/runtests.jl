@@ -131,14 +131,14 @@ end
     @test isapprox(loglikelihood(lm_model), -4353.946729075838)
     @test isapprox(loglikelihood(glm_model), -4353.946729075838)
     @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
-    @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
+    @test isapprox(mean(residuals(lm_model, type=:response)), -5.412966629787718)
 
     # this should be elementwise true (which is a stronger condition than
     # vectors being approximately equal) the so we test elementwise
-    @test all(residuals(glm_model, type = :working) .≈ residuals(lm_model, type = :working))
-    @test all(residuals(glm_model, type = :response) .≈ residuals(lm_model, type = :response))
-    @test all(residuals(glm_model, type = :deviance) .≈ residuals(lm_model, type = :deviance))
-    @test all(residuals(glm_model, type = :pearson) .≈ residuals(lm_model, type = :pearson))
+    @test all(residuals(glm_model, type=:working) .≈ residuals(lm_model, type=:working))
+    @test all(residuals(glm_model, type=:response) .≈ residuals(lm_model, type=:response))
+    @test all(residuals(glm_model, type=:deviance) .≈ residuals(lm_model, type=:deviance))
+    @test all(residuals(glm_model, type=:pearson) .≈ residuals(lm_model, type=:pearson))
 end
 
 @testset "Linear model with dropcollinearity and $dmethod" for dmethod in (:cholesky, :qr)
@@ -807,6 +807,22 @@ end
     @test isapprox(coef(gm10), [99.250446880986, -18.374324929002])
     @test isapprox(GLM.dispersion(gm10, true), 0.10417373, atol=1e-6)
     @test isapprox(stderror(gm10), [17.864084, 4.297895], atol=1e-4)
+    @test isapprox(residuals(gm10; type=:response),
+        [48.321888275132096, 1.0579997943620256, -7.491852561885715, -9.205888686408052,
+        -9.755741042655785, -6.469777167178123, -3.0196295234258628, 0.2663343520517998,
+         3.366446469710496])
+    @test isapprox(residuals(gm10; type=:deviance),
+        [0.5774137147911168, 0.01846646154959333, -0.15976839879676413, -0.22476506467791008,
+        -0.29338264689074767, -0.2216519910251632, -0.13140685132678168, 0.014150064045388622,
+         0.21445348600221353])
+    @test isapprox(residuals(gm10; type=:pearson),
+        [0.6935016905443229, 0.01858030611044939, -0.15137547240766014, -0.208250279769595,
+        -0.2654208775530889, -0.20558700281887837, -0.1257150748507956, 0.014216884034170322,
+         0.23004982779762967])
+    @test isapprox(residuals(gm10; type=:working),
+        [48.321888275132096, 1.0579997943620256, -7.491852561885715, -9.205888686408052,
+        -9.755741042655785, -6.469777167178123, -3.0196295234258628, 0.2663343520517998,
+         3.366446469710496])
 end
 
 # Logistic regression using aggregated data and weights
@@ -869,6 +885,22 @@ end
     @test isapprox(aicc(gm16), 93.55439450918095)
     @test isapprox(bic(gm16), 97.18028280909267)
     @test isapprox(coef(gm16), [-0.017217012615523237, 0.015649040411276433])
+    @test isapprox(residuals(gm16; type=:response),
+        [-7.483955294264575, 4.854403995157639, 2.2565430880113198, 1.2883350283647275,
+         -0.7712494846033557, 0.31498756813512685, -0.3421885106306952, -0.471353047569,
+         -0.23171283548232324])
+    @test isapprox(residuals(gm16; type=:deviance),
+        [-0.07454954387548747, 0.1254405883825797, 0.05845787715014768, 0.08005871893695757,
+         -0.043428290098321824, 0.023771500386805297, -0.038146721542114716, -0.056713615026982425,
+         -0.03303769239721972])
+    @test isapprox(residuals(gm16; type=:pearson),
+        [-0.07304468243465054, 0.12917653607803606, 0.059548981148542166, 0.0810690103004563,
+        -0.043023435526326086, 0.023872290225484042, -0.037942023296163564, -0.05625317881411061,
+        -0.03289728247720795])
+    @test isapprox(residuals(gm16; type=:working),
+        [0.0004752857319903198, -0.001718705058060829, -0.0014286056165354543, -0.0011336223823092044,
+         0.0010000093165362322, -0.000516924020243504, 0.0007512552521184062, 0.0012432373752853285,
+         0.0006971001093429506])
 end
 
 # Weighted Poisson example (weights are totally made up)
@@ -906,6 +938,18 @@ quine = dataset("MASS", "quine")
     @test isapprox(coef(gm18)[1:7],
         [2.886448718885344, -0.5675149923412003, 0.08707706381784373,
         -0.44507646428307207, 0.09279987988262384, 0.35948527963485755, 0.29676767190444386])
+    @test isapprox(residuals(gm18; type=:response)[1:6],
+        [-24.31906166004812, -15.31906166004812, -12.31906166004812,
+         -14.560765164933468, -14.560765164933468, -6.560765164933468])
+    @test isapprox(residuals(gm18; type=:deviance)[1:6],
+        [-2.3128642617499, -1.024924490434873, -0.7717990037955583,
+         -1.4521131177135647, -1.4521131177135647, -0.511628745991213])
+    @test isapprox(residuals(gm18; type=:pearson)[1:6],
+        [-1.2597581635744535, -0.7935467763647199, -0.638142980628142,
+         -1.002707333360594, -1.002707333360594, -0.45179818978047326])
+    @test isapprox(residuals(gm18; type=:working)[1:6],
+        [-0.9240094488993137, -0.5820519689462255, -0.468066142295196,
+         -0.7443862774364529, -0.7443862774364529, -0.33540432133477754])
 end
 
 @testset "NegativeBinomial NegativeBinomialLink Fixed θ" begin
@@ -976,6 +1020,18 @@ end
     @test isapprox(coef(gm20)[1:7],
         [2.894527697811509, -0.5693411448715979, 0.08238813087070128, -0.4484636623590206,
          0.08805060372902418, 0.3569553124412582, 0.2921383118842893])
+    @test isapprox(residuals(gm20; type=:response)[1:6],
+        [-24.28646428075078, -15.286464280750781, -12.286464280750781,
+         -14.627189585532879, -14.627189585532879, -6.627189585532879])
+    @test isapprox(residuals(gm20; type=:deviance)[1:6],
+        [-1.9100430917674927, -0.8317534564407564, -0.6250608754083535,
+         -1.194270726550094, -1.194270726550094, -0.41980214838554414])
+    @test isapprox(residuals(gm20; type=:pearson)[1:6],
+        [-1.0187902504182078, -0.6412502286279128, -0.5154035546978145,
+         -0.8154060447128477, -0.8154060447128477, -0.3694387370794904])
+    @test isapprox(residuals(gm20; type=:working)[1:6],
+        [-0.9239152143613102, -0.581533678987206, -0.46740650052917126,
+         -0.7452513525581126, -0.7452513525581126, -0.33765351665109267])
 end
 
 @testset "NegativeBinomial NegativeBinomialLink, θ to be estimated with $dmethod" for dmethod in (:cholesky, :qr)
@@ -1012,6 +1068,18 @@ end
     @test stderror(gm22) ≈ [0.22754287093719366, 0.15274755092180423, 0.15928431669166637,
                             0.23853372776980591, 0.2354231414867577, 0.24750780320597515,
                             0.18553339017028742]
+    @test isapprox(residuals(gm22; type=:response)[1:6],
+        [-24.269729027346774, -15.269729027346774, -12.269729027346774,
+         -14.653520476275947, -14.653520476275947, -6.653520476275947])
+    @test isapprox(residuals(gm22; type=:deviance)[1:6],
+        [-1.7151995208115725, -0.7412221651325068, -0.5565365361615229,
+         -1.0702009791675913, -1.0702009791675913, -0.3757813366116728])
+    @test isapprox(residuals(gm22; type=:pearson)[1:6],
+        [-0.9067691155165339, -0.5705098177529208, -0.45842338516504966,
+         -0.7273186986041907, -0.7273186986041907, -0.33024349757971616])
+    @test isapprox(residuals(gm22; type=:working)[1:6],
+        [-0.9238667441937448, -0.5812670930655963, -0.4670672093562135,
+         -0.7455926531821323, -0.7455926531821323, -0.3385408982735439])
 end
 
 @testset "Geometric is a special case of NegativeBinomial with θ = 1 and $dmethod" for dmethod in (:cholesky, :qr)
