@@ -86,6 +86,129 @@ julia> round.(vcov(ols); digits=5)
   0.38889  -0.16667
  -0.16667   0.08333
 ```
+By default, the `lm` method uses the Cholesky factorization which is known as fast but numerically unstable, especially for ill-conditioned design matrices. Also, the Cholesky method aggressively detects multicollinearity. You can use the `method` keyword argument to apply a more stable QR factorization method.
+
+```jldoctest
+julia> data = DataFrame(X=[1,2,3], Y=[2,4,7]);
+
+julia> ols = lm(@formula(Y ~ X), data; method=:qr)
+LinearModel
+
+Y ~ 1 + X
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────
+                 Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+─────────────────────────────────────────────────────────────────────────
+(Intercept)  -0.666667    0.62361   -1.07    0.4788   -8.59038    7.25704
+X             2.5         0.288675   8.66    0.0732   -1.16797    6.16797
+─────────────────────────────────────────────────────────────────────────
+```
+The following example shows that QR decomposition works better for an ill-conditioned design matrix. The linear model with the QR method is a better model than the linear model with Cholesky decomposition method since the estimated loglikelihood of previous model is higher.
+Note that, the condition number of the design matrix is quite high (≈ 3.52e7).
+
+```
+julia> X = [-0.4011512997627107 0.6368622664511552;
+            -0.0808472925693535 0.12835204623364604;
+            -0.16931095045225217 0.2687956795496601;
+            -0.4110745650568839 0.6526163576003452;
+            -0.4035951747670475 0.6407421349445884;
+            -0.4649907741370211 0.7382129928076485;
+            -0.15772708898883683 0.25040532268222715;
+            -0.38144358562952446 0.6055745630707645;
+            -0.1012787681395544 0.16078875117643368;
+            -0.2741403589052255 0.4352214984054432];
+
+julia> y = [4.362866166172215,
+            0.8792840060172619,
+            1.8414020451091684,
+            4.470790758717395,
+            4.3894454833815395,
+            5.0571760643993455,
+            1.7154177874916376,
+            4.148527704012107,
+            1.1014936742570425,
+            2.9815131910316097];
+
+julia> modelqr = lm(X, y; method=:qr)
+LinearModel
+
+Coefficients:
+────────────────────────────────────────────────────────────────
+       Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
+────────────────────────────────────────────────────────────────
+x1   5.00389   0.0560164   89.33    <1e-12    4.87472    5.13307
+x2  10.0025    0.035284   283.48    <1e-16    9.92109   10.0838
+────────────────────────────────────────────────────────────────
+
+julia> modelchol = lm(X, y; method=:cholesky)
+LinearModel
+
+Coefficients:
+────────────────────────────────────────────────────────────────
+       Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
+────────────────────────────────────────────────────────────────
+x1   5.17647   0.0849184   60.96    <1e-11    4.98065    5.37229
+x2  10.1112    0.053489   189.03    <1e-15    9.98781   10.2345
+────────────────────────────────────────────────────────────────
+
+julia> loglikelihood(modelqr) > loglikelihood(modelchol)
+true
+```
+Since the Cholesky method with `dropcollinear = true` aggressively detects multicollinearity,
+if you ever encounter multicollinearity in any GLM model with Cholesky,
+it is worth trying the same model with QR decomposition.
+The following example is taken from `Introductory Econometrics: A Modern Approach, 7e" by Jeffrey M. Wooldridge`.
+The dataset is used to study the relationship between firm size—often measured by annual sales—and spending on
+research and development (R&D).
+The following shows that for the given model,
+the Cholesky method detects multicollinearity in the design matrix with `dropcollinear=true`
+and hence does not estimate all parameters as opposed to QR.
+
+```jldoctest
+julia> y = [9.42190647125244, 2.084805727005, 3.9376676082611, 2.61976027488708, 4.04761934280395, 2.15384602546691,
+            2.66240668296813, 4.39475727081298, 5.74520826339721, 3.59616208076477, 1.54265284538269, 2.59368276596069,
+            1.80476510524749, 1.69270837306976, 3.04201245307922, 2.18389105796813, 2.73844122886657, 2.88134002685546,
+            2.46666669845581, 3.80616021156311, 5.12149810791015, 6.80378007888793, 3.73669862747192, 1.21332454681396,
+            2.54629635810852, 5.1612901687622, 1.86798071861267, 1.21465551853179, 6.31019830703735, 1.02669405937194, 
+            2.50623273849487, 1.5936255455017];
+
+julia> x = [4570.2001953125, 2830, 596.799987792968, 133.600006103515, 42, 390, 93.9000015258789, 907.900024414062,
+            19773, 39709, 2936.5, 2513.80004882812, 1124.80004882812, 921.599975585937, 2432.60009765625, 6754,
+            1066.30004882812, 3199.89990234375, 150, 509.700012207031, 1452.69995117187, 8995, 1212.30004882812,
+            906.599975585937, 2592, 201.5, 2617.80004882812, 502.200012207031, 2824, 292.200012207031, 7621, 1631.5];
+
+julia> rdchem = DataFrame(rdintens=y, sales=x);
+
+julia> mdl = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:cholesky)
+LinearModel
+
+rdintens ~ 1 + sales + :(sales ^ 2)
+
+Coefficients:
+───────────────────────────────────────────────────────────────────────────────────────
+                    Coef.     Std. Error       t  Pr(>|t|)      Lower 95%     Upper 95%
+───────────────────────────────────────────────────────────────────────────────────────
+(Intercept)   0.0          NaN            NaN       NaN     NaN            NaN
+sales         0.000852509    0.000156784    5.44    <1e-05    0.000532313    0.00117271
+sales ^ 2    -1.97385e-8     4.56287e-9    -4.33    0.0002   -2.90571e-8    -1.04199e-8
+───────────────────────────────────────────────────────────────────────────────────────
+
+julia> mdl = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:qr)
+LinearModel
+
+rdintens ~ 1 + sales + :(sales ^ 2)
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────────────
+                    Coef.   Std. Error      t  Pr(>|t|)    Lower 95%    Upper 95%
+─────────────────────────────────────────────────────────────────────────────────
+(Intercept)   2.61251      0.429442      6.08    <1e-05   1.73421     3.49082
+sales         0.000300571  0.000139295   2.16    0.0394   1.56805e-5  0.000585462
+sales ^ 2    -6.94594e-9   3.72614e-9   -1.86    0.0725  -1.45667e-8  6.7487e-10
+─────────────────────────────────────────────────────────────────────────────────
+```
+
 
 ## Probit regression
 ```jldoctest

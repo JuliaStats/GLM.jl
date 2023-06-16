@@ -23,7 +23,7 @@ mutable struct LmResp{V<:FPVector, W<:AbstractWeights} <: ModResp  # response in
         ll = length(off)
         ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
         ll = length(wts)
-        ll == n || error("length of wts is $ll, must be $n")
+        ll == n || ll == 0 || error("length of wts is $ll, must be $n or 0")
         new{V,W}(mu, off, wts, y)
     end
 end
@@ -34,6 +34,8 @@ function LmResp(y::AbstractVector{<:Real}, wts::AbstractWeights)
     return LmResp{typeof(_y), typeof(wts)}(zero(_y), zero(_y), wts, _y)
 end
 
+LmResp(y::AbstractVector{<:Real}) = LmResp(y, uweights(length(y)))
+
 function updateμ!(r::LmResp{V}, linPr::V) where {V<:FPVector}
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
@@ -43,12 +45,12 @@ end
 
 updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
 
-function deviance(r::LmResp) where T
+function deviance(r::LmResp)
     y = r.y
     mu = r.mu
     wts = r.wts
     if wts isa UnitWeights
-        v = zero(eltype(y)) + zero(eltype(y)) 
+        v = zero(eltype(y)) + zero(eltype(y))
         @inbounds @simd for i in eachindex(y,mu,wts)
             v += abs2(y[i] - mu[i])
         end
@@ -113,7 +115,7 @@ LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 
 function StatsBase.fit!(obj::LinearModel)
     delbeta!(obj.pp, obj.rr.y)
-    installbeta!(obj.pp)
+    obj.pp.beta0 .= obj.pp.delbeta
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
     return obj
 end
@@ -132,26 +134,18 @@ const FIT_LM_DOC = """
 
 """
     fit(LinearModel, formula::FormulaTerm, data;
-        [wts::AbstractVector], dropcollinear::Bool=true,
+        [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
         contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
-        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
+        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
 Fit a linear model to data.
 
 $FIT_LM_DOC
 """
-function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
-             allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
-             wts::AbstractVector{<:Real}=uweights(length(y)),
-             dropcollinear::Bool=true)
-    if allowrankdeficient_dep !== nothing
-        @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
-              "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
-        dropcollinear = allowrankdeficient_dep
-    end
-    # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
-    _wts = if wts isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights, UnitWeights}
+
+function convert_weights(wts)
+    if wts isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights, UnitWeights}
         wts
     elseif wts isa AbstractVector
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
@@ -161,40 +155,58 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     else
         throw(ArgumentError("`wts` should be an `AbstractVector` coercible to `AbstractWeights`"))
     end
-    fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), nothing))    
+end
+
+function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
+             allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
+             wts::Union{AbstractWeights{<:Real}, AbstractVector{<:Real}}=uweights(length(y)),
+             dropcollinear::Bool=true,
+             method::Symbol=:cholesky)
+    if allowrankdeficient_dep !== nothing
+        @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
+              "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
+        dropcollinear = allowrankdeficient_dep
+    end
+    # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
+    _wts = convert_weights(wts)
+
+    if method === :cholesky
+        fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), nothing))
+    elseif method === :qr
+        fit!(LinearModel(LmResp(y, _wts), qrpred(X, dropcollinear, _wts), nothing))
+    else
+        throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
+    end
 end
 
 function fit(::Type{LinearModel}, f::FormulaTerm, data,
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
-             wts::Union{Nothing, AbstractVector{<:Real}}=nothing,
+             wts::Union{AbstractWeights{<:Real}, AbstractVector{<:Real}}=uweights(0),
              dropcollinear::Bool=true,
+             method::Symbol=:cholesky,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
-    
-             f, (y, X) = modelframe(f, data, contrasts, LinearModel)
-             wts = wts === nothing ? uweights(length(y)) : wts
-             _wts = if wts isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights, UnitWeights}
-                wts
-            elseif wts isa AbstractVector
-                Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
-                         "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                         "by coercing `wts` to `FrequencyWeights`", :fit)
-                fweights(wts)
-            else
-                throw(ArgumentError("`wts` should be an `AbstractVector` coercible to `AbstractWeights`"))
-            end
-    
-    fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), f))
+
+    f, (y, X) = modelframe(f, data, contrasts, LinearModel)
+    _wts = convert_weights(wts)
+    _wts = isempty(_wts) ? uweights(length(y)) : _wts
+    if method === :cholesky
+        fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), f))
+    elseif method === :qr
+        fit!(LinearModel(LmResp(y, _wts), qrpred(X, dropcollinear, _wts), f))
+    else
+        throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
+    end
 end
 
 """
     lm(formula, data;
-       [wts::AbstractVector], dropcollinear::Bool=true,
+       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
        contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     lm(X::AbstractMatrix, y::AbstractVector;
-       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true)
+       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
 Fit a linear model to data.
-An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear)`
+An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, method=method)`
 
 $FIT_LM_DOC
 """
@@ -234,12 +246,12 @@ function nulldeviance(obj::LinearModel)
     else
         @inbounds @simd for i = eachindex(y,wts)
             v += abs2(y[i] - m)*wts[i]
-        end        
+        end
     end
     return v
 end
 
-function nullloglikelihood(m::LinearModel) 
+function nullloglikelihood(m::LinearModel)
     wts = weights(m)
     if wts isa Union{UnitWeights, FrequencyWeights}
         n = nobs(m)
@@ -326,8 +338,13 @@ function StatsModels.predict!(res::Union{AbstractVector,
         length(res) == size(newx, 1) ||
             throw(DimensionMismatch("length of `res` must equal the number of rows in `newx`"))
         res .= newx * coef(mm)
-    elseif mm.pp.chol isa CholeskyPivoted &&
+    elseif mm.pp isa DensePredChol &&
+        mm.pp.chol isa CholeskyPivoted &&
         mm.pp.chol.rank < size(mm.pp.chol, 2)
+            throw(ArgumentError("prediction intervals are currently not implemented " *
+                                "when some independent variables have been dropped " *
+                                "from the model due to collinearity"))
+    elseif mm.pp isa DensePredQR && rank(mm.pp.qr.R) < size(mm.pp.qr.R, 2)
         throw(ArgumentError("prediction intervals are currently not implemented " *
                             "when some independent variables have been dropped " *
                             "from the model due to collinearity"))
@@ -338,19 +355,10 @@ function StatsModels.predict!(res::Union{AbstractVector,
         prediction, lower, upper = res
         length(prediction) == length(lower) == length(upper) == size(newx, 1) ||
             throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newx`"))
-        mm.rr.wts isa UnitWeights  || error("prediction with confidence intervals not yet implemented for weighted regression")
-        chol = cholesky!(mm.pp)
-        # get the R matrix from the QR factorization
-        if chol isa CholeskyPivoted
-            ip = invperm(chol.p)
-            R = chol.U[ip, ip]
-        else
-            R = chol.U
-        end
+        mm.rr.wts isa UnitWeights || error("prediction with confidence intervals not yet implemented for weighted regression")
         dev = deviance(mm)
         dofr = dof_residual(mm)
-        residvar = fill(dev/dofr, size(newx, 2), 1)
-        ret = dropdims((newx/R).^2 * residvar, dims=2)
+        ret = diag(newx*vcov(mm)*newx')
         if interval == :prediction
             ret .+= dev/dofr
         elseif interval != :confidence
@@ -369,7 +377,7 @@ function confint(obj::LinearModel; level::Real=0.95)
     quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
 end
 
-function momentmatrix(m::LinearModel) 
+function momentmatrix(m::LinearModel)
     X = modelmatrix(m; weighted=false)
     r = residuals(m; weighted=false)
     mm = X .* r
@@ -397,7 +405,7 @@ for each observation in linear model `obj`, giving an estimate of the influence
 of each data point.
 """
 ## To remove when https://github.com/JuliaStats/StatsAPI.jl/pull/16 is merged
-function crossmodelmatrix(model::RegressionModel; weighted::Bool=false) 
+function crossmodelmatrix(model::RegressionModel; weighted::Bool=false)
     x = weighted ? modelmatrix(model; weighted=weighted) : modelmatrix(model)
     return Symmetric(x' * x)
 end

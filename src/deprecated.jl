@@ -19,3 +19,6 @@ function Base.getproperty(mm::LinPredModel, f::Symbol)
         return getfield(mm, f)
     end
 end
+
+@deprecate installbeta!(p) (p.beta0 .= p.delbeta) false
+@deprecate installbeta!(p, f) (p.beta0 .+= p.delbeta .* f) false
