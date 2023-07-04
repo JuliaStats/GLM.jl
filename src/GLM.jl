@@ -89,6 +89,39 @@ module GLM
         pivoted_cholesky!(A; kwargs...) = cholesky!(A, RowMaximum(); kwargs...)
     end
 
+    @static if VERSION < v"1.7.0"
+        pivoted_qr!(A; kwargs...) = qr!(A, Val(true); kwargs...)
+    else
+        pivoted_qr!(A; kwargs...) = qr!(A, ColumnNorm(); kwargs...)
+    end
+
+    const COMMON_FIT_KWARGS_DOCS = """
+        - `dropcollinear::Bool=true`: Controls whether or not a model matrix
+          less-than-full rank is accepted.
+          If `true` (the default) the coefficient for redundant linearly dependent columns is
+          `0.0` and all associated statistics are set to `NaN`.
+          Typically from a set of linearly-dependent columns the last ones are identified as redundant
+          (however, the exact selection of columns identified as redundant is not guaranteed).
+        - `method::Symbol=:cholesky`: Controls which decomposition method to use.
+          If `method=:cholesky` (the default), then the `Cholesky` decomposition method will be used.
+          If `method=:qr`, then the `QR` decomposition method (which is more stable
+          but slower) will be used.
+        - `wts::Vector=similar(y,0)`: Prior frequency (a.k.a. case) weights of observations.
+          Such weights are equivalent to repeating each observation a number of times equal
+          to its weight. Do note that this interpretation gives equal point estimates but
+          different standard errors from analytical (a.k.a. inverse variance) weights and
+          from probability (a.k.a. sampling) weights which are the default in some other
+          software.
+          Can be length 0 to indicate no weighting (default).
+        - `contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}()`: a `Dict` mapping term names
+          (as `Symbol`s) to term types (e.g. `ContinuousTerm`) or contrasts
+          (e.g., `HelmertCoding()`, `SeqDiffCoding(; levels=["a", "b", "c"])`,
+          etc.). If contrasts are not provided for a variable, the appropriate
+          term type will be guessed based on the data type from the data column:
+          any numeric data is assumed to be continuous, and any non-numeric data
+          is assumed to be categorical (with `DummyCoding()` as the default contrast type).
+        """
+
     include("linpred.jl")
     include("lm.jl")
     include("glmtools.jl")
