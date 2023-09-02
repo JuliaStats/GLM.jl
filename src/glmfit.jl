@@ -286,7 +286,8 @@ function nulldeviance(m::GeneralizedLinearModel)
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
                     X, y, d, r.link; wts=wts, offset=offset,
-                    dropcollinear=isa(m.pp.chol, CholeskyPivoted),
+                    dropcollinear=ispivoted(m.pp),
+                    method=decomposition_method(m.pp),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         dev = deviance(nullm)
@@ -341,7 +342,8 @@ function nullloglikelihood(m::GeneralizedLinearModel)
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
                     X, y, d, r.link; wts=wts, offset=offset,
-                    dropcollinear=isa(m.pp.chol, CholeskyPivoted),
+                    dropcollinear=ispivoted(m.pp),
+                    method=decomposition_method(m.pp),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
         ll = loglikelihood(nullm)
@@ -375,7 +377,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
         delbeta!(p, wrkresp(r), r.wrkwt)
         linpred!(lp, p)
         updateμ!(r, lp)
-        installbeta!(p)
+        p.beta0 .= p.delbeta
     else
         # otherwise copy starting values for β
         copy!(p.beta0, start)
@@ -413,7 +415,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
                 isa(e, DomainError) ? (dev = Inf) : rethrow(e)
             end
         end
-        installbeta!(p, f)
+        p.beta0 .+= p.delbeta .* f
 
         # Test for convergence
         verbose && println("Iteration: $i, deviance: $dev, diff.dev.:$(devold - dev)")
@@ -559,6 +561,7 @@ function fit(::Type{M},
     d::UnivariateDistribution,
     l::Link = canonicallink(d);
     dropcollinear::Bool = true,
+    method::Symbol = :cholesky,
     dofit::Union{Bool, Nothing} = nothing,
     wts::AbstractVector{<:Real}      = similar(y, 0),
     offset::AbstractVector{<:Real}   = similar(y, 0),
@@ -575,7 +578,15 @@ function fit(::Type{M},
     end
 
     rr = GlmResp(y, d, l, offset, wts)
-    res = M(rr, cholpred(X, dropcollinear), nothing, false)
+
+    if method === :cholesky
+        res = M(rr, cholpred(X, dropcollinear), nothing, false)
+    elseif method === :qr
+        res = M(rr, qrpred(X, dropcollinear), nothing, false)
+    else
+        throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
+    end
+
     return dofit ? fit!(res; fitargs...) : res
 end
 
@@ -594,6 +605,7 @@ function fit(::Type{M},
              offset::Union{AbstractVector, Nothing} = nothing,
              wts::Union{AbstractVector, Nothing} = nothing,
              dropcollinear::Bool = true,
+             method::Symbol = :cholesky,
              dofit::Union{Bool, Nothing} = nothing,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
              fitargs...) where {M<:AbstractGLM}
@@ -613,7 +625,15 @@ function fit(::Type{M},
     off = offset === nothing ? similar(y, 0) : offset
     wts = wts === nothing ? similar(y, 0) : wts
     rr = GlmResp(y, d, l, off, wts)
-    res = M(rr, cholpred(X, dropcollinear), f, false)
+    
+    if method === :cholesky
+        res = M(rr, cholpred(X, dropcollinear), f, false)
+    elseif method === :qr
+        res = M(rr, qrpred(X, dropcollinear), f, false)
+    else
+        throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
+    end
+
     return dofit ? fit!(res; fitargs...) : res
 end
 
