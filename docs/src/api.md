@@ -2,7 +2,7 @@
 
 ```@meta
 DocTestSetup = quote
-    using CategoricalArrays, DataFrames, Distributions, GLM, RDatasets
+    using CategoricalArrays, DataFrames, Distributions, GLM, RDatasets, StableRNGs
 end
 ```
 
@@ -22,7 +22,7 @@ GLM.ModResp
 
 The most general approach to fitting a model is with the `fit` function, as in
 ```jldoctest
-julia> using Random
+julia> using GLM, StableRNGs
 
 julia> fit(LinearModel, hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
 LinearModel
@@ -31,14 +31,14 @@ Coefficients:
 ────────────────────────────────────────────────────────────────
         Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
 ────────────────────────────────────────────────────────────────
-x1   0.717436    0.775175   0.93    0.3818  -1.07012    2.50499
-x2  -0.152062    0.124931  -1.22    0.2582  -0.440153   0.136029
+x1   0.361896    0.69896    0.52    0.6186  -1.24991    1.9737
+x2  -0.012125    0.112648  -0.11    0.9169  -0.271891   0.247641
 ────────────────────────────────────────────────────────────────
 ```
 
 This model can also be fit as
 ```jldoctest
-julia> using Random
+julia> using GLM, StableRNGs
 
 julia> lm(hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
 LinearModel
@@ -47,8 +47,8 @@ Coefficients:
 ────────────────────────────────────────────────────────────────
         Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
 ────────────────────────────────────────────────────────────────
-x1   0.717436    0.775175   0.93    0.3818  -1.07012    2.50499
-x2  -0.152062    0.124931  -1.22    0.2582  -0.440153   0.136029
+x1   0.361896    0.69896    0.52    0.6186  -1.24991    1.9737
+x2  -0.012125    0.112648  -0.11    0.9169  -0.271891   0.247641
 ────────────────────────────────────────────────────────────────
 ```
 
