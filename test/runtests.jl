@@ -2011,3 +2011,12 @@ end
     @test_throws ArgumentError lm(@formula(OptDen ~ Carb), form; method=:pr)
     @test_throws ArgumentError glm(@formula(OptDen ~ Carb), form, Normal(); method=:pr)
 end
+
+@testset "[G]VIF" begin
+    duncan = RDatasets.dataset("car", "Duncan")
+    lm1 = lm(@formula(Prestige ~ 1 + Income + Education), duncan)
+    @test termnames(lm1)[2] == coefnames(lm1)
+    @test vif(lm1) ≈ gvif(lm1)
+    lm2 = lm(@formula(Prestige ~ 1 + Income + Education + Type), duncan)
+    @test gvif(lm2; scale=true) ≈ [1.486330, 2.301648, 1.502666] atol=1e-4
+end
