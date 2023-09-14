@@ -2030,6 +2030,11 @@ end
     lm1 = lm(@formula(Prestige ~ 1 + Income + Education), duncan)
     @test termnames(lm1)[2] == coefnames(lm1)
     @test vif(lm1) ≈ gvif(lm1)
+    lm1_noform = lm(modelmatrix(lm1), response(lm1))
+    @test vif(lm1) ≈ vif(lm1_noform)
+    @test_throws ArgumentError("model was fitted without a formula") gvif(lm1_noform)
     lm2 = lm(@formula(Prestige ~ 1 + Income + Education + Type), duncan)
+    @test termnames(lm2)[2] != coefnames(lm2)
     @test gvif(lm2; scale=true) ≈ [1.486330, 2.301648, 1.502666] atol=1e-4
+    
 end
