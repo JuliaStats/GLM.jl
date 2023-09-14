@@ -362,7 +362,7 @@ fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
 residuals(obj::LinPredModel) = residuals(obj.rr)
 
-function formula(obj::LinPredModel)
+function StatsModels.formula(obj::LinPredModel)
     obj.formula === nothing && throw(ArgumentError("model was fitted without a formula"))
     return obj.formula
 end
