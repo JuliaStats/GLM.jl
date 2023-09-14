@@ -2013,6 +2013,19 @@ end
 end
 
 @testset "[G]VIF" begin
+    # Reference values from car::vif in R:
+    # > library(car)
+    # > data(Duncan)
+    # > lm1 = lm(prestige ~ 1 + income + education, Duncan)
+    # > vif(lm1)
+    #    income education 
+    #    2.1049    2.1049 
+    # > lm2 = lm(prestige ~ 1 + income + education + type, Duncan)
+    # > vif(lm2)
+    #               GVIF Df GVIF^(1/(2*Df))
+    # income    2.209178  1        1.486330
+    # education 5.297584  1        2.301648
+    # type      5.098592  2        1.502666
     duncan = RDatasets.dataset("car", "Duncan")
     lm1 = lm(@formula(Prestige ~ 1 + Income + Education), duncan)
     @test termnames(lm1)[2] == coefnames(lm1)
