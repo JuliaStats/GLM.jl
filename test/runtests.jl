@@ -1602,3 +1602,46 @@ end
     # 3. 44 / wt == y
     @test GLM.loglik_obs(Binomial(), y, μ, wt, ϕ) ≈ GLM.logpdf(Binomial(Int(wt), μ), 44)
 end
+
+@testset "[G]VIF" begin
+    # Reference values from car::vif in R:
+    # > library(car)
+    # > data(Duncan)
+    # > lm1 = lm(prestige ~ 1 + income + education, Duncan)
+    # > vif(lm1)
+    #    income education 
+    #    2.1049    2.1049 
+    # > lm2 = lm(prestige ~ 1 + income + education + type, Duncan)
+    # > vif(lm2)
+    #               GVIF Df GVIF^(1/(2*Df))
+    # income    2.209178  1        1.486330
+    # education 5.297584  1        2.301648
+    # type      5.098592  2        1.502666
+    duncan = RDatasets.dataset("car", "Duncan")
+    lm1 = lm(@formula(Prestige ~ 1 + Income + Education), duncan)
+    @test termnames(lm1)[2] == coefnames(lm1)
+    @test vif(lm1) ≈ gvif(lm1)
+    
+    lm1_noform = lm(modelmatrix(lm1), response(lm1))
+    @test vif(lm1) ≈ vif(lm1_noform)
+    @test_throws ArgumentError("model was fitted without a formula") gvif(lm1_noform)
+    
+    lm1log = lm(@formula(Prestige ~ 1 + exp(log(Income)) + exp(log(Education))), duncan)
+    @test termnames(lm1log)[2] == coefnames(lm1log) == ["(Intercept)", "exp(log(Income))", "exp(log(Education))"]
+    @test vif(lm1) ≈ vif(lm1log)
+    
+    gm1 = glm(modelmatrix(lm1), response(lm1), Normal())
+    @test vif(lm1) ≈ vif(gm1)
+    
+    lm2 = lm(@formula(Prestige ~ 1 + Income + Education + Type), duncan)
+    @test termnames(lm2)[2] != coefnames(lm2)
+    @test gvif(lm2; scale=true) ≈ [1.486330, 2.301648, 1.502666] atol=1e-4
+    
+    gm2 = glm(@formula(Prestige ~ 1 + Income + Education + Type), duncan, Normal())
+    @test termnames(gm2)[2] != coefnames(gm2)
+    @test gvif(gm2; scale=true) ≈ [1.486330, 2.301648, 1.502666] atol=1e-4   
+    
+    # the VIF definition depends on modelmatrix, vcov and stderror returning valid
+    # values. It doesn't care about links, offsets, etc. as long as the model matrix,
+    # vcov matrix and stderrors are well defined.
+end
