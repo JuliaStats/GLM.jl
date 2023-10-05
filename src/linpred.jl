@@ -374,7 +374,7 @@ function residuals(model::LinPredModel; type=:deviance)
     end
 end
 
-function formula(obj::LinPredModel)
+function StatsModels.formula(obj::LinPredModel)
     obj.formula === nothing && throw(ArgumentError("model was fitted without a formula"))
     return obj.formula
 end
