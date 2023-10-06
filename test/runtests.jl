@@ -413,7 +413,7 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
         [-0.1428571, 0.275, -0.04255319, -0.04761905,
          -0.25, 0.2765957, 0.1904762, -0.025, -0.2340426];
          atol=1e-6)
-
+        
     # Deprecated methods
     @test gm1.model === gm1
     @test gm1.mf.f == formula(gm1)
@@ -424,6 +424,35 @@ admit = CSV.read(joinpath(glm_datadir, "admit.csv"), DataFrame)
 admit.rank = categorical(admit.rank)
 
 @testset "$distr with LogitLink" for distr in (Binomial, Bernoulli)
+    gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit, distr())
+    res = residuals(gm2; type=:deviance)
+    # values from R
+    @test isapprox(res[1:10],
+                   [-0.6156283, 1.568695, 0.7787919, 1.856779, -0.5019254,
+                    1.410201, 1.318558, -0.6994666, 1.792076, -1.207922]; atol=1e-6)
+    @test isapprox(res[390:400],
+                   [-1.015303, 1.352001, 1.199244, 1.734904, 1.283653, 1.656921,
+                    -1.158223, -0.6015442, -0.6320556, -1.116244, -0.8458358]; atol=1e-6)
+    res = residuals(gm2; type=:response)
+    # values from R
+    @test isapprox(res[1:10],
+                   [-0.1726265, 0.707825, 0.2615918, 0.8216154, -0.1183539,
+                    0.6300301, 0.5807538, -0.2170033, 0.7992648, -0.5178682]; atol=1e-6)
+    @test isapprox(res[390:400],
+                   [-0.4027505, 0.5990641, 0.512806, 0.7779709, 0.5612748,
+                    0.7465767, -0.48867, -0.1655043, -0.1810622, -0.4636674, -0.3007306]; atol=1e-6)
+    res = residuals(gm2; type=:pearson)
+    @test isapprox(res[1:10],
+                   [-0.4567757, 1.556473, 0.5952011, 2.146128, -0.3663905,
+                    1.304961, 1.176959, -0.5264452, 1.995417, -1.036398]; atol=1e-6)
+    @test isapprox(res[390:399],
+                   [-0.8211834, 1.22236, 1.025949, 1.871874, 1.131075,
+                     1.716382, -0.977591, -0.4453409, -0.4702063, -0.9297929]; atol=1e-6)
+    # less extensive test here because it's just grabbing the IRLS values, which are already
+    # extensively tested
+    @test isapprox(residuals(gm2; type=:working)[1:10],
+                   [-1.208644, 3.422607, 1.354264, 5.605865, -1.134242,
+                    2.702922, 2.385234, -1.277145, 4.981688, -2.074122]; atol=1e-5)
     for dmethod in (:cholesky, :qr)
         gm2 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit, distr();
                 method=dmethod)
@@ -1098,18 +1127,9 @@ end
     @test bic(gm23) ≈ bic(gm24)
     @test predict(gm23) ≈ predict(gm24)
 
-    @test isapprox(residuals(gm23; type=:deviance)[1:10],
-        [-1.691255, -0.706297, -0.519149, -0.961134, -0.961134, 
-         -0.234178, 0.17945, 0.279821, -0.803948, -0.803948]; atol=1e-6)
-    @test isapprox(residuals(gm23; type=:pearson)[1:10],
-        [-0.902477, -0.550709, -0.433453, -0.680948, -0.680948, 
-         -0.216258, 0.190345, 0.306518, -0.604398, -0.604398]; atol=1e-5)
-    @test isapprox(residuals(gm23; type=:response)[1:10],
-        [-23.089885, -14.089885, -11.089885, -11.723055, -11.723055, 
-         -3.723055, 3.276945, 5.276945, -9.919, -9.919]; atol=1e-5)
-    @test isapprox(residuals(gm23; type=:working)[1:10],
-        [0.03668, 0.022383, 0.017617, 0.041919, 0.041919, 
-         0.013313, -0.011718, -0.018869, 0.039141, 0.039141]; atol=1e-6)
+    for rtype in GLM._RESIDUAL_TYPES
+        @test isapprox(residuals.([gm23, gm24]; type=rtype)...; atol=1e-6)
+    end
 end
 
 @testset "GLM with no intercept with $dmethod" for dmethod in (:cholesky, :qr)
@@ -1588,6 +1608,8 @@ end
     ft1a = ftest(mod, nullmod)
     @test isnan(ft1a.pval[1])
     @test ft1a.pval[2] ≈ 2.481215056713184e-8
+    # NB: trailing white space must be preserved in the tests for `show`
+    # If your editor is set to automatically strip it, this will cause problems
     if VERSION >= v"1.6.0"
         @test sprint(show, ft1a) == """
             F-test: 2 models fitted on 12 observations
