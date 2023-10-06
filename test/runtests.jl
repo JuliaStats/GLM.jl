@@ -72,6 +72,13 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
         # Test last one once more to ensure that no state in pqr affects the result
         @test coef(fit!(LinearModel(r, pqr, nothing))) ≈ β̂
     end
+
+    gm1 = glm(@formula(OptDen ~ Carb), form, Normal(); method=dmethod)
+
+    @test all(residuals(gm1, type = :working) .≈ residuals(lm1, type = :working))
+    @test all(residuals(gm1, type = :deviance) .≈ residuals(lm1, type = :deviance))
+    @test all(residuals(gm1, type = :pearson) .≈ residuals(lm1, type = :pearson))
+    @test all(residuals(gm1, type = :response) .≈ residuals(lm1, type = :response))
 end
 
 @testset "Cook's Distance in Linear Model with $dmethod" for dmethod in (:cholesky, :qr)
@@ -124,11 +131,14 @@ end
     @test isapprox(loglikelihood(lm_model), -4353.946729075838)
     @test isapprox(loglikelihood(glm_model), -4353.946729075838)
     @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
-    @test isapprox(mean(residuals(lm_model)), -5.412966629787718) 
+    @test isapprox(mean(residuals(lm_model, type=:response)), -5.412966629787718)
 
     # this should be elementwise true (which is a stronger condition than
     # vectors being approximately equal) the so we test elementwise
-    @test all(residuals(glm_model, type = :working) .≈ residuals(lm_model))
+    @test all(residuals(glm_model, type=:working) .≈ residuals(lm_model, type=:working))
+    @test all(residuals(glm_model, type=:response) .≈ residuals(lm_model, type=:response))
+    @test all(residuals(glm_model, type=:deviance) .≈ residuals(lm_model, type=:deviance))
+    @test all(residuals(glm_model, type=:pearson) .≈ residuals(lm_model, type=:pearson))
 end
 
 @testset "Linear model with dropcollinearity and $dmethod" for dmethod in (:cholesky, :qr)
@@ -287,7 +297,7 @@ end
 
         data = DataFrame(x = 60:70, y = 130:140)
         
-        mdl = lm(@formula(y ~ 0 + x), data; method=:cholesky)
+        mdl = lm(@formula(y ~ 0 + x), data; method=dmethod)
         @test coef(mdl) ≈ [2.07438016528926]
         @test stderror(mdl) ≈ [0.165289256198347E-01]
         @test GLM.dispersion(mdl) ≈ 3.56753034006338
@@ -304,6 +314,10 @@ end
                               130.6859504132231, 132.7603305785124, 134.8347107438017,
                               136.9090909090909, 138.9834710743802, 141.0578512396694,
                               143.1322314049587, 145.2066115702479]
+        @test residuals(mdl) ≈ [5.537190082644673, 4.462809917355372, 3.388429752066127,
+                                2.3140495867768536, 1.2396694214876085, 0.16528925619836343,
+                               -0.9090909090909383, -1.9834710743801833, -3.0578512396694286,
+                               -4.132231404958674, -5.206611570247947]
     end
     @testset "Test with NoInt2 Dataset" begin
         # test case to test r2 for no intercept model
@@ -311,7 +325,7 @@ end
 
         data = DataFrame(x = [4, 5, 6], y = [3, 4, 4])
         
-        mdl = lm(@formula(y ~ 0 + x), data; method=:cholesky)
+        mdl = lm(@formula(y ~ 0 + x), data; method=dmethod)
         @test coef(mdl) ≈ [0.727272727272727]
         @test stderror(mdl) ≈ [0.420827318078432E-01]
         @test GLM.dispersion(mdl) ≈ 0.369274472937998
@@ -348,6 +362,7 @@ end
         @test loglikelihood(mdl1) ≈ loglikelihood(mdl2)
         @test nullloglikelihood(mdl1) ≈ nullloglikelihood(mdl2)
         @test predict(mdl1) ≈ predict(mdl2)
+        @test residuals(mdl1) ≈ residuals(mdl2)
     end
 end
 
@@ -383,22 +398,22 @@ dobson = DataFrame(Counts = [18.,17,15,20,10,20,25,13,12],
         [3.044522437723423,-0.45425527227759555,-0.29298712468147375])
 
     @test isapprox(residuals(gm1; type=:deviance),
-                   [-0.6712492, 0.9627236, -0.1696466, -0.2199851, -0.9555235,
-                     1.049386, 0.8471537, -0.09167147, -0.9665637];
-                   atol=1e-6)
+        [-0.6712492, 0.9627236, -0.1696466, -0.2199851, -0.9555235,
+          1.049386, 0.8471537, -0.09167147, -0.9665637];
+         atol=1e-6)
     @test isapprox(residuals(gm1; type=:pearson),
-                   [-0.6546537, 1.004158, -0.1684304, -0.2182179,
-                    -0.9128709, 1.094797, 0.8728716, -0.09128709, -0.9263671];
-                   atol=1e-6)
+        [-0.6546537, 1.004158, -0.1684304, -0.2182179,
+         -0.9128709, 1.094797, 0.8728716, -0.09128709, -0.9263671];
+         atol=1e-6)
     @test isapprox(residuals(gm1; type=:response),
-                   [-3, 3.666667, -0.6666667, -1, -3.333333,
-                    4.333333, 4, -0.3333333, -3.666667];
-                   atol=1e-6)
+        [-3, 3.666667, -0.6666667, -1, -3.333333,
+         4.333333, 4, -0.3333333, -3.666667];
+         atol=1e-6)
     @test isapprox(residuals(gm1; type=:working),
-                   [-0.1428571, 0.275, -0.04255319, -0.04761905,
-                    -0.25, 0.2765957, 0.1904762, -0.025, -0.2340426];
-                   atol=1e-6)
-
+        [-0.1428571, 0.275, -0.04255319, -0.04761905,
+         -0.25, 0.2765957, 0.1904762, -0.025, -0.2340426];
+         atol=1e-6)
+        
     # Deprecated methods
     @test gm1.model === gm1
     @test gm1.mf.f == formula(gm1)
@@ -454,12 +469,40 @@ admit.rank = categorical(admit.rank)
         @test isapprox(coef(gm2),
             [-3.9899786606380756, 0.0022644256521549004, 0.804037453515578,
              -0.6754428594116578, -1.340203811748108, -1.5514636444657495])
+        res = residuals(gm2; type=:deviance)
+        # values from R
+        @test isapprox(res[1:10],
+            [-0.6156283, 1.568695, 0.7787919, 1.856779, -0.5019254,
+             1.410201, 1.318558, -0.6994666, 1.792076, -1.207922]; atol=1e-6)
+        @test isapprox(res[390:400],
+            [-1.015303, 1.352001, 1.199244, 1.734904, 1.283653, 1.656921,
+             -1.158223, -0.6015442, -0.6320556, -1.116244, -0.8458358]; atol=1e-6)
+        res = residuals(gm2; type=:response)
+        # values from R
+        @test isapprox(res[1:10],
+            [-0.1726265, 0.707825, 0.2615918, 0.8216154, -0.1183539,
+             0.6300301, 0.5807538, -0.2170033, 0.7992648, -0.5178682]; atol=1e-6)
+        @test isapprox(res[390:400],
+            [-0.4027505, 0.5990641, 0.512806, 0.7779709, 0.5612748,
+             0.7465767, -0.48867, -0.1655043, -0.1810622, -0.4636674, -0.3007306]; atol=1e-6)
+        res = residuals(gm2; type=:pearson)
+        @test isapprox(res[1:10],
+            [-0.4567757, 1.556473, 0.5952011, 2.146128, -0.3663905,
+             1.304961, 1.176959, -0.5264452, 1.995417, -1.036398]; atol=1e-6)
+        @test isapprox(res[390:399],
+            [-0.8211834, 1.22236, 1.025949, 1.871874, 1.131075,
+             1.716382, -0.977591, -0.4453409, -0.4702063, -0.9297929]; atol=1e-6)
+        # less extensive test here because it's just grabbing the IRLS values, which are already
+        # extensively tested
+        @test isapprox(residuals(gm2; type=:working)[1:10],
+            [-1.208644, 3.422607, 1.354264, 5.605865, -1.134242,
+             2.702922, 2.385234, -1.277145, 4.981688, -2.074122]; atol=1e-5)
     end
 end
 
 @testset "Bernoulli ProbitLink with $dmethod" for dmethod in (:cholesky, :qr)
     gm3 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit,
-              Binomial(), ProbitLink(); method=dmethod)
+              Binomial(), ProbitLink(); method=dmethod, rtol=1.0E-12)
     test_show(gm3)
     @test !GLM.cancancel(gm3.rr)
     @test dof(gm3) == 6
@@ -471,8 +514,20 @@ end
     @test isapprox(aicc(gm3), 470.6269118413539)
     @test isapprox(bic(gm3), 494.36195866598655)
     @test isapprox(coef(gm3),
-        [-2.3867922998680777, 0.0013755394922972401, 0.47772908362646926,
-        -0.4154125854823675, -0.8121458010130354, -0.9359047862425297])
+        [-2.3868363125, 0.0013755907, 0.4777300478,
+         -0.4153994078, -0.8121380759, -0.9358991794])
+    @test isapprox(residuals(gm3; type=:response)[1:6],
+        [-0.1706386651232305, 0.7046476993989534, 0.2661311091390428,
+          0.8207948863240537, -0.11358532380641799, 0.6268782862468341])
+    @test isapprox(residuals(gm3; type=:deviance)[1:6],
+        [-0.6117178278295162, 1.5617851298134984, 0.7866700567935837,
+          1.8543053916280143, -0.49106090467188984, 1.404172782983458])
+    @test isapprox(residuals(gm3; type=:pearson)[1:6],
+        [-0.45359350811506904, 1.5445993229344097, 0.6021969934834845,
+          2.1401396930011654, -0.35796671082807846, 1.2961830913117165])
+    @test isapprox(residuals(gm3; type=:working)[1:6],
+        [-0.6727006051787597, 2.0411305338811343, 0.8107526257371388,
+          3.136741385719769, -0.5903629229732555, 1.655814528293248])
 end
 
 @testset "Bernoulli CauchitLink with $dmethod" for dmethod in (:cholesky, :qr)
@@ -488,6 +543,18 @@ end
     @test isapprox(aic(gm4), 471.3401112751142)
     @test isapprox(aicc(gm4), 471.5538517331295)
     @test isapprox(bic(gm4), 495.28889855776214)
+    @test isapprox(residuals(gm4; type=:response)[1:6],
+        [-0.1867218959197306, 0.724122096096687, 0.24638540667338305,
+          0.8195987716977836, -0.14494256449935666, 0.6432975691530777])
+    @test isapprox(residuals(gm4; type=:deviance)[1:6],
+        [-0.6429341435761157, 1.604865656872587, 0.7521624706003109,
+          1.8507143823973446, -0.5596188636517547, 1.4358644586580938])
+    @test isapprox(residuals(gm4; type=:pearson)[1:6],
+        [-0.47915727263917696, 1.6201209618309471, 0.5717851088172858,
+          2.131478244829273, -0.4117184476108932, 1.3429285928760335])
+    @test isapprox(residuals(gm4; type=:working)[1:6],
+        [-1.914490809886423, 3.915888572112854, 1.5840578656244277,
+          8.932633278726385, -2.3544016047145133, 2.492998411817492])
 end
 
 @testset "Bernoulli CloglogLink with $dmethod" for dmethod in (:cholesky, :qr)
@@ -503,6 +570,18 @@ end
     @test isapprox(aic(gm5), 470.8943962961263)
     @test isapprox(aicc(gm5), 471.1081367541415)
     @test isapprox(bic(gm5), 494.8431835787742)
+    @test isapprox(residuals(gm5; type=:response)[1:6],
+        [-0.18073101609618047, 0.7150801772235256, 0.2233663547102912,
+          0.8219794712730587, -0.1262781919706601, 0.6377642662596248])
+    @test isapprox(residuals(gm5; type=:deviance)[1:6],
+        [-0.6314155832338859, 1.5846434689757245, 0.7110366218258118,
+          1.8578785780633782, -0.5196022545048363, 1.4251035617919587])
+    @test isapprox(residuals(gm5; type=:pearson)[1:6],
+        [-0.46968110418493536, 1.5842219882067432, 0.5362913322532271,
+          2.1487972640223143, -0.3801697783963641, 1.3268885484109265])
+    @test isapprox(residuals(gm5; type=:working)[1:6],
+        [-1.106638003413935, 2.9818648354214448, 0.6671372166546842,
+          5.101003481510944, -1.0706391531482944, 2.2232767839788887])
 
     # When data are almost separated, the calculations are prone to underflow which can cause
     # NaN in wrkwt and/or wrkres. The example here used to fail but works with the "clamping"
@@ -539,6 +618,18 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
     @test isapprox(GLM.dispersion(gm6, true), 48.6950385282296)
     @test isapprox(stderror(gm6),
         [13.3909581, 0.1611824, 1.8934926, 2.1333359])
+    @test isapprox(residuals(gm6; type=:response)[1:6],
+        [-0.5350583210366011, -4.41487032917648, 0.8424229099573637,
+          8.475831386381444, -3.5054593300982617, -5.936963063779473])
+    @test isapprox(residuals(gm6; type=:deviance)[1:6],
+        [-0.5350583210366011, -4.41487032917648, 0.8424229099573637,
+          8.475831386381444, -3.5054593300982617, -5.936963063779473])
+    @test isapprox(residuals(gm6; type=:pearson)[1:6],
+        [-0.5350583210366011, -4.41487032917648, 0.8424229099573637,
+          8.475831386381444, -3.5054593300982617, -5.936963063779473])
+    @test isapprox(residuals(gm6; type=:working)[1:6],
+        [-0.5350583210366011, -4.41487032917648, 0.8424229099573637,
+          8.475831386381444, -3.5054593300982617, -5.936963063779473])
 end
 
 @testset "Normal LogLink offset with $dmethod" for dmethod in (:cholesky, :qr)
@@ -556,6 +647,18 @@ end
     @test isapprox(stderror(gm7),
         [0.157167944, 0.001886286, 0.022584069, 0.023882826],
         atol=1e-6)
+    @test isapprox(residuals(gm7; type=:response)[1:6],
+        [-0.38368369274773784, -4.468153807198334, 0.6984167561989949,
+          8.656391276950714, -3.3297668686774387, -5.953687000877466], atol=1.0E-08)
+    @test isapprox(residuals(gm7; type=:deviance)[1:6],
+        [-0.38368369274773784, -4.468153807198334, 0.6984167561989949,
+          8.656391276950714, -3.3297668686774387, -5.953687000877466], atol=1.0E-08)
+    @test isapprox(residuals(gm7; type=:pearson)[1:6],
+        [-0.38368369274773784, -4.468153807198334, 0.6984167561989949,
+          8.656391276950714, -3.3297668686774387, -5.953687000877466], atol=1.0E-08)
+    @test isapprox(residuals(gm7; type=:working)[1:6],
+        [-0.004761307440482124, -0.052834945615402695, 0.008149403193779539,
+          0.11148878084515124, -0.04192089439444784, -0.07083195530512913], atol=1.0E-08)
 end
 
 @testset "Poisson LogLink offset with $dmethod" for dmethod in (:cholesky, :qr)
@@ -572,6 +675,18 @@ end
         [0.61587278, -0.00700535, -0.048518903, 0.05331228]
     @test stderror(gm7p) ≈
         [0.2091138392, 0.0025136984, 0.0297381842, 0.0324618795]
+    @test isapprox(residuals(gm7p; type=:response)[1:6],
+        [-0.863332308164118, -4.28433393254052, 0.8959369326953777,
+          8.286976438093888, -3.6965161964682665, -5.89125059367457])
+    @test isapprox(residuals(gm7p; type=:deviance)[1:6],
+        [-0.0961784398978177, -0.4707097945605455, 0.0969489127056096,
+          0.9240404323321973, -0.41733363499919984, -0.6509620279802588])
+    @test isapprox(residuals(gm7p; type=:pearson)[1:6],
+        [-0.09600684024394168, -0.4666700010340562, 0.09711857293299415,
+          0.9400462058722089, -0.4140692166667004, -0.6432046304141337])
+    @test isapprox(residuals(gm7p; type=:working)[1:6],
+        [-0.010676437434881152, -0.05083191303344242, 0.010527545929115336,
+          0.10663561985196073, -0.046382406319438046, -0.07022485124472293])
 end
 
 @testset "Poisson LogLink offset with weights with $dmethod" for dmethod in (:cholesky, :qr)
@@ -589,6 +704,19 @@ end
         [0.6038154675, -0.0070083965, -0.038390455, 0.0893445315]
     @test stderror(gm7pw) ≈
         [0.1318509718, 0.0015910084, 0.0190289059, 0.0202335849]
+
+    @test isapprox(residuals(gm7pw; type=:response)[1:6],
+        [-0.6876873724758497, -4.0990312783897735, 1.0836620743129544,
+          8.454197233078162, -3.524035019122394, -5.707092394116799])
+    @test isapprox(residuals(gm7pw; type=:deviance)[1:6],
+        [-0.0766665779792339, -0.6373639283400141, 0.20325398408196754,
+          1.8867038664708615, -0.398150307405098, -0.8924830793621548])
+    @test isapprox(residuals(gm7pw; type=:pearson)[1:6],
+        [-0.07655744229902446, -0.6321217496084444, 0.20368491838440875,
+          1.9200972388014923, -0.39517640996263625, -0.8821628669795716])
+    @test isapprox(residuals(gm7pw; type=:working)[1:6],
+        [-0.008522829131306016, -0.04874052906532191, 0.012761526236109016,
+          0.10902198354292372, -0.04431408715962416, -0.068179317079205])
 end
 
 ## Gamma example from McCullagh & Nelder (1989, pp. 300-2)
@@ -613,20 +741,17 @@ clotting = DataFrame(u = log.([5,10,15,20,30,40,60,80,100]),
     @test isapprox(stderror(gm8), [0.00092754223, 0.000414957683], atol=1e-6)
 
     @test isapprox(residuals(gm8; type=:response),
-                   [-4.859041, 4.736111, 1.992869, 0.9973619, -1.065779,
-                    0.02779383, -0.614323, -0.7318223, -0.4831699]; atol=1e-6)
+        [-4.859041, 4.736111, 1.992869, 0.9973619, -1.065779,
+         0.02779383, -0.614323, -0.7318223, -0.4831699]; atol=1e-6)
     @test isapprox(residuals(gm8; type=:working),
-                   [0.0003219114, -0.001669384, -0.001245099, -0.0008626359,
-                    0.001353047, -4.456918e-05, 0.001314963, 0.001879625, 0.001414318];
-                   atol=1e-6)
+        [0.0003219114, -0.001669384, -0.001245099, -0.0008626359,
+         0.001353047, -4.456918e-05, 0.001314963, 0.001879625, 0.001414318]; atol=1e-6)
     @test isapprox(residuals(gm8; type=:deviance),
-                   [-0.04008349, 0.08641118, 0.04900896, 0.02904992,
-                    -0.03846595, 0.001112578, -0.02869586, -0.03755713, -0.0263724];
-                   atol=1e-6)
+        [-0.04008349, 0.08641118, 0.04900896, 0.02904992,
+         -0.03846595, 0.001112578, -0.02869586, -0.03755713, -0.0263724]; atol=1e-6)
     @test isapprox(residuals(gm8; type=:pearson),
-                   [-0.03954973, 0.08891786, 0.04981284, 0.0293319,
-                    -0.03797433, 0.001112991, -0.02842204, -0.03708843, -0.02614107];
-                   atol=1e-5)
+        [-0.03954973, 0.08891786, 0.04981284, 0.0293319,
+         -0.03797433, 0.001112991, -0.02842204, -0.03708843, -0.02614107]; atol=1e-5)
 end
 
 @testset "InverseGaussian with $dmethod" for dmethod in (:cholesky, :qr)
@@ -648,19 +773,17 @@ end
     @test isapprox(stderror(gm8a), [0.0001675339726910311,9.468485015919463e-5], atol=1e-6)
 
     @test isapprox(residuals(gm8a; type=:response),
-                   [-18.21078, 15.52523, 7.639634, 4.20793, -0.2428536,
-                    -0.3585344, -2.263445, -3.056904, -3.240284]; atol=1e-5)
+        [-18.21078, 15.52523, 7.639634, 4.20793, -0.2428536,
+         -0.3585344, -2.263445, -3.056904, -3.240284]; atol=1e-5)
     @test isapprox(residuals(gm8a; type=:working),
-                   [1.441199e-05, -0.0004052051, -0.0003766424, -0.0002882584, 2.402242e-05,
-                    4.397323e-05, 0.0003595653, 0.0005697418, 0.0006762887];
-                   atol=1e-6)
+        [1.441199e-05, -0.0004052051, -0.0003766424, -0.0002882584, 2.402242e-05,
+         4.397323e-05, 0.0003595653, 0.0005697418, 0.0006762887]; atol=1e-6)
     @test isapprox(residuals(gm8a; type=:deviance),
-                   [-0.01230767, 0.04799467, 0.03430759, 0.02309913, -0.001715577,
-                    -0.002827721, -0.02123177, -0.03179512, -0.0359572];
-                   atol=1e-6)
+        [-0.01230767, 0.04799467, 0.03430759, 0.02309913, -0.001715577,
+         -0.002827721, -0.02123177, -0.03179512, -0.0359572]; atol=1e-6)
     @test isapprox(residuals(gm8a; type=:pearson),
-                   [-0.01145543, 0.05608432, 0.03793027, 0.02462693, -0.001707913,
-                    -0.00280766, -0.02017246, -0.02950971, -0.03310111]; atol=1e-6)
+        [-0.01145543, 0.05608432, 0.03793027, 0.02462693, -0.001707913,
+         -0.00280766, -0.02017246, -0.02950971, -0.03310111]; atol=1e-6)
 end
 
 @testset "Gamma LogLink with $dmethod" for dmethod in (:cholesky, :qr)
@@ -679,6 +802,22 @@ end
     @test coef(gm9) ≈ [5.50322528458221, -0.60191617825971]
     @test GLM.dispersion(gm9, true) ≈ 0.02435442293561081
     @test stderror(gm9) ≈ [0.19030107482720, 0.05530784660144]
+    @test isapprox(residuals(gm9; type=:response),
+        [24.825081824546388, -3.390927600702888, -6.0963387619432226, -5.449147318571271,
+        -4.689631808780096, -1.6510636464262802, 0.12039065703982388, 1.4401936611465551,
+         2.647184982270449])
+    @test isapprox(residuals(gm9; type=:deviance),
+        [0.24588283471712796, -0.05628604428569587, -0.13254268031711636, -0.14129049644352157,
+        -0.15598958254351863, -0.06327877150208151, 0.00575489903258662, 0.0798757699233701,
+         0.1634044998400799])
+    @test isapprox(residuals(gm9; type=:pearson),
+        [0.2664352414863339, -0.0552349953523762, -0.1267526576631446, -0.13471599971328502,
+        -0.14798631416982136, -0.0619511351715854, 0.005765943943793906, 0.08201648886980786,
+         0.17242342718344872])
+    @test isapprox(residuals(gm9; type=:working),
+        [0.2664352414863339, -0.0552349953523762, -0.1267526576631446, -0.13471599971328502,
+        -0.14798631416982136, -0.0619511351715854, 0.005765943943793906, 0.08201648886980786,
+         0.17242342718344872])
 end
 
 @testset "Gamma IdentityLink with $dmethod" for dmethod in (:cholesky, :qr)
@@ -697,6 +836,22 @@ end
     @test isapprox(coef(gm10), [99.250446880986, -18.374324929002])
     @test isapprox(GLM.dispersion(gm10, true), 0.10417373, atol=1e-6)
     @test isapprox(stderror(gm10), [17.864084, 4.297895], atol=1e-4)
+    @test isapprox(residuals(gm10; type=:response),
+        [48.321888275132096, 1.0579997943620256, -7.491852561885715, -9.205888686408052,
+        -9.755741042655785, -6.469777167178123, -3.0196295234258628, 0.2663343520517998,
+         3.366446469710496])
+    @test isapprox(residuals(gm10; type=:deviance),
+        [0.5774137147911168, 0.01846646154959333, -0.15976839879676413, -0.22476506467791008,
+        -0.29338264689074767, -0.2216519910251632, -0.13140685132678168, 0.014150064045388622,
+         0.21445348600221353])
+    @test isapprox(residuals(gm10; type=:pearson),
+        [0.6935016905443229, 0.01858030611044939, -0.15137547240766014, -0.208250279769595,
+        -0.2654208775530889, -0.20558700281887837, -0.1257150748507956, 0.014216884034170322,
+         0.23004982779762967])
+    @test isapprox(residuals(gm10; type=:working),
+        [48.321888275132096, 1.0579997943620256, -7.491852561885715, -9.205888686408052,
+        -9.755741042655785, -6.469777167178123, -3.0196295234258628, 0.2663343520517998,
+         3.366446469710496])
 end
 
 # Logistic regression using aggregated data and weights
@@ -759,6 +914,22 @@ end
     @test isapprox(aicc(gm16), 93.55439450918095)
     @test isapprox(bic(gm16), 97.18028280909267)
     @test isapprox(coef(gm16), [-0.017217012615523237, 0.015649040411276433])
+    @test isapprox(residuals(gm16; type=:response),
+        [-7.483955294264575, 4.854403995157639, 2.2565430880113198, 1.2883350283647275,
+         -0.7712494846033557, 0.31498756813512685, -0.3421885106306952, -0.471353047569,
+         -0.23171283548232324])
+    @test isapprox(residuals(gm16; type=:deviance),
+        [-0.07454954387548747, 0.1254405883825797, 0.05845787715014768, 0.08005871893695757,
+         -0.043428290098321824, 0.023771500386805297, -0.038146721542114716, -0.056713615026982425,
+         -0.03303769239721972])
+    @test isapprox(residuals(gm16; type=:pearson),
+        [-0.07304468243465054, 0.12917653607803606, 0.059548981148542166, 0.0810690103004563,
+        -0.043023435526326086, 0.023872290225484042, -0.037942023296163564, -0.05625317881411061,
+        -0.03289728247720795])
+    @test isapprox(residuals(gm16; type=:working),
+        [0.0004752857319903198, -0.001718705058060829, -0.0014286056165354543, -0.0011336223823092044,
+         0.0010000093165362322, -0.000516924020243504, 0.0007512552521184062, 0.0012432373752853285,
+         0.0006971001093429506])
 end
 
 # Weighted Poisson example (weights are totally made up)
@@ -796,6 +967,18 @@ quine = dataset("MASS", "quine")
     @test isapprox(coef(gm18)[1:7],
         [2.886448718885344, -0.5675149923412003, 0.08707706381784373,
         -0.44507646428307207, 0.09279987988262384, 0.35948527963485755, 0.29676767190444386])
+    @test isapprox(residuals(gm18; type=:response)[1:6],
+        [-24.31906166004812, -15.31906166004812, -12.31906166004812,
+         -14.560765164933468, -14.560765164933468, -6.560765164933468])
+    @test isapprox(residuals(gm18; type=:deviance)[1:6],
+        [-2.3128642617499, -1.024924490434873, -0.7717990037955583,
+         -1.4521131177135647, -1.4521131177135647, -0.511628745991213])
+    @test isapprox(residuals(gm18; type=:pearson)[1:6],
+        [-1.2597581635744535, -0.7935467763647199, -0.638142980628142,
+         -1.002707333360594, -1.002707333360594, -0.45179818978047326])
+    @test isapprox(residuals(gm18; type=:working)[1:6],
+        [-0.9240094488993137, -0.5820519689462255, -0.468066142295196,
+         -0.7443862774364529, -0.7443862774364529, -0.33540432133477754])
 end
 
 @testset "NegativeBinomial NegativeBinomialLink Fixed θ" begin
@@ -866,6 +1049,18 @@ end
     @test isapprox(coef(gm20)[1:7],
         [2.894527697811509, -0.5693411448715979, 0.08238813087070128, -0.4484636623590206,
          0.08805060372902418, 0.3569553124412582, 0.2921383118842893])
+    @test isapprox(residuals(gm20; type=:response)[1:6],
+        [-24.28646428075078, -15.286464280750781, -12.286464280750781,
+         -14.627189585532879, -14.627189585532879, -6.627189585532879])
+    @test isapprox(residuals(gm20; type=:deviance)[1:6],
+        [-1.9100430917674927, -0.8317534564407564, -0.6250608754083535,
+         -1.194270726550094, -1.194270726550094, -0.41980214838554414])
+    @test isapprox(residuals(gm20; type=:pearson)[1:6],
+        [-1.0187902504182078, -0.6412502286279128, -0.5154035546978145,
+         -0.8154060447128477, -0.8154060447128477, -0.3694387370794904])
+    @test isapprox(residuals(gm20; type=:working)[1:6],
+        [-0.9239152143613102, -0.581533678987206, -0.46740650052917126,
+         -0.7452513525581126, -0.7452513525581126, -0.33765351665109267])
 end
 
 @testset "NegativeBinomial NegativeBinomialLink, θ to be estimated with $dmethod" for dmethod in (:cholesky, :qr)
@@ -902,6 +1097,18 @@ end
     @test stderror(gm22) ≈ [0.22754287093719366, 0.15274755092180423, 0.15928431669166637,
                             0.23853372776980591, 0.2354231414867577, 0.24750780320597515,
                             0.18553339017028742]
+    @test isapprox(residuals(gm22; type=:response)[1:6],
+        [-24.269729027346774, -15.269729027346774, -12.269729027346774,
+         -14.653520476275947, -14.653520476275947, -6.653520476275947])
+    @test isapprox(residuals(gm22; type=:deviance)[1:6],
+        [-1.7151995208115725, -0.7412221651325068, -0.5565365361615229,
+         -1.0702009791675913, -1.0702009791675913, -0.3757813366116728])
+    @test isapprox(residuals(gm22; type=:pearson)[1:6],
+        [-0.9067691155165339, -0.5705098177529208, -0.45842338516504966,
+         -0.7273186986041907, -0.7273186986041907, -0.33024349757971616])
+    @test isapprox(residuals(gm22; type=:working)[1:6],
+        [-0.9238667441937448, -0.5812670930655963, -0.4670672093562135,
+         -0.7455926531821323, -0.7455926531821323, -0.3385408982735439])
 end
 
 @testset "Geometric is a special case of NegativeBinomial with θ = 1 and $dmethod" for dmethod in (:cholesky, :qr)
@@ -920,81 +1127,9 @@ end
     @test bic(gm23) ≈ bic(gm24)
     @test predict(gm23) ≈ predict(gm24)
 
-    @test isapprox(residuals(gm23; type=:deviance)[1:10],
-                   [-1.691255, -0.706297, -0.519149, -0.961134, -0.961134, 
-                    -0.234178, 0.17945, 0.279821, -0.803948, -0.803948];
-                   atol=1e-6)
-    @test isapprox(residuals(gm23; type=:pearson)[1:10],
-                   [-0.902477, -0.550709, -0.433453, -0.680948, -0.680948, 
-                    -0.216258, 0.190345, 0.306518, -0.604398, -0.604398];
-                   atol=1e-5)
-    @test isapprox(residuals(gm23; type=:response)[1:10],
-                   [-23.089885, -14.089885, -11.089885, -11.723055, -11.723055, 
-                    -3.723055, 3.276945, 5.276945, -9.919, -9.919];
-                   atol=1e-5)
-    @test isapprox(residuals(gm23; type=:working)[1:10],
-                   [0.03668, 0.022383, 0.017617, 0.041919, 0.041919, 
-                    0.013313, -0.011718, -0.018869, 0.039141, 0.039141];
-                   atol=1e-6)
-
     for rtype in GLM._RESIDUAL_TYPES
         @test isapprox(residuals.([gm23, gm24]; type=rtype)...; atol=1e-6)
     end
-end
-
-@testset "GLM with no intercept with Cholesky" begin
-    # Gamma with single numeric predictor
-    nointglm1 = fit(GeneralizedLinearModel, @formula(lot1 ~ 0 + u), clotting, Gamma())
-    @test !hasintercept(nointglm1)
-    @test !GLM.cancancel(nointglm1.rr)
-    @test isa(GLM.Link(nointglm1), InverseLink)
-    test_show(nointglm1)
-    @test dof(nointglm1) == 2
-    @test deviance(nointglm1) ≈ 0.6629903395245351
-    @test isnan(nulldeviance(nointglm1))
-    @test loglikelihood(nointglm1) ≈ -32.60688972888763
-    @test_throws DomainError nullloglikelihood(nointglm1)
-    @test aic(nointglm1) ≈ 69.21377945777526
-    @test aicc(nointglm1) ≈ 71.21377945777526
-    @test bic(nointglm1) ≈ 69.6082286124477
-    @test coef(nointglm1) ≈ [0.009200201253724151]
-    @test GLM.dispersion(nointglm1, true) ≈ 0.10198331431820506
-    @test stderror(nointglm1) ≈ [0.000979309363228589]
-
-    # Bernoulli with numeric predictors
-    nointglm2 = fit(GeneralizedLinearModel, @formula(admit ~ 0 + gre + gpa), admit, Bernoulli())
-    @test !hasintercept(nointglm2)
-    @test GLM.cancancel(nointglm2.rr)
-    test_show(nointglm2)
-    @test dof(nointglm2) == 2
-    @test deviance(nointglm2) ≈ 503.5584368354113
-    @test nulldeviance(nointglm2) ≈ 554.5177444479574
-    @test loglikelihood(nointglm2) ≈ -251.77921841770578
-    @test nullloglikelihood(nointglm2) ≈ -277.2588722239787
-    @test aic(nointglm2) ≈ 507.55843683541156
-    @test aicc(nointglm2) ≈ 507.58866353566344
-    @test bic(nointglm2) ≈ 515.5413659296275
-    @test coef(nointglm2) ≈ [0.0015622695743609228, -0.4822556276412118]
-    @test stderror(nointglm2) ≈ [0.000987218133602179, 0.17522675354523715]
-
-    # Poisson with categorical predictors, weights and offset
-    nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat), anorexia,
-                    Poisson(), LogLink(); offset=log.(anorexia.Prewt),
-                    wts=repeat(1:4, outer=18), rtol=1e-8, dropcollinear=false)
-    @test !hasintercept(nointglm3)
-    @test GLM.cancancel(nointglm3.rr)
-    test_show(nointglm3)
-    @test deviance(nointglm3) ≈ 90.17048668870225
-    @test nulldeviance(nointglm3) ≈ 159.32999067102548
-    @test loglikelihood(nointglm3) ≈ -610.3058020030296
-    @test nullloglikelihood(nointglm3) ≈ -644.885553994191
-    @test aic(nointglm3) ≈ 1228.6116040060592
-    @test aicc(nointglm3) ≈ 1228.8401754346307
-    @test bic(nointglm3) ≈ 1241.38343140962
-    @test coef(nointglm3) ≈
-        [-0.007008396492196935, 0.6038154674863438, 0.5654250124481003, 0.6931599989992452]
-    @test stderror(nointglm3) ≈
-        [0.0015910084415445974, 0.13185097176418983, 0.13016395889443858, 0.1336778089431681]
 end
 
 @testset "GLM with no intercept with $dmethod" for dmethod in (:cholesky, :qr)
@@ -2118,4 +2253,47 @@ end
 @testset "GLM with wrong option value in method argument" begin
     @test_throws ArgumentError lm(@formula(OptDen ~ Carb), form; method=:pr)
     @test_throws ArgumentError glm(@formula(OptDen ~ Carb), form, Normal(); method=:pr)
+end
+
+@testset "[G]VIF" begin
+    # Reference values from car::vif in R:
+    # > library(car)
+    # > data(Duncan)
+    # > lm1 = lm(prestige ~ 1 + income + education, Duncan)
+    # > vif(lm1)
+    #    income education 
+    #    2.1049    2.1049 
+    # > lm2 = lm(prestige ~ 1 + income + education + type, Duncan)
+    # > vif(lm2)
+    #               GVIF Df GVIF^(1/(2*Df))
+    # income    2.209178  1        1.486330
+    # education 5.297584  1        2.301648
+    # type      5.098592  2        1.502666
+    duncan = RDatasets.dataset("car", "Duncan")
+    lm1 = lm(@formula(Prestige ~ 1 + Income + Education), duncan)
+    @test termnames(lm1)[2] == coefnames(lm1)
+    @test vif(lm1) ≈ gvif(lm1)
+    
+    lm1_noform = lm(modelmatrix(lm1), response(lm1))
+    @test vif(lm1) ≈ vif(lm1_noform)
+    @test_throws ArgumentError("model was fitted without a formula") gvif(lm1_noform)
+    
+    lm1log = lm(@formula(Prestige ~ 1 + exp(log(Income)) + exp(log(Education))), duncan)
+    @test termnames(lm1log)[2] == coefnames(lm1log) == ["(Intercept)", "exp(log(Income))", "exp(log(Education))"]
+    @test vif(lm1) ≈ vif(lm1log)
+    
+    gm1 = glm(modelmatrix(lm1), response(lm1), Normal())
+    @test vif(lm1) ≈ vif(gm1)
+    
+    lm2 = lm(@formula(Prestige ~ 1 + Income + Education + Type), duncan)
+    @test termnames(lm2)[2] != coefnames(lm2)
+    @test gvif(lm2; scale=true) ≈ [1.486330, 2.301648, 1.502666] atol=1e-4
+    
+    gm2 = glm(@formula(Prestige ~ 1 + Income + Education + Type), duncan, Normal())
+    @test termnames(gm2)[2] != coefnames(gm2)
+    @test gvif(gm2; scale=true) ≈ [1.486330, 2.301648, 1.502666] atol=1e-4   
+    
+    # the VIF definition depends on modelmatrix, vcov and stderror returning valid
+    # values. It doesn't care about links, offsets, etc. as long as the model matrix,
+    # vcov matrix and stderrors are well defined.
 end
