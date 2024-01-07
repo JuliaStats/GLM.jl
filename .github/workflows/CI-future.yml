@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        version: ['nightly']
+        version: ['beta']
         os: ['ubuntu-latest', 'macos-latest', 'windows-latest']
         arch: ['x64']
     steps:
