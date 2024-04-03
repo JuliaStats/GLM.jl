@@ -47,3 +47,4 @@ jobs:
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' && matrix.arch == 'x64' }}
         with:
           file: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
