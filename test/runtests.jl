@@ -767,6 +767,24 @@ end
     end
 end
 
+@testset "Weighted NegativeBinomial LogLink, θ to be estimated with Cholesky" begin
+    halfn = round(Int, 0.5*size(quine, 1))
+    wts   = vcat(fill(0.8, halfn), fill(1.2, size(quine, 1) - halfn))
+    gm20a = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink(); wts=wts)
+    test_show(gm20a)
+    @test dof(gm20a) == 8
+    @test isapprox(deviance(gm20a), 164.45910399188858, rtol = 1e-7)
+    @test isapprox(nulldeviance(gm20a), 191.14269166948384, rtol = 1e-7)
+    @test isapprox(loglikelihood(gm20a), -546.596822900127, rtol = 1e-7)
+    @test isapprox(nullloglikelihood(gm20a), -559.9386167389254, rtol = 1e-7)
+    @test isapprox(aic(gm20a), 1109.193645800254)
+    @test isapprox(aicc(gm20a), 1110.244740690765)
+    @test isapprox(bic(gm20a), 1133.0624987739207)
+    @test isapprox(coef(gm20a)[1:7],
+        [2.894916710026395, -0.5694300339439156, 0.08215779733345588, -0.44861865904551734,
+         0.08783288494046998, 0.3568327292046044, 0.29190920267019166])
+end
+
 @testset "NegativeBinomial LogLink, θ to be estimated with QR" begin
     gm20 = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink(); method=:qr)
     test_show(gm20)
