@@ -622,7 +622,7 @@ function fit(::Type{M},
     off = offset === nothing ? similar(y, 0) : offset
     wts = wts === nothing ? similar(y, 0) : wts
     rr = GlmResp(y, d, l, off, wts)
-    
+
     if method === :cholesky
         res = M(rr, cholpred(X, dropcollinear), f, false)
     elseif method === :qr

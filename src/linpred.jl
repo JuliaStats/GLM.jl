@@ -38,7 +38,7 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY, QRPivoted}} <: Dens
     scratchbeta::Vector{T}
     qr::Q
     scratchm1::Matrix{T}
-    
+
     function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
         n, p = size(X)
         T = typeof(float(zero(eltype(X))))
@@ -74,7 +74,7 @@ function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) 
     rnk == length(p.delbeta) || throw(RankDeficientException(rnk))
     X = p.X
     W = Diagonal(wt)
-    sqrtW = Diagonal(sqrt.(wt)) 
+    sqrtW = Diagonal(sqrt.(wt))
     mul!(p.scratchm1, sqrtW, X)
     mul!(p.delbeta, X'W, r)
     qnr = qr(p.scratchm1)
@@ -88,7 +88,7 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
     if rnk == length(p.delbeta)
         p.delbeta = p.qr\r
     else
-        R = @view p.qr.R[:, 1:rnk] 
+        R = @view p.qr.R[:, 1:rnk]
         Q = @view p.qr.Q[:, 1:size(R, 1)]
         piv = p.qr.p
         p.delbeta = zeros(size(p.delbeta))
