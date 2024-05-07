@@ -63,23 +63,19 @@ function delbeta! end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
-    rnk == length(p.delbeta) || throw(RankDeficientException(rnk))
-    p.delbeta = p.qr\r
-    mul!(p.scratchm1, Diagonal(ones(size(r))), p.X)
+    p.delbeta = p.qr \ r
     return p
 end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
-    rnk == length(p.delbeta) || throw(RankDeficientException(rnk))
     X = p.X
     W = Diagonal(wt)
     sqrtW = Diagonal(sqrt.(wt))
     mul!(p.scratchm1, sqrtW, X)
-    mul!(p.delbeta, X'W, r)
-    qnr = qr(p.scratchm1)
-    Rinv = inv(qnr.R)
-    p.delbeta = Rinv * Rinv' * p.delbeta
+    ỹ = sqrtW * r
+    p.qr = qr!(p.scratchm1)
+    p.delbeta = p.qr \ ỹ
     return p
 end
 
@@ -88,44 +84,32 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
     if rnk == length(p.delbeta)
         p.delbeta = p.qr\r
     else
-        R = @view p.qr.R[:, 1:rnk]
-        Q = @view p.qr.Q[:, 1:size(R, 1)]
+        R = UpperTriangular(view(parent(p.qr.R), 1:rnk, 1:rnk))
         piv = p.qr.p
-        p.delbeta = zeros(size(p.delbeta))
-        p.delbeta[1:rnk] = R \ Q'r
+        fill!(p.delbeta, 0)
+        p.delbeta[1:rnk] = R \ view(p.qr.Q'r, 1:rnk)
         invpermute!(p.delbeta, piv)
     end
-    mul!(p.scratchm1, Diagonal(ones(size(r))), p.X)
     return p
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
-    rnk = rank(p.qr.R)
     X = p.X
     W = Diagonal(wt)
     sqrtW = Diagonal(sqrt.(wt))
-    delbeta = p.delbeta
-    scratchm2 = similar(X, T)
     mul!(p.scratchm1, sqrtW, X)
-    mul!(scratchm2, W, X)
-    mul!(delbeta, transpose(scratchm2), r)
+    r̃ = sqrtW * r
 
-    if rnk == length(p.delbeta)
-        qnr = qr(p.scratchm1)
-        Rinv = inv(qnr.R)
-        p.delbeta = Rinv * Rinv' * delbeta
-    else
-        qnr = pivoted_qr!(copy(p.scratchm1))
-        R = @view qnr.R[1:rnk, 1:rnk]
-        Rinv = inv(R)
-        piv = qnr.p
-        permute!(delbeta, piv)
-        for k=(rnk+1):length(delbeta)
-            delbeta[k] = -zero(T)
-        end
-        p.delbeta[1:rnk] = Rinv * Rinv' * view(delbeta, 1:rnk)
-        invpermute!(delbeta, piv)
+    p.qr = pivoted_qr!(copy(p.scratchm1))
+    rnk = rank(p.qr.R) # FIXME! Don't use svd for this
+    R = UpperTriangular(view(parent(p.qr.R), 1:rnk, 1:rnk))
+    permute!(p.delbeta, p.qr.p)
+    for k = (rnk + 1):length(p.delbeta)
+        p.delbeta[k] = -zero(T)
     end
+    p.delbeta[1:rnk] = R \ (p.qr.Q'*r̃)[1:rnk]
+    invpermute!(p.delbeta, p.qr.p)
+
     return p
 end
 
@@ -279,27 +263,25 @@ end
 LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)
 LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 
-function invqr(x::DensePredQR{T,<: QRCompactWY}) where T
-    Q,R = qr(x.scratchm1)
-    Rinv = inv(R)
+function invqr(p::DensePredQR{T,<: QRCompactWY}) where T
+    Rinv = inv(p.qr.R)
     Rinv*Rinv'
 end
 
-function invqr(x::DensePredQR{T,<: QRPivoted}) where T
-    Q,R,pv = pivoted_qr!(copy(x.scratchm1))
-    rnk = rank(R)
-    p = length(x.delbeta)
-    if rnk == p
-        Rinv = inv(R)
+function invqr(p::DensePredQR{T,<: QRPivoted}) where T
+    rnk = rank(p.qr.R)
+    k = length(p.delbeta)
+    if rnk == k
+        Rinv = inv(p.qr.R)
         xinv = Rinv*Rinv'
-        ipiv = invperm(pv)
+        ipiv = invperm(p.qr.p)
         return xinv[ipiv, ipiv]
     else
-        Rsub = R[1:rnk, 1:rnk]
+        Rsub = UpperTriangular(view(p.qr.R, 1:rnk, 1:rnk))
         RsubInv = inv(Rsub)
-        xinv = fill(convert(T, NaN), (p,p))
+        xinv = fill(convert(T, NaN), (k, k))
         xinv[1:rnk, 1:rnk] = RsubInv*RsubInv'
-        ipiv = invperm(pv)
+        ipiv = invperm(p.qr.p)
         return xinv[ipiv, ipiv]
     end
 end
