@@ -177,8 +177,8 @@ end
         @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
         @test isa(m2p_dep_pos_kw.pp.chol, CholeskyPivoted)
     elseif dmethod == :qr
-        @test_throws RankDeficientException m2 = fit(LinearModel, Xmissingcell, ymissingcell;
-                                                        method = dmethod, dropcollinear=false)
+        @test fit(LinearModel, Xmissingcell, ymissingcell;
+            method = dmethod, dropcollinear=false) isa LinearModel
         @test isapprox(coef(m2p), [0.9772643585228962, 11.889730016918342, 3.027347397503282,
                                    3.9661379199401177, 5.079410103608539, 6.194461814118862,
                                   -2.9863884084219015, 7.930328728005132, 8.87999491860477,
@@ -2014,4 +2014,21 @@ end
     # the VIF definition depends on modelmatrix, vcov and stderror returning valid
     # values. It doesn't care about links, offsets, etc. as long as the model matrix,
     # vcov matrix and stderrors are well defined.
+end
+
+@testset "NIST - Filip. Issue 558" begin
+    fn = Downloads.download("https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/Filip.dat")
+    filip_estimates_df = CSV.read(fn, DataFrame; skipto = 31, limit = 11, header = ["parameter", "estimate", "se"], delim = " ", ignorerepeated = true)
+    filip_data_df = CSV.read(fn, DataFrame; skipto = 61, header = ["y", "x"], delim = " ", ignorerepeated = true)
+    X = [filip_data_df.x[i]^j for i in 1:length(filip_data_df.x), j in 0:10]
+
+    # No weights
+    f1 = lm(X, filip_data_df.y, dropcollinear = false, method = :qr)
+    @test coef(f1) ≈ filip_estimates_df.estimate rtol = 1e-7
+    @test stderror(f1) ≈ filip_estimates_df.se rtol = 1e-7
+
+    # Weights
+    f2 = lm(X, filip_data_df.y, dropcollinear = false, method = :qr, wts = ones(length(filip_data_df.y)))
+    @test coef(f2) ≈ filip_estimates_df.estimate rtol = 1e-7
+    @test stderror(f2) ≈ filip_estimates_df.se rtol = 1e-7
 end
