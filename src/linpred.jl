@@ -387,10 +387,11 @@ coef(obj::LinPredModel) = coef(obj.pp)
 coefnames(x::LinPredModel) =
     x.formula === nothing ? ["x$i" for i in 1:length(coef(x))] : coefnames(formula(x).rhs)
 
-dof_residual(obj::LinPredModel) = nobs(obj) - dof(obj) + 1
+dof_residual(obj::LinPredModel) = nobs(obj) - linpred_rank(obj)
 
 hasintercept(m::LinPredModel) = any(i -> all(==(1), view(m.pp.X , :, i)), 1:size(m.pp.X, 2))
 
+linpred_rank(x::LinPredModel) = linpred_rank(x.pp)
 linpred_rank(x::LinPred) = length(x.beta0)
 linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = rank(x.chol)
 linpred_rank(x::DensePredChol{<:Any, <:Cholesky}) = rank(x.chol.U)
