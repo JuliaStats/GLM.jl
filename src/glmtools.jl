@@ -501,7 +501,7 @@ dispersion_parameter(::Union{Bernoulli, Binomial, Poisson}) = false
 
 """
     _safe_int(x::T)
-    
+
 Convert to Int, when `x` is within 1 eps of an integer.
 """
 function _safe_int(x::T) where {T<:AbstractFloat}
@@ -527,7 +527,7 @@ function loglik_obs end
 loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
 loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), _safe_int(y*wt))
 loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
-# In Distributions.jl, a Geometric distribution characterizes the number of failures before 
+# In Distributions.jl, a Geometric distribution characterizes the number of failures before
 # the first success in a sequence of independent Bernoulli trials with success rate p.
 # The mean of Geometric distribution is (1 - p) / p.
 # Hence, p = 1 / (1 + μ).
