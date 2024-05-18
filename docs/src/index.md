@@ -79,9 +79,12 @@ Using a `CategoricalVector` constructed with `categorical` or `categorical!`:
 ```jldoctest categorical
 julia> using CategoricalArrays, DataFrames, GLM, StableRNGs
 
+
 julia> rng = StableRNG(1); # Ensure example can be reproduced
 
+
 julia> data = DataFrame(y = rand(rng, 100), x = categorical(repeat([1, 2, 3, 4], 25)));
+
 
 
 julia> lm(@formula(y ~ x), data)
@@ -105,7 +108,9 @@ Using [`contrasts`](https://juliastats.github.io/StatsModels.jl/stable/contrasts
 ```jldoctest categorical
 julia> using StableRNGs
 
+
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = repeat([1, 2, 3, 4], 25));
+
 
 julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
 LinearModel
@@ -130,11 +135,15 @@ which computes an F-test between each pair of subsequent models and reports fit 
 ```jldoctest
 julia> using DataFrames, GLM, StableRNGs
 
+
 julia> data = DataFrame(y = (1:50).^2 .+ randn(StableRNG(1), 50), x = 1:50);
+
 
 julia> ols_lin = lm(@formula(y ~ x), data);
 
+
 julia> ols_sq = lm(@formula(y ~ x + x^2), data);
+
 
 julia> ftest(ols_lin.model, ols_sq.model)
 F-test: 2 models fitted on 50 observations
