@@ -70,6 +70,7 @@ In both cases, `link` may specify the link function
 function negbin(F,
                 D,
                 args...;
+                wts::Union{Nothing, AbstractVector}=nothing,
                 initialθ::Real=Inf,
                 dropcollinear::Bool=true,
                 method::Symbol=:cholesky,
@@ -107,11 +108,11 @@ function negbin(F,
     # fit a Poisson regression model if the user does not specify an initial θ
     if isinf(initialθ)
         regmodel = glm(F, D, Poisson(), args...;
-                       dropcollinear=dropcollinear, method=method, maxiter=maxiter,
+                       wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
                        atol=atol, rtol=rtol, verbose=verbose, kwargs...)
     else
         regmodel = glm(F, D, NegativeBinomial(initialθ), args...;
-                       dropcollinear=dropcollinear, method=method, maxiter=maxiter,
+                       wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
                        atol=atol, rtol=rtol, verbose=verbose, kwargs...)
     end
 
