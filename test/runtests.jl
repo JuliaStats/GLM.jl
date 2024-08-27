@@ -1937,7 +1937,7 @@ end
         @test deviance(mdl) ≈ 135.68506068159
         @test loglikelihood(mdl) ≈ -67.8425303407948
         @test dof(mdl) == 3
-        @test dof_residual(mdl) == 98
+        @test dof_residual(mdl) == 97
         @test aic(mdl) ≈ 141.68506068159
         @test GLM.dispersion(mdl, true) ≈ 1
         @test predict(mdl)[1:3] ≈ [0.4241893070433117, 0.3754516361306202, 0.6327877688720133] atol = 1.0E-6
