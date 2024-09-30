@@ -136,7 +136,7 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
         dropcollinear = allowrankdeficient_dep
     end
-    
+
     if method === :cholesky
         fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), nothing))
     elseif method === :qr
@@ -299,7 +299,7 @@ function StatsModels.predict!(res::Union{AbstractVector,
         length(res) == size(newx, 1) ||
             throw(DimensionMismatch("length of `res` must equal the number of rows in `newx`"))
         res .= newx * coef(mm)
-    elseif mm.pp isa DensePredChol && 
+    elseif mm.pp isa DensePredChol &&
         mm.pp.chol isa CholeskyPivoted &&
         mm.pp.chol.rank < size(mm.pp.chol, 2)
             throw(ArgumentError("prediction intervals are currently not implemented " *
