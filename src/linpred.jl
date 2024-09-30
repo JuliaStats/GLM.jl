@@ -62,7 +62,6 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 function delbeta! end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where T<:BlasReal
-    rnk = rank(p.qr.R)
     p.delbeta = p.qr \ r
     return p
 end
