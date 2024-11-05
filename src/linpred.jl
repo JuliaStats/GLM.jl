@@ -62,18 +62,16 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 function delbeta! end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where T<:BlasReal
-    rnk = rank(p.qr.R)
     p.delbeta = p.qr \ r
     return p
 end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
-    rnk = rank(p.qr.R)
     X = p.X
-    W = Diagonal(wt)
-    sqrtW = Diagonal(sqrt.(wt))
+    wtsqrt = sqrt.(wt)
+    sqrtW = Diagonal(wtsqrt)
     mul!(p.scratchm1, sqrtW, X)
-    ỹ = sqrtW * r
+    ỹ = (wtsqrt .*= r) # to reuse wtsqrt's memory
     p.qr = qr!(p.scratchm1)
     p.delbeta = p.qr \ ỹ
     return p
@@ -82,7 +80,7 @@ end
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
     rnk = rank(p.qr.R)
     if rnk == length(p.delbeta)
-        p.delbeta = p.qr\r
+        p.delbeta = p.qr \ r
     else
         R = UpperTriangular(view(parent(p.qr.R), 1:rnk, 1:rnk))
         piv = p.qr.p
@@ -96,18 +94,19 @@ end
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     X = p.X
     W = Diagonal(wt)
-    sqrtW = Diagonal(sqrt.(wt))
+    wtsqrt = sqrt.(wt)
+    sqrtW = Diagonal(wtsqrt)
     mul!(p.scratchm1, sqrtW, X)
-    r̃ = sqrtW * r
+    r̃ = (wtsqrt .*= r) # to reuse wtsqrt's memory
 
-    p.qr = pivoted_qr!(copy(p.scratchm1))
+    p.qr = pivoted_qr!(p.scratchm1)
     rnk = rank(p.qr.R) # FIXME! Don't use svd for this
     R = UpperTriangular(view(parent(p.qr.R), 1:rnk, 1:rnk))
     permute!(p.delbeta, p.qr.p)
     for k = (rnk + 1):length(p.delbeta)
-        p.delbeta[k] = -zero(T)
+        p.delbeta[k] = zero(T)
     end
-    p.delbeta[1:rnk] = R \ (p.qr.Q'*r̃)[1:rnk]
+    p.delbeta[1:rnk] = R \ view(p.qr.Q'*r̃, 1:rnk)
     invpermute!(p.delbeta, p.qr.p)
 
     return p
