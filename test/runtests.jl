@@ -2017,7 +2017,8 @@ end
 end
 
 @testset "NIST - Filip. Issue 558" begin
-    fn = Downloads.download("https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/Filip.dat")
+    # Since "https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/Filip.dat" seems to block download, we'll use a "mirror"
+    fn = Downloads.download("https://gist.githubusercontent.com/andreasnoack/9dadfb922fc45ca52bc7b2659b7c5b67/raw/f1dcdd2179b606ecbb7e23316da1ede971e7ffe8/Filip.dat")
     filip_estimates_df = CSV.read(fn, DataFrame; skipto = 31, limit = 11, header = ["parameter", "estimate", "se"], delim = " ", ignorerepeated = true)
     filip_data_df = CSV.read(fn, DataFrame; skipto = 61, header = ["y", "x"], delim = " ", ignorerepeated = true)
     X = [filip_data_df.x[i]^j for i in 1:length(filip_data_df.x), j in 0:10]
