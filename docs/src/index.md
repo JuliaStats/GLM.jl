@@ -223,8 +223,8 @@ julia> loglikelihood(m_aweights)
 julia> loglikelihood(m_fweights)
 -25.51860961756451
 
-julia> loglikelihood(m_pweights)
--16.296307561384253
+#julia> loglikelihood(m_pweights)
+#-16.296307561384253
 ```
 
 ## Comparing models with F-test

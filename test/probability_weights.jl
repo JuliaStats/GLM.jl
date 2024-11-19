@@ -60,7 +60,7 @@ end
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
     @test coef(model) ≈ [-0.379823362118, 0.17460125170132, 1.4927538978259] rtol = 1e-07
     ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
-    @test_broken dof_residual(model) == 47.0
+    @test dof_residual(model) == 47.0
     @test stderror(model) ≈ [0.6250657160317, 0.851366312489, 0.4423686640689] rtol = 1e-05
 end
 
@@ -77,7 +77,7 @@ end
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
     @test coef(model) ≈ [-0.007674579802284, -0.5378132620063, 2.994759904353] rtol = 1e-06
     ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
-    @test_broken dof_residual(model) == 47.0
+    @test dof_residual(model) == 47.0
     @test stderror(model) ≈ [1.020489214335, 1.5748610330014, 1.5057621596148] rtol = 1e-03
 end
 
@@ -94,7 +94,7 @@ end
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
     @test coef(model) ≈ [-0.9897210433718, 0.449902058467, 1.5467108410611] rtol = 1e-07
     ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
-    @test_broken dof_residual(model) == 47.0
+    @test dof_residual(model) == 47.0
     @test stderror(model) ≈ [0.647026270959, 0.74668663622095, 0.49056337945919] rtol = 1e-04
 end
 
@@ -180,7 +180,7 @@ end
     ] rtol = 1e-04
     ## Test shouldbe broken because of https://github.com/JuliaStats/GLM.jl/issues/509
     ## but since negbinomial is correct, by mistake
-    @test dof_residual(model) == 139.0    
+    @test dof_residual(model) == 139.0
     @test stderror(model) ≈ [
         0.20080246284436692,
         0.14068933863735536,
@@ -245,7 +245,7 @@ end
         0.010415729161988225,
     ] rtol = 1e-07
     ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
-    @test_broken dof_residual(model) == 4.0
+    @test dof_residual(model) == 4.0
     @test stderror(model) ≈ [
         0.15474638805584298,
         0.13467582259453692,

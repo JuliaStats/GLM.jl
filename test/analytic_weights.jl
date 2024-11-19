@@ -186,13 +186,13 @@ end
 
 @testset "GLM: Gamma with IdentityLink link - AnalyticWeights" begin
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(), 
-                wts=aweights(clotting.w), rtol=1e-16, atol=1e-16, minstepfac=0.00001)
+                wts=aweights(clotting.w), rtol=1e-10, atol=1e-10, minstepfac=0.00001)
     @test deviance(model) ≈ 1.3435348802929383 rtol = 1e-07
     @test loglikelihood(model) ≈ -101.19916126647321 rtol = 1e-07
     @test coef(model) ≈ [86.45700434128152, -15.320695650698417] rtol = 1e-05
     @test stderror(model) ≈ [16.07962739541372, 3.766841480457265] rtol = 1e-05
-    @test aic(model) ≈ 208.39832253294642 rtol = 1e-07
-    @test bic(model) ≈ 208.9899962649551 rtol = 1e-07
+    @test GLM.aic(model) ≈ 208.39832253294642 rtol = 1e-07
+    @test GLM.bic(model) ≈ 208.9899962649551 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈ [ 0.26061914480947884   0.4194503323625281;
                                       0.06148544891860896   0.14157547811603585;
                                      -0.019061929106842457 -0.051620660951180786;
@@ -211,8 +211,8 @@ end
     @test loglikelihood(model) ≈ -81.79777246247532 rtol = 1e-07
     @test coef(model) ≈ [5.325107090308856, -0.5495682740033511] rtol = 1e-07
     @test stderror(model) ≈ [0.20287310816341905, 0.053062600599660774] rtol = 1e-07
-    @test aic(model) ≈ 169.59554492495064 rtol = 1e-07
-    @test bic(model) ≈ 170.18721865695932 rtol = 1e-07
+    @test GLM.aic(model) ≈ 169.59554492495064 rtol = 1e-07
+    @test GLM.bic(model) ≈ 170.18721865695932 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈ [ 14.39716447431257 23.171342336508012;
                                        0.0374983950207553  0.0863432453859933;
                                       -2.5490869750808054 -6.903055495494598;
@@ -231,8 +231,8 @@ end
     @test loglikelihood(model) ≈ -43.359078787690514 rtol = 1e-07
     @test coef(model) ≈ [-0.017217012596343607, 0.015649040406186487] rtol = 1e-07
     @test stderror(model) ≈ [0.0009144223353860925, 0.0003450913537314497] rtol = 1e-07
-    @test aic(model) ≈ 92.71815757538103 rtol = 1e-07
-    @test bic(model) ≈ 93.30983130738969 rtol = 1e-07
+    @test GLM.aic(model) ≈ 92.71815757538103 rtol = 1e-07
+    @test GLM.bic(model) ≈ 93.30983130738969 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈ [ 1900.1063511093867   3058.103199132267;
                                      -1643.317155973023   -3783.877586404854;
                                       -420.13783432322964 -1137.7543467296691;
@@ -251,8 +251,8 @@ end
     @test loglikelihood(model) ≈ -86.82546665077861 rtol = 1e-07
     @test coef(model) ≈ [-0.0012633718975150973, 0.0008126490405747128] rtol = 1e-07
     @test stderror(model) ≈ [0.00016779409928094252, 9.025235597677238e-5] rtol = 1e-07
-    @test aic(model) ≈ 179.65093330155722 rtol = 1e-07
-    @test bic(model) ≈ 180.2426070335659 rtol = 1e-07
+    @test GLM.aic(model) ≈ 179.65093330155722 rtol = 1e-07
+    @test GLM.bic(model) ≈ 180.2426070335659 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈ [ 28815.030725087538  46376.00289690935;
                                      -21039.070620903    -48444.250382140235;
                                      -6195.618377983015  -16778.045594449453;
@@ -440,8 +440,8 @@ end
     @test stderror(model) ≈ [0.1950707397084349, 0.13200639191036218, 0.1373161597645507, 
                              0.2088476016141468, 0.20252412726336674, 0.21060778935484836, 
                              0.16126722793064027] rtol = 1e-07
-    @test_broken aic(model) ≈ 4023.1878928645556 rtol = 1e-07
-    @test_broken bic(model) ≈ 4044.073139216514 rtol = 1e-07
+    @test_broken GLM.aic(model) ≈ 4023.1878928645556 rtol = 1e-07
+    @test_broken GLM.bic(model) ≈ 4044.073139216514 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈ [
         -3.866780529709063 -0.0 -3.866780529709063 -0.0 -0.0 -0.0 -3.866780529709063
         -4.370085797122667 -0.0 -4.370085797122667 -0.0 -0.0 -0.0 -4.370085797122667
@@ -603,8 +603,8 @@ end
     @test stderror(model) ≈ [0.42307979153860564, 0.286636744566765, 0.29612422536777805, 
                              0.42042723748229144, 0.45565954626859695, 0.4766324296069839, 
                              0.3235019638755972] rtol = 1e-06
-    @test_broken aic(model) ≈ 4025.0711662068925 rtol = 1e-07
-    @test_broken bic(model) ≈ 4045.956412558851 rtol = 1e-07
+    @test_broken GLM.aic(model) ≈ 4025.0711662068925 rtol = 1e-07
+    @test_broken GLM.bic(model) ≈ 4045.956412558851 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈ [
         -1.4294351675636041 -0.0 -1.4294351675636041 -0.0 -0.0 -0.0 -1.4294351675636041
         -1.5410055711037194 -0.0 -1.5410055711037194 -0.0 -0.0 -0.0 -1.5410055711037194
