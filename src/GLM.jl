@@ -10,6 +10,7 @@ module GLM
     import Base: (\), convert, show, size
     import LinearAlgebra: cholesky, cholesky!
     import Statistics: cor
+    using StatsAPI
     import StatsBase: coef, coeftable, coefnames, confint, deviance, nulldeviance, dof, dof_residual,
                       loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict, predict!,
                       fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², 
@@ -21,8 +22,8 @@ module GLM
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
            loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict, predict!,
            fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
-           cooksdistance, hasintercept, dispersion, weights, AnalyticWeights, ProbabilityWeights, FrequencyWeights, 
-           UnitWeights, uweights, fweights, pweights, aweights, leverage
+           cooksdistance, hasintercept, dispersion, vif, gvif, termnames, weights, AnalyticWeights,
+           ProbabilityWeights, FrequencyWeights, UnitWeights, uweights, fweights, pweights, aweights, leverage
 
     export
         # types

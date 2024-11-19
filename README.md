@@ -10,8 +10,8 @@
 [docs-stable-img]: https://img.shields.io/badge/docs-stable-blue.svg
 [docs-stable-url]: https://JuliaStats.github.io/GLM.jl/stable
 
-[ci-img]: https://github.com/JuliaStats/GLM.jl/workflows/CI-stable/badge.svg
-[ci-url]: https://github.com/JuliaStats/GLM.jl/actions?query=workflow%3ACI-stable+branch%3Amaster
+[ci-img]: https://github.com/JuliaStats/GLM.jl/actions/workflows/CI-stable.yml/badge.svg
+[ci-url]: https://github.com/JuliaStats/GLM.jl/actions/workflows/CI-stable.yml
 
 [codecov-img]: https://codecov.io/gh/JuliaStats/GLM.jl/branch/master/graph/badge.svg?token=cVkd4c3M8H
 [codecov-url]: https://codecov.io/gh/JuliaStats/GLM.jl

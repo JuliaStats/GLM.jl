@@ -24,12 +24,12 @@ jobs:
         arch: ['x64']
     steps:
       - run: git config --global core.autocrlf false
-      - uses: actions/checkout@v3
-      - uses: julia-actions/setup-julia@v1
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
         with:
           version: ${{ matrix.version }}
           arch: ${{ matrix.arch }}
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         env:
           cache-name: cache-artifacts
         with:
@@ -43,7 +43,8 @@ jobs:
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' && matrix.arch == 'x64' }}
-      - uses: codecov/codecov-action@v3
+      - uses: codecov/codecov-action@v4
         if: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' && matrix.arch == 'x64' }}
         with:
           file: lcov.info
+          token: ${{ secrets.CODECOV_TOKEN }}
