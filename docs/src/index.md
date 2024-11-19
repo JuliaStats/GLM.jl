@@ -244,7 +244,7 @@ OpenBLAS, which is already multi-threaded on multicore machines, there
 may not be much advantage in using distributed predictor types.
 
 A ```ModResp``` type must provide methods for the ```wtres``` and
-```sqrtxwts``` generics.  Their values are the arguments to the
+```sqrtxweights``` generics.  Their values are the arguments to the
 ```updatebeta``` methods of the ```LinPred``` types.  The
 ```Float64``` value returned by ```updatedelta``` is the value of the
 convergence criterion.
