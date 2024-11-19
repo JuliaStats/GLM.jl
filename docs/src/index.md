@@ -199,9 +199,10 @@ Coefficients:
 ───────────────────────────────────────────────────────────────────────────
                   Coef.  Std. Error      t  Pr(>|t|)  Lower 95%   Upper 95%
 ───────────────────────────────────────────────────────────────────────────
-(Intercept)   0.51673     0.0288654  17.90    <1e-31   0.459447  0.574012
-x            -0.0478667   0.0266884  -1.79    0.0760  -0.100829  0.00509556
+(Intercept)   0.51673     0.0287193  17.99    <1e-32   0.459737  0.573722
+x            -0.0478667   0.0265532  -1.80    0.0745  -0.100561  0.00482739
 ───────────────────────────────────────────────────────────────────────────
+
 ```
 
 !!! warning
@@ -222,9 +223,6 @@ julia> loglikelihood(m_aweights)
 
 julia> loglikelihood(m_fweights)
 -25.51860961756451
-
-#julia> loglikelihood(m_pweights)
-#-16.296307561384253
 ```
 
 ## Comparing models with F-test
@@ -320,7 +318,7 @@ Note that it's currently only implemented for linear models without weights.
 
 ```jldoctest methods
 julia> round.(cooksdistance(mdl); digits=8)
-3-element Vector{Float64}:
+3×1 Matrix{Float64}:
  2.5
  0.25
  2.5
