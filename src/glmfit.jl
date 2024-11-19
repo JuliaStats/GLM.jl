@@ -676,7 +676,7 @@ end
 
 const PREDICT_COMMON =
 """
-`newX` must be either a table (in the [Tables.jl]((https://tables.juliadata.org/stable/)
+`newX` must be either a table (in the [Tables.jl](https://tables.juliadata.org/stable/)
 definition) containing all columns used in the model formula, or a matrix with one column
 for each predictor in the model. In both cases, each row represents an observation for
 which a prediction will be returned.

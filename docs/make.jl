@@ -11,9 +11,10 @@ makedocs(
     ],
     debug = false,
     doctest = true,
-    strict = :doctest,
+    warnonly = [:missing_docs]
 )
 
 deploydocs(
     repo   = "github.com/JuliaStats/GLM.jl.git",
+    push_preview = true
 )
