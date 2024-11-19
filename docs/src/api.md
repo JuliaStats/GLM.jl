@@ -61,13 +61,13 @@ fit
 
 ## Model methods
 ```@docs
+cooksdistance
 StatsBase.deviance
 GLM.dispersion
 GLM.ftest
 StatsBase.nobs
 StatsBase.nulldeviance
 StatsBase.predict
-StatsModels.isnested
 ```
 
 ## Links and methods applied to them
