@@ -21,35 +21,35 @@ GLM.ModResp
 ## Constructors for models
 
 The most general approach to fitting a model is with the `fit` function, as in
-```jldoctest
-julia> using Random
+```jldoctest constructors
+julia> using RDatasets
 
-julia> fit(LinearModel, hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
+julia> df = RDatasets.dataset("mlmRev", "Oxboys");
+
+julia> fit(LinearModel, hcat(ones(nrow(df)), df.Age), df.Height)
 LinearModel
 
 Coefficients:
-────────────────────────────────────────────────────────────────
-        Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
-────────────────────────────────────────────────────────────────
-x1   0.717436    0.775175   0.93    0.3818  -1.07012    2.50499
-x2  -0.152062    0.124931  -1.22    0.2582  -0.440153   0.136029
-────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────
+        Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
+─────────────────────────────────────────────────────────────────
+x1  149.372      0.528565  282.60    <1e-99  148.33     150.413
+x2    6.52102    0.816987    7.98    <1e-13    4.91136    8.13068
+─────────────────────────────────────────────────────────────────
 ```
 
 This model can also be fit as
-```jldoctest
-julia> using Random
-
-julia> lm(hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
+```jldoctest constructors
+julia> lm(hcat(ones(nrow(df)), df.Age), df.Height)
 LinearModel
 
 Coefficients:
-────────────────────────────────────────────────────────────────
-        Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
-────────────────────────────────────────────────────────────────
-x1   0.717436    0.775175   0.93    0.3818  -1.07012    2.50499
-x2  -0.152062    0.124931  -1.22    0.2582  -0.440153   0.136029
-────────────────────────────────────────────────────────────────
+─────────────────────────────────────────────────────────────────
+        Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
+─────────────────────────────────────────────────────────────────
+x1  149.372      0.528565  282.60    <1e-99  148.33     150.413
+x2    6.52102    0.816987    7.98    <1e-13    4.91136    8.13068
+─────────────────────────────────────────────────────────────────
 ```
 
 ```@docs
