@@ -11,7 +11,7 @@ makedocs(
     ],
     debug = false,
     doctest = true,
-    strict = :doctest
+    warnonly = [:missing_docs]
 )
 
 deploydocs(
