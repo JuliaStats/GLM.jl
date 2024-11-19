@@ -41,7 +41,9 @@ dobson.pweights = size(dobson, 1) .* (dobson.w ./ sum(dobson.w))
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
     @test coef(model) ≈ [-0.5241460813701, 0.14468927249342, 2.487500063309] rtol = 1e-06
     ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
-    @test_broken dof_residual(model) == 47.0
+    ## @test_broken dof_residual(model) == 47.0
+    ## It has now been fixed
+    @test dof_residual(model) == 47.0
     @test stderror(model) ≈ [1.07077535201799, 1.4966446912323, 0.7679252464101] rtol = 1e-05
 end
 
