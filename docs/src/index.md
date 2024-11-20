@@ -242,17 +242,3 @@ The skeleton of a distributed predictor type is in the code
 but not yet fully fleshed out.  Because Julia by default uses
 OpenBLAS, which is already multi-threaded on multicore machines, there
 may not be much advantage in using distributed predictor types.
-
-A ```ModResp``` type must provide methods for the ```wtres``` and
-```sqrtxwts``` generics.  Their values are the arguments to the
-```updatebeta``` methods of the ```LinPred``` types.  The
-```Float64``` value returned by ```updatedelta``` is the value of the
-convergence criterion.
-
-Similarly, ```LinPred``` types must provide a method for the
-```linpred``` generic.  In general ```linpred``` takes an instance of
-a ```LinPred``` type and a step factor.  Methods that take only an instance
-of a ```LinPred``` type use a default step factor of 1.  The value of
-```linpred``` is the argument to the ```updatemu``` method for
-```ModResp``` types.  The ```updatemu``` method returns the updated
-deviance.

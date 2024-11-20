@@ -7,36 +7,36 @@ Encapsulates the response for a linear model
 
 - `mu`: current value of the mean response vector or fitted value
 - `offset`: optional offset added to the linear predictor to form `mu`
-- `wts`: optional vector of prior frequency (a.k.a. case) weights for observations
+- `weights`: optional vector of prior frequency (a.k.a. case) weights for observations
 - `y`: observed response vector
 
-Either or both `offset` and `wts` may be of length 0
+Either or both `offset` and `weights` may be of length 0
 """
 mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
-    wts::V                                 # prior weights (may have length 0)
+    weights::V                             # prior weights (may have length 0)
     y::V                                   # response
-    function LmResp{V}(mu::V, off::V, wts::V, y::V) where V
+    function LmResp{V}(mu::V, off::V, weights::V, y::V) where V
         n = length(y)
         length(mu) == n || error("mismatched lengths of mu and y")
         ll = length(off)
         ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
-        ll = length(wts)
-        ll == 0 || ll == n || error("length of wts is $ll, must be $n or 0")
-        new{V}(mu, off, wts, y)
+        ll = length(weights)
+        ll == 0 || ll == n || error("length of weights is $ll, must be $n or 0")
+        new{V}(mu, off, weights, y)
     end
 end
 
-function LmResp(y::AbstractVector{<:Real}, wts::Union{Nothing,AbstractVector{<:Real}}=nothing)
+function LmResp(y::AbstractVector{<:Real}, weights::Union{Nothing,AbstractVector{<:Real}}=nothing)
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
     _y = convert(Vector{float(eltype(y))}, y)
-    _wts = if wts === nothing
+    _weights = if weights === nothing
         similar(_y, 0)
     else
-        convert(Vector{float(eltype(wts))}, wts)
+        convert(Vector{float(eltype(weights))}, weights)
     end
-    return LmResp{typeof(_y)}(zero(_y), zero(_y), _wts, _y)
+    return LmResp{typeof(_y)}(zero(_y), zero(_y), _weights, _y)
 end
 
 function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
@@ -51,22 +51,22 @@ updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec
 function deviance(r::LmResp)
     y = r.y
     mu = r.mu
-    wts = r.wts
-    v = zero(eltype(y)) + zero(eltype(y)) * zero(eltype(wts))
-    if isempty(wts)
+    weights = r.weights
+    v = zero(eltype(y)) + zero(eltype(y)) * zero(eltype(weights))
+    if isempty(weights)
         @inbounds @simd for i = eachindex(y,mu)
             v += abs2(y[i] - mu[i])
         end
     else
-        @inbounds @simd for i = eachindex(y,mu,wts)
-            v += abs2(y[i] - mu[i])*wts[i]
+        @inbounds @simd for i = eachindex(y,mu,weights)
+            v += abs2(y[i] - mu[i])*weights[i]
         end
     end
     v
 end
 
 function loglikelihood(r::LmResp)
-    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+    n = isempty(r.weights) ? length(r.y) : sum(r.weights)
     -n/2 * (log(2π * deviance(r)/n) + 1)
 end
 
@@ -93,10 +93,10 @@ end
 LinearAlgebra.cholesky(x::LinearModel) = cholesky(x.pp)
 
 function StatsBase.fit!(obj::LinearModel)
-    if isempty(obj.rr.wts)
+    if isempty(obj.rr.weights)
         delbeta!(obj.pp, obj.rr.y)
     else
-        delbeta!(obj.pp, obj.rr.y, obj.rr.wts)
+        delbeta!(obj.pp, obj.rr.y, obj.rr.weights)
     end
     obj.pp.beta0 .= obj.pp.delbeta
     updateμ!(obj.rr, linpred(obj.pp, zero(eltype(obj.rr.y))))
@@ -117,10 +117,10 @@ const FIT_LM_DOC = """
 
 """
     fit(LinearModel, formula::FormulaTerm, data;
-        [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
+        [weights::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
         contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
-        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
+        weights::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
 Fit a linear model to data.
 
@@ -128,7 +128,7 @@ $FIT_LM_DOC
 """
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
-             wts::AbstractVector{<:Real}=similar(y, 0),
+             weights::AbstractVector{<:Real}=similar(y, 0),
              dropcollinear::Bool=true,
              method::Symbol=:cholesky)
     if allowrankdeficient_dep !== nothing
@@ -136,11 +136,11 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
         dropcollinear = allowrankdeficient_dep
     end
-    
+
     if method === :cholesky
-        fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), nothing))
+        fit!(LinearModel(LmResp(y, weights), cholpred(X, dropcollinear), nothing))
     elseif method === :qr
-        fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear), nothing))
+        fit!(LinearModel(LmResp(y, weights), qrpred(X, dropcollinear), nothing))
     else
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
     end
@@ -148,17 +148,17 @@ end
 
 function fit(::Type{LinearModel}, f::FormulaTerm, data,
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
-             wts::Union{AbstractVector{<:Real}, Nothing}=nothing,
+             weights::Union{AbstractVector{<:Real}, Nothing}=nothing,
              dropcollinear::Bool=true,
              method::Symbol=:cholesky,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     f, (y, X) = modelframe(f, data, contrasts, LinearModel)
-    wts === nothing && (wts = similar(y, 0))
+    weights === nothing && (weights = similar(y, 0))
 
     if method === :cholesky
-        fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), f))
+        fit!(LinearModel(LmResp(y, weights), cholpred(X, dropcollinear), f))
     elseif method === :qr
-        fit!(LinearModel(LmResp(y, wts), qrpred(X, dropcollinear), f))
+        fit!(LinearModel(LmResp(y, weights), qrpred(X, dropcollinear), f))
     else
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
     end
@@ -166,13 +166,13 @@ end
 
 """
     lm(formula, data;
-       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
+       [weights::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
        contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     lm(X::AbstractMatrix, y::AbstractVector;
-       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
+       weights::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
 
 Fit a linear model to data.
-An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, method=method)`
+An alias for `fit(LinearModel, X, y; weights=weights, dropcollinear=dropcollinear, method=method)`
 
 $FIT_LM_DOC
 """
@@ -195,13 +195,13 @@ For linear models, the deviance of the null model is equal to the total sum of s
 """
 function nulldeviance(obj::LinearModel)
     y = obj.rr.y
-    wts = obj.rr.wts
+    weights = obj.rr.weights
 
     if hasintercept(obj)
-        if isempty(wts)
+        if isempty(weights)
             m = mean(y)
         else
-            m = mean(y, weights(wts))
+            m = mean(y, weights(weights))
         end
     else
         @warn("Starting from GLM.jl 1.8, null model is defined as having no predictor at all " *
@@ -209,14 +209,14 @@ function nulldeviance(obj::LinearModel)
         m = zero(eltype(y))
     end
 
-    v = zero(eltype(y))*zero(eltype(wts))
-    if isempty(wts)
+    v = zero(eltype(y))*zero(eltype(weights))
+    if isempty(weights)
         @inbounds @simd for yi in y
             v += abs2(yi - m)
         end
     else
-        @inbounds @simd for i = eachindex(y,wts)
-            v += abs2(y[i] - m)*wts[i]
+        @inbounds @simd for i = eachindex(y,weights)
+            v += abs2(y[i] - m)*weights[i]
         end
     end
     v
@@ -226,7 +226,7 @@ loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
 
 function nullloglikelihood(obj::LinearModel)
     r = obj.rr
-    n = isempty(r.wts) ? length(r.y) : sum(r.wts)
+    n = isempty(r.weights) ? length(r.y) : sum(r.weights)
     -n/2 * (log(2π * nulldeviance(obj)/n) + 1)
 end
 
@@ -316,7 +316,7 @@ function StatsModels.predict!(res::Union{AbstractVector,
         prediction, lower, upper = res
         length(prediction) == length(lower) == length(upper) == size(newx, 1) ||
             throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newx`"))
-        length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
+        length(mm.rr.weights) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
 
         dev = deviance(mm)
         dofr = dof_residual(mm)
@@ -355,8 +355,8 @@ function StatsBase.cooksdistance(obj::LinearModel)
     X = modelmatrix(obj)
     XtX = crossmodelmatrix(obj)
     k == size(X,2) || throw(ArgumentError("Models with collinear terms are not currently supported."))
-    wts = obj.rr.wts
-    if isempty(wts)
+    weights = obj.rr.weights
+    if isempty(weights)
         hii = diag(X * inv(XtX) * X')
     else
         throw(ArgumentError("Weighted models are not currently supported."))

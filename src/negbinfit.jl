@@ -1,23 +1,23 @@
-function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
+function mle_for_θ(y::AbstractVector, μ::AbstractVector, weights::AbstractVector;
                    maxiter=30, tol=1.e-6)
     function first_derivative(θ::Real)
         tmp(yi, μi) = (yi+θ)/(μi+θ) + log(μi+θ) - 1 - log(θ) - digamma(θ+yi) + digamma(θ)
         unit_weights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
-                       sum(wti * tmp(yi, μi) for (wti, yi, μi) in zip(wts, y, μ))
+                       sum(wti * tmp(yi, μi) for (wti, yi, μi) in zip(weights, y, μ))
     end
     function second_derivative(θ::Real)
         tmp(yi, μi) = -(yi+θ)/(μi+θ)^2 + 2/(μi+θ) - 1/θ - trigamma(θ+yi) + trigamma(θ)
         unit_weights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
-                       sum(wti * tmp(yi, μi) for (wti, yi, μi) in zip(wts, y, μ))
+                       sum(wti * tmp(yi, μi) for (wti, yi, μi) in zip(weights, y, μ))
     end
 
-    unit_weights = length(wts) == 0
+    unit_weights = length(weights) == 0
     if unit_weights
         n = length(y)
         θ = n / sum((yi/μi - 1)^2 for (yi, μi) in zip(y, μ))
     else
-        n = sum(wts)
-        θ = n / sum(wti * (yi/μi - 1)^2 for (wti, yi, μi) in zip(wts, y, μ))
+        n = sum(weights)
+        θ = n / sum(wti * (yi/μi - 1)^2 for (wti, yi, μi) in zip(weights, y, μ))
     end
     δ, converged = one(θ), false
 
@@ -70,7 +70,7 @@ In both cases, `link` may specify the link function
 function negbin(F,
                 D,
                 args...;
-                wts::Union{Nothing, AbstractVector}=nothing,
+                weights::Union{Nothing, AbstractVector}=nothing,
                 initialθ::Real=Inf,
                 dropcollinear::Bool=true,
                 method::Symbol=:cholesky,
@@ -108,23 +108,23 @@ function negbin(F,
     # fit a Poisson regression model if the user does not specify an initial θ
     if isinf(initialθ)
         regmodel = glm(F, D, Poisson(), args...;
-                       wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
+                       weights=weights, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
                        atol=atol, rtol=rtol, verbose=verbose, kwargs...)
     else
         regmodel = glm(F, D, NegativeBinomial(initialθ), args...;
-                       wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
+                       weights=weights, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
                        atol=atol, rtol=rtol, verbose=verbose, kwargs...)
     end
 
     μ = regmodel.rr.mu
     y = regmodel.rr.y
-    wts = regmodel.rr.wts
-    lw, ly = length(wts), length(y)
+    weights = regmodel.rr.weights
+    lw, ly = length(weights), length(y)
     if lw != ly && lw != 0
-        throw(ArgumentError("length of wts must be either $ly or 0 but was $lw"))
+        throw(ArgumentError("length of weights must be either $ly or 0 but was $lw"))
     end
 
-    θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)
+    θ = mle_for_θ(y, μ, weights; maxiter=maxiter, tol=rtol)
     d = sqrt(2 * max(1, deviance(regmodel)))
     δ = one(θ)
     ll = loglikelihood(regmodel)
@@ -142,7 +142,7 @@ function negbin(F,
                        atol=atol, rtol=rtol, verbose=verbose, kwargs...)
         μ = regmodel.rr.mu
         prevθ = θ
-        θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)
+        θ = mle_for_θ(y, μ, weights; maxiter=maxiter, tol=rtol)
         δ = prevθ - θ
         ll0 = ll
         ll = loglikelihood(regmodel)
