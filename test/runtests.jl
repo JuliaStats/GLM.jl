@@ -2033,3 +2033,14 @@ end
     @test coef(f2) ≈ filip_estimates_df.estimate rtol = 1e-7
     @test stderror(f2) ≈ filip_estimates_df.se rtol = 1e-7
 end
+
+@testset "Non-finite deviance. Issue 417" begin
+    X_fn = Downloads.download("https://gist.githubusercontent.com/andreasnoack/6068454679cbbc55e0f119ff0d16e92b/raw/de86ddbf66535558b1faedf00bdea59af9a86cb2/X.txt")
+    y_fn = Downloads.download("https://gist.githubusercontent.com/andreasnoack/6068454679cbbc55e0f119ff0d16e92b/raw/acdf8833760b4ea19d7167513ca967b9f7e87c21/y.txt")
+    X_df = CSV.read(X_fn, DataFrame, header = false)
+    y_df = CSV.read(y_fn, DataFrame, header = false)
+    df = hcat(y_df, select(X_df, Not("Column1")))
+    ft = glm(@formula(Column1 ~ Column2 + Column3 + Column4), df, Gamma(), LogLink())
+    @test coef(ft) ≈ [9.648767705301294, -0.11274823562143056, 0.1907889126252095, -0.8123086879222496]
+    @test_throws DomainError glm(@formula(Column1 ~ Column2 + Column3 + Column4), df, Gamma(), LogLink(), start = fill(NaN, 4))
+end
