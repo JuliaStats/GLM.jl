@@ -2035,8 +2035,8 @@ end
 end
 
 @testset "Non-finite deviance. Issue 417" begin
-    X_fn = Downloads.download("https://gist.githubusercontent.com/andreasnoack/6068454679cbbc55e0f119ff0d16e92b/raw/de86ddbf66535558b1faedf00bdea59af9a86cb2/X.txt")
-    y_fn = Downloads.download("https://gist.githubusercontent.com/andreasnoack/6068454679cbbc55e0f119ff0d16e92b/raw/acdf8833760b4ea19d7167513ca967b9f7e87c21/y.txt")
+    X_fn = Downloads.download("https://github.com/JuliaStats/GLM.jl/files/6279630/x.txt")
+    y_fn = Downloads.download("https://github.com/JuliaStats/GLM.jl/files/6279632/y.txt")
     X_df = CSV.read(X_fn, DataFrame, header = false)
     y_df = CSV.read(y_fn, DataFrame, header = false)
     df = hcat(y_df, select(X_df, Not("Column1")))
