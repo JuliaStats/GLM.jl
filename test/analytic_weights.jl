@@ -7,6 +7,7 @@ w = rand(rng, 25) * 6
 w = floor.(w) .+ 1
 df = DataFrame(y=y, x1=x1, x2=x2, w=w)
 
+
 clotting = DataFrame(
     u=log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
     lot1=[118, 58, 42, 35, 27, 25, 21, 19, 18],
@@ -23,6 +24,17 @@ dobson = DataFrame(
     Treatment=categorical(repeat(string.('a':'c'), inner=3)),
     w=[1, 2, 1, 2, 3, 4, 3, 2, 1]
 )
+
+@testset "Linear model ftest" begin
+    model_0 = lm(@formula(y ~ x1), df; wts=aweights(df.w))
+    model_1 = lm(@formula(y ~ x1 + x2), df; wts=aweights(df.w))
+    X = hcat(ones(length(df.y)), df.x1, df.x2)
+    model_2 = lm(X, y; wts=aweights(df.w))
+    @test ftest(model_1).fstat ≈ 1.551275 rtol = 1e-05
+    @test ftest(model_2) === ftest(model_1)
+    @test ftest(model_0, model_1).fstat[2] ≈ 1.7860438 rtol = 1e-05
+    @test ftest(model_0, model_2).fstat[2] ≈ 1.7860438 rtol = 1e-05
+end
 
 @testset "GLM: Binomial with LogitLink link - AnalyticWeights" begin
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), LogitLink(), wts=aweights(df.w), 

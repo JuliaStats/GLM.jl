@@ -28,6 +28,16 @@ dobson = DataFrame(
 
 dobson.pweights = size(dobson, 1) .* (dobson.w ./ sum(dobson.w))
 
+@testset "Linear Model ftest/loglikelihod" begin
+    model_1 = lm(@formula(y ~ x1 + x2), df; wts=pweights(df.pweights))
+    X = hcat(ones(length(df.y)), df.x1, df.x2)
+    model_2 = lm(X, y; wts=pweights(df.pweights))
+    @test_throws ArgumentError ftest(model_1)
+    @test_throws ArgumentError ftest(model_2) 
+    @test_throws ArgumentError loglikelihood(model_1)
+    @test_throws ArgumentError loglikelihood(model_2)
+end
+
 @testset "GLM: Binomial with LogitLink link - ProbabilityWeights" begin
     model = glm(
         @formula(y ~ 1 + x1 + x2),
@@ -37,12 +47,10 @@ dobson.pweights = size(dobson, 1) .* (dobson.w ./ sum(dobson.w))
         wts = pweights(df.pweights),
         rtol = 1e-07,
     )
+    @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 47.311214978934785 rtol = 1e-07
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
     @test coef(model) ≈ [-0.5241460813701, 0.14468927249342, 2.487500063309] rtol = 1e-06
-    ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
-    ## @test_broken dof_residual(model) == 47.0
-    ## It has now been fixed
     @test dof_residual(model) == 47.0
     @test stderror(model) ≈ [1.07077535201799, 1.4966446912323, 0.7679252464101] rtol = 1e-05
 end
@@ -56,10 +64,10 @@ end
         wts = pweights(df.pweights),
         rtol = 1e-09,
     )
+    @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 47.280413566179 rtol = 1e-07
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
     @test coef(model) ≈ [-0.379823362118, 0.17460125170132, 1.4927538978259] rtol = 1e-07
-    ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
     @test dof_residual(model) == 47.0
     @test stderror(model) ≈ [0.6250657160317, 0.851366312489, 0.4423686640689] rtol = 1e-05
 end
@@ -73,10 +81,10 @@ end
         wts = pweights(df.pweights),
         rtol = 1e-07,
     )
+    @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 47.17915872474391 rtol = 1e-07
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
     @test coef(model) ≈ [-0.007674579802284, -0.5378132620063, 2.994759904353] rtol = 1e-06
-    ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
     @test dof_residual(model) == 47.0
     @test stderror(model) ≈ [1.020489214335, 1.5748610330014, 1.5057621596148] rtol = 1e-03
 end
@@ -90,6 +98,7 @@ end
         wts = pweights(df.pweights),
         rtol = 1e-09,
     )
+    @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 47.063354817529856 rtol = 1e-07
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
     @test coef(model) ≈ [-0.9897210433718, 0.449902058467, 1.5467108410611] rtol = 1e-07
@@ -108,6 +117,7 @@ end
         rtol = 1e-12,
         atol = 1e-9,
     )
+    @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 0.012601328117859285 rtol = 1e-07
     @test nulldeviance(model) ≈ 0.28335799805430917 rtol = 1e-07
     @test coef(model) ≈ [5.325098274654255, -0.5495659110653159] rtol = 1e-5
@@ -125,6 +135,7 @@ end
         wts = pweights(quine.pweights),
         atol = 1e-09,
     )
+    @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 178.46174895746665 rtol = 1e-07
     @test nulldeviance(model) ≈ 214.52243528092782 rtol = 1e-07
     @test coef(model) ≈ [
@@ -136,7 +147,6 @@ end
         0.3562972562034377,
         0.34801618219815034,
     ] rtol = 1e-04
-    ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
     @test dof_residual(model) == 139.0
     @test_broken stderror(model) ≈ [
         0.20080246284436692,
@@ -167,6 +177,7 @@ end
         wts = pweights(quine.pweights),
         rtol = 1e-09,
     )
+    @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 178.46174895746665 rtol = 1e-07
     @test nulldeviance(model) ≈ 214.52243528092782 rtol = 1e-07
     @test coef(model) ≈ [
@@ -178,8 +189,6 @@ end
         0.3562972562034377,
         0.34801618219815034,
     ] rtol = 1e-04
-    ## Test shouldbe broken because of https://github.com/JuliaStats/GLM.jl/issues/509
-    ## but since negbinomial is correct, by mistake
     @test dof_residual(model) == 139.0
     @test stderror(model) ≈ [
         0.20080246284436692,
@@ -201,6 +210,7 @@ end
         wts = pweights(quine.pweights),
         rtol = 1e-08,
     )
+    @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 178.99970038364276 rtol = 1e-07
     @test nulldeviance(model) ≈ 214.52243528092782 rtol = 1e-07
     @test coef(model) ≈ [
@@ -213,9 +223,7 @@ end
         0.5840284357554048,
     ] rtol = 1e-07
     
-    ## Test should be broken because of https://github.com/JuliaStats/GLM.jl/issues/509. 
-    ## However, in the negative binomial case the test passes
-    @test dof_residual(model) == 139.0    
+    @test dof_residual(model) == 139.0
     @test stderror(model) ≈ [
         0.4156607040373307,
         0.30174203746555045,
@@ -235,6 +243,7 @@ end
         LogLink(),
         wts = pweights(dobson.pweights),
     )
+    @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 4.837327189925912 rtol = 1e-07
     @test nulldeviance(model) ≈ 12.722836814903907 rtol = 1e-07
     @test coef(model) ≈ [
@@ -243,8 +252,7 @@ end
         -0.19731134600684794,
         -0.05011966661241072,
         0.010415729161988225,
-    ] rtol = 1e-07
-    ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
+    ] rtol = 1e-07    
     @test dof_residual(model) == 4.0
     @test stderror(model) ≈ [
         0.15474638805584298,
