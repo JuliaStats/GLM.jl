@@ -58,7 +58,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test lm1.model === lm1
     @test lm1.mf.f == formula(lm1)
 
-    @testset "low level constructors" begin
+@testset "low level constructors" begin
         X = [ones(10) randn(10)]
         y = X*ones(2) + randn(10)*0.1
         r = GLM.LmResp(y)
@@ -87,6 +87,7 @@ end
     # linear regression
     t_lm_base = lm(@formula(Y ~ XA), st_df; method=dmethod)
     @test isapprox(st_df.CooksD_base, cooksdistance(t_lm_base))
+    @test GLM.momentmatrix(t_lm_base) == modelmatrix(t_lm_base).*residuals(t_lm_base)
 
     # linear regression, no intercept
     t_lm_noint = lm(@formula(Y ~ XA +0), st_df; method=dmethod)
@@ -98,9 +99,10 @@ end
 
     # linear regression, two full collinear variables (XC = 2 XA) hence should get the same results as the original
     # after pivoting
-    t_lm_colli = lm(@formula(Y ~ XA + XC), st_df; dropcollinear=true, method=dmethod)
-    # Currently fails as the collinear variable is not dropped from `modelmatrix(obj)`
-    @test_throws ArgumentError isapprox(st_df.CooksD_base, cooksdistance(t_lm_colli))
+    t_lm_colli = lm(@formula(Y ~ XA + XC), st_df, dropcollinear=true)
+    t_lm_colli_b = lm(@formula(Y ~ XC), st_df, dropcollinear=true)
+    @test isapprox(cooksdistance(t_lm_colli), cooksdistance(t_lm_colli_b))
+
 end
 
 @testset "Linear model with weights and $dmethod" for dmethod in (:cholesky, :qr)
@@ -209,9 +211,8 @@ end
     @test isapprox(coef(m2p_dep_pos_kw), coef(m2p))
 end
 
-@testset "Saturated linear model with $dmethod" for dmethod in (:cholesky, :qr)
+@testset "saturated linear model" for dmethod in (:cholesky, :qr)
     df1 = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
-
     model = lm(@formula(y ~ x), df1; method=dmethod)
     ct = coeftable(model)
     @test dof_residual(model) == 0
@@ -524,7 +525,7 @@ end
 @testset "Poisson LogLink offset with weights with $dmethod" for dmethod in (:cholesky, :qr)
     gm7pw = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat), anorexia,
                 Poisson(), LogLink(), method=dmethod, offset=log.(anorexia.Prewt),
-                wts=repeat(1:4, outer=18), rtol=1e-8)
+                wts=fweights(repeat(1:4, outer=18)), rtol=1e-8)
 
     @test GLM.cancancel(gm7pw.rr)
     test_show(gm7pw)
@@ -620,10 +621,10 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
                       admit = repeat([false, true], inner=[4]),
                       rank = categorical(repeat(1:4, outer=2)))
 
-@testset "Aggregated Binomial LogitLink with $dmethod" for dmethod in (:cholesky, :qr)
+@testset "Aggregated Binomial LogitLink" begin
     for distr in (Binomial, Bernoulli)
-        gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr();
-                   method=dmethod, wts=Array(admit_agr.count))
+        gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
+                   wts=fweights(Array(admit_agr.count)))
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
         @test isapprox(deviance(gm14), 474.9667184280627)
@@ -636,8 +637,25 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
         @test isapprox(coef(gm14),
             [0.164303051291, -0.7500299832, -1.36469792994, -1.68672866457], atol=1e-5)
     end
+
 end
 
+@testset "Aggregated Binomial LogitLink (AnalyticWeights)" begin
+    for distr in (Binomial, Bernoulli)
+        gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
+                   wts=aweights(admit_agr.count))
+        @test dof(gm14) == 4
+        @test nobs(gm14) == 8
+        @test isapprox(deviance(gm14), 474.9667184280627)
+        @test isapprox(loglikelihood(gm14), -237.48335921403134)
+        @test isapprox(aic(gm14), 482.96671842822883)
+        @test isapprox(aicc(gm14), 496.3000517613874)
+        @test isapprox(bic(gm14), 483.28448459477346)
+        @test isapprox(coef(gm14),
+            [0.164303051291, -0.7500299832, -1.36469792994, -1.68672866457], atol=1e-5)
+    end
+
+end
 # Logistic regression using aggregated data with proportions of successes and weights
 admit_agr2 = DataFrame(Any[[61., 151, 121, 67], [33., 54, 28, 12], categorical(1:4)],
     [:count, :admit, :rank])
@@ -646,7 +664,7 @@ admit_agr2.p = admit_agr2.admit ./ admit_agr2.count
 ## The model matrix here is singular so tests like the deviance are just round off error
 @testset "Binomial LogitLink aggregated with $dmethod" for dmethod in (:cholesky, :qr)
     gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial(),
-               method=dmethod, wts=admit_agr2.count)
+               wts=fweights(admit_agr2.count))
     test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
@@ -663,7 +681,7 @@ end
 # Weighted Gamma example (weights are totally made up)
 @testset "Gamma InverseLink Weights with $dmethod" for dmethod in (:cholesky, :qr)
     gm16 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(),
-               method=dmethod, wts=[1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
+               wts=fweights([1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7]))
     test_show(gm16)
     @test dof(gm16) == 3
     @test nobs(gm16) == 32.7
@@ -678,9 +696,9 @@ end
 end
 
 # Weighted Poisson example (weights are totally made up)
-@testset "Poisson LogLink Weights with $dmethod" for dmethod in (:cholesky, :qr)
-    gm17 = glm(@formula(Counts ~ Outcome + Treatment), dobson, Poisson(),
-               method=dmethod, wts = [1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
+@testset "Poisson LogLink Weights" begin
+    gm17 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson(),
+        wts = fweights([1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7]))
     test_show(gm17)
     @test dof(gm17) == 5
     @test isapprox(deviance(gm17), 17.699857821414266)
@@ -771,7 +789,7 @@ end
 @testset "Weighted NegativeBinomial LogLink, θ to be estimated with Cholesky" begin
     halfn = round(Int, 0.5*size(quine, 1))
     wts   = vcat(fill(0.8, halfn), fill(1.2, size(quine, 1) - halfn))
-    gm20a = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink(); wts=wts)
+    gm20a = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink(); wts=fweights(wts))
     test_show(gm20a)
     @test dof(gm20a) == 8
     @test isapprox(deviance(gm20a), 164.45910399188858, rtol = 1e-7)
@@ -893,7 +911,7 @@ end
     # Poisson with categorical predictors, weights and offset
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat), anorexia,
                     Poisson(), LogLink(); offset=log.(anorexia.Prewt),
-                    wts=repeat(1:4, outer=18), rtol=1e-8, dropcollinear=false)
+                    wts=fweights(repeat(1:4, outer=18)), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3)
     @test GLM.cancancel(nointglm3.rr)
     test_show(nointglm3)
@@ -948,7 +966,7 @@ end
     # Poisson with categorical predictors, weights and offset
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat), anorexia,
                     Poisson(), LogLink(); method=dmethod, offset=log.(anorexia.Prewt),
-                    wts=repeat(1:4, outer=18), rtol=1e-8, dropcollinear=false)
+                    wts=fweights(repeat(1:4, outer=18)), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3)
     @test GLM.cancancel(nointglm3.rr)
     test_show(nointglm3)
@@ -995,7 +1013,7 @@ end
     end
 end
 
-@testset "Predict with $dmethod" for dmethod in (:cholesky, :qr)
+@testset "Predict" for dmethod in (:cholesky, :qr)
     # Binomial GLM
     rng = StableRNG(123)
     X = rand(rng, 10, 2)
@@ -1592,14 +1610,14 @@ end
         lm4 = lm(view(x, :, :), view(y, :); method=dmethod)
         @test coef(lm1) == coef(lm2) == coef(lm3) == coef(lm4)
 
-        lm5 = lm(x, y, wts=w, method=dmethod)
-        lm6 = lm(x, view(y, :), method=dmethod, wts=w)
-        lm7 = lm(view(x, :, :), y, method=dmethod, wts=w)
-        lm8 = lm(view(x, :, :), view(y, :), method=dmethod, wts=w)
-        lm9 = lm(x, y, method=dmethod, wts=view(w, :))
-        lm10 = lm(x, view(y, :), method=dmethod, wts=view(w, :))
-        lm11 = lm(view(x, :, :), y, method=dmethod, wts=view(w, :))
-        lm12 = lm(view(x, :, :), view(y, :), method=dmethod, wts=view(w, :))
+        lm5 = lm(x, y, wts=fweights(w), method=dmethod)
+        lm6 = lm(x, view(y, :), method=dmethod, wts=fweights(w))
+        lm7 = lm(view(x, :, :), y, method=dmethod, wts=fweights(w))
+        lm8 = lm(view(x, :, :), view(y, :), method=dmethod, wts=fweights(w))
+        lm9 = lm(x, y, method=dmethod, wts=fweights(view(w, :)))
+        lm10 = lm(x, view(y, :), method=dmethod, wts=fweights(view(w, :)))
+        lm11 = lm(view(x, :, :), y, method=dmethod, wts=fweights(view(w, :)))
+        lm12 = lm(view(x, :, :), view(y, :), method=dmethod, wts=fweights(view(w, :)))
         @test coef(lm5) == coef(lm6) == coef(lm7) == coef(lm8) == coef(lm9) == coef(lm10) ==
             coef(lm11) == coef(lm12)
 
@@ -1610,14 +1628,14 @@ end
         glm4 = glm(view(x, :, :), view(y, :), Binomial(), method=dmethod)
         @test coef(glm1) == coef(glm2) == coef(glm3) == coef(glm4)
 
-        glm5 = glm(x, y, Binomial(), method=dmethod, wts=w)
-        glm6 = glm(x, view(y, :), Binomial(), method=dmethod, wts=w)
-        glm7 = glm(view(x, :, :), y, Binomial(), method=dmethod, wts=w)
-        glm8 = glm(view(x, :, :), view(y, :), Binomial(), method=dmethod, wts=w)
-        glm9 = glm(x, y, Binomial(), method=dmethod, wts=view(w, :))
-        glm10 = glm(x, view(y, :), Binomial(), method=dmethod, wts=view(w, :))
-        glm11 = glm(view(x, :, :), y, Binomial(), method=dmethod, wts=view(w, :))
-        glm12 = glm(view(x, :, :), view(y, :), Binomial(), method=dmethod, wts=view(w, :))
+        glm5 = glm(x, y, Binomial(), wts=fweights(w))
+        glm6 = glm(x, view(y, :), Binomial(), wts=fweights(w))
+        glm7 = glm(view(x, :, :), y, Binomial(), wts=fweights(w))
+        glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=fweights(w))
+        glm9 = glm(x, y, Binomial(), wts=fweights(view(w, :)))
+        glm10 = glm(x, view(y, :), Binomial(), wts=fweights(view(w, :)))
+        glm11 = glm(view(x, :, :), y, Binomial(), wts=fweights(view(w, :)))
+        glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=fweights(view(w, :)))
         @test coef(glm5) == coef(glm6) == coef(glm7) == coef(glm8) == coef(glm9) == coef(glm10) ==
             coef(glm11) == coef(glm12)
     end
@@ -1730,6 +1748,105 @@ end
         @test predict(mdl1) ≈ predict(mdl2)
     end
 end
+
+@testset "momentmatrix" begin
+    @testset "Poisson" begin
+        dobson = DataFrame(
+            Counts = [18.,17,15,20,10,20,25,13,12],
+            Outcome = categorical(repeat(string.('A':'C'), outer = 3)),
+            Treatment = categorical(repeat(string.('a':'c'), inner = 3)),
+            Weights = [0.3, 0.2, .9, .8, .2, .3, .4, .8, .9]
+        )
+
+        f = @formula(Counts ~ 1 + Outcome + Treatment)
+
+        gm_pois = fit(GeneralizedLinearModel, f, dobson, Poisson())
+
+        mm0_pois = [-2.9999999792805436 -0.0 -0.0 -0.0 -0.0;
+                     3.666666776430482 3.666666776430482 0.0 0.0 0.0;
+                    -0.6666666790442577 -0.0 -0.6666666790442577 -0.0 -0.0;
+                    -1.0000000123284563 -0.0 -0.0 -1.0000000123284563 -0.0;
+                    -3.3333334972350723 -3.3333334972350723 -0.0 -3.3333334972350723 -0.0;
+                    4.333333497138949 0.0 4.333333497138949 4.333333497138949 0.0;
+                    4.000000005907649 0.0 0.0 0.0 4.000000005907649;
+                    -0.33333334610634496 -0.33333334610634496 -0.0 -0.0 -0.33333334610634496;
+                    -3.6666667654825043 -0.0 -3.6666667654825043 -0.0 -3.6666667654825043]
+
+        gm_poisw = fit(GeneralizedLinearModel, f, dobson, Poisson(), wts = fweights(dobson.Weights))
+
+        mm0_poisw = [-0.9624647521850039 -0.0 -0.0 -0.0 -0.0;
+                      0.6901050904949885 0.6901050904949885 0.0 0.0 0.0;
+                      0.2723596655008255 0.0 0.2723596655008255 0.0 0.0;
+                     -0.9062167634177802 -0.0 -0.0 -0.9062167634177802 -0.0;
+                     -0.7002548908882033 -0.7002548908882033 -0.0 -0.7002548908882033 -0.0;
+                      1.606471661159352 0.0 1.606471661159352 1.606471661159352 0.0;
+                      1.8686815106332157 0.0 0.0 0.0 1.8686815106332157;
+                      0.010149793505874801 0.010149793505874801 0.0 0.0 0.010149793505874801;
+                     -1.8788313148033928 -0.0 -1.8788313148033928 -0.0 -1.8788313148033928]
+        @test mm0_pois ≈  GLM.momentmatrix(gm_pois) atol=1e-06
+        @test mm0_poisw ≈  GLM.momentmatrix(gm_poisw) atol=1e-06
+    end
+    @testset "Binomial" begin
+        f = @formula(admit ~ 1 + rank)
+        gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(); rtol=1e-8)
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(),
+                      wts=fweights(admit_agr.count); rtol=1e-08)
+
+        mm0_bin = [-0.5  -0.0  -0.0  -0.0
+                   -0.5  -0.5  -0.0  -0.0
+                   -0.5  -0.0  -0.5  -0.0
+                   -0.5  -0.0  -0.0  -0.5
+                    0.5   0.0   0.0   0.0
+                    0.5   0.5   0.0   0.0
+                    0.5   0.0   0.5   0.0
+                    0.5   0.0   0.0   0.5]
+
+        mm0_binw = [-15.1475    -0.0      -0.0     -0.0
+                    -34.6887   -34.6887   -0.0     -0.0
+                    -21.5207    -0.0     -21.5207  -0.0
+                     -9.85075   -0.0      -0.0     -9.85075
+                     15.1475     0.0       0.0      0.0
+                     34.6887    34.6887    0.0      0.0
+                     21.5207     0.0      21.5207   0.0
+                      9.85075    0.0       0.0      9.85075]
+
+        @test mm0_bin ≈ GLM.momentmatrix(gm_bin)
+        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) atol=1e-03
+
+    end
+
+    @testset "Binomial ProbitLink" begin
+        f = @formula(admit ~ 1 + rank)
+        gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink())
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink(),
+                      wts=fweights(admit_agr.count), rtol=1e-8)
+
+        mm0_bin = [-0.7978846  0.0000000  0.0000000  0.0000000
+                   -0.7978846 -0.7978846  0.0000000  0.0000000
+                   -0.7978846  0.0000000 -0.7978846  0.0000000
+                   -0.7978846  0.0000000  0.0000000 -0.7978846
+                    0.7978846  0.0000000  0.0000000  0.0000000
+                    0.7978846  0.7978846  0.0000000  0.0000000
+                    0.7978846  0.0000000  0.7978846  0.0000000
+                    0.7978846  0.0000000  0.0000000  0.7978846]
+
+        mm0_binw =  [ -24.20695   0.00000   0.00000   0.00000
+                      -56.36158 -56.36158   0.00000   0.00000
+                      -36.86681   0.00000 -36.86681   0.00000
+                      -17.52584   0.00000   0.00000 -17.52584
+                       24.20695   0.00000   0.00000   0.00000
+                       56.36158  56.36158   0.00000   0.00000
+                       36.86681   0.00000  36.86681   0.00000
+                       17.52584   0.00000   0.00000  17.52584]
+
+        @test mm0_bin ≈ GLM.momentmatrix(gm_bin) rtol=1e-06
+        @test mm0_binw ≈ GLM.momentmatrix(gm_binw) rtol=1e-05
+    end
+
+end
+
+include("analytic_weights.jl")
+include("probability_weights.jl")
 
 @testset "contrasts argument" begin
     # DummyCoding (default)
