@@ -16,5 +16,6 @@ makedocs(
 
 deploydocs(
     repo   = "github.com/JuliaStats/GLM.jl.git",
-    push_preview = true
+    # Uncommented for the time being to avoid that the repo size explodes
+    # push_preview = true
 )
