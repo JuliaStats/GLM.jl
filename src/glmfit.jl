@@ -399,6 +399,9 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
         updateμ!(r, lp)
     end
     devold = deviance(m)
+    if !isfinite(devold)
+        throw(DomainError(devold, "initial deviance was not finite. Try alternative starting values or model formulation"))
+    end
 
     for i = 1:maxiter
         f = 1.0 # line search factor
@@ -418,7 +421,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
         ## If the deviance isn't declining then half the step size
         ## The rtol*dev term is to avoid failure when deviance
         ## is unchanged except for rouding errors.
-        while dev > devold + rtol*dev
+        while !isfinite(dev) || dev > devold + rtol*dev
             f /= 2
             f > minstepfac || error("step-halving failed at beta0 = $(p.beta0)")
             try

@@ -3,6 +3,7 @@ using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays, StableRNG
 using GLM
 using StatsFuns: logistic
 using Distributions: TDist
+using Downloads
 
 test_show(x) = show(IOBuffer(), x)
 
@@ -109,8 +110,9 @@ end
     N = nrow(df)
     df.weights = repeat(1:5, Int(N/5))
     f = @formula(FoodExp ~ Income)
-    lm_model = lm(f, df, wts = df.weights)
-    glm_model = glm(f, df, Normal(), wts = df.weights)
+
+    lm_model = lm(f, df, wts = df.weights; method=dmethod)
+    glm_model = glm(f, df, Normal(), wts = df.weights; method=dmethod)
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
@@ -177,8 +179,8 @@ end
         @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
         @test isa(m2p_dep_pos_kw.pp.chol, CholeskyPivoted)
     elseif dmethod == :qr
-        @test_throws RankDeficientException m2 = fit(LinearModel, Xmissingcell, ymissingcell;
-                                                        method = dmethod, dropcollinear=false)
+        @test fit(LinearModel, Xmissingcell, ymissingcell;
+            method = dmethod, dropcollinear=false) isa LinearModel
         @test isapprox(coef(m2p), [0.9772643585228962, 11.889730016918342, 3.027347397503282,
                                    3.9661379199401177, 5.079410103608539, 6.194461814118862,
                                   -2.9863884084219015, 7.930328728005132, 8.87999491860477,
@@ -1342,15 +1344,9 @@ end
     @test ft1.dof ≈ dof(mod) - dof(nullmod)
     @test ft1.fstat ≈ ft1base.fstat[2]
     @test ft1.pval ≈ ft1base.pval[2]
-    if VERSION >= v"1.6.0"
-        @test sprint(show, ft1) == """
-            F-test against the null model:
-            F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-07"""
-    else
-        @test sprint(show, ft1) == """
-            F-test against the null model:
-            F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-7"""
-    end
+    @test sprint(show, ft1) == """
+        F-test against the null model:
+        F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-07"""
 
     ft2 = ftest(othermod)
     ft2base = ftest(nullmod, othermod)
@@ -1368,15 +1364,9 @@ end
     @test ft3.dof ≈ dof(bothmod) - dof(nullmod)
     @test ft3.fstat ≈ ft3base.fstat[2]
     @test ft3.pval ≈ ft3base.pval[2]
-    if VERSION >= v"1.6.0"
-        @test sprint(show, ft3) == """
-            F-test against the null model:
-            F-statistic: 81.97 on 12 observations and 3 degrees of freedom, p-value: <1e-05"""
-    else
-        @test sprint(show, ft3) == """
-            F-test against the null model:
-            F-statistic: 81.97 on 12 observations and 3 degrees of freedom, p-value: <1e-5"""
-    end
+    @test sprint(show, ft3) == """
+        F-test against the null model:
+        F-statistic: 81.97 on 12 observations and 3 degrees of freedom, p-value: <1e-05"""
 
     @test_throws ArgumentError ftest(nointerceptmod)
 end
@@ -1402,101 +1392,55 @@ end
     ft1a = ftest(mod, nullmod)
     @test isnan(ft1a.pval[1])
     @test ft1a.pval[2] ≈ 2.481215056713184e-8
-    if VERSION >= v"1.6.0"
-        @test sprint(show, ft1a) == """
-            F-test: 2 models fitted on 12 observations
-            ─────────────────────────────────────────────────────────────────
-                 DOF  ΔDOF     SSR    ΔSSR      R²      ΔR²        F*   p(>F)
-            ─────────────────────────────────────────────────────────────────
-            [1]    3        0.1283          0.9603                           
-            [2]    2    -1  3.2292  3.1008  0.0000  -0.9603  241.6234  <1e-07
-            ─────────────────────────────────────────────────────────────────"""
-    else
-        @test sprint(show, ft1a) == """
-            F-test: 2 models fitted on 12 observations
-            ────────────────────────────────────────────────────────────────
-                 DOF  ΔDOF     SSR    ΔSSR      R²      ΔR²        F*  p(>F)
-            ────────────────────────────────────────────────────────────────
-            [1]    3        0.1283          0.9603
-            [2]    2    -1  3.2292  3.1008  0.0000  -0.9603  241.6234  <1e-7
-            ────────────────────────────────────────────────────────────────"""
-    end
+    @test sprint(show, ft1a) == """
+        F-test: 2 models fitted on 12 observations
+        ─────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR    ΔSSR      R²      ΔR²        F*   p(>F)
+        ─────────────────────────────────────────────────────────────────
+        [1]    3        0.1283          0.9603                           
+        [2]    2    -1  3.2292  3.1008  0.0000  -0.9603  241.6234  <1e-07
+        ─────────────────────────────────────────────────────────────────"""
 
     ft1b = ftest(nullmod, mod)
     @test isnan(ft1b.pval[1])
     @test ft1b.pval[2] ≈ 2.481215056713184e-8
-    if VERSION >= v"1.6.0"
-        @test sprint(show, ft1b) == """
-            F-test: 2 models fitted on 12 observations
-            ─────────────────────────────────────────────────────────────────
-                 DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
-            ─────────────────────────────────────────────────────────────────
-            [1]    2        3.2292           0.0000                          
-            [2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
-            ─────────────────────────────────────────────────────────────────"""
-    else
-        @test sprint(show, ft1b) == """
-            F-test: 2 models fitted on 12 observations
-            ────────────────────────────────────────────────────────────────
-                 DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*  p(>F)
-            ────────────────────────────────────────────────────────────────
-            [1]    2        3.2292           0.0000
-            [2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-7
-            ────────────────────────────────────────────────────────────────"""
-    end
+    @test sprint(show, ft1b) == """
+        F-test: 2 models fitted on 12 observations
+        ─────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
+        ─────────────────────────────────────────────────────────────────
+        [1]    2        3.2292           0.0000                          
+        [2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
+        ─────────────────────────────────────────────────────────────────"""
 
     bigmod = lm(@formula(Result~Treatment+Other), d)
     ft2a = ftest(nullmod, mod, bigmod)
     @test isnan(ft2a.pval[1])
     @test ft2a.pval[2] ≈ 2.481215056713184e-8
     @test ft2a.pval[3] ≈ 0.3949973540194818
-    if VERSION >= v"1.6.0"
-        @test sprint(show, ft2a) == """
-            F-test: 3 models fitted on 12 observations
-            ─────────────────────────────────────────────────────────────────
-                 DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
-            ─────────────────────────────────────────────────────────────────
-            [1]    2        3.2292           0.0000                          
-            [2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
-            [3]    5     2  0.1017  -0.0266  0.9685  0.0082    1.0456  0.3950
-            ─────────────────────────────────────────────────────────────────"""
-    else
-        @test sprint(show, ft2a) == """
-            F-test: 3 models fitted on 12 observations
-            ─────────────────────────────────────────────────────────────────
-                 DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
-            ─────────────────────────────────────────────────────────────────
-            [1]    2        3.2292           0.0000
-            [2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234   <1e-7
-            [3]    5     2  0.1017  -0.0266  0.9685  0.0082    1.0456  0.3950
-            ─────────────────────────────────────────────────────────────────"""
-    end
+    @test sprint(show, ft2a) == """
+        F-test: 3 models fitted on 12 observations
+        ─────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
+        ─────────────────────────────────────────────────────────────────
+        [1]    2        3.2292           0.0000                          
+        [2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
+        [3]    5     2  0.1017  -0.0266  0.9685  0.0082    1.0456  0.3950
+        ─────────────────────────────────────────────────────────────────"""
 
     ft2b = ftest(bigmod, mod, nullmod)
     @test isnan(ft2b.pval[1])
     @test ft2b.pval[2] ≈ 0.3949973540194818
     @test ft2b.pval[3] ≈ 2.481215056713184e-8
-    if VERSION >= v"1.6.0"
-        @test sprint(show, ft2b) == """
-            F-test: 3 models fitted on 12 observations
-            ─────────────────────────────────────────────────────────────────
-                 DOF  ΔDOF     SSR    ΔSSR      R²      ΔR²        F*   p(>F)
-            ─────────────────────────────────────────────────────────────────
-            [1]    5        0.1017          0.9685                           
-            [2]    3    -2  0.1283  0.0266  0.9603  -0.0082    1.0456  0.3950
-            [3]    2    -1  3.2292  3.1008  0.0000  -0.9603  241.6234  <1e-07
-            ─────────────────────────────────────────────────────────────────"""
-    else
-        @test sprint(show, ft2b) == """
-            F-test: 3 models fitted on 12 observations
-            ─────────────────────────────────────────────────────────────────
-                 DOF  ΔDOF     SSR    ΔSSR      R²      ΔR²        F*   p(>F)
-            ─────────────────────────────────────────────────────────────────
-            [1]    5        0.1017          0.9685
-            [2]    3    -2  0.1283  0.0266  0.9603  -0.0082    1.0456  0.3950
-            [3]    2    -1  3.2292  3.1008  0.0000  -0.9603  241.6234   <1e-7
-            ─────────────────────────────────────────────────────────────────"""
-    end
+    @test sprint(show, ft2b) == """
+        F-test: 3 models fitted on 12 observations
+        ─────────────────────────────────────────────────────────────────
+             DOF  ΔDOF     SSR    ΔSSR      R²      ΔR²        F*   p(>F)
+        ─────────────────────────────────────────────────────────────────
+        [1]    5        0.1017          0.9685                           
+        [2]    3    -2  0.1283  0.0266  0.9603  -0.0082    1.0456  0.3950
+        [3]    2    -1  3.2292  3.1008  0.0000  -0.9603  241.6234  <1e-07
+        ─────────────────────────────────────────────────────────────────"""
 
     @test_throws ArgumentError ftest(mod, bigmod, nullmod)
     @test_throws ArgumentError ftest(nullmod, bigmod, mod)
@@ -2152,8 +2096,8 @@ end
     # > data(Duncan)
     # > lm1 = lm(prestige ~ 1 + income + education, Duncan)
     # > vif(lm1)
-    #    income education 
-    #    2.1049    2.1049 
+    #    income education
+    #    2.1049    2.1049
     # > lm2 = lm(prestige ~ 1 + income + education + type, Duncan)
     # > vif(lm2)
     #               GVIF Df GVIF^(1/(2*Df))
@@ -2164,27 +2108,56 @@ end
     lm1 = lm(@formula(Prestige ~ 1 + Income + Education), duncan)
     @test termnames(lm1)[2] == coefnames(lm1)
     @test vif(lm1) ≈ gvif(lm1)
-    
+
     lm1_noform = lm(modelmatrix(lm1), response(lm1))
     @test vif(lm1) ≈ vif(lm1_noform)
     @test_throws ArgumentError("model was fitted without a formula") gvif(lm1_noform)
-    
+
     lm1log = lm(@formula(Prestige ~ 1 + exp(log(Income)) + exp(log(Education))), duncan)
     @test termnames(lm1log)[2] == coefnames(lm1log) == ["(Intercept)", "exp(log(Income))", "exp(log(Education))"]
     @test vif(lm1) ≈ vif(lm1log)
-    
+
     gm1 = glm(modelmatrix(lm1), response(lm1), Normal())
     @test vif(lm1) ≈ vif(gm1)
-    
+
     lm2 = lm(@formula(Prestige ~ 1 + Income + Education + Type), duncan)
     @test termnames(lm2)[2] != coefnames(lm2)
     @test gvif(lm2; scale=true) ≈ [1.486330, 2.301648, 1.502666] atol=1e-4
-    
+
     gm2 = glm(@formula(Prestige ~ 1 + Income + Education + Type), duncan, Normal())
     @test termnames(gm2)[2] != coefnames(gm2)
-    @test gvif(gm2; scale=true) ≈ [1.486330, 2.301648, 1.502666] atol=1e-4   
-    
+    @test gvif(gm2; scale=true) ≈ [1.486330, 2.301648, 1.502666] atol=1e-4
+
     # the VIF definition depends on modelmatrix, vcov and stderror returning valid
     # values. It doesn't care about links, offsets, etc. as long as the model matrix,
     # vcov matrix and stderrors are well defined.
+end
+
+@testset "NIST - Filip. Issue 558" begin
+    # Since "https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/Filip.dat" seems to block download, we'll use a "mirror"
+    fn = Downloads.download("https://gist.githubusercontent.com/andreasnoack/9dadfb922fc45ca52bc7b2659b7c5b67/raw/f1dcdd2179b606ecbb7e23316da1ede971e7ffe8/Filip.dat")
+    filip_estimates_df = CSV.read(fn, DataFrame; skipto = 31, limit = 11, header = ["parameter", "estimate", "se"], delim = " ", ignorerepeated = true)
+    filip_data_df = CSV.read(fn, DataFrame; skipto = 61, header = ["y", "x"], delim = " ", ignorerepeated = true)
+    X = [filip_data_df.x[i]^j for i in 1:length(filip_data_df.x), j in 0:10]
+
+    # No weights
+    f1 = lm(X, filip_data_df.y, dropcollinear = false, method = :qr)
+    @test coef(f1) ≈ filip_estimates_df.estimate rtol = 1e-7
+    @test stderror(f1) ≈ filip_estimates_df.se rtol = 1e-7
+
+    # Weights
+    f2 = lm(X, filip_data_df.y, dropcollinear = false, method = :qr, wts = ones(length(filip_data_df.y)))
+    @test coef(f2) ≈ filip_estimates_df.estimate rtol = 1e-7
+    @test stderror(f2) ≈ filip_estimates_df.se rtol = 1e-7
+end
+
+@testset "Non-finite deviance. Issue 417" begin
+    X_fn = Downloads.download("https://github.com/JuliaStats/GLM.jl/files/6279630/x.txt")
+    y_fn = Downloads.download("https://github.com/JuliaStats/GLM.jl/files/6279632/y.txt")
+    X_df = CSV.read(X_fn, DataFrame, header = false)
+    y_df = CSV.read(y_fn, DataFrame, header = false)
+    df = hcat(y_df, select(X_df, Not("Column1")))
+    ft = glm(@formula(Column1 ~ Column2 + Column3 + Column4), df, Gamma(), LogLink())
+    @test coef(ft) ≈ [9.648767705301294, -0.11274823562143056, 0.1907889126252095, -0.8123086879222496]
+    @test_throws DomainError glm(@formula(Column1 ~ Column2 + Column3 + Column4), df, Gamma(), LogLink(), start = fill(NaN, 4))
 end
