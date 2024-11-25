@@ -41,12 +41,16 @@ mutable struct DensePredQR{T<:BlasReal, Q<:Union{QRCompactWY, QRPivoted}, W<:Abs
     wts::W
     scratchm1::Matrix{T}
 
-    function DensePredQR(X::AbstractMatrix, pivot::Bool, wts::W) where W<:Union{AbstractWeights, AbstractVector}
+    function DensePredQR(X::AbstractMatrix, pivot::Bool, wts::W) where W<:Union{AbstractWeights}
         n, p = size(X)
         T = typeof(float(zero(eltype(X))))
         Q = pivot ? QRPivoted : QRCompactWY
         fX = float(X)
-        cfX = fX === X ? copy(fX) : fX
+        if wts isa UnitWeights
+            cfX = fX === X ? copy(fX) : fX
+        else
+            cfX = Diagonal(sqrt.(wts))*fX 
+        end
         F = pivot ? pivoted_qr!(cfX) : qr!(cfX)
         new{T,Q,W}(Matrix{T}(X),
             zeros(T, p),
@@ -67,19 +71,18 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 function delbeta! end
 
 function delbeta!(p::DensePredQR{T, <:QRCompactWY}, r::Vector{T}) where T<:BlasReal
-    rnk = rank(p.qr.R)
-    rnk == length(p.delbeta) || throw(RankDeficientException(rnk))
-    p.delbeta = p.qr\r
-    mul!(p.scratchm1, Diagonal(ones(size(r))), p.X)
+    r̃ = p.wts isa UnitWeights ? r : (wtsqrt = sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
+    #rnk = rank(p.qr.R)
+    #rnk == length(p.delbeta) || throw(RankDeficientException(rnk))
+    p.delbeta = p.qr\r̃
+    #mul!(p.scratchm1, Diagonal(ones(size(r))), p.X)
     return p
 end
 
-function delbeta!(p::DensePredQR{T, <:QRCompactWY}, r::Vector{T}, wt::AbstractVector{T}) where T<:BlasReal
-    rnk = rank(p.qr.R)
-    rnk == length(p.delbeta) || throw(RankDeficientException(rnk))
+function delbeta!(p::DensePredQR{T, <:QRCompactWY}, r::Vector{T}, wt::AbstractVector) where T<:BlasReal
     X = p.X
-    W = Diagonal(wt)
-    sqrtW = Diagonal(sqrt.(wt))
+    wtsqrt = sqrt.(wt)
+    sqrtW = Diagonal(wtsqrt)
     mul!(p.scratchm1, sqrtW, X)
     ỹ = (wtsqrt .*= r) # to reuse wtsqrt's memory
     p.qr = qr!(p.scratchm1)
@@ -88,16 +91,15 @@ function delbeta!(p::DensePredQR{T, <:QRCompactWY}, r::Vector{T}, wt::AbstractVe
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
+    r̃ = p.wts isa UnitWeights ? r : (wtsqrt = sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
     rnk = rank(p.qr.R)
     if rnk == length(p.delbeta)
-        p.delbeta = p.qr \ r
+        p.delbeta = p.qr \ r̃
     else
-        #R = @view p.qr.R[:, 1:rnk]
         R = UpperTriangular(view(parent(p.qr.R), 1:rnk, 1:rnk))
-        Q = @view p.qr.Q[:, 1:size(R, 1)]
         piv = p.qr.p
         fill!(p.delbeta, 0)
-        p.delbeta[1:rnk] = R \ Q'r
+        p.delbeta[1:rnk] = R \ view(p.qr.Q'*r̃, 1:rnk)
         invpermute!(p.delbeta, piv)
     end
     return p
@@ -105,7 +107,6 @@ end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::AbstractVector{T}) where T<:BlasReal
     X = p.X
-    W = Diagonal(wt)
     wtsqrt = sqrt.(wt)
     sqrtW = Diagonal(wtsqrt)
     mul!(p.scratchm1, sqrtW, X)
@@ -308,12 +309,12 @@ end
 LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)
 LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 
-function invqr(p::DensePredQR{T,<: QRCompactWY}) where T
+function invqr(p::DensePredQR{T,<: QRCompactWY, <:AbstractWeights}) where T
     Rinv = inv(p.qr.R)
     Rinv*Rinv'
 end
 
-function invqr(p::DensePredQR{T,<: QRPivoted}) where T
+function invqr(p::DensePredQR{T,<: QRPivoted, <:AbstractWeights}) where T
     rnk = rank(p.qr.R)
     k = length(p.delbeta)
     if rnk == k
@@ -370,19 +371,20 @@ function vcov(x::LinPredModel)
     end
 end
 
-function _vcov(pp::DensePredChol, Z::Matrix, A::Matrix)
-    if pp.chol isa CholeskyPivoted && rank(pp.chol) != size(A, 1)
+function _vcov(pp::DensePred, Z::Matrix, A::Matrix)
+    if linpred_rank(pp) < size(Z, 2)
         nancols = [all(isnan, col) for col in eachcol(A)]
         nnancols = .!nancols
-        Zv = view(Z, :, nnancols)
+        idx, nidx = findall(nancols), findall(nnancols)
+        Zv = view(Z, :, nidx)
         B = Zv'Zv
-        Av = view(A, nnancols, nnancols)
-        V = similar(pp.scratchm2)
-        V[nnancols, nnancols] = Av * B * Av
-        V[nancols, :] .= NaN
-        V[:, nancols] .= NaN
+        Av = view(A, nidx, nidx)
+        V = similar(pp.scratchm1, (size(A)...))
+        V[nidx, nidx] = Av * B * Av
+        V[idx, :] .= NaN
+        V[:, idx] .= NaN
     else
-        B = mul!(pp.scratchm2, Z', Z)
+        B = Z'Z
         V = A * B * A
     end
     return V
@@ -427,7 +429,7 @@ modelmatrix(obj::LinPredModel; weighted::Bool=isweighted(obj)) = modelmatrix(obj
 
 function modelmatrix(pp::LinPred; weighted::Bool=isweighted(pp))
     Z = if weighted
-        mul!(pp.scratchm1, Diagonal(sqrt.(pp.wts)), pp.X)
+        Diagonal(sqrt.(pp.wts))*pp.X
     else
         pp.X
     end
@@ -463,11 +465,8 @@ end
 
 function leverage(pp::DensePredQR{T, C, W}) where {T, C<:Cholesky, W}
   X = modelmatrix(pp; weighted=isweighted(pp))
-  sum(x -> x^2, X/pp.chol.R, dims=2)
+  sum(x -> x^2, X/pp.qr.R, dims=2)
 end
-
-
-
 
 response(obj::LinPredModel) = obj.rr.y
 

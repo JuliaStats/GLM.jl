@@ -901,7 +901,7 @@ end
 function momentmatrix(m::GeneralizedLinearModel)
     X = modelmatrix(m; weighted=false)
     r, d = varstruct(m)
-    return mul!(m.pp.scratchm1, Diagonal(r.*d), X)
+    return Diagonal(r.*d)*X
 end
 
 function varstruct(x::GeneralizedLinearModel)
@@ -917,5 +917,8 @@ end
 
 function invloglikhessian(m::GeneralizedLinearModel)
     r, d = varstruct(m)
-    return invchol(m.pp)/d
+    return invfact(m.pp)/d
 end
+
+invfact(f::DensePredChol) = invchol(f)
+invfact(f::DensePredQR) = invqr(f)

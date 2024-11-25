@@ -25,20 +25,23 @@ dobson = DataFrame(
     w=[1, 2, 1, 2, 3, 4, 3, 2, 1]
 )
 
-@testset "Linear model ftest" begin
-    model_0 = lm(@formula(y ~ x1), df; wts=aweights(df.w))
-    model_1 = lm(@formula(y ~ x1 + x2), df; wts=aweights(df.w))
+for dmethod ∈ (:cholesky, :qr)
+@testset "Linear model ftest with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+    model_0 = lm(@formula(y ~ x1), df; wts=aweights(df.w), method=dmethod)
+    model_1 = lm(@formula(y ~ x1 + x2), df; wts=aweights(df.w), method=dmethod)
     X = hcat(ones(length(df.y)), df.x1, df.x2)
-    model_2 = lm(X, y; wts=aweights(df.w))
+    model_2 = lm(X, y; wts=aweights(df.w), method=dmethod)
     @test ftest(model_1).fstat ≈ 1.551275 rtol = 1e-05
     @test ftest(model_2) === ftest(model_1)
     @test ftest(model_0, model_1).fstat[2] ≈ 1.7860438 rtol = 1e-05
     @test ftest(model_0, model_2).fstat[2] ≈ 1.7860438 rtol = 1e-05
 end
+end
 
-@testset "GLM: Binomial with LogitLink link - AnalyticWeights" begin
+for dmethod ∈ (:cholesky, :qr)
+@testset "GLM: Binomial with LogitLink link - AnalyticWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), LogitLink(), wts=aweights(df.w), 
-                         atol=1e-08, rtol=1e-08)
+                         method=dmethod, atol=1e-08, rtol=1e-08)
     @test deviance(model) ≈ 39.58120350785813 rtol = 1e-06
     @test loglikelihood(model) ≈ -19.79060175392906 rtol = 1e-06
     @test coef(model) ≈ [0.6333582770515337, 1.8861277804531265, 18.61281712203539] rtol = 1e-06
@@ -71,10 +74,12 @@ end
                                      1.6687848932140258e-8 3.1458514759844027e-9 1.67e-8; 
                                      0.4123258762224241    0.2630623634882926    0.0] rtol = 1e-07
 end
+end
 
-@testset "GLM: Binomial with ProbitLink link - AnalyticWeights" begin
+
+@testset "GLM: Binomial with ProbitLink link - AnalyticWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), ProbitLink(), 
-                         wts=aweights(df.w), rtol=1e-09)
+                         wts=aweights(df.w), method=dmethod, rtol=1e-09)
     @test deviance(model) ≈ 39.595360462143866 rtol = 1e-06
     @test loglikelihood(model) ≈ -19.797680231071933 rtol = 1e-06
     @test coef(model) ≈ [0.42120722997197313, 1.0416447141541567, 4.916910225354065] rtol = 1e-07
@@ -108,8 +113,9 @@ end
                                      0.7707735136764122    0.49175061259680825   0.0] rtol = 1e-07
 end
 
-@testset "GLM: Binomial with CauchitLink link - AnalyticWeights" begin
-    model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), CauchitLink(), wts=aweights(df.w), rtol=1e-08, atol=1e-08)
+@testset "GLM: Binomial with CauchitLink link - AnalyticWeights - method $dmethod" for dmethod ∈ (:cholesky, :qr)
+    model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), CauchitLink(), wts=aweights(df.w), 
+                method=dmethod, rtol=1e-08, atol=1e-08)
     @test deviance(model) ≈ 39.627559015619845 rtol = 1e-07
     @test loglikelihood(model) ≈ -19.813779507809922 rtol = 1e-07
     @test aic(model) ≈ 45.627559015619845 rtol = 1e-07
@@ -141,8 +147,9 @@ end
                                       0.21554272008110664    0.1375154474822352     0.0] rtol = 1e-07
 end
 
-@testset "GLM: Binomial with CloglogLink link - AnalyticWeights" begin
-    model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), CloglogLink(), wts=aweights(df.w), rtol=5e-10, atol=1e-10)
+@testset "GLM: Binomial with CloglogLink link - AnalyticWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+    model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), CloglogLink(), wts=aweights(df.w), 
+                method=dmethod, rtol=5e-10, atol=1e-10)
     @test deviance(model) ≈ 39.61484762863061 rtol = 1e-07
     @test loglikelihood(model) ≈ -19.807423814315307 rtol = 1e-07
     # @test coef(model) ≈ [0.12095167614339054, 0.8666201161364425, 2.5534670172943965] rtol=1e-07
@@ -176,9 +183,9 @@ end
                                       0.9629196988432743     0.6143391585021523     0.0] rtol = 1e-05
 end
 
-@testset "GLM: Gamma with InverseLink link - AnalyticWeights" begin
+@testset "GLM: Gamma with InverseLink link - AnalyticWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), InverseLink(), 
-                wts=aweights(clotting.w), atol=1e-07, rtol=1e-08)
+                wts=aweights(clotting.w), method=dmethod, atol=1e-07, rtol=1e-08)
     @test deviance(model) ≈ 0.03933389380881642 rtol = 1e-07
     @test loglikelihood(model) ≈ -43.359078787690514 rtol = 1e-07
     @test coef(model) ≈ [-0.017217012596343607, 0.015649040406186487] rtol = 1e-07
@@ -196,9 +203,9 @@ end
                                        262.77277766267576  1210.113361381432] rtol = 1e-07
 end
 
-@testset "GLM: Gamma with IdentityLink link - AnalyticWeights" begin
+@testset "GLM: Gamma with IdentityLink link - AnalyticWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(), 
-                wts=aweights(clotting.w), rtol=1e-10, atol=1e-10, minstepfac=0.00001)
+                wts=aweights(clotting.w), method=dmethod, rtol=1e-10, atol=1e-10, minstepfac=0.00001)
     @test deviance(model) ≈ 1.3435348802929383 rtol = 1e-07
     @test loglikelihood(model) ≈ -101.19916126647321 rtol = 1e-07
     @test coef(model) ≈ [86.45700434128152, -15.320695650698417] rtol = 1e-05
@@ -216,9 +223,9 @@ end
                                       0.6561290267416002    3.0215858321118008] rtol = 1e-04
 end
 
-@testset "GLM: Gamma with LogLink link - AnalyticWeights" begin
+@testset "GLM: Gamma with LogLink link - AnalyticWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(), 
-                wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
+                wts=aweights(clotting.w), method=dmethod, atol=1e-09, rtol=1e-09)
     @test deviance(model) ≈ 0.41206342934199663 rtol = 1e-07
     @test loglikelihood(model) ≈ -81.79777246247532 rtol = 1e-07
     @test coef(model) ≈ [5.325107090308856, -0.5495682740033511] rtol = 1e-07
@@ -236,9 +243,9 @@ end
                                       16.590486289982852  76.40201283367323] rtol = 1e-07
 end
 
-@testset "GLM: Gamma with InverseLink link - AnalyticWeights" begin
+@testset "GLM: Gamma with InverseLink link - AnalyticWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), InverseLink(), 
-                wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
+                wts=aweights(clotting.w), method=dmethod, atol=1e-09, rtol=1e-09)
     @test deviance(model) ≈ 0.03933389380881642 rtol = 1e-07
     @test loglikelihood(model) ≈ -43.359078787690514 rtol = 1e-07
     @test coef(model) ≈ [-0.017217012596343607, 0.015649040406186487] rtol = 1e-07
@@ -256,9 +263,9 @@ end
                                        262.77277766267576  1210.113361381432] rtol = 1e-07
 end
 
-@testset "GLM: InverseGaussian with InverseSquareLink link - AnalyticWeights" begin
+@testset "GLM: InverseGaussian with InverseSquareLink link - AnalyticWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
     model = glm(@formula(lot1 ~ 1 + u), clotting, InverseGaussian(), InverseSquareLink(), 
-                wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
+                wts=aweights(clotting.w), method=dmethod, atol=1e-09, rtol=1e-09)
     @test deviance(model) ≈ 0.021377370485120707 rtol = 1e-07
     @test loglikelihood(model) ≈ -86.82546665077861 rtol = 1e-07
     @test coef(model) ≈ [-0.0012633718975150973, 0.0008126490405747128] rtol = 1e-07
@@ -276,9 +283,10 @@ end
                                       8424.676595366931   38797.069483575455] rtol = 1e-06
 end
 
-@testset "GLM:  NegativeBinomial with LogLink link - AnalyticWeights" begin
+@testset "GLM:  NegativeBinomial with LogLink link - AnalyticWeights - method: dmethod" for dmethod ∈ (:cholesky, :qr)
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(2), 
-                LogLink(), wts=aweights(quine.aweights), atol=1e-08, rtol=1e-08)
+                LogLink(), wts=aweights(quine.aweights), method=dmethod, 
+                atol=1e-08, rtol=1e-08)
 
     @test deviance(model) ≈ 624.7631999565588 rtol = 1e-07
     @test loglikelihood(model) ≈ -2004.5939464322778 rtol = 1e-07
@@ -441,9 +449,10 @@ end
     ] rtol = 1e-04
 end
 
-@testset "GLM:  NegativeBinomial with LogLink link - AnalyticWeights" begin
+@testset "GLM:  NegativeBinomial with LogLink link - AnalyticWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, 
-                NegativeBinomial(2), LogLink(), wts=aweights(quine.aweights), rtol=1e-08, atol=1e-08)
+                NegativeBinomial(2), LogLink(), wts=aweights(quine.aweights), 
+                method=dmethod, rtol=1e-08, atol=1e-08)
     @test deviance(model) ≈ 624.7631999565588 rtol = 1e-07
     @test loglikelihood(model) ≈ -2004.5939464322778 rtol = 1e-07
     @test coef(model) ≈ [3.02411915515531, -0.4641576651688563, 0.0718560942992554, 
@@ -604,9 +613,10 @@ end
     ] rtol = 1e-04
 end
 
-@testset "GLM:  NegativeBinomial with SqrtLink link - AnalyticWeights" begin
+@testset "GLM:  NegativeBinomial with SqrtLink link - AnalyticWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(2), 
-                SqrtLink(), wts=aweights(quine.aweights), rtol=1e-08, atol=1e-09)
+                SqrtLink(), wts=aweights(quine.aweights), method=dmethod,
+                rtol=1e-08, atol=1e-09)
     @test deviance(model) ≈ 626.6464732988984 rtol = 1e-07
     @test loglikelihood(model) ≈ -2005.5355831034462 rtol = 1e-07
     @test coef(model) ≈ [4.733877229152363, -1.007977895471349, 0.02522392818548873, 

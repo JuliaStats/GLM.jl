@@ -525,7 +525,7 @@ end
 @testset "Poisson LogLink offset with weights with $dmethod" for dmethod in (:cholesky, :qr)
     gm7pw = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat), anorexia,
                 Poisson(), LogLink(), method=dmethod, offset=log.(anorexia.Prewt),
-                wts=repeat(1:4, outer=18), rtol=1e-8)
+                wts=fweights(repeat(1:4, outer=18)), rtol=1e-8)
 
     @test GLM.cancancel(gm7pw.rr)
     test_show(gm7pw)
@@ -624,7 +624,7 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
 @testset "Aggregated Binomial LogitLink" begin
     for distr in (Binomial, Bernoulli)
         gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
-                   wts=Array(admit_agr.count))
+                   wts=fweights(Array(admit_agr.count)))
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
         @test isapprox(deviance(gm14), 474.9667184280627)
@@ -664,7 +664,7 @@ admit_agr2.p = admit_agr2.admit ./ admit_agr2.count
 ## The model matrix here is singular so tests like the deviance are just round off error
 @testset "Binomial LogitLink aggregated with $dmethod" for dmethod in (:cholesky, :qr)
     gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial(),
-               wts=admit_agr2.count)
+               wts=fweights(admit_agr2.count))
     test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
@@ -681,7 +681,7 @@ end
 # Weighted Gamma example (weights are totally made up)
 @testset "Gamma InverseLink Weights with $dmethod" for dmethod in (:cholesky, :qr)
     gm16 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(),
-               wts=[1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
+               wts=fweights([1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7]))
     test_show(gm16)
     @test dof(gm16) == 3
     @test nobs(gm16) == 32.7
@@ -698,7 +698,7 @@ end
 # Weighted Poisson example (weights are totally made up)
 @testset "Poisson LogLink Weights" begin
     gm17 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson(),
-        wts = [1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7])
+        wts = fweights([1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7]))
     test_show(gm17)
     @test dof(gm17) == 5
     @test isapprox(deviance(gm17), 17.699857821414266)
@@ -789,7 +789,7 @@ end
 @testset "Weighted NegativeBinomial LogLink, θ to be estimated with Cholesky" begin
     halfn = round(Int, 0.5*size(quine, 1))
     wts   = vcat(fill(0.8, halfn), fill(1.2, size(quine, 1) - halfn))
-    gm20a = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink(); wts=wts)
+    gm20a = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink(); wts=fweights(wts))
     test_show(gm20a)
     @test dof(gm20a) == 8
     @test isapprox(deviance(gm20a), 164.45910399188858, rtol = 1e-7)
@@ -911,7 +911,7 @@ end
     # Poisson with categorical predictors, weights and offset
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat), anorexia,
                     Poisson(), LogLink(); offset=log.(anorexia.Prewt),
-                    wts=repeat(1:4, outer=18), rtol=1e-8, dropcollinear=false)
+                    wts=fweights(repeat(1:4, outer=18)), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3)
     @test GLM.cancancel(nointglm3.rr)
     test_show(nointglm3)
@@ -966,7 +966,7 @@ end
     # Poisson with categorical predictors, weights and offset
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat), anorexia,
                     Poisson(), LogLink(); method=dmethod, offset=log.(anorexia.Prewt),
-                    wts=repeat(1:4, outer=18), rtol=1e-8, dropcollinear=false)
+                    wts=fweights(repeat(1:4, outer=18)), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3)
     @test GLM.cancancel(nointglm3.rr)
     test_show(nointglm3)
@@ -1610,14 +1610,14 @@ end
         lm4 = lm(view(x, :, :), view(y, :); method=dmethod)
         @test coef(lm1) == coef(lm2) == coef(lm3) == coef(lm4)
 
-        lm5 = lm(x, y, wts=w, method=dmethod)
-        lm6 = lm(x, view(y, :), method=dmethod, wts=w)
-        lm7 = lm(view(x, :, :), y, method=dmethod, wts=w)
-        lm8 = lm(view(x, :, :), view(y, :), method=dmethod, wts=w)
-        lm9 = lm(x, y, method=dmethod, wts=view(w, :))
-        lm10 = lm(x, view(y, :), method=dmethod, wts=view(w, :))
-        lm11 = lm(view(x, :, :), y, method=dmethod, wts=view(w, :))
-        lm12 = lm(view(x, :, :), view(y, :), method=dmethod, wts=view(w, :))
+        lm5 = lm(x, y, wts=fweights(w), method=dmethod)
+        lm6 = lm(x, view(y, :), method=dmethod, wts=fweights(w))
+        lm7 = lm(view(x, :, :), y, method=dmethod, wts=fweights(w))
+        lm8 = lm(view(x, :, :), view(y, :), method=dmethod, wts=fweights(w))
+        lm9 = lm(x, y, method=dmethod, wts=fweights(view(w, :)))
+        lm10 = lm(x, view(y, :), method=dmethod, wts=fweights(view(w, :)))
+        lm11 = lm(view(x, :, :), y, method=dmethod, wts=fweights(view(w, :)))
+        lm12 = lm(view(x, :, :), view(y, :), method=dmethod, wts=fweights(view(w, :)))
         @test coef(lm5) == coef(lm6) == coef(lm7) == coef(lm8) == coef(lm9) == coef(lm10) ==
             coef(lm11) == coef(lm12)
 
@@ -1628,14 +1628,14 @@ end
         glm4 = glm(view(x, :, :), view(y, :), Binomial(), method=dmethod)
         @test coef(glm1) == coef(glm2) == coef(glm3) == coef(glm4)
 
-        glm5 = glm(x, y, Binomial(), wts=w)
-        glm6 = glm(x, view(y, :), Binomial(), wts=w)
-        glm7 = glm(view(x, :, :), y, Binomial(), wts=w)
-        glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=w)
-        glm9 = glm(x, y, Binomial(), wts=view(w, :))
-        glm10 = glm(x, view(y, :), Binomial(), wts=view(w, :))
-        glm11 = glm(view(x, :, :), y, Binomial(), wts=view(w, :))
-        glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=view(w, :))
+        glm5 = glm(x, y, Binomial(), wts=fweights(w))
+        glm6 = glm(x, view(y, :), Binomial(), wts=fweights(w))
+        glm7 = glm(view(x, :, :), y, Binomial(), wts=fweights(w))
+        glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=fweights(w))
+        glm9 = glm(x, y, Binomial(), wts=fweights(view(w, :)))
+        glm10 = glm(x, view(y, :), Binomial(), wts=fweights(view(w, :)))
+        glm11 = glm(view(x, :, :), y, Binomial(), wts=fweights(view(w, :)))
+        glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=fweights(view(w, :)))
         @test coef(glm5) == coef(glm6) == coef(glm7) == coef(glm8) == coef(glm9) == coef(glm10) ==
             coef(glm11) == coef(glm12)
     end
@@ -1772,7 +1772,7 @@ end
                     -0.33333334610634496 -0.33333334610634496 -0.0 -0.0 -0.33333334610634496;
                     -3.6666667654825043 -0.0 -3.6666667654825043 -0.0 -3.6666667654825043]
 
-        gm_poisw = fit(GeneralizedLinearModel, f, dobson, Poisson(), wts = dobson.Weights)
+        gm_poisw = fit(GeneralizedLinearModel, f, dobson, Poisson(), wts = fweights(dobson.Weights))
 
         mm0_poisw = [-0.9624647521850039 -0.0 -0.0 -0.0 -0.0;
                       0.6901050904949885 0.6901050904949885 0.0 0.0 0.0;
@@ -1790,7 +1790,7 @@ end
         f = @formula(admit ~ 1 + rank)
         gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(); rtol=1e-8)
         gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(),
-                      wts=aweights(admit_agr.count); rtol=1e-08)
+                      wts=fweights(admit_agr.count); rtol=1e-08)
 
         mm0_bin = [-0.5  -0.0  -0.0  -0.0
                    -0.5  -0.5  -0.0  -0.0
@@ -1819,7 +1819,7 @@ end
         f = @formula(admit ~ 1 + rank)
         gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink())
         gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink(),
-                      wts=aweights(admit_agr.count), rtol=1e-8)
+                      wts=fweights(admit_agr.count), rtol=1e-8)
 
         mm0_bin = [-0.7978846  0.0000000  0.0000000  0.0000000
                    -0.7978846 -0.7978846  0.0000000  0.0000000
