@@ -31,7 +31,6 @@ A `LinPred` type with a dense QR decomposition of `X`
 - `qr`: either a `QRCompactWY` or `QRPivoted` object created from `X`, with optional row weights.
 - `scratchm1`: scratch Matrix{T} of the same size as `X`
 """
-
 mutable struct DensePredQR{T<:BlasReal, Q<:Union{QRCompactWY, QRPivoted}, W<:AbstractWeights} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
@@ -454,18 +453,18 @@ function leverage(pp::DensePredChol{T, C, W}) where {T, C<:Cholesky, W}
 end
 
 function leverage(pp::DensePredQR{T, C, W}) where {T, C<:QRPivoted, W}
-  X = modelmatrix(pp; weighted=isweighted(pp))
-  _, k = size(X)
-  ch = pp.qr
-  rnk = length(ch.p)
-  p = ch.p
-  idx = invperm(p)[1:rnk]
-  sum(x -> x^2, view(X, :, 1:rnk)/ch.R[1:rnk, idx], dims=2)
+    X = modelmatrix(pp; weighted=isweighted(pp))
+    _, k = size(X)
+    ch = pp.qr
+    rnk = length(ch.p)
+    p = ch.p
+    idx = invperm(p)[1:rnk]
+    sum(x -> x^2, view(X, :, 1:rnk)/ch.R[1:rnk, idx], dims=2)
 end
 
 function leverage(pp::DensePredQR{T, C, W}) where {T, C<:Cholesky, W}
-  X = modelmatrix(pp; weighted=isweighted(pp))
-  sum(x -> x^2, X/pp.qr.R, dims=2)
+    X = modelmatrix(pp; weighted=isweighted(pp))
+    sum(x -> x^2, X/pp.qr.R, dims=2)
 end
 
 response(obj::LinPredModel) = obj.rr.y

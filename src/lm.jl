@@ -404,12 +404,6 @@ Compute [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance)
 for each observation in linear model `obj`, giving an estimate of the influence
 of each data point.
 """
-## To remove when https://github.com/JuliaStats/StatsAPI.jl/pull/16 is merged
-function crossmodelmatrix(model::RegressionModel; weighted::Bool=false)
-    x = weighted ? modelmatrix(model; weighted=weighted) : modelmatrix(model)
-    return Symmetric(x' * x)
-end
-
 function StatsBase.cooksdistance(obj::LinearModel)
     u = residuals(obj; weighted=isweighted(obj))
     mse = GLM.dispersion(obj,true)
@@ -417,4 +411,10 @@ function StatsBase.cooksdistance(obj::LinearModel)
     hii = leverage(obj)
     D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
     return D
+end
+
+## To remove when https://github.com/JuliaStats/StatsAPI.jl/pull/16 is merged
+function crossmodelmatrix(model::RegressionModel; weighted::Bool=false)
+    x = weighted ? modelmatrix(model; weighted=weighted) : modelmatrix(model)
+    return Symmetric(x' * x)
 end
