@@ -13,7 +13,7 @@ module GLM
     using StatsAPI
     import StatsBase: coef, coeftable, coefnames, confint, deviance, nulldeviance, dof, dof_residual,
                       loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict, predict!,
-                      fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², 
+                      fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
                       PValue, weights, leverage
     import StatsFuns: xlogy
     import SpecialFunctions: erfc, erfcinv, digamma, trigamma
@@ -110,13 +110,18 @@ module GLM
           If `method=:cholesky` (the default), then the `Cholesky` decomposition method will be used.
           If `method=:qr`, then the `QR` decomposition method (which is more stable
           but slower) will be used.
-        - `wts::Vector=similar(y,0)`: Prior frequency (a.k.a. case) weights of observations.
-          Such weights are equivalent to repeating each observation a number of times equal
-          to its weight. Do note that this interpretation gives equal point estimates but
-          different standard errors from analytical (a.k.a. inverse variance) weights and
-          from probability (a.k.a. sampling) weights which are the default in some other
-          software.
-          Can be length 0 to indicate no weighting (default).
+        - `wts::AbstractWeights`: Weights of observations.
+            The weights can be of type `AnalyticWeights`, `FrequencyWeights`, `ProbabilityWeights`, or `UnitWeights`.
+            - `AnalyticWeights` describe a non-random relative importance (usually between 0 and 1) for
+              each observation. These weights may also be referred to as reliability weights, precision
+              weights or inverse variance weights. These are typically used when the observations being
+              weighted are aggregate values (e.g., averages) with differing variances.
+            - `FrequencyWeights` describe the number of times (or frequency) each observation was seen.
+              These weights may also be referred to as case weights or repeat weights.
+            - `ProbabilityWeights` represent the inverse of the sampling probability for each observation,
+              providing a correction mechanism for under- or over-sampling certain population groups.
+              These weights may also be referred to as sampling weights.
+            - `UnitWeights` all weights are equal to 1 (default).
         - `contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}()`: a `Dict` mapping term names
           (as `Symbol`s) to term types (e.g. `ContinuousTerm`) or contrasts
           (e.g., `HelmertCoding()`, `SeqDiffCoding(; levels=["a", "b", "c"])`,
