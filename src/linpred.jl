@@ -69,7 +69,7 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 """
 function delbeta! end
 
-function delbeta!(p::DensePredQR{T, <:QRCompactWY}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredQR{T, <:QRCompactWY,<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
     r̃ = p.wts isa UnitWeights ? r : (wtsqrt = sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
     #rnk = rank(p.qr.R)
     #rnk == length(p.delbeta) || throw(RankDeficientException(rnk))
@@ -78,7 +78,7 @@ function delbeta!(p::DensePredQR{T, <:QRCompactWY}, r::Vector{T}) where T<:BlasR
     return p
 end
 
-function delbeta!(p::DensePredQR{T, <:QRCompactWY}, r::Vector{T}, wt::AbstractVector) where T<:BlasReal
+function delbeta!(p::DensePredQR{T, <:QRCompactWY,<:AbstractWeights}, r::Vector{T}, wt::AbstractVector) where T<:BlasReal
     X = p.X
     wtsqrt = sqrt.(wt)
     sqrtW = Diagonal(wtsqrt)
@@ -89,7 +89,7 @@ function delbeta!(p::DensePredQR{T, <:QRCompactWY}, r::Vector{T}, wt::AbstractVe
     return p
 end
 
-function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredQR{T,<:QRPivoted,<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
     r̃ = p.wts isa UnitWeights ? r : (wtsqrt = sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
     rnk = rank(p.qr.R)
     if rnk == length(p.delbeta)
@@ -104,7 +104,7 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
     return p
 end
 
-function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::AbstractVector{T}) where T<:BlasReal
+function delbeta!(p::DensePredQR{T,<:QRPivoted,<:AbstractWeights}, r::Vector{T}, wt::AbstractVector{T}) where T<:BlasReal
     X = p.X
     wtsqrt = sqrt.(wt)
     sqrtW = Diagonal(wtsqrt)
@@ -187,13 +187,13 @@ function cholesky(p::DensePredChol{T}) where T<:FP
     Cholesky(copy(cholfactors(c)), c.uplo, c.info)
 end
 
-function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
     X = p.wts isa UnitWeights ? p.scratchm1 .= p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Vector{T}) where T<:BlasReal
     ch = p.chol
     X = p.wts isa UnitWeights ? p.scratchm1 .= p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     delbeta = mul!(p.delbeta, adjoint(X), r)
@@ -219,7 +219,7 @@ function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights}, r::Vector{T}
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted, <:AbstractWeights}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Vector{T}, wt::Vector{T}) where T<:BlasReal
     piv = p.chol.p # inverse vector
     delbeta = p.delbeta
     # p.scratchm1 = WX
@@ -437,7 +437,7 @@ end
 
 leverage(x::LinPredModel) = leverage(x.pp)
 
-function leverage(pp::DensePredChol{T, C, W}) where {T, C<:CholeskyPivoted, W}
+function leverage(pp::DensePredChol{T,<:CholeskyPivoted}) where T
     X = modelmatrix(pp; weighted=isweighted(pp))
     _, k = size(X)
     ch = pp.chol
@@ -447,12 +447,12 @@ function leverage(pp::DensePredChol{T, C, W}) where {T, C<:CholeskyPivoted, W}
     sum(x -> x^2, view(X, :, 1:rnk)/ch.U[1:rnk, idx], dims=2)
 end
 
-function leverage(pp::DensePredChol{T, C, W}) where {T, C<:Cholesky, W}
+function leverage(pp::DensePredChol{T,<:Cholesky}) where T
     X = modelmatrix(pp; weighted=isweighted(pp))
     sum(x -> x^2, X/pp.chol.U, dims=2)
 end
 
-function leverage(pp::DensePredQR{T, C, W}) where {T, C<:QRPivoted, W}
+function leverage(pp::DensePredQR{T,<:QRPivoted}) where T
     X = modelmatrix(pp; weighted=isweighted(pp))
     _, k = size(X)
     ch = pp.qr
@@ -462,7 +462,7 @@ function leverage(pp::DensePredQR{T, C, W}) where {T, C<:QRPivoted, W}
     sum(x -> x^2, view(X, :, 1:rnk)/ch.R[1:rnk, idx], dims=2)
 end
 
-function leverage(pp::DensePredQR{T, C, W}) where {T, C<:Cholesky, W}
+function leverage(pp::DensePredQR{T,<:QRCompactWY}) where T
     X = modelmatrix(pp; weighted=isweighted(pp))
     sum(x -> x^2, X/pp.qr.R, dims=2)
 end
@@ -479,6 +479,13 @@ end
 
 residuals(obj::LinPredModel; weighted::Bool=false) = residuals(obj.rr; weighted=weighted)
 
+"""
+    nobs(obj::LinearModel)
+    nobs(obj::GLM)
+
+For linear and generalized linear models, returns the number of rows, or,
+when prior weights are specified, the sum of weights.
+"""
 nobs(obj::LinPredModel) = nobs(obj.rr)
 
 weights(obj::RegressionModel) = weights(obj.model)
@@ -492,7 +499,7 @@ isweighted(pp::LinPred) = weights(pp) isa Union{FrequencyWeights, AnalyticWeight
 coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
 coefnames(x::LinPredModel) =
-      x.formula === nothing ? ["x$i" for i in 1:length(coef(x))] : StatsModels.vectorize(coefnames(formula(x).rhs))
+    x.formula === nothing ? ["x$i" for i in 1:length(coef(x))] : StatsModels.vectorize(coefnames(formula(x).rhs))
 
 dof_residual(obj::LinPredModel) = nobs(obj) - linpred_rank(obj)
 
