@@ -12,8 +12,8 @@ julia> using DataFrames, GLM, StatsBase
 
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
 3×2 DataFrame
- Row │ X      Y     
-     │ Int64  Int64 
+ Row │ X      Y
+     │ Int64  Int64
 ─────┼──────────────
    1 │     1      2
    2 │     2      4
