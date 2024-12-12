@@ -111,17 +111,14 @@ module GLM
           If `method=:qr`, then the `QR` decomposition method (which is more stable
           but slower) will be used.
         - `wts::AbstractWeights`: Weights of observations.
-            The weights can be of type `AnalyticWeights`, `FrequencyWeights`, `ProbabilityWeights`, or `UnitWeights`.
-            - `AnalyticWeights` describe a non-random relative importance (usually between 0 and 1) for
-              each observation. These weights may also be referred to as reliability weights, precision
-              weights or inverse variance weights. These are typically used when the observations being
-              weighted are aggregate values (e.g., averages) with differing variances.
-            - `FrequencyWeights` describe the number of times (or frequency) each observation was seen.
-              These weights may also be referred to as case weights or repeat weights.
-            - `ProbabilityWeights` represent the inverse of the sampling probability for each observation,
-              providing a correction mechanism for under- or over-sampling certain population groups.
-              These weights may also be referred to as sampling weights.
-            - `UnitWeights` all weights are equal to 1 (default).
+          The weights can be of type `AnalyticWeights`, `FrequencyWeights`, 
+          `ProbabilityWeights`, or `UnitWeights`. `AnalyticWeights` describe a non-random
+          relative importance (usually between 0 and 1) for each observation. These weights may 
+          also be referred to as reliability weights, precision weights or inverse variance weights. 
+          `FrequencyWeights` describe the number of times (or frequency) each observation was seen. 
+          `ProbabilityWeights` represent the inverse of the sampling probability for each observation,
+          providing a correction mechanism for under- or over-sampling certain population groups. `UnitWeights` 
+          (default) describe the case in which all weights are equal to 1 (so no weighting takes place).
         - `contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}()`: a `Dict` mapping term names
           (as `Symbol`s) to term types (e.g. `ContinuousTerm`) or contrasts
           (e.g., `HelmertCoding()`, `SeqDiffCoding(; levels=["a", "b", "c"])`,
