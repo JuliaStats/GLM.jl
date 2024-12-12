@@ -133,11 +133,11 @@ Both `lm` and `glm` allow weighted estimation. The three different
   each observation. These weights may also be referred to as reliability weights, precision
   weights or inverse variance weights. These are typically used when the observations being
   weighted are aggregate values (e.g., averages) with differing variances.
-- `FrequencyWeights` describe the inverse of the sampling probability for each observation,
+- `FrequencyWeights` describe the number of times (or frequency) each observation was seen.
+  These weights may also be referred to as case weights or repeat weights.
+- `ProbabilityWeights` represent the inverse of the sampling probability for each observation,
   providing a correction mechanism for under- or over-sampling certain population groups.
   These weights may also be referred to as sampling weights.
-- `ProbabilityWeights` describe how the sample can be scaled back to the population.
-  Usually are the reciprocals of sampling probabilities.
 
 To indicate which kind of weights should be used, the vector of weights must be wrapped in
 one of the three weights types, and then passed to the `weights` keyword argument.
