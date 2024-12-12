@@ -139,6 +139,8 @@ Both `lm` and `glm` allow weighted estimation. The three different
   providing a correction mechanism for under- or over-sampling certain population groups.
   These weights may also be referred to as sampling weights.
 
+`GLM.jl` internally uses UnitWeights for unweighted regression. When no weights are specified, the model defaults to using `UnitWeights`, effectively treating all observations as equally weighted.
+
 To indicate which kind of weights should be used, the vector of weights must be wrapped in
 one of the three weights types, and then passed to the `weights` keyword argument.
 Short-hand functions `aweights`, `fweights`, and `pweights` can be used to construct
@@ -149,7 +151,7 @@ We illustrate the API with randomly generated data.
 ```jldoctest weights
 julia> using StableRNGs, DataFrames, GLM
 
-julia> data = DataFrame(y = rand(StableRNG(1), 100), x = randn(StableRNG(2), 100), weights = repeat([1, 2, 3, 4], 25), );
+julia> data = DataFrame(y = rand(StableRNG(1), 100), x = randn(StableRNG(2), 100), weights = repeat([1, 2, 3, 4], 25));
 
 julia> m = lm(@formula(y ~ x), data)
 LinearModel
