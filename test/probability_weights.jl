@@ -28,7 +28,10 @@ dobson = DataFrame(
 
 dobson.pweights = size(dobson, 1) .* (dobson.w ./ sum(dobson.w))
 
-@testset "Linear Model ftest/loglikelihod with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+itr = Iterators.product((:qr, :cholesky), (true, false))
+
+
+@testset "Linear Model ftest/loglikelihod with $dmethod method with dropcollinear=$drop" for (dmethod, drop) ∈ itr
     model_1 = lm(@formula(y ~ x1 + x2), df; wts=pweights(df.pweights), method = dmethod)
     X = hcat(ones(length(df.y)), df.x1, df.x2)
     model_2 = lm(X, y; wts=pweights(df.pweights))
@@ -38,7 +41,7 @@ dobson.pweights = size(dobson, 1) .* (dobson.w ./ sum(dobson.w))
     @test_throws ArgumentError loglikelihood(model_2)
 end
 
-@testset "GLM: Binomial with LogitLink link - ProbabilityWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+@testset "GLM: Binomial with LogitLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod, drop) ∈ itr
     model = glm(
         @formula(y ~ 1 + x1 + x2),
         df,
@@ -46,6 +49,7 @@ end
         LogitLink(),
         wts = pweights(df.pweights),
         method = dmethod,
+        dropcollinear = drop,
         rtol = 1e-07,
     )
     @test_throws ArgumentError loglikelihood(model)
@@ -56,7 +60,7 @@ end
     @test stderror(model) ≈ [1.07077535201799, 1.4966446912323, 0.7679252464101] rtol = 1e-05
 end
 
-@testset "GLM: Binomial with ProbitLink link - ProbabilityWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+@testset "GLM: Binomial with ProbitLink link - ProbabilityWeights with $dmethod method  with dropcollinear=$drop" for (dmethod, drop) ∈ itr
     model = glm(
         @formula(y ~ 1 + x1 + x2),
         df,
@@ -64,6 +68,7 @@ end
         ProbitLink(),
         wts = pweights(df.pweights),
         method = dmethod,
+        dropcollinear = drop,
         rtol = 1e-09,
     )
     @test_throws ArgumentError loglikelihood(model)
@@ -74,7 +79,7 @@ end
     @test stderror(model) ≈ [0.6250657160317, 0.851366312489, 0.4423686640689] rtol = 1e-05
 end
 
-@testset "GLM: Binomial with CauchitLink link - ProbabilityWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+@testset "GLM: Binomial with CauchitLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod, drop) ∈ itr
     model = glm(
         @formula(y ~ 1 + x1 + x2),
         df,
@@ -82,6 +87,7 @@ end
         CauchitLink(),
         wts = pweights(df.pweights),
         method = dmethod,
+        dropcollinear = drop,
         rtol = 1e-07,
     )
     @test_throws ArgumentError loglikelihood(model)
@@ -92,7 +98,7 @@ end
     @test stderror(model) ≈ [1.020489214335, 1.5748610330014, 1.5057621596148] rtol = 1e-03
 end
 
-@testset "GLM: Binomial with CloglogLink link - ProbabilityWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+@testset "GLM: Binomial with CloglogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod, drop) ∈ itr
     model = glm(
         @formula(y ~ 1 + x1 + x2),
         df,
@@ -100,6 +106,7 @@ end
         CloglogLink(),
         wts = pweights(df.pweights),
         method = dmethod,
+        dropcollinear = drop,
         rtol = 1e-09,
     )
     @test_throws ArgumentError loglikelihood(model)
@@ -111,7 +118,7 @@ end
     @test stderror(model) ≈ [0.647026270959, 0.74668663622095, 0.49056337945919] rtol = 1e-04
 end
 
-@testset "GLM: Gamma with LogLink link - ProbabilityWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+@testset "GLM: Gamma with LogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod, drop) ∈ itr
     model = glm(
         @formula(lot1 ~ 1 + u),
         clotting,
@@ -119,6 +126,7 @@ end
         LogLink(),
         wts = pweights(clotting.pweights),
         method = dmethod,
+        dropcollinear = drop,
         rtol = 1e-12,
         atol = 1e-9,
     )
@@ -131,7 +139,7 @@ end
     @test stderror(model) ≈ [0.2651749940925478, 0.06706321966020713] rtol = 1e-07
 end
 
-@testset "GLM: NegativeBinomial(2) with LogLink link - ProbabilityWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+@testset "GLM: NegativeBinomial(2) with LogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod, drop) ∈ itr
     model = glm(
         @formula(Days ~ Eth + Sex + Age + Lrn),
         quine,
@@ -139,6 +147,7 @@ end
         LogLink(),
         wts = pweights(quine.pweights),
         method = dmethod,
+        dropcollinear = drop,
         atol = 1e-09,
     )
     @test_throws ArgumentError loglikelihood(model)
@@ -174,7 +183,7 @@ end
     ] rtol = 1e-04
 end
 
-@testset "GLM:  with LogLink link - ProbabilityWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+@testset "GLM:  with LogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod, drop) ∈ itr
     model = glm(
         @formula(Days ~ Eth + Sex + Age + Lrn),
         quine,
@@ -182,6 +191,7 @@ end
         LogLink(),
         wts = pweights(quine.pweights),
         method = dmethod,
+        dropcollinear = drop,
         rtol = 1e-09,
     )
     @test_throws ArgumentError loglikelihood(model)
@@ -208,7 +218,7 @@ end
     ] rtol = 1e-04
 end
 
-@testset "GLM: NegaiveBinomial(2) with SqrtLink link - ProbabilityWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+@testset "GLM: NegaiveBinomial(2) with SqrtLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod, drop) ∈ itr
     model = glm(
         @formula(Days ~ Eth + Sex + Age + Lrn),
         quine,
@@ -216,6 +226,7 @@ end
         SqrtLink(),
         wts = pweights(quine.pweights),
         method = dmethod,
+        dropcollinear = drop,
         rtol = 1e-08,
     )
     @test_throws ArgumentError loglikelihood(model)
@@ -243,7 +254,7 @@ end
     ] rtol = 1e-04
 end
 
-@testset "GLM: Poisson with LogLink link - ProbabilityWeights with $dmethod method" for dmethod ∈ (:cholesky, :qr)
+@testset "GLM: Poisson with LogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod, drop) ∈ itr
     model = glm(
         @formula(Counts ~ 1 + Outcome + Treatment),
         dobson,
@@ -251,6 +262,7 @@ end
         LogLink(),
         wts = pweights(dobson.pweights),
         method = dmethod,
+        dropcollinear = drop,
     )
     @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 4.837327189925912 rtol = 1e-07
