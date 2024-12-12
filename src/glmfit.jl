@@ -320,7 +320,6 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
         end
     elseif wts isa AnalyticWeights
         @inbounds for i in eachindex(y, mu, wts)
-            #ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
             ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, wts.sum, N)
         end
     else
@@ -888,7 +887,7 @@ function residuals(r::GlmResp; weighted::Bool=false)
     @inbounds for i in eachindex(y, μ)
         μi = μ[i]
         yi = y[i]
-        dres[i] = sqrt(max(0, devresid(r.d, yi, μi)))*sign(yi-μi)
+        dres[i] = sqrt(max(0, devresid(r.d, yi, μi))) * sign(yi-μi)
     end
 
     if weighted
