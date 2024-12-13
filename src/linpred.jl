@@ -435,36 +435,35 @@ function modelmatrix(pp::LinPred; weighted::Bool=isweighted(pp))
     return Z
 end
 
-leverage(x::LinPredModel) = leverage(x.pp)
 
-function leverage(pp::DensePredChol{T,<:CholeskyPivoted}) where T
+
+leverage(x::LinPredModel) = dropdims(leverage(x.pp, hasfield(typeof(x.rr), :wrkwt) ? x.rr.wrkwt : 1.0); dims = 2)
+
+function leverage(pp::DensePredChol{T,<:CholeskyPivoted}, w) where T
     X = modelmatrix(pp; weighted=isweighted(pp))
     _, k = size(X)
     ch = pp.chol
     rnk = rank(ch)
-    p = ch.p
-    idx = invperm(p)[1:rnk]
-    sum(x -> x^2, view(X, :, 1:rnk)/ch.U[1:rnk, idx], dims=2)
+    p = invperm(ch.p)[1:rnk]
+    sum(x -> x^2, (sqrt.(w).*view(X, :, p))/ch.U[1:rnk, 1:rnk], dims=2)
 end
 
-function leverage(pp::DensePredChol{T,<:Cholesky}) where T
+function leverage(pp::DensePredChol{T,<:Cholesky}, w) where T
     X = modelmatrix(pp; weighted=isweighted(pp))
-    sum(x -> x^2, X/pp.chol.U, dims=2)
+    sum(x -> x^2, (sqrt.(w).*X)/pp.chol.U, dims=2)
 end
 
-function leverage(pp::DensePredQR{T,<:QRPivoted}) where T
+function leverage(pp::DensePredQR{T,<:QRPivoted}, w) where T
     X = modelmatrix(pp; weighted=isweighted(pp))
-    _, k = size(X)
     ch = pp.qr
-    rnk = length(ch.p)
-    p = ch.p
-    idx = invperm(p)[1:rnk]
-    sum(x -> x^2, view(X, :, 1:rnk)/ch.R[1:rnk, idx], dims=2)
+    rnk = rank(ch.R)
+    p = ch.p[1:rnk]
+    sum(x -> x^2, (sqrt.(w).*view(X, :, p))/ch.R[1:rnk, 1:rnk], dims=2)
 end
 
-function leverage(pp::DensePredQR{T,<:QRCompactWY}) where T
+function leverage(pp::DensePredQR{T,<:QRCompactWY}, w) where T
     X = modelmatrix(pp; weighted=isweighted(pp))
-    sum(x -> x^2, X/pp.qr.R, dims=2)
+    sum(x -> x^2, (sqrt.(w).*X)/pp.qr.R, dims=2)
 end
 
 response(obj::LinPredModel) = obj.rr.y
