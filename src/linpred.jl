@@ -436,8 +436,7 @@ function modelmatrix(pp::LinPred; weighted::Bool=isweighted(pp))
 end
 
 function leverage(x::LinPredModel) 
-    h = leverage(x.pp)
-    #return h
+    h = vec(leverage(x.pp))
     hasfield(typeof(x.rr), :wrkwt) ? x.rr.wrkwt.*h : x.rr.wts.*h
 end
 
