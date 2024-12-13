@@ -2161,3 +2161,62 @@ end
     @test coef(ft) ≈ [9.648767705301294, -0.11274823562143056, 0.1907889126252095, -0.8123086879222496]
     @test_throws DomainError glm(@formula(Column1 ~ Column2 + Column3 + Column4), df, Gamma(), LogLink(), start = fill(NaN, 4))
 end
+
+@testset "Testing various weighting specific weighting" begin
+    # Test probability weighting with collinear columns
+    form.CarbC = form.Carb
+    form.awts = [0.6, 0.3, 0.6, 0.3, 0.6, 0.3]
+    form.fwts = [6, 3, 6, 3, 6, 3]
+    lm0 = fit(LinearModel, @formula(OptDen ~ Carb), form; wts = aweights(form.awts), method=:qr)
+    lm1 = fit(LinearModel, @formula(OptDen ~ Carb + CarbC), form; wts = aweights(form.awts), method=:qr)
+    @test coef(lm0) == coef(lm1)[1:2]
+    @test stderror(lm0) == stderror(lm1)[1:2]
+    @test isnan(stderror(lm1)[3])
+    lm0 = fit(LinearModel, @formula(OptDen ~ Carb), form; wts = pweights(form.awts), method=:qr)
+    lm1 = fit(LinearModel, @formula(OptDen ~ Carb + CarbC), form; wts = pweights(form.awts), method=:qr)
+    @test coef(lm0) == coef(lm1)[1:2]
+    @test stderror(lm0) == stderror(lm1)[1:2]
+    @test isnan(stderror(lm1)[3])
+    lm0 = fit(LinearModel, @formula(OptDen ~ Carb), form; wts = fweights(form.fwts), method=:qr)
+    lm1 = fit(LinearModel, @formula(OptDen ~ Carb + CarbC), form; wts = fweights(form.fwts), method=:qr)
+    @test coef(lm0) == coef(lm1)[1:2]
+    @test stderror(lm0) == stderror(lm1)[1:2]
+    @test isnan(stderror(lm1)[3])
+    ## Leverage with weights
+end
+
+rng = StableRNG(123)
+df = DataFrame(x_1 = randn(rng, 10), x_2 = randn(rng, 10), y = randn(rng, 10), )
+df.xx_1 = df.x_1
+df.xx_2 = df.x_2
+df.d = rand(rng, 0:1, 10)
+frm0 = @formula(y ~ x_1 + x_2)
+frm1 = @formula(y ~ x_1 + xx_2 + + x_2 + xx_1)
+frmp0 = @formula(d ~ x_1 + x_2)
+frmp1 = @formula(d ~ x_1 + xx_2 + + x_2 + xx_1)
+
+lev0 = [0.2346366962678214; 0.6633984457928059; 0.32460236947851806;
+            0.1543698142163501; 0.3762092067703499; 0.4887705577596249;
+            0.15170408132550545; 0.15279492673405848; 0.16851296355750492;
+            0.28500093809746074]
+
+lev0_pr = [0.28923503046426724; 0.0006968399611682526;
+           0.6040870179390236; 0.222176173808432;
+           0.06247295465277078; 0.8226912702704338;
+           0.21412449742521156; 0.2160509316358758;
+           0.23269115629631995; 0.33577412754649705]
+
+@testset "Leverage" for method ∈ (:qr, :cholesky) begin
+    lm0 = fit(LinearModel, frm0, df, method=method) 
+    lm1 = fit(LinearModel, frm1, df, method=method)
+    @test leverage(lm0) ≈ leverage(lm1)
+    @test lev0 ≈ leverage(lm1)
+    glm1 = fit(GeneralizedLinearModel, frm1, df, Normal(), IdentityLink(), method=method)
+    @test lev0 ≈ leverage(glm1)
+    probit0 = glm(frmp0, df, Binomial(), ProbitLink(), method=method)
+    probit = glm(frmp1, df, Binomial(), ProbitLink(), method=method)
+
+    @test leverage(probit) ≈ leverage(probit0)
+    @test lev0_pr ≈ leverage(probit0) rtol = 1e-03
+end
+end
