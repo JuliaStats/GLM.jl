@@ -555,3 +555,19 @@ loglik_apweights_obs(::InverseGaussian, y, μ, wt, ϕ, sumwt, n) = -(wt*(1 + log
 loglik_apweights_obs(::Normal, y, μ, wt, ϕ, sumwt, n) = ((-log(2π*ϕ/n) - 1) + log(wt))/2
 loglik_apweights_obs(::Poisson, y, μ, wt, ϕ, sumwt, n) = wt*logpdf(Poisson(μ), y)
 loglik_apweights_obs(d::NegativeBinomial, y, μ, wt, ϕ, sumwt, n) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
+
+## Studentized Pearson residuals
+function pearson_residuals(m::GeneralizedLinearModel)
+    r = m.rr
+    wts = r.wts
+    y, η, μ = r.y, r.eta, r.mu
+    h = leverage(m)
+    sqrt(dispersion(m)).*((y .- μ).*sqrt.(wts)) ./ sqrt.(dispersion(m).*glmvar.(r.d, μ))
+end
+
+function ccooksdistance(m::GeneralizedLinearModel)
+    h = leverage(m)
+    hh = h./(1.0.-h).^2
+    Rp = pearson_residuals(m)
+    (Rp.^2).*hh./(dispersion(m)^2*dof(m))
+end

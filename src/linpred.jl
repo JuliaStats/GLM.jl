@@ -435,35 +435,38 @@ function modelmatrix(pp::LinPred; weighted::Bool=isweighted(pp))
     return Z
 end
 
-
-
-leverage(x::LinPredModel) = dropdims(leverage(x.pp, hasfield(typeof(x.rr), :wrkwt) ? x.rr.wrkwt : 1.0); dims = 2)
-
-function leverage(pp::DensePredChol{T,<:CholeskyPivoted}, w) where T
-    X = modelmatrix(pp; weighted=isweighted(pp))
-    _, k = size(X)
-    ch = pp.chol
-    rnk = rank(ch)
-    p = invperm(ch.p)[1:rnk]
-    sum(x -> x^2, (sqrt.(w).*view(X, :, p))/ch.U[1:rnk, 1:rnk], dims=2)
+function leverage(x::LinPredModel) 
+    h = leverage(x.pp)
+    #return h
+    hasfield(typeof(x.rr), :wrkwt) ? x.rr.wrkwt.*h : x.rr.wts.*h
 end
 
-function leverage(pp::DensePredChol{T,<:Cholesky}, w) where T
-    X = modelmatrix(pp; weighted=isweighted(pp))
-    sum(x -> x^2, (sqrt.(w).*X)/pp.chol.U, dims=2)
+function leverage(pp::DensePredChol{T,<:CholeskyPivoted}) where T
+    X = modelmatrix(pp; weighted=false)
+    rnk = rank(pp.chol)
+    A = GLM.inverse(pp)
+    p = pp.chol.p[1:rnk]
+    diag(X[:,p]*A[p,p]*X[:,p]')
+    # sum(x->x^2, view(X, :, p)/view(pp.chol.U, p, p), dims=2)
 end
 
-function leverage(pp::DensePredQR{T,<:QRPivoted}, w) where T
-    X = modelmatrix(pp; weighted=isweighted(pp))
+function leverage(pp::DensePredChol{T,<:Cholesky}) where T
+    X = modelmatrix(pp; weighted=false)
+    @show X/pp.chol.U
+    sum(x -> x^2, X/pp.chol.U, dims=2)
+end
+
+function leverage(pp::DensePredQR{T,<:QRPivoted}) where T
+    X = modelmatrix(pp; weighted=false)
     ch = pp.qr
     rnk = rank(ch.R)
-    p = ch.p[1:rnk]
-    sum(x -> x^2, (sqrt.(w).*view(X, :, p))/ch.R[1:rnk, 1:rnk], dims=2)
+    p = invperm(ch.p)[1:rnk]
+    sum(x -> x^2, view(X, :, 1:rnk)/view(ch.R, p, p), dims=2)
 end
 
-function leverage(pp::DensePredQR{T,<:QRCompactWY}, w) where T
-    X = modelmatrix(pp; weighted=isweighted(pp))
-    sum(x -> x^2, (sqrt.(w).*X)/pp.qr.R, dims=2)
+function leverage(pp::DensePredQR{T,<:QRCompactWY}) where T
+    X = modelmatrix(pp; weighted=false)
+    sum(x -> x^2, X/pp.qr.R, dims=2)
 end
 
 response(obj::LinPredModel) = obj.rr.y
