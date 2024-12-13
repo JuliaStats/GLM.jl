@@ -320,7 +320,7 @@ Note that it's currently only implemented for linear models without weights.
 
 ```jldoctest methods
 julia> round.(cooksdistance(mdl); digits=8)
-3×1 Matrix{Float64}:
+3-element Vector{Float64}:
  2.5
  0.25
  2.5
