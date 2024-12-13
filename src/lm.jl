@@ -388,7 +388,7 @@ function momentmatrix(m::LinearModel)
     end
 end
 
-invloglikhessian(m::LinearModel) = invchol(m.pp)
+invloglikhessian(m::LinearModel) = inverse(m.pp)
 
 function varstruct(x::LinearModel)
     wrkwt = working_weights(x)
