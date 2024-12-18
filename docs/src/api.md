@@ -2,7 +2,7 @@
 
 ```@meta
 DocTestSetup = quote
-    using CategoricalArrays, DataFrames, Distributions, GLM, RDatasets
+    using CategoricalArrays, DataFrames, Distributions, GLM, RDatasets, StableRNGs
 end
 ```
 
