@@ -323,9 +323,7 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
             ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, wts.sum, N)
         end
     else
-        #@inbounds for i in eachindex(y, mu, wts)
-            throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
-        #end
+        throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
     end
     return ll
 end
