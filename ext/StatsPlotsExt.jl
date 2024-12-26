@@ -4,20 +4,18 @@ module StatsPlotsExt
     using StatsPlots
     using RecipesBase
     using Distributions
-    using GLM: leverage
+    using GLM: leverage, standardized_residuals
+    using RecipesBase: recipetype
     import GLM: cooksleverageplot, cooksleverageplot!
     import GLM: scalelocationplot, scalelocationplot!
     import GLM: residualplot, residualplot!
     import GLM: residualsleverageplot, residualsleverageplot!
+    import GLM: quantilequantileplot, quantilequantileplot!
     import StatsPlots: QQPlot, QQNorm
     import StatsPlots: qqplot, qqplot!, qqnorm, qqnorm!
 
 
-    function standardized_residuals(obj::LinearModel)
-        r = residuals(obj)
-        h = leverage(obj)
-        return r ./(std(r) .* sqrt.(1 .- h))
-    end
+
 
     @recipe function f(l::LinearModel)
 
@@ -52,7 +50,7 @@ module StatsPlotsExt
         nothing
     end
 
-    @userplot struct ScaleLocationPlot{T<:Tuple}
+    @userplot struct ScaleLocationPlot{T<:Tuple{LinearModel}}
         args::T
     end
 
@@ -71,11 +69,11 @@ module StatsPlotsExt
         nothing
     end
 
-    #=
+
     @userplot struct QuantileQuantilePlot{T<:Tuple{LinearModel}}
         args::T
     end
-
+    #=
     @recipe function f(qqp::QuantileQuantilePlot)
         xlabel --> "Theoretical Quantiles"
         ylabel --> "Standardized residuals"
@@ -92,7 +90,8 @@ module StatsPlotsExt
         end
     end
     =#
-    @recipe function f(::QQPlot, obj::LinearModel)
+
+    @recipe function f(qqp::QuantileQuantilePlot)
         xlabel --> "Theoretical Quantiles"
         ylabel --> "Standardized Residuals"
         title --> "Q-Q Residuals"
@@ -102,9 +101,12 @@ module StatsPlotsExt
         linecolor --> :gray
         linewidth --> 0.5
 
-        QQPlot(Normal, standardized_residuals(obj))
+        QQPlot((Normal, standardized_residuals(qqp.args[1])))
     end
 
+    StatsPlots.recipetype(::Val{:qqplot}, obj::LinearModel, args...) = QuantileQuantilePlot((obj, args...))
+
+    #=
     # This feels hacky but it works
    qqplot(l::LinearModel, D=Normal;
         xlabel = "Theoretical Quantiles",
@@ -121,7 +123,7 @@ module StatsPlotsExt
 
     qqnorm(l::LinearModel; kw...) = qqnorm(standardized_residuals(l); kw...)
     qqnorm!(p, l::LinearModel; kw...) = qqnorm!(p, standardized_residuals(l), kw...)
-
+    =#
 
     @userplot struct ResidualsLeveragePlot{T<:Tuple{LinearModel}}
         args::T

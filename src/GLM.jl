@@ -73,14 +73,7 @@ module GLM
     export residualplot, residualplot!
     export residualsleverageplot, residualsleverageplot!
     export quantilequantileqplot, quantilequantileplot!
-    function cooksleverageplot end
-    function cooksleverageplot! end
-    function scalelocationplot end
-    function scalelocationplot! end
-    function residualplot end
-    function residualplot! end
-    function residualsleverageplot end
-    function residualsleverageplot! end
+
 
     const FP = AbstractFloat
     const FPVector{T<:FP} = AbstractArray{T,1}
@@ -147,5 +140,6 @@ module GLM
     include("ftest.jl")
     include("negbinfit.jl")
     include("deprecated.jl")
+    include("plots.jl")
 
 end # module
