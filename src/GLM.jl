@@ -72,7 +72,7 @@ module GLM
     export scalelocationplot, scalelocationplot!
     export residualplot, residualplot!
     export residualsleverageplot, residualsleverageplot!
-    export quantilequantileqplot, quantilequantileplot!
+    export lmplot
 
 
     const FP = AbstractFloat

@@ -14,6 +14,8 @@ function standardized_residuals(obj::LinearModel)
     return r ./(std(r) .* sqrt.(1 .- h))
 end
 
+function lmplot end
+
 function cooksleverageplot end
 function cooksleverageplot! end
 function scalelocationplot end
