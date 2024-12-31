@@ -10,15 +10,19 @@ module StatsPlotsExt
     import GLM: scalelocationplot, scalelocationplot!
     import GLM: residualplot, residualplot!
     import GLM: residualsleverageplot, residualsleverageplot!
-    import GLM: quantilequantileplot, quantilequantileplot!
-    import StatsPlots: QQPlot, QQNorm
     import StatsPlots: qqplot, qqplot!, qqnorm, qqnorm!
+    import GLM: lmplot
 
 
-
-
-    @recipe function f(l::LinearModel)
-
+    function lmplot(obj::LinearModel; kw...)
+        return plot(
+            residualplot(obj),
+            qqplot(obj),
+            scalelocationplot(obj),
+            residualsleverageplot(obj);
+            layout = (2,2),
+            kw...
+        )
     end
 
     @userplot struct ResidualPlot{T<:Tuple{LinearModel}}
@@ -70,60 +74,89 @@ module StatsPlotsExt
     end
 
 
-    @userplot struct QuantileQuantilePlot{T<:Tuple{LinearModel}}
-        args::T
-    end
-    #=
-    @recipe function f(qqp::QuantileQuantilePlot)
-        xlabel --> "Theoretical Quantiles"
-        ylabel --> "Standardized residuals"
-        title --> "Q-Q Residuals"
-        label --> ""
 
-        r = residuals(qqp.args[1])
-        @series begin
-            seriestype := :qqnorm
-            linestyle := :dash
-            linecolor := :black
-            linewidth := 0.5
-            r
-        end
-    end
-    =#
-
-    @recipe function f(qqp::QuantileQuantilePlot)
-        xlabel --> "Theoretical Quantiles"
-        ylabel --> "Standardized Residuals"
-        title --> "Q-Q Residuals"
-        label --> ""
-
-        linestyle --> :dash
-        linecolor --> :gray
-        linewidth --> 0.5
-
-        QQPlot((Normal, standardized_residuals(qqp.args[1])))
-    end
-
-    StatsPlots.recipetype(::Val{:qqplot}, obj::LinearModel, args...) = QuantileQuantilePlot((obj, args...))
-
-    #=
-    # This feels hacky but it works
-   qqplot(l::LinearModel, D=Normal;
+    function qqplot(l::LinearModel, D=Normal;
         xlabel = "Theoretical Quantiles",
         ylabel = "Standardized Residuals",
         title = "Q-Q Residuals",
         label = "",
         linestyle = :dash,
-        linecolor = :gray,
+        linecolor = :black,
         linewidth = 0.5,
         kw...
-    ) = qqplot(D, standardized_residuals(l); lsty=linestyle, lcol=linecolor, lw=linewidth, xlabel=xlabel,ylabel=ylabel,title=title,label=label, kw...)
+    )
+        qqplot(D, standardized_residuals(l);
+        linestyle=linestyle,
+        linecolor=linecolor,
+        linewidth=linewidth,
+        xlabel=xlabel,
+        ylabel=ylabel,
+        title=title,
+        label=label,
+        kw...)
+    end
 
-    qqplot!(p, l::LinearModel, D=Normal; kw...) = qqplot!(p, D, standardized_residuals(l); kw...)
+    function qqplot!(p, l::LinearModel, D=Normal;
+        xlabel = "Theoretical Quantiles",
+        ylabel = "Standardized Residuals",
+        title = "Q-Q Residuals",
+        label = "",
+        linestyle = :dash,
+        linecolor = :black,
+        linewidth = 0.5,
+        kw...
+        )
+        qqplot!(p, D, standardized_residuals(l);
+        linestyle=linestyle,
+        linecolor=linecolor,
+        linewidth=linewidth,
+        xlabel=xlabel,
+        ylabel=ylabel,
+        title=title,
+        label=label,
+        kw...)
+    end
 
-    qqnorm(l::LinearModel; kw...) = qqnorm(standardized_residuals(l); kw...)
-    qqnorm!(p, l::LinearModel; kw...) = qqnorm!(p, standardized_residuals(l), kw...)
-    =#
+    function qqnorm(l::LinearModel;
+        xlabel = "Theoretical Quantiles",
+        ylabel = "Standardized Residuals",
+        title = "Q-Q Residuals",
+        label = "",
+        linestyle = :dash,
+        linecolor = :black,
+        linewidth = 0.5,
+        kw...
+        )
+        qqnorm(standardized_residuals(l);
+        linestyle=linestyle,
+        linecolor=linecolor,
+        linewidth=linewidth,
+        xlabel=xlabel,
+        ylabel=ylabel,
+        title=title,
+        label=label,
+        kw...)
+    end
+
+    function qqnorm!(p, l::LinearModel;
+        xlabel = "Theoretical Quantiles",
+        ylabel = "Standardized Residuals",
+        title = "Q-Q Residuals",
+        label = "",
+        linestyle = :dash,
+        linecolor = :black,
+        linewidth = 0.5,
+        kw...)
+        qqnorm!(p, standardized_residuals(l),
+        linestyle=linestyle,
+        linecolor=linecolor,
+        linewidth=linewidth,
+        xlabel=xlabel,
+        ylabel=ylabel,
+        title=title,
+        label=label,
+        kw...)
+    end
 
     @userplot struct ResidualsLeveragePlot{T<:Tuple{LinearModel}}
         args::T
@@ -141,6 +174,7 @@ module StatsPlotsExt
 
         ymax = maximum(abs.(r))
         ylims --> (-1.1*ymax, 1.1*ymax)
+        xlims --> (0.0, :auto)
 
         @series begin
             seriestype := :scatter
@@ -165,7 +199,7 @@ module StatsPlotsExt
         if !isempty(cook_levels)
             cookfun = (h,D,k) -> sqrt(D * k * (1-h) / h)
             xmin, xmax = extrema(h)
-            xs = LinRange(xmin, 1.1*xmax, 50)
+            xs = LinRange(xmin, 1.2*xmax, 50)
             for D in cook_levels
                 @series begin
                     seriestype := :path
@@ -178,16 +212,29 @@ module StatsPlotsExt
                 @series begin
                     seriestype := :scatter
                     markeralpha := 0.0
-                    series_annotation := [("$D", 9, :gray)]
+                    series_annotation := [("$D", 8, :gray)]
                     [1.02 * xs[end]], [cookfun(xs[end],D,k)]
+                end
+                @series begin
+                    seriestype := :scatter
+                    markeralpha := 0.0
+                    series_annotation := [("$D", 8, :gray)]
+                    [1.02 * xs[end]], [-cookfun(xs[end],D,k)]
                 end
 
                 @series begin
                     seriestype := :path
                     linecolor := :gray
                     linestyle := :dash
-                xs, -cookfun.(xs,D,k)
+                    xs, -cookfun.(xs,D,k)
                 end
+            end
+            begin
+                seriestype := :path
+                linecolor := :gray
+                linestyle := :dash
+                label := "Cook's Distance"
+                [-1,-1],[-1,-1]
             end
         end
 

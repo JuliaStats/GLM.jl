@@ -169,7 +169,7 @@ module MakieExt
     function Makie.plot!(qqp::QQPlot{<:Tuple{LinearModel}})
         r = standardized_residuals(qqp[1][])
         qqplot!(qqp, Normal, r,
-            qqline = :identity,
+            qqline = :fitrobust,
             linestyle = :dash,
             linewidth = 1
         )
