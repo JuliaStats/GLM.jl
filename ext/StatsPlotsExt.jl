@@ -29,7 +29,12 @@ module StatsPlotsExt
         args::T
     end
 
-    @recipe function f(rp::ResidualPlot; )
+    @recipe function f(rp::ResidualPlot;
+        axislines = true,
+        axislinestyle = :dot,
+        axislinecolor = :black,
+        axislinewidth = 0.5
+        )
         xlabel --> "Fitted values"
         ylabel --> "Residuals"
         title --> "Residuals vs Fitted"
@@ -42,14 +47,15 @@ module StatsPlotsExt
             seriestype := :scatter
             y, r
         end
-
-        @series begin
-            seriestype := :hline
-            linecolor := :black
-            linestyle := :dash
-            linewidth := 0.5
-            label := ""
-            [0.0]
+        if axislines
+            @series begin
+                seriestype := :hline
+                linecolor := axislinecolor
+                linestyle := axislinestyle
+                linewidth := axislinewidth
+                label := ""
+                [0.0]
+            end
         end
         nothing
     end
@@ -162,7 +168,16 @@ module StatsPlotsExt
         args::T
     end
 
-    @recipe function f(rlp::ResidualsLeveragePlot; cook_levels = [0.5, 1.0])
+    @recipe function f(rlp::ResidualsLeveragePlot;
+        axislines = true,
+        axislinestyle = :dot,
+        axislinecolor = :gray,
+        axislinewidth = 1,
+        cookslevels = [0.5, 1.0],
+        cookslinecolor = :gray,
+        cookslinestyle = :dash,
+        cookslinewidth = 1
+        )
         xlabel --> "Leverage"
         ylabel --> "Standardized residuals"
         title --> "Residuals vs Leverage"
@@ -180,31 +195,33 @@ module StatsPlotsExt
             seriestype := :scatter
             h, r
         end
-
-        @series begin
-            seriestype := :hline
-            linecolor := :black
-            linestyle := :dash
-            linewidth := 0.5
-            label := ""
-            [0.0]
+        if axislines
+            @series begin
+                seriestype := :hline
+                linecolor := axislinecolor
+                linestyle := axislinestyle
+                linewidth := axislinewidth
+                label := ""
+                [0.0]
+            end
+            @series begin
+                seriestype := :vline
+                linecolor := axislinecolor
+                linestyle := axislinestyle
+                linewidth := axislinewidth
+                [0.0]
+            end
         end
-        @series begin
-            seriestype := :vline
-            linecolor := :black
-            linestyle := :dash
-            linewidth := 0.5
-            [0.0]
-        end
-        if !isempty(cook_levels)
+        if !isempty(cookslevels)
             cookfun = (h,D,k) -> sqrt(D * k * (1-h) / h)
             xmin, xmax = extrema(h)
             xs = LinRange(xmin, 1.2*xmax, 50)
             for D in cook_levels
                 @series begin
                     seriestype := :path
-                    linecolor := :gray
-                    linestyle := :dash
+                    linecolor := cookslinecolor
+                    linestyle := cookslinestyle
+                    linewidth := cookslinewidth
                     annotations := [(xs[end], cookfun(xs[end],D,k), ("$D", 8, :gray))]
                     xs, cookfun.(xs,D,k)
                 end
@@ -224,15 +241,17 @@ module StatsPlotsExt
 
                 @series begin
                     seriestype := :path
-                    linecolor := :gray
-                    linestyle := :dash
+                    linecolor := cookslinecolor
+                    linestyle := cookslinestyle
+                    linewidth := cookslinewidth
                     xs, -cookfun.(xs,D,k)
                 end
             end
             begin
                 seriestype := :path
-                linecolor := :gray
-                linestyle := :dash
+                linecolor := cookslinecolor
+                linestyle := cookslinestyle
+                linewidth := cookslinewidth
                 label := "Cook's Distance"
                 [-1,-1],[-1,-1]
             end
