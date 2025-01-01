@@ -216,7 +216,7 @@ module StatsPlotsExt
             cookfun = (h,D,k) -> sqrt(D * k * (1-h) / h)
             xmin, xmax = extrema(h)
             xs = LinRange(xmin, 1.2*xmax, 50)
-            for D in cook_levels
+            for D in cookslevels
                 @series begin
                     seriestype := :path
                     linecolor := cookslinecolor
