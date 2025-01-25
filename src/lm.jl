@@ -353,14 +353,21 @@ function StatsBase.cooksdistance(obj::LinearModel)
     k = dof(obj)-1
     d_res = dof_residual(obj)
     X = modelmatrix(obj)
-    XtX = crossmodelmatrix(obj)
     k == size(X,2) || throw(ArgumentError("Models with collinear terms are not currently supported."))
+    hii = leverage(obj)
+
+    D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
+    return D
+end
+
+function leverage(obj::LinearModel)
+    X = modelmatrix(obj)
+    XtX = crossmodelmatrix(obj)
     wts = obj.rr.wts
     if isempty(wts)
         hii = diag(X * inv(XtX) * X')
     else
         throw(ArgumentError("Weighted models are not currently supported."))
     end
-    D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
-    return D
+    return hii
 end

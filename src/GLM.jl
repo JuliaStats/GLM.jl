@@ -67,6 +67,14 @@ module GLM
         predict,        # make predictions
         ftest           # compare models with an F test
 
+    # Plot functions
+    export cooksleverageplot, cooksleverageplot!
+    export scalelocationplot, scalelocationplot!
+    export residualplot, residualplot!
+    export residualsleverageplot, residualsleverageplot!
+    export lmplot
+
+
     const FP = AbstractFloat
     const FPVector{T<:FP} = AbstractArray{T,1}
 
@@ -96,6 +104,17 @@ module GLM
         pivoted_qr!(A; kwargs...) = qr!(A, Val(true); kwargs...)
     else
         pivoted_qr!(A; kwargs...) = qr!(A, ColumnNorm(); kwargs...)
+    end
+
+    if !isdefined(Base, :get_extension)
+        using Requires
+    end
+
+    function __init__()
+        @static if !isdefined(Base, :get_extension)
+            @require StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd" include("../ext/StatsPlotsExt.jl")
+            @require Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" include("../ext/MakieExt.jl")
+        end
     end
 
     const COMMON_FIT_KWARGS_DOCS = """
@@ -132,5 +151,6 @@ module GLM
     include("ftest.jl")
     include("negbinfit.jl")
     include("deprecated.jl")
+    include("plots.jl")
 
 end # module
