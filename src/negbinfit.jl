@@ -65,7 +65,6 @@ In both cases, `link` may specify the link function
 - `maxiter::Integer=30`: See `maxiter` for [`glm`](@ref)
 - `atol::Real=1.0e-6`: See `atol` for [`glm`](@ref)
 - `rtol::Real=1.0e-6`: See `rtol` for [`glm`](@ref)
-- `verbose::Bool=false`: See `verbose` for [`glm`](@ref)
 """
 function negbin(F,
                 D,
@@ -78,7 +77,6 @@ function negbin(F,
                 minstepfac::Real=0.001,
                 atol::Real=1e-6,
                 rtol::Real=1.e-6,
-                verbose::Bool=false,
                 kwargs...)
     if haskey(kwargs, :maxIter)
         Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :negbin)
@@ -109,11 +107,11 @@ function negbin(F,
     if isinf(initialθ)
         regmodel = glm(F, D, Poisson(), args...;
                        wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
-                       atol=atol, rtol=rtol, verbose=verbose, kwargs...)
+                       atol=atol, rtol=rtol, kwargs...)
     else
         regmodel = glm(F, D, NegativeBinomial(initialθ), args...;
                        wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
-                       atol=atol, rtol=rtol, verbose=verbose, kwargs...)
+                       atol=atol, rtol=rtol, kwargs...)
     end
 
     μ = regmodel.rr.mu
@@ -136,10 +134,10 @@ function negbin(F,
             converged = true
             break
         end
-        verbose && println("[ Alternating iteration ", i, ", θ = ", θ, " ]")
+        @debug "[ Alternating iteration $i, θ = $θ ]"
         regmodel = glm(F, D, NegativeBinomial(θ), args...;
                        dropcollinear=dropcollinear, method=method, maxiter=maxiter,
-                       atol=atol, rtol=rtol, verbose=verbose, kwargs...)
+                       atol=atol, rtol=rtol, kwargs...)
         μ = regmodel.rr.mu
         prevθ = θ
         θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)
