@@ -2044,3 +2044,7 @@ end
     @test coef(ft) ≈ [9.648767705301294, -0.11274823562143056, 0.1907889126252095, -0.8123086879222496]
     @test_throws DomainError glm(@formula(Column1 ~ Column2 + Column3 + Column4), df, Gamma(), LogLink(), start = fill(NaN, 4))
 end
+
+@testset "Plots" begin
+    include("plots.jl")
+end
