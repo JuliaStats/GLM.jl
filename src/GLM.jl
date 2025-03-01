@@ -67,12 +67,6 @@ module GLM
         predict,        # make predictions
         ftest           # compare models with an F test
 
-    # Plot functions
-    export cooksleverageplot, cooksleverageplot!
-    export scalelocationplot, scalelocationplot!
-    export residualplot, residualplot!
-    export residualsleverageplot, residualsleverageplot!
-    export lmplot
 
 
     const FP = AbstractFloat
@@ -152,5 +146,7 @@ module GLM
     include("negbinfit.jl")
     include("deprecated.jl")
     include("plots.jl")
+    include("statsplots.jl")
+    include("makie.jl")
 
 end # module

@@ -3,11 +3,11 @@ module MakieExt
     using GLM
     using Distributions
     using GLM: leverage, standardized_residuals
-    import GLM: cooksleverageplot, cooksleverageplot!
-    import GLM: scalelocationplot, scalelocationplot!
-    import GLM: residualplot, residualplot!
-    import GLM: residualsleverageplot, residualsleverageplot!
-    import GLM: lmplot
+    import GLM.MakieRecipes: cooksleverageplot, cooksleverageplot!
+    import GLM.MakieRecipes: scalelocationplot, scalelocationplot!
+    import GLM.MakieRecipes: residualplot, residualplot!
+    import GLM.MakieRecipes: residualsleverageplot, residualsleverageplot!
+    import GLM.MakieRecipes: lmplot
     import Makie: qqplot, qqplot!
 
 

@@ -6,12 +6,12 @@ module StatsPlotsExt
     using Distributions
     using GLM: leverage, standardized_residuals
     using RecipesBase: recipetype
-    import GLM: cooksleverageplot, cooksleverageplot!
-    import GLM: scalelocationplot, scalelocationplot!
-    import GLM: residualplot, residualplot!
-    import GLM: residualsleverageplot, residualsleverageplot!
+    import GLM.PlotsRecipes: cooksleverageplot, cooksleverageplot!
+    import GLM.PlotsRecipes: scalelocationplot, scalelocationplot!
+    import GLM.PlotsRecipes: residualplot, residualplot!
+    import GLM.PlotsRecipes: residualsleverageplot, residualsleverageplot!
+    import GLM.PlotsRecipes: lmplot
     import StatsPlots: qqplot, qqplot!, qqnorm, qqnorm!
-    import GLM: lmplot
 
 
     function lmplot(obj::LinearModel; kw...)
@@ -102,7 +102,7 @@ module StatsPlotsExt
         kw...)
     end
 
-    function qqplot!(p, l::LinearModel, D=Normal;
+    function qqplot!(p::RecipesBase.AbstractPlot, l::LinearModel, D=Normal;
         xlabel = "Theoretical Quantiles",
         ylabel = "Standardized Residuals",
         title = "Q-Q Residuals",
@@ -144,7 +144,7 @@ module StatsPlotsExt
         kw...)
     end
 
-    function qqnorm!(p, l::LinearModel;
+    function qqnorm!(p::RecipesBase.AbstractPlot, l::LinearModel;
         xlabel = "Theoretical Quantiles",
         ylabel = "Standardized Residuals",
         title = "Q-Q Residuals",
