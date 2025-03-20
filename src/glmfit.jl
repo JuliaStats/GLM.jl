@@ -181,7 +181,7 @@ function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:Union{Bernoulli,Bino
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
         yᵢ, ηᵢ = y[i], η[i]
-        μᵢ, omμᵢ, dμdηᵢ = inverselink(L(), ηᵢ)
+        μᵢ, dμdηᵢ, omμᵢ = inverselink(L(), ηᵢ)
         μ[i] = μᵢ
         # For large values of ηᵢ the quantities dμdη and μomμ will underflow.
         # The ratios defining (yᵢ - μᵢ)/dμdη and dμdη^2/μomμ have fairly stable
