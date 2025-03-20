@@ -223,7 +223,7 @@ function inverselink(::CauchitLink, η::Real)
     # atan decays so slowly that we don't need to be careful when evaluating μ
     μ = atan(η) / π
     μ += one(μ)/2
-    return μ, 1 - μ, inv(π * (1 + abs2(η)))
+    return μ, inv(π * (1 + abs2(η))), 1 - μ
 end
 
 linkfun(::CloglogLink, μ::Real) = log(-log1p(-μ))
@@ -233,7 +233,7 @@ function inverselink(::CloglogLink, η::Real)
     expη = exp(η)
     μ = -expm1(-expη)
     omμ = exp(-expη)   # the complement, 1 - μ
-    return μ, omμ, expη * omμ
+    return μ, expη * omμ, omμ
 end
 
 linkfun(::IdentityLink, μ::Real) = μ
@@ -273,7 +273,7 @@ function inverselink(::LogitLink, η::Real)
     else
         μ, omμ = 1 / opexpabs, expabs / opexpabs
     end
-    return μ, omμ, deriv
+    return μ, deriv, omμ
 end
 
 linkfun(::LogLink, μ::Real) = log(μ)
@@ -319,7 +319,7 @@ mueta(::ProbitLink, η::Real) = exp(-abs2(η) / 2) / sqrt2π
 function inverselink(::ProbitLink, η::Real)
     μ   =  cdf(Normal(), η)
     omμ = ccdf(Normal(), η)
-    return μ, omμ, pdf(Normal(), η)
+    return μ, pdf(Normal(), η), omμ
 end
 
 linkfun(::SqrtLink, μ::Real) = sqrt(μ)
