@@ -185,7 +185,7 @@ The variance function is returned as NaN unless the range of μ is (0, 1)
 # Examples
 ```jldoctest; setup = :(using GLM)
 julia> GLM.inverselink(LogitLink(), 0.0)
-(0.5, 0.5, 0.25)
+(0.5, 0.25, 0.5)
 
 julia> μ, oneminusμ, variance = GLM.inverselink(CloglogLink(), 0.0);
 
