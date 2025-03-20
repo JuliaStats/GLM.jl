@@ -1011,7 +1011,7 @@ end
     gm11_pred2 = predict(gm11, newX; interval=:confidence, interval_method=:delta)
     gm11_pred3 = predict(gm11, newX; interval=:confidence, interval_method=:transformation)
     @test gm11_pred1 == gm11_pred2.prediction == gm11_pred3.prediction≈ newY
-    J = newX.*last.(GLM.inverselink.(LogitLink(), newX*coef(gm11)))
+    J = newX.*getindex.(GLM.inverselink.(LogitLink(), newX*coef(gm11)), 2)
     se_pred = sqrt.(diag(J*vcov(gm11)*J'))
     @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975).*se_pred ≈
         [0.20478201781547786, 0.2894172253195125, 0.17487705636545708, 0.024943206131575357, 0.41670326978944977]
