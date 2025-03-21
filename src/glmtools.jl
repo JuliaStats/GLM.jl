@@ -188,14 +188,14 @@ Return a 3-tuple of:
 julia> GLM.inverselink(LogitLink(), 0.0)
 (0.5, 0.25, 0.5)
 
-julia> μ, oneminusμ, variance = GLM.inverselink(CloglogLink(), 0.0);
+julia> μ, deriv, oneminusμ = GLM.inverselink(CloglogLink(), 0.0);
 
 
 
 julia> μ + oneminusμ ≈ 1
 true
 
-julia> μ*(1 - μ) ≈ variance
+julia> μ*(1 - μ) ≈ deriv
 false
 
 julia> isnan(last(GLM.inverselink(LogLink(), 2.0)))
