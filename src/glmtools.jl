@@ -178,9 +178,10 @@ function mueta end
 """
     GLM.inverselink(L::Link, η::Real)
 
-Return a 3-tuple of the inverse link, the derivative of the inverse link, and when appropriate, the variance function `μ*(1 - μ)`.
-
-The variance function is returned as NaN unless the range of μ is (0, 1)
+Return a 3-tuple of:
+1. the inverse link,
+2. the derivative of the inverse link, and
+3. `(1 - μ)` to construct the variance function when `typeof(L) <: Link01`, or `NaN` otherwise
 
 # Examples
 ```jldoctest; setup = :(using GLM)
