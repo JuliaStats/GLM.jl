@@ -353,7 +353,7 @@ end
 
 dof(obj::GeneralizedLinearModel) = linpred_rank(obj) + dispersion_parameter(obj.rr.d)
 
-function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real,
+function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
                atol::Real, rtol::Real, start)
 
     # Return early if model has the fit flag set
@@ -418,7 +418,7 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
         p.beta0 .+= p.delbeta .* f
 
         # Test for convergence
-        verbose && println("Iteration: $i, deviance: $dev, diff.dev.:$(devold - dev)")
+        @debug "Iteration: $i, deviance: $dev, diff.dev.:$(devold - dev)"
         if devold - dev < max(rtol*devold, atol)
             cvg = true
             break
@@ -432,7 +432,6 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
 end
 
 function StatsBase.fit!(m::AbstractGLM;
-                        verbose::Bool=false,
                         maxiter::Integer=30,
                         minstepfac::Real=0.001,
                         atol::Real=1e-6,
@@ -464,14 +463,13 @@ function StatsBase.fit!(m::AbstractGLM;
     m.atol = atol
     m.rtol = rtol
 
-    _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
+    _fit!(m, maxiter, minstepfac, atol, rtol, start)
 end
 
 function StatsBase.fit!(m::AbstractGLM,
                         y;
                         wts=nothing,
                         offset=nothing,
-                        verbose::Bool=false,
                         maxiter::Integer=30,
                         minstepfac::Real=0.001,
                         atol::Real=1e-6,
@@ -512,7 +510,7 @@ function StatsBase.fit!(m::AbstractGLM,
     m.atol = atol
     m.rtol = rtol
     if dofit
-        _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
+        _fit!(m, maxiter, minstepfac, atol, rtol, start)
     else
         m
     end
@@ -534,7 +532,6 @@ const FIT_GLM_DOC = """
     $COMMON_FIT_KWARGS_DOCS
     - `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
       length 0
-    - `verbose::Bool=false`: Display convergence information for each iteration
     - `maxiter::Integer=30`: Maximum number of iterations allowed to achieve convergence
     - `atol::Real=1e-6`: Convergence is achieved when the relative change in
       deviance is less than `max(rtol*dev, atol)`.
