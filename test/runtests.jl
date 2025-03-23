@@ -1663,6 +1663,11 @@ end
         @test GLM.mueta(InverseSquareLink(), 10) == GLM.mueta(PowerLink(-2), 10)
         @test GLM.mueta(PowerLink(1 / 3), 10) ≈ 300.0
 
+        for lnk in [ProbitLink(), CauchitLink(), ProbitLink()]
+            η = randn();
+            @test GLM.inverselink(lnk, η)[2] ≈ GLM.mueta(lnk, η)
+        end
+
         for θ ∈ 2:10
             @test GLM.mueta(NegativeBinomialLink(θ), 10) ≈ GLM.inverselink(NegativeBinomialLink(θ), 10)[2]
         end
