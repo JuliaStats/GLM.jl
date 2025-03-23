@@ -287,7 +287,7 @@ end
 
 linkfun(nbl::NegativeBinomialLink, μ::Real) = log(μ / (μ + nbl.θ))
 linkinv(nbl::NegativeBinomialLink, η::Real) = -exp(η) * nbl.θ / expm1(η)
-mueta(nbl::NegativeBinomialLink, η::Real) = -exp(η) * nbl.θ / expm1(η)
+mueta(nbl::NegativeBinomialLink, η::Real) = exp(η) * nbl.θ / expm1(η)^2
 function inverselink(nbl::NegativeBinomialLink, η::Real)
     μ = -exp(η) * nbl.θ / expm1(η)
     deriv = μ * (1 + μ / nbl.θ)

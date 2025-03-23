@@ -1663,6 +1663,10 @@ end
         @test GLM.mueta(InverseSquareLink(), 10) == GLM.mueta(PowerLink(-2), 10)
         @test GLM.mueta(PowerLink(1 / 3), 10) ≈ 300.0
 
+        for θ ∈ 2:10
+            @test GLM.mueta(NegativeBinomialLink(θ), 10) ≈ GLM.inverselink(NegativeBinomialLink(θ), 10)[2]
+        end
+
         @test PowerLink(1 / 3) == PowerLink(1 / 3)
         @test isequal(PowerLink(1 / 3), PowerLink(1 / 3))
         @test !isequal(PowerLink(1 / 3), PowerLink(0.33))
