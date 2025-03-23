@@ -1656,12 +1656,12 @@ end
         @test GLM.linkinv(InverseSquareLink(), 10) ≈ GLM.linkinv(PowerLink(-2), 10)
         @test GLM.linkinv(PowerLink(1 / 3), 10) ≈ 1000.0
 
-        @test GLM.mueta(IdentityLink(), 10) ≈ GLM.mueta(PowerLink(1), 10)
-        @test GLM.mueta(SqrtLink(), 10) ≈ GLM.mueta(PowerLink(0.5), 10)
-        @test GLM.mueta(LogLink(), 10) ≈ GLM.mueta(PowerLink(0), 10)
-        @test GLM.mueta(InverseLink(), 10) ≈ GLM.mueta(PowerLink(-1), 10)
-        @test GLM.mueta(InverseSquareLink(), 10) == GLM.mueta(PowerLink(-2), 10)
-        @test GLM.mueta(PowerLink(1 / 3), 10) ≈ 300.0
+        @test GLM.dmueta(IdentityLink(), 10) ≈ GLM.dmueta(PowerLink(1), 10)
+        @test GLM.dmueta(SqrtLink(), 10) ≈ GLM.dmueta(PowerLink(0.5), 10)
+        @test GLM.dmueta(LogLink(), 10) ≈ GLM.dmueta(PowerLink(0), 10)
+        @test GLM.dmueta(InverseLink(), 10) ≈ GLM.dmueta(PowerLink(-1), 10)
+        @test GLM.dmueta(InverseSquareLink(), 10) == GLM.dmueta(PowerLink(-2), 10)
+        @test GLM.dmueta(PowerLink(1 / 3), 10) ≈ 300.0
 
         @test PowerLink(1 / 3) == PowerLink(1 / 3)
         @test isequal(PowerLink(1 / 3), PowerLink(1 / 3))
