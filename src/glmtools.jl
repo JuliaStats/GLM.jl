@@ -10,7 +10,7 @@ GLM currently supports the following links:
 [`SqrtLink`](@ref).
 
 Subtypes of `Link` are required to implement methods for
-[`GLM.linkfun`](@ref), [`GLM.linkinv`](@ref), [`GLM.mueta`](@ref),
+[`GLM.linkfun`](@ref), [`GLM.linkinv`](@ref)
 and [`GLM.inverselink`](@ref).
 """
 abstract type Link end
@@ -157,25 +157,6 @@ true
 function linkinv end
 
 """
-    GLM.mueta(L::Link, η::Real)
-
-Return the derivative of [`linkinv`](@ref), `dμ/dη`, for link `L` at linear predictor value `η`.
-
-# Examples
-```jldoctest; setup = :(using GLM: mueta, LogitLink, CloglogLink, LogLink)
-julia> mueta(LogitLink(), 0.0)
-0.25
-
-julia> mueta(CloglogLink(), 0.0) ≈ 0.36787944117144233
-true
-
-julia> mueta(LogLink(), 2.0) ≈ 7.38905609893065
-true
-```
-"""
-function mueta end
-
-"""
     GLM.inverselink(L::Link, η::Real)
 
 Return a 3-tuple of:
@@ -219,7 +200,6 @@ function canonicallink end
 
 linkfun(::CauchitLink, μ::Real) = tan(pi * (μ - oftype(μ, 1/2)))
 linkinv(::CauchitLink, η::Real) = oftype(η, 1/2) + atan(η) / pi
-mueta(::CauchitLink, η::Real) = one(η) / (pi * (one(η) + abs2(η)))
 function inverselink(::CauchitLink, η::Real)
     # atan decays so slowly that we don't need to be careful when evaluating μ
     μ = atan(η) / π
@@ -229,7 +209,6 @@ end
 
 linkfun(::CloglogLink, μ::Real) = log(-log1p(-μ))
 linkinv(::CloglogLink, η::Real) = -expm1(-exp(η))
-mueta(::CloglogLink, η::Real) = exp(η) * exp(-exp(η))
 function inverselink(::CloglogLink, η::Real)
     expη = exp(η)
     μ = -expm1(-expη)
@@ -239,12 +218,10 @@ end
 
 linkfun(::IdentityLink, μ::Real) = μ
 linkinv(::IdentityLink, η::Real) = η
-mueta(::IdentityLink, η::Real) = one(η)
 inverselink(::IdentityLink, η::Real) = η, one(η), convert(float(typeof(η)), NaN)
 
 linkfun(::InverseLink, μ::Real) = inv(μ)
 linkinv(::InverseLink, η::Real) = inv(η)
-mueta(::InverseLink, η::Real) = -inv(abs2(η))
 function inverselink(::InverseLink, η::Real)
     μ = inv(η)
     return μ, -abs2(μ), convert(float(typeof(μ)), NaN)
@@ -252,7 +229,6 @@ end
 
 linkfun(::InverseSquareLink, μ::Real) = inv(abs2(μ))
 linkinv(::InverseSquareLink, η::Real) = inv(sqrt(η))
-mueta(::InverseSquareLink, η::Real) = -inv(2η*sqrt(η))
 function inverselink(::InverseSquareLink, η::Real)
     μ = inv(sqrt(η))
     return μ, -μ / (2η), convert(float(typeof(μ)), NaN)
@@ -260,11 +236,7 @@ end
 
 linkfun(::LogitLink, μ::Real) = logit(μ)
 linkinv(::LogitLink, η::Real) = logistic(η)
-function mueta(::LogitLink, η::Real)
-    expabs = exp(-abs(η))
-    denom = 1 + expabs
-    return (expabs / denom) / denom
-end
+
 function inverselink(::LogitLink, η::Real)
     expabs = exp(-abs(η))
     opexpabs = 1 + expabs
@@ -279,7 +251,7 @@ end
 
 linkfun(::LogLink, μ::Real) = log(μ)
 linkinv(::LogLink, η::Real) = exp(η)
-mueta(::LogLink, η::Real) = exp(η)
+
 function inverselink(::LogLink, η::Real)
     μ = exp(η)
     return μ, μ, convert(float(typeof(μ)), NaN)
@@ -287,7 +259,7 @@ end
 
 linkfun(nbl::NegativeBinomialLink, μ::Real) = log(μ / (μ + nbl.θ))
 linkinv(nbl::NegativeBinomialLink, η::Real) = -exp(η) * nbl.θ / expm1(η)
-mueta(nbl::NegativeBinomialLink, η::Real) = exp(η) * nbl.θ / expm1(η)^2
+
 function inverselink(nbl::NegativeBinomialLink, η::Real)
     μ = -exp(η) * nbl.θ / expm1(η)
     deriv = μ * (1 + μ / nbl.θ)
@@ -296,14 +268,7 @@ end
 
 linkfun(pl::PowerLink, μ::Real) = pl.λ == 0 ? log(μ) : μ^pl.λ
 linkinv(pl::PowerLink, η::Real) = pl.λ == 0 ? exp(η) : η^(1 / pl.λ)
-function mueta(pl::PowerLink, η::Real)
-    if pl.λ == 0
-        return exp(η)
-    else
-        invλ = inv(pl.λ)
-        return invλ * η^(invλ - 1)
-    end
-end
+
 function inverselink(pl::PowerLink, η::Real)
     if pl.λ == 0
         μ = exp(η)
@@ -316,7 +281,7 @@ end
 
 linkfun(::ProbitLink, μ::Real) = -sqrt2 * erfcinv(2μ)
 linkinv(::ProbitLink, η::Real) = erfc(-η / sqrt2) / 2
-mueta(::ProbitLink, η::Real) = exp(-abs2(η) / 2) / sqrt2π
+
 function inverselink(::ProbitLink, η::Real)
     μ   =  cdf(Normal(), η)
     omμ = ccdf(Normal(), η)
@@ -325,7 +290,7 @@ end
 
 linkfun(::SqrtLink, μ::Real) = sqrt(μ)
 linkinv(::SqrtLink, η::Real) = abs2(η)
-mueta(::SqrtLink, η::Real) = 2η
+
 inverselink(::SqrtLink, η::Real) = abs2(η), 2η, convert(float(typeof(η)), NaN)
 
 canonicallink(::Bernoulli) = LogitLink()
