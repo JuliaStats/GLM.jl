@@ -87,7 +87,6 @@ ProbitLink
 SqrtLink
 GLM.linkfun
 GLM.linkinv
-GLM.mueta
 GLM.inverselink
 canonicallink
 GLM.glmvar
