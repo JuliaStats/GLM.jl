@@ -773,7 +773,7 @@ function predict!(res::Union{AbstractVector,
         if interval_method == :delta
             # 2. Now compute the variance for mu based on variance of eta and
             # construct intervals based on that (Delta method)
-            stdmu = stdeta .* abs.(mueta.(Link(mm), eta))
+            stdmu = stdeta .* abs.(getindex.(GLM.inverselink.(Link(mm), eta), 2))
             lower .= mu .- normalquantile .* stdmu
             upper .= mu .+ normalquantile .* stdmu
         elseif interval_method == :transformation
