@@ -40,7 +40,7 @@ functions are
               Normal (IdentityLink)
              Poisson (LogLink)
 
-Currently the available Link types are
+Currently, the available Link types are:
 
     CauchitLink
     CloglogLink
@@ -54,6 +54,7 @@ Currently the available Link types are
     ProbitLink
     SqrtLink
 
+For more details, see [supported link functions](models.md#Supported-Link-functions).
 Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
 in practice one typically uses `LogLink`.
 The `NegativeBinomial` distribution belongs to the exponential family only if θ (the shape

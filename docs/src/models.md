@@ -38,16 +38,21 @@ In short, the link function allows us to go from the mean to the associated line
 
 In short, a GLM consists of three key components[^GLMwiki]:
 
-1. The distribution
-2. The linear predictor $(\eta = \mathbf{x}^\top \boldsymbol{\beta})$
+1. The linear predictor
+2. The distribution family
 3. The link function $g(\mu) = \eta$
+
+Different combinations of the family and link define the various GLMs:
+```julia
+glm(formula, family, link)
+```
 
 ### Supported Distribtions
 
-`GLM.jl` supports models with the following distributions:
+`GLM.jl` supports models with following distribution families:
 
-- Normal distribution
-- Bernoulli
+- Normal distribution (`family = Normal()`)
+- Bernoulli  (`family = Bernoulli()`)
 - Binomial
 - Gamma
 - Geometric
@@ -63,19 +68,19 @@ In short, a GLM consists of three key components[^GLMwiki]:
 
 These can be combined with an appropriate link function from the following list:
 
-| Link | Link function | Mean function |
+| Link: Constructor | Link function | Mean function |
 |:---------- |:---------- |:------------|
-| Cauchit link                 | $\eta = \tan(\pi \times (\mu - \frac{1}{2}))$ | $\mu = \frac{1}{2}+ \frac{\tan^{-1}(\eta)}{\pi}$|
-| complimentary log log link   | $\eta = \log(-\log(1 - \mu))$ | $\mu = 1 - \exp(-\exp(\eta))$ |
-| Identity link                | $\eta = \mu$ | $\mu = \eta$ |
-| Inverse Link (or reciprocal) | $\eta = \frac{1}{\mu}$ | $\mu = \frac{1}{\eta}$ |
-| Inverse square link          | $\eta = \frac{1}{\mu^2}$ | $\mu = \frac{1}{\eta^2}$ |
-| Logit link                   | $\eta = \log(\frac{\mu}{1 - \mu})$ | $\mu = (1 + e^{-\eta})^{-1}$ |
-| Log link                     | $\eta = \log(\mu)$ | $\mu = \exp(\eta)$ |
-| Negative Binomial link (with parameter $\theta$)     | $\eta = \log(\frac{\mu}{\mu + \theta})$ | $\mu = \frac{\theta \exp(\eta)}{1 - \exp(\eta)}$ |
-| Power link  (with parameter $k$)                 | $\eta = \mu^{k}$ | $\mu = \eta^{1/k}$ |
-| Probit link                  | $\eta = \Phi^{-1}(\mu)$ | $\mu = \Phi(\eta)$ |
-| Square root Link             | $\eta = \sqrt{\mu}$ | $\mu = \sqrt{\eta}$ |
+| Cauchit link                 : `CauchitLink()` | $\eta = \tan(\pi \times (\mu - \frac{1}{2}))$ | $\mu = \frac{1}{2}+ \frac{\tan^{-1}(\eta)}{\pi}$|
+| complimentary log log link   : `CloglogLink()` | $\eta = \log(-\log(1 - \mu))$ | $\mu = 1 - \exp(-\exp(\eta))$ |
+| Identity link                : `IdentityLink()` | $\eta = \mu$ | $\mu = \eta$ |
+| Inverse Link (or reciprocal) : `InverseLink()` | $\eta = \frac{1}{\mu}$ | $\mu = \frac{1}{\eta}$ |
+| Inverse square link          : `InverseSquareLink()` | $\eta = \frac{1}{\mu^2}$ | $\mu = \frac{1}{\eta^2}$ |
+| Logit link                   : `LogitLink()` | $\eta = \log(\frac{\mu}{1 - \mu})$ | $\mu = (1 + e^{-\eta})^{-1}$ |
+| Log link                     : `LogLink()` | $\eta = \log(\mu)$ | $\mu = \exp(\eta)$ |
+| Negative Binomial link: `NegativeBinomialLink(θ)` | $\eta = \log(\frac{\mu}{\mu + \theta})$ | $\mu = \frac{\theta \exp(\eta)}{1 - \exp(\eta)}$ |
+| Power link: `PowerLink(k)`| $\eta = \mu^{k}$ | $\mu = \eta^{1/k}$ |
+| Probit link: `ProbitLink()` | $\eta = \Phi^{-1}(\mu)$ | $\mu = \Phi(\eta)$ |
+| Square root Link: `SqrtLink()` |$\eta = \sqrt{\mu}$ | $\mu = \sqrt{\eta}$ |
 
 Note that not all combinations of distribution and link are appropriate.
 For instance, 
