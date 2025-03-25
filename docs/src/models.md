@@ -22,6 +22,7 @@ For GLMs, we have the same setup as before however the response $y_i$ is (usuall
 For instance, if we have count data $y_i$'s are non-negative integers.
 GLMs model the parameters through a transformation of the mean that _links_ it to a linear predictor.
 The function that operationalizes this is _link_ function (usually denoted by $g$).
+The link function maps the mean of the distribution to the linear predictor, that is:
 ```math
 g(\mathbb{E}(Y_i | \mathbf{x}_i)) = \mathbf{x}_i^\top \mathbb{\beta} = \eta_i .
 ```
@@ -29,14 +30,50 @@ The link function must be invertible, and the inverse link function is also some
 ```math
     \mathbb{E}(Y_i | \mathbf{x}_i) = g^{-1}(\eta_i) .
 ```
+Another (perhaps more intuitive) way to see this is that the _mean_ function maps the linear predictor to the space of possible mean values.
+For instance, when we have binary response the mean must be in the interval $[0,1]$ however, the linear predictor can take any real value.
+The mean function (say logistic function, more on that later) takes the linear predictor and squishes into the $(0, 1)$ interval.
 
-Thus, the link function allows us to go from the mean to the associated linear predictor and the mean function allows us to go from the linear predictor to the mean.
+In short, the link function allows us to go from the mean to the associated linear predictor and the mean function allows us to go from the linear predictor to the mean.
 
 In short, a GLM consists of three key components[^GLMwiki]:
 
 1. The distribution
 2. The linear predictor $(\eta = \mathbf{x}^\top \boldsymbol{\beta})$
 3. The link function $g(\mu) = \eta$
+
+### Supported Distribtions
+
+`GLM.jl` supports models with the following distributions:
+
+- Normal distribution
+- Bernoulli
+- Binomial
+- Gamma
+- Geometric
+- Inverse Gaussian
+- Negative Binomial
+- Poisson
+
+
+### Supported Link functions
+
+These can be combined with an appropriate link function from the following list:
+
+- Cauchit link
+- complementary log log link
+- Identity link
+- Inverse Link (or reciprocal)
+- Inverse square link
+- Logit link
+- Log link
+- Negative Binomial link
+- Power link
+- Probit link
+- Square root Link
+
+Note that not all combinations of distribution and link are appropriate.
+For instance, 
 
 ## Binary Response
 
