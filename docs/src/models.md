@@ -56,21 +56,26 @@ In short, a GLM consists of three key components[^GLMwiki]:
 - Poisson
 
 
+
+
+
 ### Supported Link functions
 
 These can be combined with an appropriate link function from the following list:
 
-- Cauchit link
-- complementary log log link
-- Identity link
-- Inverse Link (or reciprocal)
-- Inverse square link
-- Logit link
-- Log link
-- Negative Binomial link
-- Power link
-- Probit link
-- Square root Link
+| Link | Link function | Mean function |
+|:---------- |:---------- |:------------|
+| Cauchit link                 | $\eta = \tan(\pi \times (\mu - \frac{1}{2}))$ | $\mu = \frac{1}{2}+ \frac{\tan^{-1}(\eta)}{\pi}$|
+| complimentary log log link   | $\eta = \log(-\log(1 - \mu))$ | $\mu = 1 - \exp(-\exp(\eta))$ |
+| Identity link                | $\eta = \mu$ | $\mu = \eta$ |
+| Inverse Link (or reciprocal) | $\eta = \frac{1}{\mu}$ | $\mu = \frac{1}{\eta}$ |
+| Inverse square link          | $\eta = \frac{1}{\mu^2}$ | $\mu = \frac{1}{\eta^2}$ |
+| Logit link                   | $\eta = \log(\frac{\mu}{1 - \mu})$ | $\mu = (1 + e^{-\eta})^{-1}$ |
+| Log link                     | $\eta = \log(\mu)$ | $\mu = \exp(\eta)$ |
+| Negative Binomial link (with parameter $\theta$)     | $\eta = \log(\frac{\mu}{\mu + \theta})$ | $\mu = \frac{\theta \exp(\eta)}{1 - \exp(\eta)}$ |
+| Power link  (with parameter $k$)                 | $\eta = \mu^{k}$ | $\mu = \eta^{1/k}$ |
+| Probit link                  | $\eta = \Phi^{-1}(\mu)$ | $\mu = \Phi(\eta)$ |
+| Square root Link             | $\eta = \sqrt{\mu}$ | $\mu = \sqrt{\eta}$ |
 
 Note that not all combinations of distribution and link are appropriate.
 For instance, 
