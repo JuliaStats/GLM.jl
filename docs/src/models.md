@@ -32,6 +32,11 @@ The link function must be invertible, and the inverse link function is also some
 
 Thus, the link function allows us to go from the mean to the associated linear predictor and the mean function allows us to go from the linear predictor to the mean.
 
+In short, a GLM consists of three key components[^GLMwiki]:
+
+1. The distribution
+2. The linear predictor $(\eta = \mathbf{x}^\top \boldsymbol{\beta})$
+3. The link function $g(\mu) = \eta$
 
 ## Binary Response
 
@@ -113,3 +118,4 @@ mod = glm(@formula(...), data, Poisson(), LogLink())
 
 [^logit]: https://en.wikipedia.org/wiki/Logit
 [^logistic]: https://en.wikipedia.org/wiki/Logistic_function
+[^GLMwiki]: https://en.wikipedia.org/wiki/Generalized_linear_model#Model_components
