@@ -12,12 +12,12 @@ Encapsulates the response for a linear model
 
 Either or both `offset` and `wts` may be of length 0
 """
-mutable struct LmResp{V<:FPVector, W<:AbstractWeights} <: ModResp  # response in a linear model
+mutable struct LmResp{V<:FPVector,W<:AbstractWeights} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
     wts::W                                 # prior weights (may have length 0)
     y::V                                   # response
-    function LmResp{V, W}(mu::V, off::V, wts::W, y::V) where {V, W}
+    function LmResp{V,W}(mu::V, off::V, wts::W, y::V) where {V,W}
         n = length(y)
         length(mu) == n || error("mismatched lengths of mu and y")
         ll = length(off)
@@ -31,7 +31,7 @@ end
 function LmResp(y::AbstractVector{<:Real}, wts::AbstractWeights)
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
     _y = convert(Vector{float(eltype(y))}, y)
-    return LmResp{typeof(_y), typeof(wts)}(zero(_y), zero(_y), wts, _y)
+    return LmResp{typeof(_y),typeof(wts)}(zero(_y), zero(_y), wts, _y)
 end
 
 LmResp(y::AbstractVector{<:Real}) = LmResp(y, uweights(length(y)))
@@ -51,36 +51,40 @@ function deviance(r::LmResp)
     wts = r.wts
     if wts isa UnitWeights
         v = zero(eltype(y)) + zero(eltype(y))
-        @inbounds @simd for i in eachindex(y,mu,wts)
+        @inbounds @simd for i in eachindex(y, mu, wts)
             v += abs2(y[i] - mu[i])
         end
     else
         v = zero(eltype(y)) + zero(eltype(y)) * zero(eltype(wts))
-        @inbounds @simd for i in eachindex(y,mu,wts)
-            v += abs2(y[i] - mu[i])*wts[i]
+        @inbounds @simd for i in eachindex(y, mu, wts)
+            v += abs2(y[i] - mu[i]) * wts[i]
         end
     end
-    return v
+    return wts isa ProbabilityWeights ? v ./ sum(wts) ./ length(y) : v
 end
 
 weights(r::LmResp) = r.wts
-isweighted(r::LmResp) = weights(r) isa Union{AnalyticWeights, FrequencyWeights, ProbabilityWeights}
+function isweighted(r::LmResp)
+    weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
+end
 
 nobs(r::LmResp{<:Any,W}) where {W<:FrequencyWeights} = sum(r.wts)
-nobs(r::LmResp{<:Any,W}) where {W<:AbstractWeights} = oftype(sum(one(eltype(r.wts))), length(r.y))
-
-function loglikelihood(r::LmResp{T,<:Union{UnitWeights, FrequencyWeights}}) where T
-    n = nobs(r)
-    -n/2 * (log(2π * deviance(r)/n) + 1)
+function nobs(r::LmResp{<:Any,W}) where {W<:AbstractWeights}
+    oftype(sum(one(eltype(r.wts))), length(r.y))
 end
 
-function loglikelihood(r::LmResp{T,<:AnalyticWeights}) where T
+function loglikelihood(r::LmResp{T,<:Union{UnitWeights,FrequencyWeights}}) where {T}
+    n = nobs(r)
+    -n / 2 * (log(2π * deviance(r) / n) + 1)
+end
+
+function loglikelihood(r::LmResp{T,<:AnalyticWeights}) where {T}
     N = length(r.y)
     n = sum(log, weights(r))
-    (n - N * (log(2π * deviance(r)/N) + 1))/2
+    (n - N * (log(2π * deviance(r) / N) + 1)) / 2
 end
 
-function loglikelihood(r::LmResp{T,<:ProbabilityWeights}) where T
+function loglikelihood(r::LmResp{T,<:ProbabilityWeights}) where {T}
     throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
 end
 
@@ -145,12 +149,14 @@ $FIT_LM_DOC
 """
 
 function convert_weights(wts)
-    if wts isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights, UnitWeights}
+    if wts isa Union{FrequencyWeights,AnalyticWeights,ProbabilityWeights,UnitWeights}
         wts
     elseif wts isa AbstractVector
-        Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
-                     "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                     "by coercing `wts` to `FrequencyWeights`", :fit)
+        Base.depwarn(
+            "Passing weights as vector is deprecated in favor of explicitly using " *
+            "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+            "by coercing `wts` to `FrequencyWeights`",
+            :fit)
         fweights(wts)
     else
         throw(ArgumentError("`wts` should be an `AbstractVector` coercible to `AbstractWeights`"))
@@ -158,10 +164,10 @@ function convert_weights(wts)
 end
 
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
-             allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
-             wts::Union{AbstractWeights{<:Real}, AbstractVector{<:Real}}=uweights(length(y)),
-             dropcollinear::Bool=true,
-             method::Symbol=:cholesky)
+    allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
+    wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(length(y)),
+    dropcollinear::Bool=true,
+    method::Symbol=:cholesky)
     if allowrankdeficient_dep !== nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
@@ -180,12 +186,11 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
 end
 
 function fit(::Type{LinearModel}, f::FormulaTerm, data,
-             allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
-             wts::Union{AbstractWeights{<:Real}, AbstractVector{<:Real}}=uweights(0),
-             dropcollinear::Bool=true,
-             method::Symbol=:cholesky,
-             contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
-
+    allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
+    wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(0),
+    dropcollinear::Bool=true,
+    method::Symbol=:cholesky,
+    contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     f, (y, X) = modelframe(f, data, contrasts, LinearModel)
     _wts = convert_weights(wts)
     _wts = isempty(_wts) ? uweights(length(y)) : _wts
@@ -210,8 +215,8 @@ An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, metho
 
 $FIT_LM_DOC
 """
-lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
-    fit(LinearModel, X, y, allowrankdeficient_dep; kwargs...)
+lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) = fit(
+    LinearModel, X, y, allowrankdeficient_dep; kwargs...)
 
 dof(x::LinearModel) = linpred_rank(x.pp) + 1
 
@@ -238,14 +243,14 @@ function nulldeviance(obj::LinearModel)
         m = zero(eltype(y))
     end
 
-    v = zero(eltype(y))*zero(eltype(wts))
+    v = zero(eltype(y)) * zero(eltype(wts))
     if wts isa UnitWeights
-        @inbounds @simd for i = eachindex(y,wts)
+        @inbounds @simd for i in eachindex(y, wts)
             v += abs2(y[i] - m)
         end
     else
-        @inbounds @simd for i = eachindex(y,wts)
-            v += abs2(y[i] - m)*wts[i]
+        @inbounds @simd for i in eachindex(y, wts)
+            v += abs2(y[i] - m) * wts[i]
         end
     end
     return v
@@ -253,28 +258,29 @@ end
 
 function nullloglikelihood(m::LinearModel)
     wts = weights(m)
-    if wts isa Union{UnitWeights, FrequencyWeights}
+    if wts isa Union{UnitWeights,FrequencyWeights}
         n = nobs(m)
-        -n/2 * (log(2π * nulldeviance(m)/n) + 1)
+        -n / 2 * (log(2π * nulldeviance(m) / n) + 1)
     else
         N = length(m.rr.y)
         n = sum(log, wts)
-        0.5*(n - N * (log(2π * nulldeviance(m)/N) + 1))
+        0.5 * (n - N * (log(2π * nulldeviance(m) / N) + 1))
     end
 end
 
 loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
 
-
-r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
-adjr2(obj::LinearModel) = 1 - (1 - r²(obj))*(nobs(obj)-hasintercept(obj))/dof_residual(obj)
+r2(obj::LinearModel) = 1 - deviance(obj) / nulldeviance(obj)
+function adjr2(obj::LinearModel)
+    1 - (1 - r²(obj)) * (nobs(obj) - hasintercept(obj)) / dof_residual(obj)
+end
 
 working_residuals(x::LinearModel) = residuals(x)
 working_weights(x::LinearModel) = x.pp.wts
 
 function dispersion(x::LinearModel, sqr::Bool=false)
     dofr = dof_residual(x)
-    ssqr = deviance(x.rr)/dofr
+    ssqr = deviance(x.rr) / dofr
     dofr > 0 || return oftype(ssqr, Inf)
     return sqr ? ssqr : sqrt(ssqr)
 end
@@ -286,16 +292,16 @@ function coeftable(mm::LinearModel; level::Real=0.95)
     tt = cc ./ se
     if dofr > 0
         p = ccdf.(Ref(FDist(1, dofr)), abs2.(tt))
-        ci = se*quantile(TDist(dofr), (1-level)/2)
+        ci = se * quantile(TDist(dofr), (1 - level) / 2)
     else
         p = [isnan(t) ? NaN : 1.0 for t in tt]
         ci = [isnan(t) ? NaN : -Inf for t in tt]
     end
-    levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
+    levstr = isinteger(level * 100) ? string(Integer(level * 100)) : string(level * 100)
     cn = coefnames(mm)
-    CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
-              ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
-              cn, 4, 3)
+    CoefTable(hcat(cc, se, tt, p, cc + ci, cc - ci),
+        ["Coef.", "Std. Error", "t", "Pr(>|t|)", "Lower $levstr%", "Upper $levstr%"],
+        cn, 4, 3)
 end
 
 """
@@ -310,7 +316,7 @@ Valid values of `interval` are `:confidence` delimiting the  uncertainty of the
 predicted relationship, and `:prediction` delimiting estimated bounds for new data points.
 """
 function predict(mm::LinearModel, newx::AbstractMatrix;
-                 interval::Union{Symbol,Nothing}=nothing, level::Real=0.95)
+    interval::Union{Symbol,Nothing}=nothing, level::Real=0.95)
     retmean = similar(view(newx, :, 1))
     if interval === nothing
         res = retmean
@@ -322,14 +328,16 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     return res
 end
 
-function StatsModels.predict!(res::Union{AbstractVector,
-                                         NamedTuple{(:prediction, :lower, :upper),
-                                                    <:NTuple{3, AbstractVector}}},
-                              mm::LinearModel, newx::AbstractMatrix;
-                              interval::Union{Symbol, Nothing}=nothing,
-                              level::Real=0.95)
+function StatsModels.predict!(
+    res::Union{AbstractVector,
+        NamedTuple{(:prediction, :lower, :upper),
+            <:NTuple{3,AbstractVector}}},
+    mm::LinearModel, newx::AbstractMatrix;
+    interval::Union{Symbol,Nothing}=nothing,
+    level::Real=0.95)
     if interval === :confint
-        Base.depwarn("interval=:confint is deprecated in favor of interval=:confidence", :predict)
+        Base.depwarn(
+            "interval=:confint is deprecated in favor of interval=:confidence", :predict)
         interval = :confidence
     end
     if interval === nothing
@@ -339,11 +347,11 @@ function StatsModels.predict!(res::Union{AbstractVector,
             throw(DimensionMismatch("length of `res` must equal the number of rows in `newx`"))
         res .= newx * coef(mm)
     elseif mm.pp isa DensePredChol &&
-        mm.pp.chol isa CholeskyPivoted &&
-        mm.pp.chol.rank < size(mm.pp.chol, 2)
-            throw(ArgumentError("prediction intervals are currently not implemented " *
-                                "when some independent variables have been dropped " *
-                                "from the model due to collinearity"))
+           mm.pp.chol isa CholeskyPivoted &&
+           mm.pp.chol.rank < size(mm.pp.chol, 2)
+        throw(ArgumentError("prediction intervals are currently not implemented " *
+                            "when some independent variables have been dropped " *
+                            "from the model due to collinearity"))
     elseif mm.pp isa DensePredQR && rank(mm.pp.qr.R) < size(mm.pp.qr.R, 2)
         throw(ArgumentError("prediction intervals are currently not implemented " *
                             "when some independent variables have been dropped " *
@@ -355,26 +363,27 @@ function StatsModels.predict!(res::Union{AbstractVector,
         prediction, lower, upper = res
         length(prediction) == length(lower) == length(upper) == size(newx, 1) ||
             throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newx`"))
-        mm.rr.wts isa UnitWeights || error("prediction with confidence intervals not yet implemented for weighted regression")
+        isweighted(mm) && error("prediction with confidence intervals not yet implemented for weighted regression")
         dev = deviance(mm)
         dofr = dof_residual(mm)
-        ret = diag(newx*vcov(mm)*newx')
+        ret = diag(newx * vcov(mm) * newx')
         if interval == :prediction
-            ret .+= dev/dofr
+            ret .+= dev / dofr
         elseif interval != :confidence
             error("only :confidence and :prediction intervals are defined")
         end
-        ret .= quantile(TDist(dofr), (1 - level)/2) .* sqrt.(ret)
+        ret .= quantile(TDist(dofr), (1 - level) / 2) .* sqrt.(ret)
         prediction .= newx * coef(mm)
         lower .= prediction .+ ret
-        upper .= prediction -+ ret
+        upper .= prediction - +ret
     end
     return res
 end
 
 function confint(obj::LinearModel; level::Real=0.95)
-    hcat(coef(obj),coef(obj)) + stderror(obj) *
-    quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
+    hcat(coef(obj), coef(obj)) +
+    stderror(obj) *
+    quantile(TDist(dof_residual(obj)), (1.0 - level) / 2.0) * [1.0 -1.0]
 end
 
 function momentmatrix(m::LinearModel)
@@ -406,10 +415,10 @@ of each data point.
 """
 function StatsBase.cooksdistance(obj::LinearModel)
     u = residuals(obj; weighted=isweighted(obj))
-    mse = GLM.dispersion(obj,true)
-    k = dof(obj)-1
+    mse = dispersion(obj, true)
+    k = dof(obj) - 1
     hii = leverage(obj)
-    D = @. u^2 * (hii / (1 - hii)^2) / (k*mse)
+    D = @. u^2 * (hii / (1 - hii)^2) / (k * mse)
     return D
 end
 
