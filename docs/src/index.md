@@ -125,7 +125,7 @@ x: 4         -0.032673    0.0797865  -0.41    0.6831  -0.191048    0.125702
 
 ## Weighting 
 
-Both `lm` and `glm` allow weighted estimation. The three different 
+Both `lm` and `glm` allow weighted estimation. The four different 
 [types of weights](https://juliastats.org/StatsBase.jl/stable/weights/) defined in 
 [StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) can be used to fit a model:
 
@@ -138,8 +138,8 @@ Both `lm` and `glm` allow weighted estimation. The three different
 - `ProbabilityWeights` represent the inverse of the sampling probability for each observation,
   providing a correction mechanism for under- or over-sampling certain population groups.
   These weights may also be referred to as sampling weights.
-
-`GLM.jl` internally uses UnitWeights for unweighted regression. When no weights are specified, the model defaults to using `UnitWeights`, effectively treating all observations as equally weighted.
+- `UnitWeights` attribute a weight of 1 to each observation, which corresponds
+  to unweighted regression (the default).
 
 To indicate which kind of weights should be used, the vector of weights must be wrapped in
 one of the three weights types, and then passed to the `weights` keyword argument.

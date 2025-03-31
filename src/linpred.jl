@@ -519,7 +519,6 @@ nobs(obj::LinPredModel) = nobs(obj.rr)
 weights(m::LinPredModel) = weights(m.rr)
 weights(pp::LinPred) = pp.wts
 
-isweighted(obj::RegressionModel) = isweighted(obj.model.pp)
 isweighted(m::LinPredModel) = isweighted(m.pp)
 function isweighted(pp::LinPred)
     weights(pp) isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights}

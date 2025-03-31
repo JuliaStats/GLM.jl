@@ -4,7 +4,7 @@
 The response vector and various derived vectors in a generalized linear model.
 """
 struct GlmResp{
-    V <: FPVector, D <: UnivariateDistribution, L <: Link, W <: AbstractWeights} <: ModResp
+    V<:FPVector,D<:UnivariateDistribution,L<:Link,W<:AbstractWeights} <: ModResp
     "`y`: response vector"
     y::V
     d::D
@@ -27,7 +27,7 @@ struct GlmResp{
 end
 
 function GlmResp(
-        y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V <: FPVector, D, L, W}
+    y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVector,D,L,W}
     n = length(y)
     nη = length(η)
     nμ = length(μ)
@@ -38,7 +38,7 @@ function GlmResp(
     checky(y, d)
 
     ## We don't support custom types of weights that a user may define
-    if !(wts isa Union{FrequencyWeights, AnalyticWeights, ProbabilityWeights, UnitWeights})
+    if !(wts isa Union{FrequencyWeights,AnalyticWeights,ProbabilityWeights,UnitWeights})
         throw(ArgumentError("The type of `wts` was $W. The supported weights types are " *
                             "`FrequencyWeights`, `AnalyticWeights`, `ProbabilityWeights` and `UnitWeights`."))
     end
@@ -56,7 +56,7 @@ function GlmResp(
         throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
     end
 
-    return GlmResp{V, D, L, W}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
+    return GlmResp{V,D,L,W}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
 end
 
 function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::AbstractWeights)
@@ -72,19 +72,19 @@ function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::Abst
 end
 
 function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
-        wts::AbstractWeights) where {D, L}
+    wts::AbstractWeights) where {D,L}
     GlmResp(float(y), d, l, float(off), wts)
 end
 
-function deviance(r::GlmResp) 
-  wts = weights(r)
-  d = sum(r.devresid)
-  wts isa ProbabilityWeights ? d*nobs(r)/wts.sum : d
+function deviance(r::GlmResp)
+    wts = weights(r)
+    d = sum(r.devresid)
+    wts isa ProbabilityWeights ? d * nobs(r) / wts.sum : d
 end
 
 weights(r::GlmResp) = r.wts
 function isweighted(r::GlmResp)
-    weights(r) isa Union{AnalyticWeights, FrequencyWeights, ProbabilityWeights}
+    weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
 end
 
 """
@@ -97,10 +97,10 @@ of the variance function for `D`.  If they are the same a numerator and denomina
 the expression for the working weights will cancel.
 """
 cancancel(::GlmResp) = false
-cancancel(::GlmResp{V, D, LogitLink}) where {V, D <: Union{Bernoulli, Binomial}} = true
-cancancel(::GlmResp{V, D, NegativeBinomialLink}) where {V, D <: NegativeBinomial} = true
-cancancel(::GlmResp{V, D, IdentityLink}) where {V, D <: Normal} = true
-cancancel(::GlmResp{V, D, LogLink}) where {V, D <: Poisson} = true
+cancancel(::GlmResp{V,D,LogitLink}) where {V,D<:Union{Bernoulli,Binomial}} = true
+cancancel(::GlmResp{V,D,NegativeBinomialLink}) where {V,D<:NegativeBinomial} = true
+cancancel(::GlmResp{V,D,IdentityLink}) where {V,D<:Normal} = true
+cancancel(::GlmResp{V,D,LogLink}) where {V,D<:Poisson} = true
 
 """
     updateμ!{T<:FPVector}(r::GlmResp{T}, linPr::T)
@@ -111,17 +111,17 @@ the linear predictor, `linPr`.
 function updateμ! end
 
 function updateμ!(
-        r::GlmResp{T, D, L, <:AbstractWeights}, linPr::T) where {T <: FPVector, D, L}
+    r::GlmResp{T,D,L,<:AbstractWeights}, linPr::T) where {T<:FPVector,D,L}
     isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
     if isweighted(r)
-        map!(*, r.wrkwt, r.wrkwt, r.wts)        
+        map!(*, r.wrkwt, r.wrkwt, r.wts)
         map!(*, r.devresid, r.devresid, r.wts)
     end
     return r
 end
 
-function updateμ!(r::GlmResp{V, D, L}) where {V <: FPVector, D, L}
+function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
@@ -194,7 +194,7 @@ function _weights_residuals(yᵢ, ηᵢ, μᵢ, omμᵢ, dμdηᵢ, l::Link01)
 end
 
 function updateμ!(r::GlmResp{
-        V, D, L}) where {V <: FPVector, D <: Union{Bernoulli, Binomial}, L <: Link01}
+    V,D,L}) where {V<:FPVector,D<:Union{Bernoulli,Binomial},L<:Link01}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
@@ -212,7 +212,7 @@ function updateμ!(r::GlmResp{
 end
 
 function updateμ!(r::GlmResp{
-        V, D, L}) where {V <: FPVector, D <: NegativeBinomial, L <: NegativeBinomialLink}
+    V,D,L}) where {V<:FPVector,D<:NegativeBinomial,L<:NegativeBinomialLink}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
@@ -238,17 +238,17 @@ wrkresp(r::GlmResp) = wrkresp!(similar(r.eta), r)
 
 Overwrite `v` with the working response of `r`
 """
-function wrkresp!(v::T, r::GlmResp{T}) where {T <: FPVector}
+function wrkresp!(v::T, r::GlmResp{T}) where {T<:FPVector}
     broadcast!(+, v, r.eta, r.wrkresid)
     isempty(r.offset) ? v : broadcast!(-, v, v, r.offset)
 end
 
 abstract type AbstractGLM <: LinPredModel end
 
-mutable struct GeneralizedLinearModel{G <: GlmResp, L <: LinPred} <: AbstractGLM
+mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     rr::G
     pp::L
-    formula::Union{FormulaTerm, Nothing}
+    formula::Union{FormulaTerm,Nothing}
     fit::Bool
     maxiter::Int
     minstepfac::Float64
@@ -257,11 +257,11 @@ mutable struct GeneralizedLinearModel{G <: GlmResp, L <: LinPred} <: AbstractGLM
 end
 
 function GeneralizedLinearModel(rr::GlmResp, pp::LinPred,
-        f::Union{FormulaTerm, Nothing}, fit::Bool)
+    f::Union{FormulaTerm,Nothing}, fit::Bool)
     GeneralizedLinearModel(rr, pp, f, fit, 0, NaN, NaN, NaN)
 end
 
-function coeftable(mm::AbstractGLM; level::Real = 0.95)
+function coeftable(mm::AbstractGLM; level::Real=0.95)
     cc = coef(mm)
     se = stderror(mm)
     zz = cc ./ se
@@ -274,7 +274,7 @@ function coeftable(mm::AbstractGLM; level::Real = 0.95)
         cn, 4, 3)
 end
 
-function confint(obj::AbstractGLM; level::Real = 0.95)
+function confint(obj::AbstractGLM; level::Real=0.95)
     hcat(coef(obj), coef(obj)) +
     stderror(obj) * quantile(Normal(), (1.0 - level) / 2.0) * [1.0 -1.0]
 end
@@ -304,16 +304,16 @@ function nulldeviance(m::GeneralizedLinearModel)
             end
         end
         if wts isa ProbabilityWeights
-            dev /= wts.sum/nobs(m)
+            dev /= wts.sum / nobs(m)
         end
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-            X, y, d, r.link; wts = wts, offset = offset,
-            dropcollinear = ispivoted(m.pp),
-            method = decomposition_method(m.pp),
-            maxiter = m.maxiter, minstepfac = m.minstepfac,
-            atol = m.atol, rtol = m.rtol)
+            X, y, d, r.link; wts=wts, offset=offset,
+            dropcollinear=ispivoted(m.pp),
+            method=decomposition_method(m.pp),
+            maxiter=m.maxiter, minstepfac=m.minstepfac,
+            atol=m.atol, rtol=m.rtol)
         dev = deviance(nullm)
     end
     return dev
@@ -321,7 +321,7 @@ end
 
 loglikelihood(m::AbstractGLM) = loglikelihood(m.rr)
 
-function loglikelihood(r::GlmResp{T, D, L, <:AbstractWeights}) where {T, D, L}
+function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
     y = r.y
     mu = r.mu
     wts = weights(r)
@@ -331,7 +331,7 @@ function loglikelihood(r::GlmResp{T, D, L, <:AbstractWeights}) where {T, D, L}
     N = length(y)
     δ = deviance(r)
     ϕ = δ / n
-    if wts isa Union{FrequencyWeights, UnitWeights}
+    if wts isa Union{FrequencyWeights,UnitWeights}
         @inbounds for i in eachindex(y, mu)
             ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
         end
@@ -340,9 +340,7 @@ function loglikelihood(r::GlmResp{T, D, L, <:AbstractWeights}) where {T, D, L}
             ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, wts.sum, N)
         end
     else
-        #@inbounds for i in eachindex(y, mu, wts)
         throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
-        #end
     end
     return ll
 end
@@ -361,7 +359,7 @@ function nullloglikelihood(m::GeneralizedLinearModel)
         δ = nulldeviance(m)
         ϕ = nulldeviance(m) / nobs(m)
         N = length(y)
-        if wts isa Union{FrequencyWeights, UnitWeights}
+        if wts isa Union{FrequencyWeights,UnitWeights}
             @inbounds for i in eachindex(y, wts)
                 ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
             end
@@ -373,11 +371,11 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-            X, y, d, r.link; wts = wts, offset = offset,
-            dropcollinear = ispivoted(m.pp),
-            method = decomposition_method(m.pp),
-            maxiter = m.maxiter, minstepfac = m.minstepfac,
-            atol = m.atol, rtol = m.rtol)
+            X, y, d, r.link; wts=wts, offset=offset,
+            dropcollinear=ispivoted(m.pp),
+            method=decomposition_method(m.pp),
+            maxiter=m.maxiter, minstepfac=m.minstepfac,
+            atol=m.atol, rtol=m.rtol)
         ll = loglikelihood(nullm)
     end
     return ll
@@ -386,7 +384,7 @@ end
 dof(obj::GeneralizedLinearModel) = linpred_rank(obj) + dispersion_parameter(obj.rr.d)
 
 function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real,
-        atol::Real, rtol::Real, start)
+    atol::Real, rtol::Real, start)
 
     # Return early if model has the fit flag set
     m.fit && return m
@@ -461,24 +459,24 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
     end
     cvg || throw(ConvergenceException(maxiter))
     if weights(m) isa ProbabilityWeights
-      ## wrkwts and wrkresid are scaled by 
-      # the sum of the weights divided by the number 
-      # of observations
-      #m.rr.wrkwt .*=  nobs(m)/m.pp.wts.sum
-      #m.rr.devresid .*= nobs(m)/m.pp.wts.sum
+        ## wrkwts and wrkresid are scaled by 
+        # the sum of the weights divided by the number 
+        # of observations
+        #m.rr.wrkwt .*=  nobs(m)/m.pp.wts.sum
+        #m.rr.devresid .*= nobs(m)/m.pp.wts.sum
     end
     m.fit = true
     m
 end
 
 function StatsBase.fit!(m::AbstractGLM;
-        verbose::Bool = false,
-        maxiter::Integer = 30,
-        minstepfac::Real = 0.001,
-        atol::Real = 1e-6,
-        rtol::Real = 1e-6,
-        start = nothing,
-        kwargs...)
+    verbose::Bool=false,
+    maxiter::Integer=30,
+    minstepfac::Real=0.001,
+    atol::Real=1e-6,
+    rtol::Real=1e-6,
+    start=nothing,
+    kwargs...)
     if haskey(kwargs, :maxIter)
         Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
         maxiter = kwargs[:maxIter]
@@ -509,16 +507,16 @@ function StatsBase.fit!(m::AbstractGLM;
 end
 
 function StatsBase.fit!(m::AbstractGLM,
-        y;
-        wts = uweights(length(y)),
-        offset = nothing,
-        verbose::Bool = false,
-        maxiter::Integer = 30,
-        minstepfac::Real = 0.001,
-        atol::Real = 1e-6,
-        rtol::Real = 1e-6,
-        start = nothing,
-        kwargs...)
+    y;
+    wts=uweights(length(y)),
+    offset=nothing,
+    verbose::Bool=false,
+    maxiter::Integer=30,
+    minstepfac::Real=0.001,
+    atol::Real=1e-6,
+    rtol::Real=1e-6,
+    start=nothing,
+    kwargs...)
     if haskey(kwargs, :maxIter)
         Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
         maxiter = kwargs[:maxIter]
@@ -597,16 +595,16 @@ Fit a generalized linear model to data.
 $FIT_GLM_DOC
 """
 function fit(::Type{M},
-        X::AbstractMatrix{<:FP},
-        y::AbstractVector{<:Real},
-        d::UnivariateDistribution,
-        l::Link = canonicallink(d);
-        dropcollinear::Bool = true,
-        method::Symbol = :cholesky,
-        dofit::Union{Bool, Nothing} = nothing,
-        wts::AbstractVector{<:Real} = uweights(length(y)),
-        offset::AbstractVector{<:Real} = similar(y, 0),
-        fitargs...) where {M <: AbstractGLM}
+    X::AbstractMatrix{<:FP},
+    y::AbstractVector{<:Real},
+    d::UnivariateDistribution,
+    l::Link=canonicallink(d);
+    dropcollinear::Bool=true,
+    method::Symbol=:cholesky,
+    dofit::Union{Bool,Nothing}=nothing,
+    wts::AbstractVector{<:Real}=uweights(length(y)),
+    offset::AbstractVector{<:Real}=similar(y, 0),
+    fitargs...) where {M<:AbstractGLM}
     if dofit === nothing
         dofit = true
     else
@@ -644,25 +642,25 @@ function fit(::Type{M},
 end
 
 function fit(::Type{M},
-        X::AbstractMatrix,
-        y::AbstractVector,
-        d::UnivariateDistribution,
-        l::Link = canonicallink(d); kwargs...) where {M <: AbstractGLM}
+    X::AbstractMatrix,
+    y::AbstractVector,
+    d::UnivariateDistribution,
+    l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM}
     fit(M, float(X), float(y), d, l; kwargs...)
 end
 
 function fit(::Type{M},
-        f::FormulaTerm,
-        data,
-        d::UnivariateDistribution,
-        l::Link = canonicallink(d);
-        offset::Union{AbstractVector, Nothing} = nothing,
-        wts::Union{AbstractVector, Nothing} = nothing,
-        dropcollinear::Bool = true,
-        method::Symbol = :cholesky,
-        dofit::Union{Bool, Nothing} = nothing,
-        contrasts::AbstractDict{Symbol} = Dict{Symbol, Any}(),
-        fitargs...) where {M <: AbstractGLM}
+    f::FormulaTerm,
+    data,
+    d::UnivariateDistribution,
+    l::Link=canonicallink(d);
+    offset::Union{AbstractVector,Nothing}=nothing,
+    wts::Union{AbstractVector,Nothing}=nothing,
+    dropcollinear::Bool=true,
+    method::Symbol=:cholesky,
+    dofit::Union{Bool,Nothing}=nothing,
+    contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
+    fitargs...) where {M<:AbstractGLM}
     if dofit === nothing
         dofit = true
     else
@@ -718,7 +716,7 @@ glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwarg
 GLM.Link(r::GlmResp) = r.link
 GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
 
-Distributions.Distribution(r::GlmResp{T, D, L}) where {T, D, L} = D
+Distributions.Distribution(r::GlmResp{T,D,L}) where {T,D,L} = D
 Distributions.Distribution(m::GeneralizedLinearModel) = Distribution(m.rr)
 
 """
@@ -730,7 +728,7 @@ It is, by definition, equal to 1 for the Bernoulli, Binomial, and Poisson famili
 
 If `sqr` is `true`, the squared dispersion parameter is returned.
 """
-function dispersion(m::AbstractGLM, sqr::Bool = false)
+function dispersion(m::AbstractGLM, sqr::Bool=false)
     r = m.rr
     if dispersion_parameter(r.d)
         wrkwt, wrkresid = r.wrkwt, r.wrkresid
@@ -770,18 +768,18 @@ optionally, an `offset`.
 $PREDICT_COMMON
 """
 function predict(mm::AbstractGLM, newX::AbstractMatrix;
-        offset::FPVector = eltype(newX)[],
-        interval::Union{Symbol, Nothing} = nothing,
-        level::Real = 0.95,
-        interval_method = :transformation)
+    offset::FPVector=eltype(newX)[],
+    interval::Union{Symbol,Nothing}=nothing,
+    level::Real=0.95,
+    interval_method=:transformation)
     r = response(mm)
     len = size(newX, 1)
     res = interval === nothing ?
           similar(r, len) :
-          (prediction = similar(r, len), lower = similar(r, len), upper = similar(r, len))
+          (prediction=similar(r, len), lower=similar(r, len), upper=similar(r, len))
     predict!(res, mm, newX,
-        offset = offset, interval = interval, level = level,
-        interval_method = interval_method)
+        offset=offset, interval=interval, level=level,
+        interval_method=interval_method)
 end
 
 """
@@ -798,14 +796,14 @@ of vectors with names `prediction`, `lower` and `upper`.
 $PREDICT_COMMON
 """
 function predict!(
-        res::Union{AbstractVector,
-            NamedTuple{(:prediction, :lower, :upper),
-                <:NTuple{3, AbstractVector}}},
-        mm::AbstractGLM, newX::AbstractMatrix;
-        offset::FPVector = eltype(newX)[],
-        interval::Union{Symbol, Nothing} = nothing,
-        level::Real = 0.95,
-        interval_method = :transformation)
+    res::Union{AbstractVector,
+        NamedTuple{(:prediction, :lower, :upper),
+            <:NTuple{3,AbstractVector}}},
+    mm::AbstractGLM, newX::AbstractMatrix;
+    offset::FPVector=eltype(newX)[],
+    interval::Union{Symbol,Nothing}=nothing,
+    level::Real=0.95,
+    interval_method=:transformation)
     eta = newX * coef(mm)
     if !isempty(mm.rr.offset)
         length(offset) == size(newX, 1) ||
@@ -858,11 +856,11 @@ end
 
 # A helper function to choose default values for eta
 function initialeta!(eta::AbstractVector,
-        dist::UnivariateDistribution,
-        link::Link,
-        y::AbstractVector,
-        wts::AbstractWeights,
-        off::AbstractVector)
+    dist::UnivariateDistribution,
+    link::Link,
+    y::AbstractVector,
+    wts::AbstractWeights,
+    off::AbstractVector)
     n = length(y)
     lo = length(off)
 
@@ -907,12 +905,12 @@ function checky(y, d::Binomial)
     return nothing
 end
 
-function nobs(r::GlmResp{V, D, L, W}) where {V, D, L, W <: AbstractWeights}
+function nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:AbstractWeights}
     oftype(sum(one(eltype(r.wts))), length(r.y))
 end
-nobs(r::GlmResp{V, D, L, W}) where {V, D, L, W <: FrequencyWeights} = sum(r.wts)
+nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = sum(r.wts)
 
-function residuals(r::GlmResp; weighted::Bool = false)
+function residuals(r::GlmResp; weighted::Bool=false)
     y, η, μ = r.y, r.eta, r.mu
     dres = similar(μ)
 
@@ -930,7 +928,7 @@ function residuals(r::GlmResp; weighted::Bool = false)
 end
 
 function momentmatrix(m::GeneralizedLinearModel)
-    X = modelmatrix(m; weighted = false)
+    X = modelmatrix(m; weighted=false)
     r, d = varstruct(m)
     return Diagonal(r .* d) * X
 end
@@ -939,7 +937,7 @@ function varstruct(x::GeneralizedLinearModel)
     wrkwt = working_weights(x)
     wrkres = working_residuals(x)
     r = wrkwt .* wrkres
-    if x.rr.d isa Union{Gamma, Geometric, InverseGaussian}
+    if x.rr.d isa Union{Gamma,Geometric,InverseGaussian}
         r, sum(wrkwt) / sum(abs2, r)
     else
         r, 1.0
@@ -949,7 +947,7 @@ end
 function invloglikhessian(m::GeneralizedLinearModel)
     r, d = varstruct(m)
     wts = weights(m)
-    return invfact(m.pp)*wts.sum/nobs(m) / d
+    return invfact(m.pp) * wts.sum / nobs(m) / d
 end
 
 invfact(f::DensePredChol) = invchol(f)
