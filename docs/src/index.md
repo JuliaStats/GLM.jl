@@ -260,7 +260,7 @@ deviance.
 ## Debugging failed fits
 In the rare cases when a fit of a generalized linear model fails, it can be useful
 to enable more output from the fitting steps. This can be done through
-the Julia logging mechanism by setting `ENV[JULIA_DEBUG] = GLM`. Enabling debug output
+the Julia logging mechanism by setting `ENV["JULIA_DEBUG"] = GLM`. Enabling debug output
 will result in ouput like the following
 ```julia
 ┌ Debug: Iteration: 1, deviance: 5.129147109764238, diff.dev.:0.05057195315968688
