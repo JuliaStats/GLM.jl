@@ -492,7 +492,7 @@ function StatsBase.fit!(m::AbstractGLM,
         rtol = kwargs[:convTol]
     end
     if haskey(kwargs, :verbose)
-        Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""", :negbin)
+        Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""", :fit!)
     end
     if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol, :verbose))
         throw(ArgumentError("unsupported keyword argument"))
