@@ -978,20 +978,31 @@ end
     @test isapprox(vcov(gmsparse), vcov(gmdense))
 end
 
-@testset "Sparse LM" begin
+@testset "Sparse LM" for method in (:qr, :cholesky)
     rng = StableRNG(1)
     X = sprand(rng, 1000, 10, 0.01)
     β = randn(rng, 10)
     y = Bool[rand(rng) < logistic(x) for x in X * β]
-    gmsparsev = [fit(LinearModel, X, y),
-                 fit(LinearModel, X, sparse(y)),
-                 fit(LinearModel, Matrix(X), sparse(y))]
-    gmdense = fit(LinearModel, Matrix(X), y)
+    gmsparsev = [fit(LinearModel, X, y; method),
+                 fit(LinearModel, X, sparse(y); method),
+                 fit(LinearModel, Matrix(X), sparse(y); method)]
+    gmdense = fit(LinearModel, Matrix(X), y; method)
+
+    @test !(gmsparsev[1].pp isa GLM.DensePred)
+    @test !(gmsparsev[2].pp isa GLM.DensePred)
 
     for gmsparse in gmsparsev
         @test isapprox(deviance(gmsparse), deviance(gmdense))
         @test isapprox(coef(gmsparse), coef(gmdense))
         @test isapprox(vcov(gmsparse), vcov(gmdense))
+    end
+
+    @testset "weights" begin
+        wts = rand(1000)
+        ft_sparse_w = fit(LinearModel, X, y; wts, method)
+        ft_dense_w = fit(LinearModel, Matrix(X), y; wts, method)
+        @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
+        @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
     end
 end
 

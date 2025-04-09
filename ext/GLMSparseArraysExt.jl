@@ -2,6 +2,51 @@ module GLMSparseArraysExt
 
 using GLM, LinearAlgebra, SparseArrays
 
+## QR
+mutable struct SparsePredQR{T,M<:SparseMatrixCSC,F} <: GLM.LinPred
+    X::M                           # model matrix
+    beta0::Vector{T}               # base vector for coefficients
+    delbeta::Vector{T}             # coefficient increment
+    scratchbeta::Vector{T}
+    qr::F
+    scratch::M
+end
+function SparsePredQR(X::SparseMatrixCSC{T}) where T
+    # The one(float(T))* part is because of a promotion issue in SPQR.jl on Julia 1.9
+    fqr = qr(sparse(one(float(T))*I, size(X)...))
+    return SparsePredQR{eltype(X),typeof(X),typeof(fqr)}(
+        X,
+        zeros(T, size(X, 2)),
+        zeros(T, size(X, 2)),
+        zeros(T, size(X, 2)),
+        fqr,
+        similar(X)
+    )
+end
+
+GLM.qrpred(X::SparseMatrixCSC, pivot::Bool) = SparsePredQR(X)
+
+function GLM.delbeta!(p::SparsePredQR{T}, r::Vector{T}, wt::Vector{T}) where T
+    wtsqrt = sqrt.(wt)
+    Wsqrt = Diagonal(wtsqrt)
+    scr = mul!(p.scratch, Wsqrt, p.X)
+    p.qr = qr(scr)
+    p.delbeta = p.qr \ (Wsqrt*r)
+end
+
+function GLM.delbeta!(p::SparsePredQR{T}, r::Vector{T}) where T
+    p.qr = qr(p.X)
+    p.delbeta = p.qr \ r
+end
+
+function GLM.inverse(x::SparsePredQR{T}) where T
+    Rinv = UpperTriangular(x.qr.R) \ Diagonal(ones(T, size(x.qr.R, 2)))
+    pinv = invperm(x.qr.pcol)
+    RinvRinvt = Rinv*Rinv'
+    return RinvRinvt[pinv, pinv]
+end
+
+## Cholesky
 mutable struct SparsePredChol{T,M<:SparseMatrixCSC,C} <: GLM.LinPred
     X::M                           # model matrix
     Xt::M                          # X'
