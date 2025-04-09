@@ -1,7 +1,7 @@
 using CategoricalArrays, CSV, DataFrames, LinearAlgebra, SparseArrays, StableRNGs,
       Statistics, StatsBase, Test, RDatasets
 using GLM
-using StatsFuns: logistic
+using LogExpFunctions: logistic
 using Distributions: TDist
 using Downloads
 

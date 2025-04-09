@@ -1,9 +1,9 @@
 module GLM
-    using Distributions, LinearAlgebra, Printf, Reexport, Statistics, StatsBase, StatsFuns
+    using Distributions, LinearAlgebra, Printf, Reexport, Statistics, StatsBase
     using LinearAlgebra: copytri!, QRCompactWY, Cholesky, CholeskyPivoted, BlasReal
     using Printf: @sprintf
     using StatsBase: CoefTable, StatisticalModel, RegressionModel
-    using StatsFuns: logit, logistic
+    using LogExpFunctions: logistic, logit, xlogy
     @reexport using StatsModels
     using Distributions: sqrt2, sqrt2π
 
@@ -15,7 +15,6 @@ module GLM
                       loglikelihood, nullloglikelihood, nobs, stderror, vcov,
                       residuals, predict, predict!,
                       fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², PValue
-    import StatsFuns: xlogy
     import SpecialFunctions: erfc, erfcinv, digamma, trigamma
     import StatsModels: hasintercept
     import Tables
