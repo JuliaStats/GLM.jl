@@ -348,7 +348,7 @@ end
 @testset "Linear model with QR method and NASTY data" begin
     x = [1, 2, 3, 4, 5, 6, 7, 8, 9]
     nasty = DataFrame(X = x, TINY = 1.0E-12*x)
-    mdl = lm(@formula(X ~ TINY), nasty; method=:qr)
+    mdl = lm(@formula(X ~ TINY), nasty)
 
     @test coef(mdl) ≈ [0, 1.0E+12]
     @test dof(mdl) ≈ 3
@@ -1907,21 +1907,21 @@ end
         Xmissingcell = X[inds, :]
         ymissingcell = y[inds]
         @test_throws PosDefException m2 = glm(Xmissingcell, ymissingcell, Normal();
-            dropcollinear=false)
-        m2p = glm(Xmissingcell, ymissingcell, Normal(); dropcollinear=true)
+            dropcollinear=false, method=:cholesky)
+        m2p = glm(Xmissingcell, ymissingcell, Normal(); dropcollinear=true, method=:cholesky)
         @test isa(m2p.pp.chol, CholeskyPivoted)
-        @test rank(m2p.pp.chol) == 11
+        @test GLM.linpred_rank(m2p.pp) == 11
         @test isapprox(deviance(m2p), 0.1215758392280204)
         @test isapprox(coef(m2p), [0.9772643585228885, 8.903341608496437, 3.027347397503281,
             3.9661379199401257, 5.079410103608552, 6.1944618141188625, 0.0, 7.930328728005131,
             8.879994918604757, 2.986388408421915, 10.84972230524356, 11.844809275711485])
         @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7,:])
 
-        m2p_dep_pos = glm(Xmissingcell, ymissingcell, Normal())
+        m2p_dep_pos = glm(Xmissingcell, ymissingcell, Normal(); method=:cholesky)
         @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
                     "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
         @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
-        @test rank(m2p_dep_pos.pp.chol) == rank(m2p.pp.chol)
+        @test GLM.linpred_rank(m2p_dep_pos.pp) == rank(m2p.pp.chol)
         @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
         @test isapprox(coef(m2p_dep_pos), coef(m2p))
     end
@@ -1940,8 +1940,8 @@ end
         @test isapprox(deviance(m1), 0.0407069934950098)
         Xmissingcell = X[inds, :]
         ymissingcell = y[inds]
-        @test_throws PosDefException glm(Xmissingcell, ymissingcell, Gamma(); dropcollinear=false)
-        m2p = glm(Xmissingcell, ymissingcell, Gamma(); dropcollinear=true)
+        @test_throws PosDefException glm(Xmissingcell, ymissingcell, Gamma(); dropcollinear=false, method=:cholesky)
+        m2p = glm(Xmissingcell, ymissingcell, Gamma(); dropcollinear=true, method=:cholesky)
         @test isa(m2p.pp.chol, CholeskyPivoted)
         @test rank(m2p.pp.chol) == 11
         @test isapprox(deviance(m2p), 0.04070377141288433)
@@ -1950,7 +1950,7 @@ end
             0.7087696966674913, 0.011287703617517712, 0.6816245514668273, 0.7250492032072612])
         @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7,:])
 
-        m2p_dep_pos = fit(GeneralizedLinearModel, Xmissingcell, ymissingcell, Gamma())
+        m2p_dep_pos = fit(GeneralizedLinearModel, Xmissingcell, ymissingcell, Gamma(), method=:cholesky)
         @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
                     "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
         @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)

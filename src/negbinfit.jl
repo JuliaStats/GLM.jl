@@ -61,7 +61,7 @@ In both cases, `link` may specify the link function
 - `initialθ::Real=Inf`: Starting value for shape parameter θ. If it is `Inf`
   then the initial value will be estimated by fitting a Poisson distribution.
 - `dropcollinear::Bool=true`: See `dropcollinear` for [`glm`](@ref)
-- `method::Symbol=:cholesky`: See `method` for [`glm`](@ref)
+- `method::Symbol=:qr`: See `method` for [`glm`](@ref)
 - `maxiter::Integer=30`: See `maxiter` for [`glm`](@ref)
 - `atol::Real=1.0e-6`: See `atol` for [`glm`](@ref)
 - `rtol::Real=1.0e-6`: See `rtol` for [`glm`](@ref)
@@ -72,7 +72,7 @@ function negbin(F,
                 wts::Union{Nothing, AbstractVector}=nothing,
                 initialθ::Real=Inf,
                 dropcollinear::Bool=true,
-                method::Symbol=:cholesky,
+                method::Symbol=:qr,
                 maxiter::Integer=30,
                 minstepfac::Real=0.001,
                 atol::Real=1e-6,
