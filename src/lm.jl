@@ -126,16 +126,10 @@ Fit a linear model to data.
 
 $FIT_LM_DOC
 """
-function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
-             allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
+function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real};
              wts::AbstractVector{<:Real}=similar(y, 0),
              dropcollinear::Bool=true,
              method::Symbol=:qr)
-    if allowrankdeficient_dep !== nothing
-        @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
-              "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
-        dropcollinear = allowrankdeficient_dep
-    end
 
     if method === :cholesky
         fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), nothing))
@@ -146,8 +140,7 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     end
 end
 
-function fit(::Type{LinearModel}, f::FormulaTerm, data,
-             allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
+function fit(::Type{LinearModel}, f::FormulaTerm, data;
              wts::Union{AbstractVector{<:Real}, Nothing}=nothing,
              dropcollinear::Bool=true,
              method::Symbol=:qr,
@@ -176,8 +169,7 @@ An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, metho
 
 $FIT_LM_DOC
 """
-lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) =
-    fit(LinearModel, X, y, allowrankdeficient_dep; kwargs...)
+lm(X, y; kwargs...) = fit(LinearModel, X, y; kwargs...)
 
 dof(x::LinearModel) = linpred_rank(x.pp) + 1
 
@@ -204,8 +196,6 @@ function nulldeviance(obj::LinearModel)
             m = mean(y, weights(wts))
         end
     else
-        @warn("Starting from GLM.jl 1.8, null model is defined as having no predictor at all " *
-              "when a model without an intercept is passed.")
         m = zero(eltype(y))
     end
 
@@ -289,10 +279,7 @@ function StatsModels.predict!(res::Union{AbstractVector,
                               mm::LinearModel, newx::AbstractMatrix;
                               interval::Union{Symbol, Nothing}=nothing,
                               level::Real=0.95)
-    if interval === :confint
-        Base.depwarn("interval=:confint is deprecated in favor of interval=:confidence", :predict)
-        interval = :confidence
-    end
+
     if interval === nothing
         res isa AbstractVector ||
             throw(ArgumentError("`res` must be a vector when `interval == nothing` or is omitted"))
