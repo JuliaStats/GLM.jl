@@ -78,7 +78,7 @@ function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}, wt::Vector{T}) 
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where T<:BlasReal
-    rnk = rank(p.qr.R)
+    rnk = linpred_rank(p)
     if rnk == length(p.delbeta)
         p.delbeta = p.qr \ r
     else
@@ -100,7 +100,7 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) wh
     r̃ = (wtsqrt .*= r) # to reuse wtsqrt's memory
 
     p.qr = pivoted_qr!(p.scratchm1)
-    rnk = rank(p.qr.R) # FIXME! Don't use svd for this
+    rnk = linpred_rank(p)
     R = UpperTriangular(view(parent(p.qr.R), 1:rnk, 1:rnk))
     permute!(p.delbeta, p.qr.p)
     for k = (rnk + 1):length(p.delbeta)
@@ -169,7 +169,7 @@ end
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}) where T<:BlasReal
     ch = p.chol
     delbeta = mul!(p.delbeta, adjoint(p.X), r)
-    rnk = rank(ch)
+    rnk = linpred_rank(p)
     if rnk == length(delbeta)
         ldiv!(ch, delbeta)
     else
@@ -201,7 +201,7 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}, wt::Vecto
     # delbeta = X'Wr
     mul!(delbeta, transpose(p.scratchm1), r)
     # calculate delbeta = (X'WX)\X'Wr
-    rnk = rank(p.chol)
+    rnk = linpred_rank(p)
     if rnk == length(delbeta)
         cf = cholfactors(p.chol)
         cf .= p.scratchm2[piv, piv]
@@ -229,7 +229,7 @@ function invqr(p::DensePredQR{T,<: QRCompactWY}) where T
 end
 
 function invqr(p::DensePredQR{T,<: QRPivoted}) where T
-    rnk = rank(p.qr.R)
+    rnk = linpred_rank(p)
     k = length(p.delbeta)
     if rnk == k
         Rinv = inv(p.qr.R)
@@ -250,7 +250,7 @@ invchol(x::DensePred) = inv(cholesky!(x))
 
 function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where T
     ch = x.chol
-    rnk = rank(ch)
+    rnk = linpred_rank(x)
     p = length(x.delbeta)
     rnk == p && return inv(ch)
     fac = ch.factors
@@ -334,7 +334,7 @@ linpred_rank(x::LinPredModel) = linpred_rank(x.pp)
 linpred_rank(x::LinPred) = length(x.beta0)
 linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = rank(x.chol)
 linpred_rank(x::DensePredChol{<:Any, <:Cholesky}) = rank(x.chol.U)
-linpred_rank(x::DensePredQR{<:Any,<:QRPivoted}) = rank(x.qr.R)
+linpred_rank(x::DensePredQR{T,<:QRPivoted}) where T = rank(x.qr.R; rtol = size(x.X, 1) * eps(T))
 
 ispivoted(x::LinPred) = false
 ispivoted(x::DensePredChol{<:Any, <:CholeskyPivoted}) = true
