@@ -106,8 +106,10 @@ module GLM
           (however, the exact selection of columns identified as redundant is not guaranteed).
         - `method::Symbol`: Controls which decomposition method to use.
           If `method=:qr` (the default), then the `QR` decomposition method will be used.
-          If `method=:cholesky`, then the `Cholesky` decomposition method (which is faster
-          but less accurate) will be used.
+          If `method=:cholesky`, then the `Cholesky` decomposition method will be used.
+          The Cholesky decomposition is faster and more computationally efficient than
+          QR, but is less numerically stable and thus may fail or produce less accurate
+          estimates for some models.
         - `wts::Vector`: Prior frequency (a.k.a. case) weights of observations.
           Such weights are equivalent to repeating each observation a number of times equal
           to its weight. Do note that this interpretation gives equal point estimates but
