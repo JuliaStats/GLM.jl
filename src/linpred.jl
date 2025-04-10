@@ -45,7 +45,7 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY, QRPivoted}} <: Dens
         Q = pivot ? QRPivoted : QRCompactWY
         fX = float(X)
         cfX = fX === X ? copy(fX) : fX
-        F = pivot ? pivoted_qr!(cfX) : qr!(cfX)
+        F = pivot ? qr!(cfX, ColumnNorm()) : qr!(cfX)
         new{T,Q}(Matrix{T}(X),
             zeros(T, p),
             zeros(T, p),
@@ -99,7 +99,7 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}, wt::Vector{T}) wh
     mul!(p.scratchm1, sqrtW, X)
     r̃ = (wtsqrt .*= r) # to reuse wtsqrt's memory
 
-    p.qr = pivoted_qr!(p.scratchm1)
+    p.qr = qr!(p.scratchm1, ColumnNorm())
     rnk = linpred_rank(p)
     R = UpperTriangular(view(parent(p.qr.R), 1:rnk, 1:rnk))
     permute!(p.delbeta, p.qr.p)
@@ -139,7 +139,7 @@ end
 function DensePredChol(X::AbstractMatrix, pivot::Bool)
     F = Hermitian(float(X'X))
     T = eltype(F)
-    F = pivot ? pivoted_cholesky!(F, tol = -one(T), check = false) : cholesky!(F)
+    F = pivot ? cholesky!(F, RowMaximum(); tol = -one(T), check = false) : cholesky!(F)
     DensePredChol(Matrix{T}(X),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
