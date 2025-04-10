@@ -6,6 +6,7 @@ makedocs(
     modules = [GLM],
     pages = [
         "Home" => "index.md",
+        "Supported Models" => "models.md",
         "examples.md",
         "api.md",
     ],
