@@ -1532,13 +1532,13 @@ end
     @test_throws ArgumentError glm(randn(10, 2), rand(1:10, 10), Binomial(10))
 end
 
-@testset "Issue #263" begin
+@testset "Issue #263" for method in (:cholesky, :qr)
     data = dataset("datasets", "iris")
     data.SepalWidth2 = data.SepalWidth
-    model1 = lm(@formula(SepalLength ~ SepalWidth), data)
-    model2 = lm(@formula(SepalLength ~ SepalWidth + SepalWidth2), data, true)
-    model3 = lm(@formula(SepalLength ~ 0 + SepalWidth), data)
-    model4 = lm(@formula(SepalLength ~ 0 + SepalWidth + SepalWidth2), data, true)
+    model1 = lm(@formula(SepalLength ~ SepalWidth), data; method)
+    model2 = lm(@formula(SepalLength ~ SepalWidth + SepalWidth2), data; dropcollinear = true, method)
+    model3 = lm(@formula(SepalLength ~ 0 + SepalWidth), data; method)
+    model4 = lm(@formula(SepalLength ~ 0 + SepalWidth + SepalWidth2), data; dropcollinear = true, method)
     @test dof(model1) == dof(model2)
     @test dof(model3) == dof(model4)
     @test dof_residual(model1) == dof_residual(model2)
