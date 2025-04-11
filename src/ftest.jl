@@ -57,7 +57,10 @@ F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-07
 """
 function ftest(mod::LinearModel)
     hasintercept(mod) || throw(ArgumentError("ftest only works for models with an intercept"))
-
+    wts = weights(mod)
+    if wts isa ProbabilityWeights
+        throw(ArgumentError("`ftest` for probability weighted models is not currently supported."))
+    end
     rss = deviance(mod)
     tss = nulldeviance(mod)
 
@@ -227,4 +230,8 @@ function show(io::IO, ftr::FTestResult{N}) where N
         r == 1 && println(io, '─'^totwidth)
     end
     print(io, '─'^totwidth)
+end
+
+function ftest(r::LinearModel{T,<:ProbabilityWeights}) where {T}
+    throw(ArgumentError("`ftest` for probability weighted models is not currently supported."))
 end
