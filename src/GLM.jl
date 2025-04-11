@@ -85,18 +85,6 @@ module GLM
     abstract type DensePred <: LinPred end            # linear predictor with dense X
     abstract type LinPredModel <: RegressionModel end # model based on a linear predictor
 
-    @static if VERSION < v"1.8.0-DEV.1139"
-        pivoted_cholesky!(A; kwargs...) = cholesky!(A, Val(true); kwargs...)
-    else
-        pivoted_cholesky!(A; kwargs...) = cholesky!(A, RowMaximum(); kwargs...)
-    end
-
-    @static if VERSION < v"1.7.0"
-        pivoted_qr!(A; kwargs...) = qr!(A, Val(true); kwargs...)
-    else
-        pivoted_qr!(A; kwargs...) = qr!(A, ColumnNorm(); kwargs...)
-    end
-
     const COMMON_FIT_KWARGS_DOCS = """
         - `dropcollinear::Bool`: Controls whether or not a model matrix
           less-than-full rank is accepted.

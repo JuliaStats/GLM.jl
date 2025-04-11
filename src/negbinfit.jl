@@ -78,27 +78,12 @@ function negbin(F,
                 atol::Real=1e-6,
                 rtol::Real=1.e-6,
                 kwargs...)
-    if haskey(kwargs, :maxIter)
-        Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :negbin)
-        maxiter = kwargs[:maxIter]
-    end
-    if haskey(kwargs, :minStepFac)
-        Base.depwarn("'minStepFac' argument is deprecated, use 'minstepfac' instead", :negbin)
-        minstepfac = kwargs[:minStepFac]
-    end
-    if haskey(kwargs, :convTol)
-        Base.depwarn("`convTol` argument is deprecated, use `atol` and `rtol` instead", :negbin)
-        rtol = kwargs[:convTol]
-    end
+
     if haskey(kwargs, :verbose)
         Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""", :negbin)
     end
-    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol, :verbose))
+    if !issubset(keys(kwargs), (:verbose,))
         throw(ArgumentError("unsupported keyword argument"))
-    end
-    if haskey(kwargs, :tol)
-        Base.depwarn("`tol` argument is deprecated, use `atol` and `rtol` instead", :negbin)
-        rtol = kwargs[:tol]
     end
 
     maxiter >= 1 || throw(ArgumentError("maxiter must be positive"))

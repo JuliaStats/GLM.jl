@@ -14,8 +14,6 @@ mutable struct FTestResult{N}
     pval::NTuple{N, Float64}
 end
 
-@deprecate issubmodel(mod1::LinPredModel, mod2::LinPredModel; atol::Real=0.0) StatsModels.isnested(mod1, mod2; atol=atol)
-
 function StatsModels.isnested(mod1::LinPredModel, mod2::LinPredModel; atol::Real=0.0)
     mod1.rr.y != mod2.rr.y && return false # Response variables must be equal
 
@@ -50,7 +48,7 @@ julia> dat = DataFrame(Result=[1.1, 1.2, 1, 2.2, 1.9, 2, 0.9, 1, 1, 2.2, 2, 2],
 julia> model = lm(@formula(Result ~ 1 + Treatment), dat);
 
 
-julia> ftest(model.model)
+julia> ftest(model)
 F-test against the null model:
 F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-07
 ```

@@ -1,8 +1,3 @@
-@deprecate predict(mm::LinearModel, newx::AbstractMatrix, interval::Symbol, level::Real = 0.95) predict(mm, newx; interval=interval, level=level)
-
-@deprecate confint(obj::LinearModel, level::Real) confint(obj, level=level)
-@deprecate confint(obj::AbstractGLM, level::Real) confint(obj, level=level)
-
 function Base.getproperty(mm::LinPredModel, f::Symbol)
     if f === :model
         Base.depwarn("accessing the `model` field of GLM.jl models is deprecated, " *
@@ -19,6 +14,3 @@ function Base.getproperty(mm::LinPredModel, f::Symbol)
         return getfield(mm, f)
     end
 end
-
-@deprecate installbeta!(p) (p.beta0 .= p.delbeta) false
-@deprecate installbeta!(p, f) (p.beta0 .+= p.delbeta .* f) false
