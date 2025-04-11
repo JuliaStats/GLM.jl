@@ -358,7 +358,7 @@ end
 
 @testset "Linear model with QR method and NASTY data" begin
     x = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    nasty = DataFrame(X = x, TINY = 1.0E-12*x)
+    nasty = DataFrame(X=x, TINY=1.0E-12 * x)
     mdl = lm(@formula(X ~ TINY), nasty)
     @test coef(mdl) ≈ [0, 1.0E+12]
     @test dof(mdl) ≈ 3
@@ -1018,8 +1018,8 @@ end
     β = randn(rng, 10)
     y = Bool[rand(rng) < logistic(x) for x in X * β]
     gmsparsev = [fit(LinearModel, X, y; method),
-                 fit(LinearModel, X, sparse(y); method),
-                 fit(LinearModel, Matrix(X), sparse(y); method)]
+        fit(LinearModel, X, sparse(y); method),
+        fit(LinearModel, Matrix(X), sparse(y); method)]
     gmdense = fit(LinearModel, Matrix(X), y; method)
 
     @test !(gmsparsev[1].pp isa GLM.DensePred)
@@ -1035,6 +1035,10 @@ end
         wts = rand(1000)
         ft_sparse_w = fit(LinearModel, X, y; wts, method)
         ft_dense_w = fit(LinearModel, Matrix(X), y; wts, method)
+        @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
+        @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
+        ft_sparse_w = fit(LinearModel, X, y; wts=aweights(wts), method)
+        ft_dense_w = fit(LinearModel, Matrix(X), y; wts=aweights(wts), method)
         @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
         @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
     end
@@ -1055,13 +1059,13 @@ end
     gm11_pred1 = predict(gm11, newX)
     gm11_pred2 = predict(gm11, newX; interval=:confidence, interval_method=:delta)
     gm11_pred3 = predict(gm11, newX; interval=:confidence, interval_method=:transformation)
-    @test gm11_pred1 == gm11_pred2.prediction == gm11_pred3.prediction≈ newY
-    J = newX.*getindex.(GLM.inverselink.(LogitLink(), newX*coef(gm11)), 2)
-    se_pred = sqrt.(diag(J*vcov(gm11)*J'))
-    @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975).*se_pred ≈
-        [0.20478201781547786, 0.2894172253195125, 0.17487705636545708, 0.024943206131575357, 0.41670326978944977]
-    @test gm11_pred2.upper ≈ gm11_pred2.prediction .+ quantile(Normal(), 0.975).*se_pred ≈
-        [0.6813754418027714, 0.9516561735593941, 1.0370309285468602, 0.5950732511233356, 1.192883895763427]
+    @test gm11_pred1 == gm11_pred2.prediction == gm11_pred3.prediction ≈ newY
+    J = newX .* getindex.(GLM.inverselink.(LogitLink(), newX * coef(gm11)), 2)
+    se_pred = sqrt.(diag(J * vcov(gm11) * J'))
+    @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975) .* se_pred ≈
+          [0.20478201781547786, 0.2894172253195125, 0.17487705636545708, 0.024943206131575357, 0.41670326978944977]
+    @test gm11_pred2.upper ≈ gm11_pred2.prediction .+ quantile(Normal(), 0.975) .* se_pred ≈
+          [0.6813754418027714, 0.9516561735593941, 1.0370309285468602, 0.5950732511233356, 1.192883895763427]
 
     @test ndims(gm11_pred1) == 1
 
@@ -1591,9 +1595,9 @@ end
     data = dataset("datasets", "iris")
     data.SepalWidth2 = data.SepalWidth
     model1 = lm(@formula(SepalLength ~ SepalWidth), data; method)
-    model2 = lm(@formula(SepalLength ~ SepalWidth + SepalWidth2), data; dropcollinear = true, method)
+    model2 = lm(@formula(SepalLength ~ SepalWidth + SepalWidth2), data; dropcollinear=true, method)
     model3 = lm(@formula(SepalLength ~ 0 + SepalWidth), data; method)
-    model4 = lm(@formula(SepalLength ~ 0 + SepalWidth + SepalWidth2), data; dropcollinear = true, method)
+    model4 = lm(@formula(SepalLength ~ 0 + SepalWidth + SepalWidth2), data; dropcollinear=true, method)
     @test dof(model1) == dof(model2)
     @test dof(model3) == dof(model4)
     @test dof_residual(model1) == dof_residual(model2)
@@ -2078,7 +2082,7 @@ end
 
         m2p_dep_pos = glm(Xmissingcell, ymissingcell, Normal(); method=:cholesky)
         @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
-                    "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
+                           "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
         @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
         @test GLM.linpred_rank(m2p_dep_pos.pp) == rank(m2p.pp.chol)
         @test isapprox(deviance(m2p_dep_pos), deviance(m2p))
@@ -2112,7 +2116,7 @@ end
         @test all(isnan, hcat(coeftable(m2p).cols[2:end]...)[7, :])
         m2p_dep_pos = fit(GeneralizedLinearModel, Xmissingcell, ymissingcell, Gamma(), method=:cholesky)
         @test_logs (:warn, "Positional argument `allowrankdeficient` is deprecated, use keyword " *
-                    "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
+                           "argument `dropcollinear` instead. Proceeding with positional argument value: true") fit(LinearModel, Xmissingcell, ymissingcell, true)
         @test isa(m2p_dep_pos.pp.chol, CholeskyPivoted)
         @test rank(m2p_dep_pos.pp.chol) == rank(m2p.pp.chol)
         @test isapprox(deviance(m2p_dep_pos), deviance(m2p))

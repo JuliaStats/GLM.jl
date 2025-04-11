@@ -384,7 +384,7 @@ end
 dof(obj::GeneralizedLinearModel) = linpred_rank(obj) + dispersion_parameter(obj.rr.d)
 
 function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
-               atol::Real, rtol::Real, start)
+    atol::Real, rtol::Real, start)
     # Return early if model has the fit flag set
     m.fit && return m
 
@@ -448,8 +448,8 @@ function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
         p.beta0 .+= p.delbeta .* f
 
         # Test for convergence
-        @debug "IRLS optimization" iteration=i deviance=dev diff_dev=(devold - dev)
-        if devold - dev < max(rtol*devold, atol)
+        @debug "IRLS optimization" iteration = i deviance = dev diff_dev = (devold - dev)
+        if devold - dev < max(rtol * devold, atol)
             cvg = true
             break
         end
@@ -469,12 +469,12 @@ function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
 end
 
 function StatsBase.fit!(m::AbstractGLM;
-                        maxiter::Integer=30,
-                        minstepfac::Real=0.001,
-                        atol::Real=1e-6,
-                        rtol::Real=1e-6,
-                        start=nothing,
-                        kwargs...)
+    maxiter::Integer=30,
+    minstepfac::Real=0.001,
+    atol::Real=1e-6,
+    rtol::Real=1e-6,
+    start=nothing,
+    kwargs...)
     if haskey(kwargs, :maxIter)
         Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
         maxiter = kwargs[:maxIter]
@@ -508,15 +508,15 @@ function StatsBase.fit!(m::AbstractGLM;
 end
 
 function StatsBase.fit!(m::AbstractGLM,
-                        y;
-                        wts=uweights(length(y)),
-                        offset=nothing,
-                        maxiter::Integer=30,
-                        minstepfac::Real=0.001,
-                        atol::Real=1e-6,
-                        rtol::Real=1e-6,
-                        start=nothing,
-                        kwargs...)
+    y;
+    wts=uweights(length(y)),
+    offset=nothing,
+    maxiter::Integer=30,
+    minstepfac::Real=0.001,
+    atol::Real=1e-6,
+    rtol::Real=1e-6,
+    start=nothing,
+    kwargs...)
     if haskey(kwargs, :maxIter)
         Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
         maxiter = kwargs[:maxIter]
@@ -600,12 +600,12 @@ function fit(::Type{M},
     X::AbstractMatrix{<:FP},
     y::AbstractVector{<:Real},
     d::UnivariateDistribution,
-    l::Link = canonicallink(d);
-    dropcollinear::Bool = true,
-    method::Symbol = :qr,
-    dofit::Union{Bool, Nothing} = nothing,
-    wts::AbstractVector{<:Real}      = similar(y, 0),
-    offset::AbstractVector{<:Real}   = similar(y, 0),
+    l::Link=canonicallink(d);
+    dropcollinear::Bool=true,
+    method::Symbol=:qr,
+    dofit::Union{Bool,Nothing}=nothing,
+    wts::AbstractWeights=uweights(length(y)),
+    offset::AbstractVector{<:Real}=similar(y, 0),
     fitargs...) where {M<:AbstractGLM}
     if dofit === nothing
         dofit = true
@@ -652,17 +652,17 @@ function fit(::Type{M},
 end
 
 function fit(::Type{M},
-             f::FormulaTerm,
-             data,
-             d::UnivariateDistribution,
-             l::Link=canonicallink(d);
-             offset::Union{AbstractVector, Nothing} = nothing,
-             wts::Union{AbstractVector, Nothing} = nothing,
-             dropcollinear::Bool = true,
-             method::Symbol = :qr,
-             dofit::Union{Bool, Nothing} = nothing,
-             contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
-             fitargs...) where {M<:AbstractGLM}
+    f::FormulaTerm,
+    data,
+    d::UnivariateDistribution,
+    l::Link=canonicallink(d);
+    offset::Union{AbstractVector,Nothing}=nothing,
+    wts::Union{AbstractVector,Nothing}=nothing,
+    dropcollinear::Bool=true,
+    method::Symbol=:qr,
+    dofit::Union{Bool,Nothing}=nothing,
+    contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
+    fitargs...) where {M<:AbstractGLM}
     if dofit === nothing
         dofit = true
     else

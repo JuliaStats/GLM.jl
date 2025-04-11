@@ -1,86 +1,121 @@
 module GLMSparseArraysExt
 
 using GLM, LinearAlgebra, SparseArrays
-
+import GLM: AbstractWeights, UnitWeights
 ## QR
-mutable struct SparsePredQR{T,M<:SparseMatrixCSC,F} <: GLM.LinPred
+mutable struct SparsePredQR{T,M<:SparseMatrixCSC,F,W<:AbstractWeights} <: GLM.LinPred
     X::M                           # model matrix
     beta0::Vector{T}               # base vector for coefficients
     delbeta::Vector{T}             # coefficient increment
     scratchbeta::Vector{T}
     qr::F
+    wts::W
     scratch::M
 end
-function SparsePredQR(X::SparseMatrixCSC{T}) where T
+function SparsePredQR(X::SparseMatrixCSC{T}, wts::AbstractVector) where {T}
     # The one(float(T))* part is because of a promotion issue in SPQR.jl on Julia 1.9
-    fqr = qr(sparse(one(float(T))*I, size(X)...))
-    return SparsePredQR{eltype(X),typeof(X),typeof(fqr)}(
+    fqr = qr(sparse(one(float(T)) * I, size(X)...))
+    return SparsePredQR{eltype(X),typeof(X),typeof(fqr),typeof(wts)}(
         X,
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
         fqr,
+        wts,
         similar(X)
     )
 end
 
-GLM.qrpred(X::SparseMatrixCSC, pivot::Bool) = SparsePredQR(X)
+function GLM.qrpred(X::SparseMatrixCSC, pivot::Bool, wts::AbstractWeights=uweights(size(X, 1)))
+    SparsePredQR(X, wts)
+end
 
-function GLM.delbeta!(p::SparsePredQR{T}, r::Vector{T}, wt::Vector{T}) where T
-    wtsqrt = sqrt.(wt)
+function GLM.delbeta!(p::SparsePredQR{T,M,F,<:AbstractWeights}, r::Vector{T}) where {T,M,F}
+    wts = p.wts
+    wtsqrt = sqrt.(wts)
     Wsqrt = Diagonal(wtsqrt)
     scr = mul!(p.scratch, Wsqrt, p.X)
     p.qr = qr(scr)
-    p.delbeta = p.qr \ (Wsqrt*r)
+    p.delbeta = p.qr \ (Wsqrt * r)
 end
 
-function GLM.delbeta!(p::SparsePredQR{T}, r::Vector{T}) where T
+function GLM.delbeta!(p::SparsePredQR{T,M,F,<:UnitWeights}, r::Vector{T}) where {T,M,F}
     p.qr = qr(p.X)
     p.delbeta = p.qr \ r
 end
 
-function GLM.inverse(x::SparsePredQR{T}) where T
+function GLM.inverse(x::SparsePredQR{T}) where {T}
     Rinv = UpperTriangular(x.qr.R) \ Diagonal(ones(T, size(x.qr.R, 2)))
     pinv = invperm(x.qr.pcol)
-    RinvRinvt = Rinv*Rinv'
+    RinvRinvt = Rinv * Rinv'
     return RinvRinvt[pinv, pinv]
 end
 
 ## Cholesky
-mutable struct SparsePredChol{T,M<:SparseMatrixCSC,C} <: GLM.LinPred
+mutable struct SparsePredChol{T,M<:SparseMatrixCSC,C,W<:AbstractWeights} <:
+               GLM.LinPred
     X::M                           # model matrix
     Xt::M                          # X'
     beta0::Vector{T}               # base vector for coefficients
     delbeta::Vector{T}             # coefficient increment
     scratchbeta::Vector{T}
     chol::C
-    scratch::M
+    wts::W
+    scratchm1::M
 end
-function SparsePredChol(X::SparseMatrixCSC{T}) where T
-    chol = cholesky(sparse(I, size(X, 2), size(X,2)))
-    return SparsePredChol{eltype(X),typeof(X),typeof(chol)}(X,
+
+function SparsePredChol(X::SparseMatrixCSC{T}, wts::AbstractVector) where {T}
+    chol = cholesky(sparse(I, size(X, 2), size(X, 2)))
+    return SparsePredChol{eltype(X),typeof(X),typeof(chol),typeof(wts)}(X,
         X',
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),
         chol,
+        wts,
         similar(X))
 end
 
-GLM.cholpred(X::SparseMatrixCSC, pivot::Bool=false) = SparsePredChol(X)
+function GLM.cholpred(X::SparseMatrixCSC, pivot::Bool=false, wts::AbstractWeights=uweights(size(X, 1)))
+    SparsePredChol(X, wts)
+end
 
-function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where T
-    scr = mul!(p.scratch, Diagonal(wt), p.X)
-    XtWX = p.Xt*scr
+function GLM.delbeta!(p::SparsePredChol{T,M,C,<:UnitWeights},
+    r::Vector{T}, wt::Vector{T}) where {T,M,C}
+    scr = mul!(p.scratchm1, Diagonal(wt), p.X)
+    XtWX = p.Xt * scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
 
-function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}) where T
-    scr = p.scratch = p.X
-    XtWX = p.Xt*scr
+function GLM.delbeta!(p::SparsePredChol{T,M,C,<:AbstractWeights},
+    r::Vector{T}, wt::Vector{T}) where {T,M,C}
+    scr = mul!(p.scratchm1, Diagonal(wt .* p.wts), p.X)
+    XtWX = p.Xt * scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
+end
+
+function GLM.delbeta!(p::SparsePredChol{T,M,C,<:UnitWeights}, r::Vector{T}) where {T,M,C}
+    scr = p.X
+    XtWX = p.Xt * scr
+    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
+    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
+end
+
+function GLM.delbeta!(
+    p::SparsePredChol{T,M,C,<:AbstractWeights}, r::Vector{T}) where {T,M,C}
+    scr = p.scratchm1 .= p.X .* p.wts
+    XtWX = p.Xt * scr
+    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
+    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
+end
+
+function GLM._vcov(pp::SparsePredChol, Z::Matrix, A::Matrix)
+    ## SparsePredChol does not handle rankdeficient cases
+    B = Z' * Z
+    V = A * B * A
+    return V
 end
 
 LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)

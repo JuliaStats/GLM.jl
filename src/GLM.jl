@@ -13,7 +13,7 @@ module GLM
     using StatsAPI
     import StatsBase: coef, coeftable, coefnames, confint, deviance, nulldeviance, dof, dof_residual,
                       loglikelihood, nullloglikelihood, nobs, stderror, vcov,
-                      residuals, predict, predict!,
+                      residuals, predict, predict!, leverage, cooksdistance,
                       fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², PValue
     import SpecialFunctions: erfc, erfcinv, digamma, trigamma
     import StatsModels: hasintercept
