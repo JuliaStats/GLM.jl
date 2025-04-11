@@ -199,7 +199,7 @@ function updateμ!(r::GlmResp{
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
         yᵢ, ηᵢ = y[i], η[i]
-        μᵢ, omμᵢ, dμdηᵢ = inverselink(L(), ηᵢ)
+        μᵢ, dμdηᵢ, omμᵢ = inverselink(L(), ηᵢ)
         μ[i] = μᵢ
         # For large values of ηᵢ the quantities dμdη and μomμ will underflow.
         # The ratios defining (yᵢ - μᵢ)/dμdη and dμdη^2/μomμ have fairly stable
@@ -383,9 +383,8 @@ end
 
 dof(obj::GeneralizedLinearModel) = linpred_rank(obj) + dispersion_parameter(obj.rr.d)
 
-function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real,
-    atol::Real, rtol::Real, start)
-
+function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
+               atol::Real, rtol::Real, start)
     # Return early if model has the fit flag set
     m.fit && return m
 
@@ -449,8 +448,8 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
         p.beta0 .+= p.delbeta .* f
 
         # Test for convergence
-        verbose && println("Iteration: $i, deviance: $dev, diff.dev.:$(devold - dev)")
-        if devold - dev < max(rtol * devold, atol)
+        @debug "IRLS optimization" iteration=i deviance=dev diff_dev=(devold - dev)
+        if devold - dev < max(rtol*devold, atol)
             cvg = true
             break
         end
@@ -470,13 +469,12 @@ function _fit!(m::AbstractGLM, verbose::Bool, maxiter::Integer, minstepfac::Real
 end
 
 function StatsBase.fit!(m::AbstractGLM;
-    verbose::Bool=false,
-    maxiter::Integer=30,
-    minstepfac::Real=0.001,
-    atol::Real=1e-6,
-    rtol::Real=1e-6,
-    start=nothing,
-    kwargs...)
+                        maxiter::Integer=30,
+                        minstepfac::Real=0.001,
+                        atol::Real=1e-6,
+                        rtol::Real=1e-6,
+                        start=nothing,
+                        kwargs...)
     if haskey(kwargs, :maxIter)
         Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
         maxiter = kwargs[:maxIter]
@@ -490,7 +488,10 @@ function StatsBase.fit!(m::AbstractGLM;
             "'convTol' argument is deprecated, use `atol` and `rtol` instead", :fit!)
         rtol = kwargs[:convTol]
     end
-    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol))
+    if haskey(kwargs, :verbose)
+        Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""", :fit!)
+    end
+    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol, :verbose))
         throw(ArgumentError("unsupported keyword argument"))
     end
     if haskey(kwargs, :tol)
@@ -503,20 +504,19 @@ function StatsBase.fit!(m::AbstractGLM;
     m.atol = atol
     m.rtol = rtol
 
-    _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
+    _fit!(m, maxiter, minstepfac, atol, rtol, start)
 end
 
 function StatsBase.fit!(m::AbstractGLM,
-    y;
-    wts=uweights(length(y)),
-    offset=nothing,
-    verbose::Bool=false,
-    maxiter::Integer=30,
-    minstepfac::Real=0.001,
-    atol::Real=1e-6,
-    rtol::Real=1e-6,
-    start=nothing,
-    kwargs...)
+                        y;
+                        wts=uweights(length(y)),
+                        offset=nothing,
+                        maxiter::Integer=30,
+                        minstepfac::Real=0.001,
+                        atol::Real=1e-6,
+                        rtol::Real=1e-6,
+                        start=nothing,
+                        kwargs...)
     if haskey(kwargs, :maxIter)
         Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
         maxiter = kwargs[:maxIter]
@@ -530,7 +530,10 @@ function StatsBase.fit!(m::AbstractGLM,
             "'convTol' argument is deprecated, use `atol` and `rtol` instead", :fit!)
         rtol = kwargs[:convTol]
     end
-    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol))
+    if haskey(kwargs, :verbose)
+        Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""", :fit!)
+    end
+    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol, :verbose))
         throw(ArgumentError("unsupported keyword argument"))
     end
     if haskey(kwargs, :tol)
@@ -551,7 +554,7 @@ function StatsBase.fit!(m::AbstractGLM,
     m.atol = atol
     m.rtol = rtol
     if dofit
-        _fit!(m, verbose, maxiter, minstepfac, atol, rtol, start)
+        _fit!(m, maxiter, minstepfac, atol, rtol, start)
     else
         m
     end
@@ -573,7 +576,6 @@ const FIT_GLM_DOC = """
     $COMMON_FIT_KWARGS_DOCS
     - `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
       length 0
-    - `verbose::Bool=false`: Display convergence information for each iteration
     - `maxiter::Integer=30`: Maximum number of iterations allowed to achieve convergence
     - `atol::Real=1e-6`: Convergence is achieved when the relative change in
       deviance is less than `max(rtol*dev, atol)`.
@@ -598,12 +600,12 @@ function fit(::Type{M},
     X::AbstractMatrix{<:FP},
     y::AbstractVector{<:Real},
     d::UnivariateDistribution,
-    l::Link=canonicallink(d);
-    dropcollinear::Bool=true,
-    method::Symbol=:cholesky,
-    dofit::Union{Bool,Nothing}=nothing,
-    wts::AbstractVector{<:Real}=uweights(length(y)),
-    offset::AbstractVector{<:Real}=similar(y, 0),
+    l::Link = canonicallink(d);
+    dropcollinear::Bool = true,
+    method::Symbol = :qr,
+    dofit::Union{Bool, Nothing} = nothing,
+    wts::AbstractVector{<:Real}      = similar(y, 0),
+    offset::AbstractVector{<:Real}   = similar(y, 0),
     fitargs...) where {M<:AbstractGLM}
     if dofit === nothing
         dofit = true
@@ -650,17 +652,17 @@ function fit(::Type{M},
 end
 
 function fit(::Type{M},
-    f::FormulaTerm,
-    data,
-    d::UnivariateDistribution,
-    l::Link=canonicallink(d);
-    offset::Union{AbstractVector,Nothing}=nothing,
-    wts::Union{AbstractVector,Nothing}=nothing,
-    dropcollinear::Bool=true,
-    method::Symbol=:cholesky,
-    dofit::Union{Bool,Nothing}=nothing,
-    contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
-    fitargs...) where {M<:AbstractGLM}
+             f::FormulaTerm,
+             data,
+             d::UnivariateDistribution,
+             l::Link=canonicallink(d);
+             offset::Union{AbstractVector, Nothing} = nothing,
+             wts::Union{AbstractVector, Nothing} = nothing,
+             dropcollinear::Bool = true,
+             method::Symbol = :qr,
+             dofit::Union{Bool, Nothing} = nothing,
+             contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
+             fitargs...) where {M<:AbstractGLM}
     if dofit === nothing
         dofit = true
     else
@@ -838,7 +840,7 @@ function predict!(
         if interval_method == :delta
             # 2. Now compute the variance for mu based on variance of eta and
             # construct intervals based on that (Delta method)
-            stdmu = stdeta .* abs.(mueta.(Link(mm), eta))
+            stdmu = stdeta .* abs.(getindex.(GLM.inverselink.(Link(mm), eta), 2))
             lower .= mu .- normalquantile .* stdmu
             upper .= mu .+ normalquantile .* stdmu
         elseif interval_method == :transformation

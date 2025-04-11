@@ -61,11 +61,10 @@ In both cases, `link` may specify the link function
 - `initialθ::Real=Inf`: Starting value for shape parameter θ. If it is `Inf`
   then the initial value will be estimated by fitting a Poisson distribution.
 - `dropcollinear::Bool=true`: See `dropcollinear` for [`glm`](@ref)
-- `method::Symbol=:cholesky`: See `method` for [`glm`](@ref)
+- `method::Symbol=:qr`: See `method` for [`glm`](@ref)
 - `maxiter::Integer=30`: See `maxiter` for [`glm`](@ref)
 - `atol::Real=1.0e-6`: See `atol` for [`glm`](@ref)
 - `rtol::Real=1.0e-6`: See `rtol` for [`glm`](@ref)
-- `verbose::Bool=false`: See `verbose` for [`glm`](@ref)
 """
 function negbin(F,
                 D,
@@ -73,12 +72,11 @@ function negbin(F,
                 wts::Union{Nothing, AbstractVector}=nothing,
                 initialθ::Real=Inf,
                 dropcollinear::Bool=true,
-                method::Symbol=:cholesky,
+                method::Symbol=:qr,
                 maxiter::Integer=30,
                 minstepfac::Real=0.001,
                 atol::Real=1e-6,
                 rtol::Real=1.e-6,
-                verbose::Bool=false,
                 kwargs...)
     if haskey(kwargs, :maxIter)
         Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :negbin)
@@ -92,7 +90,10 @@ function negbin(F,
         Base.depwarn("`convTol` argument is deprecated, use `atol` and `rtol` instead", :negbin)
         rtol = kwargs[:convTol]
     end
-    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol))
+    if haskey(kwargs, :verbose)
+        Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""", :negbin)
+    end
+    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol, :verbose))
         throw(ArgumentError("unsupported keyword argument"))
     end
     if haskey(kwargs, :tol)
@@ -109,11 +110,11 @@ function negbin(F,
     if isinf(initialθ)
         regmodel = glm(F, D, Poisson(), args...;
                        wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
-                       atol=atol, rtol=rtol, verbose=verbose, kwargs...)
+                       atol=atol, rtol=rtol, kwargs...)
     else
         regmodel = glm(F, D, NegativeBinomial(initialθ), args...;
                        wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
-                       atol=atol, rtol=rtol, verbose=verbose, kwargs...)
+                       atol=atol, rtol=rtol, kwargs...)
     end
 
     μ = regmodel.rr.mu
@@ -136,10 +137,10 @@ function negbin(F,
             converged = true
             break
         end
-        verbose && println("[ Alternating iteration ", i, ", θ = ", θ, " ]")
+        @debug "NegativeBinomial dispersion optimization" iteration=i θ=θ
         regmodel = glm(F, D, NegativeBinomial(θ), args...;
                        dropcollinear=dropcollinear, method=method, maxiter=maxiter,
-                       atol=atol, rtol=rtol, verbose=verbose, kwargs...)
+                       atol=atol, rtol=rtol, kwargs...)
         μ = regmodel.rr.mu
         prevθ = θ
         θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)

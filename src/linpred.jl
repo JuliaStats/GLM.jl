@@ -92,6 +92,7 @@ function delbeta!(p::DensePredQR{T, <:QRCompactWY, <:AbstractWeights},
     return p
 end
 
+
 function delbeta!(p::DensePredQR{T, <:QRPivoted, <:AbstractWeights},
         r::Vector{T}) where {T <: BlasReal}
     r̃ = p.wts isa UnitWeights ? r : (wtsqrt = sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
@@ -117,7 +118,7 @@ function delbeta!(p::DensePredQR{T, <:QRPivoted, <:AbstractWeights},
     r̃ = (wtsqrt .*= r) # to reuse wtsqrt's memory
 
     p.qr = pivoted_qr!(p.scratchm1)
-    rnk = rank(p.qr.R) # FIXME! Don't use svd for this
+    rnk = linpred_rank(p)
     R = UpperTriangular(view(parent(p.qr.R), 1:rnk, 1:rnk))
     permute!(p.delbeta, p.qr.p)
     for k in (rnk + 1):length(p.delbeta)
@@ -211,7 +212,7 @@ function delbeta!(p::DensePredChol{T, <:CholeskyPivoted, <:AbstractWeights},
     ch = p.chol
     X = p.wts isa UnitWeights ? p.scratchm1 .= p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     delbeta = mul!(p.delbeta, adjoint(X), r)
-    rnk = rank(ch)
+    rnk = linpred_rank(p)
     if rnk == length(delbeta)
         ldiv!(ch, delbeta)
     else
@@ -245,7 +246,7 @@ function delbeta!(p::DensePredChol{T, <:CholeskyPivoted, <:AbstractWeights},
     # delbeta = X'Wr
     mul!(delbeta, transpose(p.scratchm1), r)
     # calculate delbeta = (X'WX)\X'Wr
-    rnk = rank(p.chol)
+    rnk = linpred_rank(p)
     if rnk == length(delbeta)
         cf = cholfactors(p.chol)
         cf .= p.scratchm2[piv, piv]
@@ -336,7 +337,7 @@ function invqr(p::DensePredQR{T, <:QRCompactWY, <:AbstractWeights}) where {T}
 end
 
 function invqr(p::DensePredQR{T, <:QRPivoted, <:AbstractWeights}) where {T}
-    rnk = rank(p.qr.R)
+    rnk = linpred_rank(p)
     k = length(p.delbeta)
     if rnk == k
         Rinv = inv(p.qr.R)
@@ -357,7 +358,7 @@ invchol(x::DensePred) = inv(cholesky!(x))
 
 function invchol(x::DensePredChol{T, <:CholeskyPivoted}) where {T}
     ch = x.chol
-    rnk = rank(ch)
+    rnk = linpred_rank(x)
     p = length(x.delbeta)
     rnk == p && return inv(ch)
     fac = ch.factors
@@ -370,11 +371,8 @@ function invchol(x::DensePredChol{T, <:CholeskyPivoted}) where {T}
     res[ipiv, ipiv]
 end
 
-invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
-
 inverse(x::DensePred) = invchol(x)
 inverse(x::DensePredQR) = invqr(x)
-inverse(x::SparsePredChol) = invchol(x)
 
 function working_residuals(x::LinPredModel) 
   wts = weights(x)
@@ -539,7 +537,7 @@ linpred_rank(x::LinPredModel) = linpred_rank(x.pp)
 linpred_rank(x::LinPred) = length(x.beta0)
 linpred_rank(x::DensePredChol{<:Any, <:CholeskyPivoted}) = rank(x.chol)
 linpred_rank(x::DensePredChol{<:Any, <:Cholesky}) = rank(x.chol.U)
-linpred_rank(x::DensePredQR{<:Any, <:QRPivoted}) = rank(x.qr.R)
+linpred_rank(x::DensePredQR{T, <:QRPivoted}) = rank(x.qr.R; rtol = size(x.X, 1) * eps(T))
 
 ispivoted(x::LinPred) = false
 ispivoted(x::DensePredChol{<:Any, <:CholeskyPivoted}) = true

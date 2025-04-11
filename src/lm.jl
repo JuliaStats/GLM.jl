@@ -138,10 +138,10 @@ const FIT_LM_DOC = """
 
 """
     fit(LinearModel, formula::FormulaTerm, data;
-        [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
+        [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:qr,
         contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
-        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
+        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:qr)
 
 Fit a linear model to data.
 
@@ -167,7 +167,7 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
     wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(length(y)),
     dropcollinear::Bool=true,
-    method::Symbol=:cholesky)
+             method::Symbol=:qr)
     if allowrankdeficient_dep !== nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
               "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
@@ -186,11 +186,11 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
 end
 
 function fit(::Type{LinearModel}, f::FormulaTerm, data,
-    allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
-    wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(0),
-    dropcollinear::Bool=true,
-    method::Symbol=:cholesky,
-    contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
+             allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
+             wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(0),
+             dropcollinear::Bool=true,
+             method::Symbol=:qr,
+             contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     f, (y, X) = modelframe(f, data, contrasts, LinearModel)
     _wts = convert_weights(wts)
     _wts = isempty(_wts) ? uweights(length(y)) : _wts
@@ -205,7 +205,7 @@ end
 
 """
     lm(formula, data;
-       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:cholesky,
+       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:qr,
        contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     lm(X::AbstractMatrix, y::AbstractVector;
        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)

@@ -362,3 +362,17 @@ of a ```LinPred``` type use a default step factor of 1.  The value of
 ```linpred``` is the argument to the ```updatemu``` method for
 ```ModResp``` types.  The ```updatemu``` method returns the updated
 deviance.
+
+## Debugging failed fits
+In the rare cases when a fit of a generalized linear model fails, it can be useful
+to enable more output from the fitting steps. This can be done through
+the Julia logging mechanism by setting `ENV["JULIA_DEBUG"] = GLM`. Enabling debug output
+will result in ouput like the following
+```julia
+┌ Debug: Iteration: 1, deviance: 5.129147109764238, diff.dev.:0.05057195315968688
+└ @ GLM ~/.julia/dev/GLM/src/glmfit.jl:418
+┌ Debug: Iteration: 2, deviance: 5.129141077001254, diff.dev.:6.032762984276019e-6
+└ @ GLM ~/.julia/dev/GLM/src/glmfit.jl:418
+┌ Debug: Iteration: 3, deviance: 5.129141077001143, diff.dev.:1.1102230246251565e-13
+└ @ GLM ~/.julia/dev/GLM/src/glmfit.jl:418
+```
