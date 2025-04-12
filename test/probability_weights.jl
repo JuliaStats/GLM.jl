@@ -103,7 +103,7 @@ dmethod, drop) in itr
 end
 
 @testset "GLM: Binomial with CloglogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (
-dmethod, drop) in itr
+    dmethod, drop) in itr
     model = glm(
         @formula(y~1 + x1 + x2),
         df,
@@ -184,12 +184,26 @@ dmethod, drop) in itr
     ] rtol=1e-04
 end
 
-@testset "GLM:  with LogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (
+@testset "GLM:  NegativeBinomial(1) with LogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (
 dmethod, drop) in itr
     model = glm(
         @formula(Days~Eth + Sex + Age + Lrn),
         quine,
-        NegativeBinomial(2),
+        NegativeBinomial(1),
+        LogLink(),
+        wts = pweights(quine.pweights),
+        method = dmethod,
+        dropcollinear = drop,
+        atol = 1e-09,
+        rtol = 1e-09,
+        minstepfac = 1e-04,
+
+    )
+    ## Geometric Link is NegativeBinomial(1)
+    model_geom = glm(
+        @formula(Days~Eth + Sex + Age + Lrn),
+        quine,
+        Geometric(),
         LogLink(),
         wts = pweights(quine.pweights),
         method = dmethod,
@@ -200,27 +214,32 @@ dmethod, drop) in itr
 
     )
     @test_throws ArgumentError loglikelihood(model)
-    @test deviance(model)≈178.46174895746665 rtol=1e-07
-    @test nulldeviance(model)≈214.52243528092782 rtol=1e-07
+    @test_throws ArgumentError loglikelihood(model_geom)
+    @test deviance(model)≈98.45804 rtol=1e-05
+    @test nulldeviance(model)≈117.407 rtol=1e-05
+    @test deviance(model_geom)≈98.45804 rtol=1e-05
+    @test nulldeviance(model_geom)≈117.407 rtol=1e-05
     @test coef(model)≈[
-        3.0241191551553044,
-        -0.46415766516885565,
-        0.07185609429925505,
-        -0.47848540911607695,
-        0.09677889908013788,
-        0.3562972562034377,
-        0.34801618219815034
-    ] rtol=1e-04
+        3.0312469487958, 
+       -0.4659209078765, 
+        0.0676685535488,
+       -0.4817223025756, 
+        0.0931703051304, 
+        0.3543515249482,
+        0.3437194303582] rtol=1e-04
+    @test coef(model_geom)≈coef(model) rtol=1e-07    
     @test dof_residual(model) == 139.0
+    @test dof_residual(model) == dof_residual(model_geom)
     @test stderror(model)≈[
-        0.20080246284436692,
-        0.14068933863735536,
-        0.1440710375321996,
-        0.2533527583247213,
-        0.2401168459633955,
-        0.23210823521812646,
-        0.19039099362430775
+        0.20007959342369136, 
+        0.14082290024757069, 
+        0.14407240634114291,
+        0.25339272642416644, 
+        0.2402419933610615, 
+        0.23248097541210141,
+        0.19122111799256292
     ] rtol=1e-04
+    @test stderror(model)≈stderror(model_geom) rtol=1e-06
 end
 
 @testset "GLM: NegaiveBinomial(2) with SqrtLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (
@@ -292,3 +311,15 @@ dmethod, drop) in itr
         0.17488650070332398
     ] rtol=1e-06
 end
+
+
+@testset "InverseGaussian ProbabilityWeights with $dmethod" for dmethod in (:cholesky, :qr)
+    gm8a = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, InverseGaussian();
+        wts=pweights(9*clotting.pweights/sum(clotting.pweights)), method=dmethod, rtol = 1e-08, atol = 1e-08, minstepfac = 1e-04,)
+    @test dof(gm8a) == 3
+    @test deviance(gm8a) ≈ 0.0058836 rtol=1e-04
+    @test nulldeviance(gm8a) ≈ 0.07531257 rtol=1e-04
+    @test coef(gm8a) ≈ [-0.001263439, 0.0008126671] rtol=1e-04
+    @test stderror(gm8a) ≈ [0.0001246, 7.655616888887675e-5] atol=1e-06
+end
+

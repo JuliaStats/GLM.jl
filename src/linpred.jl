@@ -316,8 +316,9 @@ function working_residuals(x::LinPredModel)
 end
 
 function working_weights(x::LinPredModel)
-    wts = weights(x)
-    wts isa ProbabilityWeights ? x.rr.wrkwt * nobs(x) ./ wts.sum : x.rr.wrkwt
+    #wts = weights(x)
+    #wts isa ProbabilityWeights ? x.rr.wrkwt * nobs(x) ./ wts.sum : x.rr.wrkwt
+    x.rr.wrkwt
 end
 
 function vcov(x::LinPredModel)
@@ -327,11 +328,17 @@ function vcov(x::LinPredModel)
         s = nobs(x) / (nobs(x) - 1)
         mm = momentmatrix(x)
         A = invloglikhessian(x)
+        if link(x) isa Union{Gamma,InverseGaussian}
+            r = varstruct(x)
+            A .= A ./ (sum(working_weights(x)) / sum(abs2, r))
+        end
         _vcov(x.pp, mm, A) .* s
     else
         rmul!(inverse(x.pp), dispersion(x, true))
     end
 end
+
+link(x::LinPredModel) = link(x.rr)
 
 function _vcov(pp::DensePred, Z::Matrix, A::Matrix)
     if linpred_rank(pp) < size(Z, 2)
@@ -390,7 +397,9 @@ end
 
 function leverage(x::LinPredModel)
     h = vec(leverage(x.pp))
-    hasfield(typeof(x.rr), :wrkwt) ? x.rr.wrkwt .* h : x.rr.wts .* h
+    #hasfield(typeof(x.rr), :wrkwt) ? x.rr.wrkwt .* h : x.rr.wts .* h
+    #wrkw = wrkwt(x.rr)
+    return working_weights(x).*h
 end
 
 function leverage(pp::DensePredChol{T,<:CholeskyPivoted}) where {T}

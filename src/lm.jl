@@ -97,6 +97,7 @@ function residuals(r::LmResp; weighted::Bool=false)
     end
 end
 
+link(rr::LmResp) = IdentityLink()
 """
     LinearModel
 
@@ -175,7 +176,11 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
     end
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
     _wts = convert_weights(wts)
-
+    if isempty(wts)
+        Base.depwarn(
+             "Using `wts` of zero length for unweighted regression is deprecated in favor of "*
+             "explicitly using `UnitWeights(length(y))`.", :fit)
+    end
     if method === :cholesky
         fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), nothing))
     elseif method === :qr
@@ -264,7 +269,7 @@ function nullloglikelihood(m::LinearModel)
     else
         N = length(m.rr.y)
         n = sum(log, wts)
-        0.5 * (n - N * (log(2π * nulldeviance(m) / N) + 1))
+        (n - N * (log(2π * nulldeviance(m)/N) + 1))/2
     end
 end
 

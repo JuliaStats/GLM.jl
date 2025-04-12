@@ -111,7 +111,7 @@ end
 @testset "Linear model with weights and $dmethod" for dmethod in (:cholesky, :qr)
     df = dataset("quantreg", "engel")
     N = nrow(df)
-    df.weights = repeat(1:5, Int(N / 5))
+    df.weights = fweights(repeat(1:5, Int(N / 5)))
     f = @formula(FoodExp ~ Income)
 
     lm_model = lm(f, df, wts=df.weights; method=dmethod)
@@ -129,6 +129,11 @@ end
     @test isapprox(loglikelihood(glm_model), -4353.946729075838)
     @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
     @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
+
+    lm_model = fit(LinearModel, f, df, wts=uweights(0))
+    @test_logs (:warn,
+       "Using `wts` of zero length for unweighted regression is deprecated in favor of "*
+       "explicitly using `UnitWeights(length(y))`.")
 end
 
 @testset "Linear model with dropcollinearity and $dmethod" for dmethod in (:cholesky, :qr)
@@ -166,6 +171,7 @@ end
     @test isapprox(deviance(m1), 0.12160301538297297)
     Xmissingcell = X[inds, :]
     ymissingcell = y[inds]
+    
     m2p = fit(LinearModel, Xmissingcell, ymissingcell; method=dmethod)
     m2p_dep_pos = fit(LinearModel, Xmissingcell, ymissingcell, true; method=dmethod)
     @test_logs (:warn,
@@ -1033,8 +1039,8 @@ end
 
     @testset "weights" begin
         wts = rand(1000)
-        ft_sparse_w = fit(LinearModel, X, y; wts, method)
-        ft_dense_w = fit(LinearModel, Matrix(X), y; wts, method)
+        ft_sparse_w = fit(LinearModel, X, y; wts=aweights(wts), method)
+        ft_dense_w = fit(LinearModel, Matrix(X), y; wts=aweights(wts), method)
         @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
         @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
         ft_sparse_w = fit(LinearModel, X, y; wts=aweights(wts), method)
@@ -2201,7 +2207,7 @@ end
 
     # Weights
     f2 = lm(X, filip_data_df.y, dropcollinear=false,
-        method=:qr, wts=ones(length(filip_data_df.y)))
+        method=:qr, wts=uweights(length(filip_data_df.y)))
     @test coef(f2) ≈ filip_estimates_df.estimate rtol = 1e-7
     @test stderror(f2) ≈ filip_estimates_df.se rtol = 1e-7
 end
@@ -2219,8 +2225,7 @@ end
         df, Gamma(), LogLink(), start=fill(NaN, 4))
 end
 
-@testset "Testing various weighting specific weighting" begin
-    # Test probability weighting with collinear columns
+@testset "Test weighting with collinear columns" begin
     form.CarbC = form.Carb
     form.awts = [0.6, 0.3, 0.6, 0.3, 0.6, 0.3]
     form.fwts = [6, 3, 6, 3, 6, 3]
@@ -2286,8 +2291,8 @@ end
 
 @testset "Leverage weighted" for method in (:qr, :cholesky)
 
-    lm0 = fit(LinearModel, frm0, df, method=method, wts=df.w)
-    lm1 = fit(LinearModel, frm1, df, method=method, wts=df.w)
+    lm0 = fit(LinearModel, frm0, df, method=method, wts=fweights(df.w))
+    lm1 = fit(LinearModel, frm1, df, method=method, wts=fweights(df.w))
 
     lev0 = [0.4546669409864052, 0.39220506613766826, 0.31067464842874659,
         0.16105201633463462, 0.45458434896240396, 0.43751245519667181,
@@ -2302,10 +2307,11 @@ end
     @test leverage(lm0) ≈ leverage(lm1)
     @test lev0 ≈ leverage(lm1)
     glm1 = fit(GeneralizedLinearModel, frm1, df, Normal(),
-        IdentityLink(), method=method, wts=df.w)
+        IdentityLink(), method=method, wts=fweights(df.w))
     @test lev0 ≈ leverage(glm1)
-    probit0 = glm(frmp0, df, Binomial(), ProbitLink(), method=method, wts=df.w)
-    probit = glm(frmp1, df, Binomial(), ProbitLink(), method=method, wts=df.w)
+    probit0 = glm(frmp0, df, Binomial(), ProbitLink(), method=method, wts=aweights(df.w))
+    probit = glm(frmp1, df, Binomial(), ProbitLink(), method=method, wts=aweights(df.w))
     @test leverage(probit) ≈ leverage(probit0)
     @test lev0_pr ≈ leverage(probit0) rtol = 1e-03
 end
+*

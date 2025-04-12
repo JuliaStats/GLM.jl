@@ -26,6 +26,8 @@ struct GlmResp{
     wrkresid::V
 end
 
+link(rr::GlmResp) = rr.d
+
 function GlmResp(
     y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVector,D,L,W}
     n = length(y)
@@ -111,7 +113,7 @@ the linear predictor, `linPr`.
 function updateμ! end
 
 function updateμ!(
-    r::GlmResp{T,D,L,<:AbstractWeights}, linPr::T) where {T<:FPVector,D,L}
+    r::GlmResp{T}, linPr::T) where {T}
     isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
     if isweighted(r)
@@ -121,7 +123,7 @@ function updateμ!(
     return r
 end
 
-function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L}
+function updateμ!(r::GlmResp)
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
@@ -364,9 +366,7 @@ function nullloglikelihood(m::GeneralizedLinearModel)
                 ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
             end
         else
-            @inbounds for i in eachindex(y, wts)
-                ll += loglik_apweights_obs(d, y[i], mu, wts[i], δ, sumwt, N)
-            end
+            throw(ArgumentError("The `nullloglikelihood` for probability weighted models is not currently supported."))
         end
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
@@ -931,25 +931,24 @@ end
 
 function momentmatrix(m::GeneralizedLinearModel)
     X = modelmatrix(m; weighted=false)
-    r, d = varstruct(m)
-    return Diagonal(r .* d) * X
+    r = varstruct(m)
+    m.rr.d isa Union{Gamma, InverseGaussian} && (r .= r.*(sum(working_weights(m)) / sum(abs2, r)))
+    return Diagonal(r) * X
 end
 
 function varstruct(x::GeneralizedLinearModel)
     wrkwt = working_weights(x)
+    wts = weights(x)
+    wrkwts = wts isa ProbabilityWeights ? wrkwt .* (nobs(x) ./ wts.sum) : wrkwt
     wrkres = working_residuals(x)
-    r = wrkwt .* wrkres
-    if x.rr.d isa Union{Gamma,Geometric,InverseGaussian}
-        r, sum(wrkwt) / sum(abs2, r)
-    else
-        r, 1.0
-    end
+    r = wrkwts .* wrkres
+    r
 end
 
 function invloglikhessian(m::GeneralizedLinearModel)
-    r, d = varstruct(m)
+    r = varstruct(m)
     wts = weights(m)
-    return invfact(m.pp) * wts.sum / nobs(m) / d
+    return invfact(m.pp) * wts.sum / nobs(m)
 end
 
 invfact(f::DensePredChol) = invchol(f)
