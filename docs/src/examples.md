@@ -72,7 +72,7 @@ julia> round(aicc(ols); digits=5)
 julia> round(bic(ols); digits=5)
 3.13835
 
-julia> round(dispersion(ols.model); digits=5)
+julia> round(dispersion(ols); digits=5)
 0.40825
 
 julia> round(loglikelihood(ols); digits=5)

@@ -469,34 +469,17 @@ function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
 end
 
 function StatsBase.fit!(m::AbstractGLM;
-    maxiter::Integer=30,
-    minstepfac::Real=0.001,
-    atol::Real=1e-6,
-    rtol::Real=1e-6,
-    start=nothing,
-    kwargs...)
-    if haskey(kwargs, :maxIter)
-        Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
-        maxiter = kwargs[:maxIter]
-    end
-    if haskey(kwargs, :minStepFac)
-        Base.depwarn("'minStepFac' argument is deprecated, use 'minstepfac' instead", :fit!)
-        minstepfac = kwargs[:minStepFac]
-    end
-    if haskey(kwargs, :convTol)
-        Base.depwarn(
-            "'convTol' argument is deprecated, use `atol` and `rtol` instead", :fit!)
-        rtol = kwargs[:convTol]
-    end
+                        maxiter::Integer=30,
+                        minstepfac::Real=0.001,
+                        atol::Real=1e-6,
+                        rtol::Real=1e-6,
+                        start=nothing,
+                        kwargs...)
     if haskey(kwargs, :verbose)
         Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""", :fit!)
     end
-    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol, :verbose))
+    if !issubset(keys(kwargs), (:verbose,))
         throw(ArgumentError("unsupported keyword argument"))
-    end
-    if haskey(kwargs, :tol)
-        Base.depwarn("`tol` argument is deprecated, use `atol` and `rtol` instead", :fit!)
-        rtol = kwargs[:tol]
     end
 
     m.maxiter = maxiter
@@ -572,7 +555,6 @@ const FIT_GLM_DOC = """
     for a list of built-in links).
 
     # Keyword Arguments
-    - `dofit::Bool=true`: Determines whether model will be fit. Only supported with `glm`.
     $COMMON_FIT_KWARGS_DOCS
     - `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
       length 0
@@ -607,11 +589,6 @@ function fit(::Type{M},
     wts::AbstractWeights=uweights(length(y)),
     offset::AbstractVector{<:Real}=similar(y, 0),
     fitargs...) where {M<:AbstractGLM}
-    if dofit === nothing
-        dofit = true
-    else
-        Base.depwarn("`dofit` argument to `fit` is deprecated", :fit)
-    end
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
         throw(DimensionMismatch("number of rows in X and y must match"))
@@ -640,7 +617,7 @@ function fit(::Type{M},
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
     end
 
-    return dofit ? fit!(res; fitargs...) : res
+    return fit!(res; fitargs...)
 end
 
 function fit(::Type{M},
@@ -663,12 +640,6 @@ function fit(::Type{M},
     dofit::Union{Bool,Nothing}=nothing,
     contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
     fitargs...) where {M<:AbstractGLM}
-    if dofit === nothing
-        dofit = true
-    else
-        Base.depwarn("`dofit` argument to `fit` is deprecated", :fit)
-    end
-
     f, (y, X) = modelframe(f, data, contrasts, M)
     wts = wts === nothing ? uweights(length(y)) : wts
     _wts = if wts isa AbstractWeights
@@ -700,7 +671,7 @@ function fit(::Type{M},
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
     end
 
-    return dofit ? fit!(res; fitargs...) : res
+    return fit!(res; fitargs...)
 end
 
 """
@@ -717,9 +688,6 @@ glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwarg
 
 GLM.Link(r::GlmResp) = r.link
 GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
-
-Distributions.Distribution(r::GlmResp{T,D,L}) where {T,D,L} = D
-Distributions.Distribution(m::GeneralizedLinearModel) = Distribution(m.rr)
 
 """
     dispersion(m::AbstractGLM, sqr::Bool=false)

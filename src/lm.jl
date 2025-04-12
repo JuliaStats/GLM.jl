@@ -165,15 +165,9 @@ function convert_weights(wts)
 end
 
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
-    allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
     wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(length(y)),
     dropcollinear::Bool=true,
              method::Symbol=:qr)
-    if allowrankdeficient_dep !== nothing
-        @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
-              "argument `dropcollinear` instead. Proceeding with positional argument value: $allowrankdeficient_dep"
-        dropcollinear = allowrankdeficient_dep
-    end
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
     _wts = convert_weights(wts)
     if isempty(wts)
@@ -191,7 +185,6 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
 end
 
 function fit(::Type{LinearModel}, f::FormulaTerm, data,
-             allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
              wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(0),
              dropcollinear::Bool=true,
              method::Symbol=:qr,
@@ -220,8 +213,9 @@ An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, metho
 
 $FIT_LM_DOC
 """
-lm(X, y, allowrankdeficient_dep::Union{Bool,Nothing}=nothing; kwargs...) = fit(
-    LinearModel, X, y, allowrankdeficient_dep; kwargs...)
+
+lm(X, y; kwargs...) = fit(LinearModel, X, y; kwargs...)
+
 
 dof(x::LinearModel) = linpred_rank(x.pp) + 1
 
@@ -243,8 +237,6 @@ function nulldeviance(obj::LinearModel)
     if hasintercept(obj)
         m = mean(y, wts)
     else
-        @warn("Starting from GLM.jl 1.8, null model is defined as having no predictor at all " *
-              "when a model without an intercept is passed.")
         m = zero(eltype(y))
     end
 
@@ -333,18 +325,12 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
     return res
 end
 
-function StatsModels.predict!(
-    res::Union{AbstractVector,
-        NamedTuple{(:prediction, :lower, :upper),
-            <:NTuple{3,AbstractVector}}},
-    mm::LinearModel, newx::AbstractMatrix;
-    interval::Union{Symbol,Nothing}=nothing,
-    level::Real=0.95)
-    if interval === :confint
-        Base.depwarn(
-            "interval=:confint is deprecated in favor of interval=:confidence", :predict)
-        interval = :confidence
-    end
+function StatsModels.predict!(res::Union{AbstractVector,
+                                         NamedTuple{(:prediction, :lower, :upper),
+                                                    <:NTuple{3, AbstractVector}}},
+                              mm::LinearModel, newx::AbstractMatrix;
+                              interval::Union{Symbol, Nothing}=nothing,
+                              level::Real=0.95)
     if interval === nothing
         res isa AbstractVector ||
             throw(ArgumentError("`res` must be a vector when `interval == nothing` or is omitted"))

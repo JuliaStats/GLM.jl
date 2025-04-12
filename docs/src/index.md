@@ -240,7 +240,7 @@ julia> ols_lin = lm(@formula(y ~ x), data);
 
 julia> ols_sq = lm(@formula(y ~ x + x^2), data);
 
-julia> ftest(ols_lin.model, ols_sq.model)
+julia> ftest(ols_lin, ols_sq)
 F-test: 2 models fitted on 50 observations
 ─────────────────────────────────────────────────────────────────────────────────
      DOF  ΔDOF           SSR           ΔSSR      R²     ΔR²            F*   p(>F)

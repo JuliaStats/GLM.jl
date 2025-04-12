@@ -117,7 +117,7 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted,<:AbstractWeights},
     mul!(p.scratchm1, sqrtW, X)
     r̃ = (wtsqrt .*= r) # to reuse wtsqrt's memory
 
-    p.qr = pivoted_qr!(p.scratchm1)
+    p.qr = qr!(p.scratchm1, ColumnNorm())
     rnk = linpred_rank(p)
     R = UpperTriangular(view(parent(p.qr.R), 1:rnk, 1:rnk))
     permute!(p.delbeta, p.qr.p)
