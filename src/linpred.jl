@@ -54,7 +54,7 @@ mutable struct DensePredQR{
         else
             cfX = Diagonal(sqrt.(wts)) * fX
         end
-        F = pivot ? pivoted_qr!(cfX) : qr!(cfX)
+        F = pivot ? qr!(cfX, ColumnNorm()) : qr!(cfX)
         new{T,Q,W}(Matrix{T}(X),
             zeros(T, p),
             zeros(T, p),
@@ -167,7 +167,7 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights)
         mul!(scr, Diagonal(wts), X)
         F = Hermitian(float(scr'X))
     end
-    F = pivot ? pivoted_cholesky!(F, tol=-one(T), check=false) : cholesky!(F)
+    F = pivot ? cholesky!(F, RowMaximum(); tol = -one(T), check = false) : cholesky!(F)
     DensePredChol(Matrix{T}(X),
         zeros(T, size(X, 2)),
         zeros(T, size(X, 2)),

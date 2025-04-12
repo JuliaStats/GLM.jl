@@ -12,17 +12,17 @@ module GLM
     import Statistics: cor
     using StatsAPI
     import StatsBase: coef, coeftable, coefnames, confint, deviance, nulldeviance, dof, dof_residual,
-                      loglikelihood, nullloglikelihood, nobs, stderror, vcov,
-                      residuals, predict, predict!, leverage, cooksdistance,
-                      fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², PValue
+                      leverage, loglikelihood, nullloglikelihood, nobs, stderror, vcov,
+                      residuals, predict, predict!,
+                      fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr², PValue,
+                      fweights, pweights, aweights
     import SpecialFunctions: erfc, erfcinv, digamma, trigamma
     import StatsModels: hasintercept
     import Tables
     export coef, coeftable, confint, deviance, nulldeviance, dof, dof_residual,
-           loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict, predict!,
+           loglikelihood, nullloglikelihood, nobs, stderror, vcov, residuals, predict,
            fitted, fit, fit!, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
-           cooksdistance, hasintercept, dispersion, vif, gvif, termnames, weights, AnalyticWeights,
-           ProbabilityWeights, FrequencyWeights, UnitWeights, uweights, fweights, pweights, aweights, leverage
+           cooksdistance, hasintercept, dispersion, vif, gvif, termnames
 
     export
         # types
@@ -60,12 +60,16 @@ module GLM
         devresid,       # vector of squared deviance residuals
         formula,        # extract the formula from a model
         glm,            # general interface
+        leverage,       # leverage 
         linpred,        # linear predictor
         lm,             # linear model
         negbin,         # interface to fitting negative binomial regression
         nobs,           # total number of observations
         predict,        # make predictions
-        ftest           # compare models with an F test
+        ftest,           # compare models with an F test
+        fweights, 
+        pweights, 
+        aweights
 
     const FP = AbstractFloat
     const FPVector{T<:FP} = AbstractArray{T,1}
