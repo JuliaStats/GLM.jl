@@ -411,9 +411,3 @@ function StatsBase.cooksdistance(obj::LinearModel)
     D = @. u^2 * (hii / (1 - hii)^2) / (k * mse)
     return D
 end
-
-## To remove when https://github.com/JuliaStats/StatsAPI.jl/pull/16 is merged
-function crossmodelmatrix(model::RegressionModel; weighted::Bool=false)
-    x = weighted ? modelmatrix(model; weighted=weighted) : modelmatrix(model)
-    return Symmetric(x' * x)
-end
