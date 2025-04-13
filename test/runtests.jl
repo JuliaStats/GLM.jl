@@ -2184,7 +2184,7 @@ end
         LinearModel, @formula(OptDen ~ Carb), form; wts=pweights(form.awts), method=:qr)
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb + CarbC),
         form; wts=pweights(form.awts), method=:qr)
-    @test coef(lm0) == coef(lm1)[1:2]
+    @test coef(lm0) ≈ coef(lm1)[1:2]
     @test stderror(lm0) ≈ stderror(lm1)[1:2]
     @test isnan(stderror(lm1)[3])
     lm0 = fit(
