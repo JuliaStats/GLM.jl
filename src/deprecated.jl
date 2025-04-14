@@ -9,7 +9,7 @@ function Base.getproperty(mm::LinPredModel, f::Symbol)
                      "as they are no longer wrapped in a `TableRegressionModel`." *
                      "Use `formula(m)` to access the model formula.", :getproperty)
         form = formula(mm)
-        return ModelFrame{Nothing, typeof(mm)}(form, nothing, nothing, typeof(mm))
+        return ModelFrame{Nothing,typeof(mm)}(form, nothing, nothing, typeof(mm))
     else
         return getfield(mm, f)
     end

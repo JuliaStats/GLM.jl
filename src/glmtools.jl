@@ -39,7 +39,7 @@ struct CauchitLink <: Link01 end
 A [`Link01`](@ref) corresponding to the extreme value (or log-Weibull) distribution.  The
 link is the complementary log-log transformation, `log(1 - log(-μ))`.
 """
-struct CloglogLink  <: Link01 end
+struct CloglogLink <: Link01 end
 
 """
     IdentityLink
@@ -53,14 +53,14 @@ struct IdentityLink <: Link end
 
 The canonical [`Link`](@ref) for [`Distributions.Gamma`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.Gamma) distribution, defined as `η = inv(μ)`.
 """
-struct InverseLink  <: Link end
+struct InverseLink <: Link end
 
 """
     InverseSquareLink
 
 The canonical [`Link`](@ref) for [`Distributions.InverseGaussian`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.InverseGaussian) distribution, defined as `η = inv(abs2(μ))`.
 """
-struct InverseSquareLink  <: Link end
+struct InverseSquareLink <: Link end
 
 """
     LogitLink
@@ -84,7 +84,7 @@ struct LogLink <: Link end
 The canonical [`Link`](@ref) for [`Distributions.NegativeBinomial`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.NegativeBinomial) distribution, defined as `η = log(μ/(μ+θ))`.
 The shape parameter θ has to be fixed for the distribution to belong to the exponential family.
 """
-struct NegativeBinomialLink  <: Link
+struct NegativeBinomialLink <: Link
     θ::Float64
 end
 
@@ -283,7 +283,7 @@ linkfun(::ProbitLink, μ::Real) = -sqrt2 * erfcinv(2μ)
 linkinv(::ProbitLink, η::Real) = erfc(-η / sqrt2) / 2
 
 function inverselink(::ProbitLink, η::Real)
-    μ   =  cdf(Normal(), η)
+    μ = cdf(Normal(), η)
     omμ = ccdf(Normal(), η)
     return μ, pdf(Normal(), η), omμ
 end
@@ -372,22 +372,22 @@ function mustart end
 
 mustart(::Bernoulli, y, wt) = (y + oftype(y, 1/2)) / 2
 mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1/2)) / (wt + one(y))
-function mustart(::Union{Gamma, InverseGaussian}, y, wt)
+function mustart(::Union{Gamma,InverseGaussian}, y, wt)
     fy = float(y)
-    iszero(y) ? oftype(y, 1/10) : fy
+    return iszero(y) ? oftype(y, 1/10) : fy
 end
 function mustart(::Geometric, y, wt)
     fy = float(y)
-    iszero(y) ? fy + oftype(fy, 1 / 6) : fy
+    return iszero(y) ? fy + oftype(fy, 1 / 6) : fy
 end
 function mustart(::NegativeBinomial, y, wt)
     fy = float(y)
-    iszero(y) ? fy + oftype(fy, 1/6) : fy
+    return iszero(y) ? fy + oftype(fy, 1/6) : fy
 end
 mustart(::Normal, y, wt) = y
 function mustart(::Poisson, y, wt)
     fy = float(y)
-    fy + oftype(fy, 1/10)
+    return fy + oftype(fy, 1/10)
 end
 
 """
@@ -463,7 +463,7 @@ false
 ```
 """
 dispersion_parameter(D) = true
-dispersion_parameter(::Union{Bernoulli, Binomial, Poisson}) = false
+dispersion_parameter(::Union{Bernoulli,Binomial,Poisson}) = false
 
 """
     _safe_int(x::T)
@@ -506,4 +506,7 @@ loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
 # The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
 #    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
 # Hence, p = θ/(μ+θ)
-loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
+function loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ)
+    return wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)),
+                     y)
+end
