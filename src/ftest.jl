@@ -7,11 +7,11 @@ end
 
 mutable struct FTestResult{N}
     nobs::Int
-    ssr::NTuple{N, Float64}
-    dof::NTuple{N, Int}
-    r2::NTuple{N, Float64}
-    fstat::NTuple{N, Float64}
-    pval::NTuple{N, Float64}
+    ssr::NTuple{N,Float64}
+    dof::NTuple{N,Int}
+    r2::NTuple{N,Float64}
+    fstat::NTuple{N,Float64}
+    pval::NTuple{N,Float64}
 end
 
 function StatsModels.isnested(mod1::LinPredModel, mod2::LinPredModel; atol::Real=0.0)
@@ -25,14 +25,15 @@ function StatsModels.isnested(mod1::LinPredModel, mod2::LinPredModel; atol::Real
     # If model 1 has more predictors, it can't possibly be a submodel
     npreds1 > npreds2 && return false
     # Test min norm pred2*B - pred1 ≈ 0
-    rtol = Base.rtoldefault(typeof(pred1[1,1]))
+    rtol = Base.rtoldefault(typeof(pred1[1, 1]))
     nresp = size(pred2, 1)
-    return norm(view(qr(pred2).Q'pred1, npreds2 + 1:nresp, :)) <= max(atol, rtol*norm(pred1))
+    return norm(view(qr(pred2).Q'pred1, (npreds2 + 1):nresp, :)) <=
+           max(atol, rtol*norm(pred1))
 end
 
-_diffn(t::NTuple{N, T}) where {N, T} = ntuple(i->t[i]-t[i+1], N-1)
+_diffn(t::NTuple{N,T}) where {N,T} = ntuple(i->t[i]-t[i+1], N-1)
 
-_diff(t::NTuple{N, T}) where {N, T} = ntuple(i->t[i+1]-t[i], N-1)
+_diff(t::NTuple{N,T}) where {N,T} = ntuple(i->t[i+1]-t[i], N-1)
 
 """
     ftest(mod::LinearModel)
@@ -54,7 +55,8 @@ F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-07
 ```
 """
 function ftest(mod::LinearModel)
-    hasintercept(mod) || throw(ArgumentError("ftest only works for models with an intercept"))
+    hasintercept(mod) ||
+        throw(ArgumentError("ftest only works for models with an intercept"))
 
     rss = deviance(mod)
     tss = nulldeviance(mod)
@@ -64,7 +66,7 @@ function ftest(mod::LinearModel)
     fstat = ((tss - rss) / rss) * ((n - p - 1) / p)
     fdist = FDist(p, dof_residual(mod))
 
-    SingleFTestResult(n, p, promote(fstat, ccdf(fdist, abs(fstat)))...)
+    return SingleFTestResult(n, p, promote(fstat, ccdf(fdist, abs(fstat)))...)
 end
 
 """
@@ -134,13 +136,15 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
     forward = length(mods) == 1 || dof(mods[1]) <= dof(mods[2])
     if forward
         for i in 2:length(mods)
-            if dof(mods[i-1]) >= dof(mods[i]) || !StatsModels.isnested(mods[i-1], mods[i], atol=atol)
+            if dof(mods[i-1]) >= dof(mods[i]) ||
+               !StatsModels.isnested(mods[i-1], mods[i]; atol=atol)
                 throw(ArgumentError("F test is only valid for nested models"))
             end
         end
     else
         for i in 2:length(mods)
-            if dof(mods[i]) >= dof(mods[i-1]) || !StatsModels.isnested(mods[i], mods[i-1], atol=atol)
+            if dof(mods[i]) >= dof(mods[i-1]) ||
+               !StatsModels.isnested(mods[i], mods[i-1]; atol=atol)
                 throw(ArgumentError("F test is only valid for nested models"))
             end
         end
@@ -157,8 +161,8 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
         MSR2 = MSR2[2:end]
         dfr_big = dfr[2:end]
     else
-        MSR2 = MSR2[1:end-1]
-        dfr_big = dfr[1:end-1]
+        MSR2 = MSR2[1:(end - 1)]
+        dfr_big = dfr[1:(end - 1)]
     end
 
     fstat = (NaN, (MSR1 ./ MSR2)...)
@@ -168,12 +172,13 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
 end
 
 function show(io::IO, ftr::SingleFTestResult)
-    print(io, "F-test against the null model:\nF-statistic: ", StatsBase.TestStat(ftr.fstat), " ")
+    print(io, "F-test against the null model:\nF-statistic: ",
+          StatsBase.TestStat(ftr.fstat), " ")
     print(io, "on ", ftr.nobs, " observations and ", ftr.dof, " degrees of freedom, ")
-    print(io, "p-value: ", PValue(ftr.pval))
+    return print(io, "p-value: ", PValue(ftr.pval))
 end
 
-function show(io::IO, ftr::FTestResult{N}) where N
+function show(io::IO, ftr::FTestResult{N}) where {N}
     Δdof = _diff(ftr.dof)
     Δssr = _diff(ftr.ssr)
     ΔR² = _diff(ftr.r2)
@@ -199,7 +204,7 @@ function show(io::IO, ftr::FTestResult{N}) where N
                            @sprintf("%.0d", ftr.dof[i]), @sprintf("%.0d", Δdof[i-1]),
                            @sprintf("%.4f", ftr.ssr[i]), @sprintf("%.4f", Δssr[i-1]),
                            r2vals[i], @sprintf("%.4f", ΔR²[i-1]),
-                           @sprintf("%.4f", ftr.fstat[i]), string(PValue(ftr.pval[i])) ]
+                           @sprintf("%.4f", ftr.fstat[i]), string(PValue(ftr.pval[i]))]
     end
     colwidths = length.(outrows)
     max_colwidths = [maximum(view(colwidths, :, i)) for i in 1:nc]
@@ -208,7 +213,7 @@ function show(io::IO, ftr::FTestResult{N}) where N
     println(io, "F-test: $N models fitted on $(ftr.nobs) observations")
     println(io, '─'^totwidth)
 
-    for r in 1:nr+1
+    for r in 1:(nr + 1)
         for c in 1:nc
             cur_cell = outrows[r, c]
             cur_cell_len = length(cur_cell)
@@ -224,5 +229,5 @@ function show(io::IO, ftr::FTestResult{N}) where N
         print(io, "\n")
         r == 1 && println(io, '─'^totwidth)
     end
-    print(io, '─'^totwidth)
+    return print(io, '─'^totwidth)
 end

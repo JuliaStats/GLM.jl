@@ -25,8 +25,8 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link} <: ModResp
     wrkresid::V
 end
 
-function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVector, D, L}
-    n  = length(y)
+function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::V) where {V<:FPVector,D,L}
+    n = length(y)
     nη = length(η)
     nμ = length(μ)
     lw = length(wts)
@@ -53,20 +53,20 @@ end
 
 function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::FPVector)
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
-    _y   = convert(Vector{float(eltype(y))}, y)
+    _y = convert(Vector{float(eltype(y))}, y)
     _off = convert(Vector{float(eltype(off))}, off)
     _wts = convert(Vector{float(eltype(wts))}, wts)
-    η    = similar(_y)
-    μ    = similar(_y)
-    r    = GlmResp(_y, d, l, η, μ, _off, _wts)
+    η = similar(_y)
+    μ = similar(_y)
+    r = GlmResp(_y, d, l, η, μ, _off, _wts)
     initialeta!(r.eta, d, l, _y, _wts, _off)
     updateμ!(r, r.eta)
     return r
 end
 
 function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
-                 wts::AbstractVector{<:Real}) where {D, L}
-        GlmResp(float(y), d, l, float(off), float(wts))
+                 wts::AbstractVector{<:Real}) where {D,L}
+    return GlmResp(float(y), d, l, float(off), float(wts))
 end
 
 deviance(r::GlmResp) = sum(r.devresid)
@@ -94,14 +94,14 @@ the linear predictor, `linPr`.
 """
 function updateμ! end
 
-function updateμ!(r::GlmResp{T}, linPr::T) where T<:FPVector
+function updateμ!(r::GlmResp{T}, linPr::T) where {T<:FPVector}
     isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
     if !isempty(r.wts)
         map!(*, r.devresid, r.devresid, r.wts)
         map!(*, r.wrkwt, r.wrkwt, r.wts)
     end
-    r
+    return r
 end
 
 function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D,L}
@@ -136,10 +136,10 @@ function _weights_residuals(yᵢ, ηᵢ, μᵢ, omμᵢ, dμdηᵢ, l::ProbitLin
     μomμᵢ = μᵢ*omμᵢ
     if iszero(μomμᵢ)
         wrkresᵢ = 1/abs(ηᵢ)
-        wrkwtᵢ  = dμdηᵢ
+        wrkwtᵢ = dμdηᵢ
     else
         wrkresᵢ = ifelse(yᵢ == 1, omμᵢ, yᵢ - μᵢ) / dμdηᵢ
-        wrkwtᵢ  = abs2(dμdηᵢ)/μomμᵢ
+        wrkwtᵢ = abs2(dμdηᵢ)/μomμᵢ
     end
 
     return wrkresᵢ, wrkwtᵢ
@@ -161,7 +161,7 @@ function _weights_residuals(yᵢ, ηᵢ, μᵢ, omμᵢ, dμdηᵢ, l::CloglogLi
         end
     end
 
-    wrkwtᵢ  = exp(2*ηᵢ)/expm1(exp(ηᵢ))
+    wrkwtᵢ = exp(2*ηᵢ)/expm1(exp(ηᵢ))
     # We know that both limits are zero so we'll convert NaNs
     wrkwtᵢ = ifelse(isnan(wrkwtᵢ), zero(wrkwtᵢ), wrkwtᵢ)
 
@@ -171,12 +171,13 @@ end
 # Fallback for remaining link functions
 function _weights_residuals(yᵢ, ηᵢ, μᵢ, omμᵢ, dμdηᵢ, l::Link01)
     wrkresᵢ = ifelse(yᵢ == 1, omμᵢ, yᵢ - μᵢ)/dμdηᵢ
-    wrkwtᵢ  = abs2(dμdηᵢ)/(μᵢ*omμᵢ)
+    wrkwtᵢ = abs2(dμdηᵢ)/(μᵢ*omμᵢ)
 
     return wrkresᵢ, wrkwtᵢ
 end
 
-function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:Union{Bernoulli,Binomial},L<:Link01}
+function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:Union{Bernoulli,Binomial},
+                                            L<:Link01}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
@@ -193,7 +194,8 @@ function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:Union{Bernoulli,Bino
     end
 end
 
-function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:NegativeBinomial,L<:NegativeBinomialLink}
+function updateμ!(r::GlmResp{V,D,L}) where {V<:FPVector,D<:NegativeBinomial,
+                                            L<:NegativeBinomialLink}
     y, η, μ, wrkres, wrkwt, dres = r.y, r.eta, r.mu, r.wrkresid, r.wrkwt, r.devresid
 
     @inbounds for i in eachindex(y, η, μ, wrkres, wrkwt, dres)
@@ -219,9 +221,9 @@ wrkresp(r::GlmResp) = wrkresp!(similar(r.eta), r)
 
 Overwrite `v` with the working response of `r`
 """
-function wrkresp!(v::T, r::GlmResp{T}) where T<:FPVector
+function wrkresp!(v::T, r::GlmResp{T}) where {T<:FPVector}
     broadcast!(+, v, r.eta, r.wrkresid)
-    isempty(r.offset) ? v : broadcast!(-, v, v, r.offset)
+    return isempty(r.offset) ? v : broadcast!(-, v, v, r.offset)
 end
 
 abstract type AbstractGLM <: LinPredModel end
@@ -237,9 +239,11 @@ mutable struct GeneralizedLinearModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
     rtol::Float64
 end
 
-GeneralizedLinearModel(rr::GlmResp, pp::LinPred,
-                       f::Union{FormulaTerm, Nothing}, fit::Bool) =
-    GeneralizedLinearModel(rr, pp, f, fit, 0, NaN, NaN, NaN)
+function GeneralizedLinearModel(rr::GlmResp, pp::LinPred,
+                                f::Union{FormulaTerm,Nothing}, fit::Bool)
+    return GeneralizedLinearModel(rr, pp, f, fit, 0, NaN,
+                                  NaN, NaN)
+end
 
 function coeftable(mm::AbstractGLM; level::Real=0.95)
     cc = coef(mm)
@@ -249,30 +253,32 @@ function coeftable(mm::AbstractGLM; level::Real=0.95)
     ci = se*quantile(Normal(), (1-level)/2)
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
     cn = coefnames(mm)
-    CoefTable(hcat(cc,se,zz,p,cc+ci,cc-ci),
-              ["Coef.","Std. Error","z","Pr(>|z|)","Lower $levstr%","Upper $levstr%"],
-              cn, 4, 3)
+    return CoefTable(hcat(cc, se, zz, p, cc+ci, cc-ci),
+                     ["Coef.", "Std. Error", "z", "Pr(>|z|)", "Lower $levstr%",
+                      "Upper $levstr%"],
+                     cn, 4, 3)
 end
 
 function confint(obj::AbstractGLM; level::Real=0.95)
-    hcat(coef(obj),coef(obj)) + stderror(obj)*quantile(Normal(),(1. -level)/2.)*[1. -1.]
+    return hcat(coef(obj), coef(obj)) +
+           stderror(obj)*quantile(Normal(), (1.0 - level)/2.0)*[1.0 -1.0]
 end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
 function nulldeviance(m::GeneralizedLinearModel)
-    r      = m.rr
-    wts    = weights(r.wts)
-    y      = r.y
-    d      = r.d
+    r = m.rr
+    wts = weights(r.wts)
+    y = r.y
+    d = r.d
     offset = r.offset
     hasint = hasintercept(m)
-    dev    = zero(eltype(y))
+    dev = zero(eltype(y))
     if isempty(offset) # Faster method
         if !isempty(wts)
             mu = hasint ?
-                mean(y, wts) :
-                linkinv(r.link, zero(eltype(y))*zero(eltype(wts))/1)
+                 mean(y, wts) :
+                 linkinv(r.link, zero(eltype(y))*zero(eltype(wts))/1)
             @inbounds for i in eachindex(y, wts)
                 dev += wts[i] * devresid(d, y[i], mu)
             end
@@ -296,12 +302,12 @@ function nulldeviance(m::GeneralizedLinearModel)
 end
 
 function loglikelihood(m::AbstractGLM)
-    r   = m.rr
+    r = m.rr
     wts = r.wts
-    y   = r.y
-    mu  = r.mu
-    d   = r.d
-    ll  = zero(eltype(mu))
+    y = r.y
+    mu = r.mu
+    d = r.d
+    ll = zero(eltype(mu))
     if !isempty(wts)
         ϕ = deviance(m)/sum(wts)
         @inbounds for i in eachindex(y, mu, wts)
@@ -313,17 +319,17 @@ function loglikelihood(m::AbstractGLM)
             ll += loglik_obs(d, y[i], mu[i], 1, ϕ)
         end
     end
-    ll
+    return ll
 end
 
 function nullloglikelihood(m::GeneralizedLinearModel)
-    r      = m.rr
-    wts    = r.wts
-    y      = r.y
-    d      = r.d
+    r = m.rr
+    wts = r.wts
+    y = r.y
+    d = r.d
     offset = r.offset
     hasint = hasintercept(m)
-    ll  = zero(eltype(y))
+    ll = zero(eltype(y))
     if isempty(r.offset) # Faster method
         if !isempty(wts)
             mu = hasint ? mean(y, weights(wts)) : linkinv(r.link, zero(ll)/1)
@@ -360,7 +366,7 @@ function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
     m.fit && return m
 
     # Check arguments
-    maxiter >= 1       || throw(ArgumentError("maxiter must be positive"))
+    maxiter >= 1 || throw(ArgumentError("maxiter must be positive"))
     0 < minstepfac < 1 || throw(ArgumentError("minstepfac must be in (0, 1)"))
 
     # Extract fields and set convergence flag
@@ -384,10 +390,11 @@ function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
     end
     devold = deviance(m)
     if !isfinite(devold)
-        throw(DomainError(devold, "initial deviance was not finite. Try alternative starting values or model formulation"))
+        throw(DomainError(devold,
+                          "initial deviance was not finite. Try alternative starting values or model formulation"))
     end
 
-    for i = 1:maxiter
+    for i in 1:maxiter
         f = 1.0 # line search factor
         local dev
 
@@ -428,7 +435,7 @@ function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
     end
     cvg || throw(ConvergenceException(maxiter))
     m.fit = true
-    m
+    return m
 end
 
 function StatsBase.fit!(m::AbstractGLM;
@@ -439,7 +446,8 @@ function StatsBase.fit!(m::AbstractGLM;
                         start=nothing,
                         kwargs...)
     if haskey(kwargs, :verbose)
-        Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""", :fit!)
+        Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""",
+                     :fit!)
     end
     if !issubset(keys(kwargs), (:verbose,))
         throw(ArgumentError("unsupported keyword argument"))
@@ -450,7 +458,7 @@ function StatsBase.fit!(m::AbstractGLM;
     m.atol = atol
     m.rtol = rtol
 
-    _fit!(m, maxiter, minstepfac, atol, rtol, start)
+    return _fit!(m, maxiter, minstepfac, atol, rtol, start)
 end
 
 const FIT_GLM_DOC = """
@@ -489,15 +497,15 @@ Fit a generalized linear model to data.
 $FIT_GLM_DOC
 """
 function fit(::Type{M},
-    X::AbstractMatrix{<:FP},
-    y::AbstractVector{<:Real},
-    d::UnivariateDistribution,
-    l::Link = canonicallink(d);
-    dropcollinear::Bool = true,
-    method::Symbol = :qr,
-    wts::AbstractVector{<:Real}      = similar(y, 0),
-    offset::AbstractVector{<:Real}   = similar(y, 0),
-    fitargs...) where {M<:AbstractGLM}
+             X::AbstractMatrix{<:FP},
+             y::AbstractVector{<:Real},
+             d::UnivariateDistribution,
+             l::Link=canonicallink(d);
+             dropcollinear::Bool=true,
+             method::Symbol=:qr,
+             wts::AbstractVector{<:Real}=similar(y, 0),
+             offset::AbstractVector{<:Real}=similar(y, 0),
+             fitargs...) where {M<:AbstractGLM}
 
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
@@ -517,25 +525,26 @@ function fit(::Type{M},
     return fit!(res; fitargs...)
 end
 
-fit(::Type{M},
-    X::AbstractMatrix,
-    y::AbstractVector,
-    d::UnivariateDistribution,
-    l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM} =
-        fit(M, float(X), float(y), d, l; kwargs...)
+function fit(::Type{M},
+             X::AbstractMatrix,
+             y::AbstractVector,
+             d::UnivariateDistribution,
+             l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM}
+    return fit(M, float(X), float(y), d,
+               l; kwargs...)
+end
 
 function fit(::Type{M},
              f::FormulaTerm,
              data,
              d::UnivariateDistribution,
              l::Link=canonicallink(d);
-             offset::Union{AbstractVector, Nothing} = nothing,
-             wts::Union{AbstractVector, Nothing} = nothing,
-             dropcollinear::Bool = true,
-             method::Symbol = :qr,
+             offset::Union{AbstractVector,Nothing}=nothing,
+             wts::Union{AbstractVector,Nothing}=nothing,
+             dropcollinear::Bool=true,
+             method::Symbol=:qr,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
              fitargs...) where {M<:AbstractGLM}
-
     f, (y, X) = modelframe(f, data, contrasts, M)
 
     # Check that X and y have the same number of observations
@@ -595,21 +604,20 @@ function dispersion(m::AbstractGLM, sqr::Bool=false)
     end
 end
 
-const PREDICT_COMMON =
-"""
-`newX` must be either a table (in the [Tables.jl](https://tables.juliadata.org/stable/)
-definition) containing all columns used in the model formula, or a matrix with one column
-for each predictor in the model. In both cases, each row represents an observation for
-which a prediction will be returned.
+const PREDICT_COMMON = """
+                       `newX` must be either a table (in the [Tables.jl](https://tables.juliadata.org/stable/)
+                       definition) containing all columns used in the model formula, or a matrix with one column
+                       for each predictor in the model. In both cases, each row represents an observation for
+                       which a prediction will be returned.
 
-If `interval=:confidence`, also return upper and lower bounds for a given coverage `level`.
-By default (`interval_method = :transformation`) the intervals are constructed by applying
-the inverse link to intervals for the linear predictor. If `interval_method = :delta`,
-the intervals are constructed by the delta method, i.e., by linearization of the predicted
-response around the linear predictor. The `:delta` method intervals are symmetric around
-the point estimates, but do not respect natural parameter constraints
-(e.g., the lower bound for a probability could be negative).
-"""
+                       If `interval=:confidence`, also return upper and lower bounds for a given coverage `level`.
+                       By default (`interval_method = :transformation`) the intervals are constructed by applying
+                       the inverse link to intervals for the linear predictor. If `interval_method = :delta`,
+                       the intervals are constructed by the delta method, i.e., by linearization of the predicted
+                       response around the linear predictor. The `:delta` method intervals are symmetric around
+                       the point estimates, but do not respect natural parameter constraints
+                       (e.g., the lower bound for a probability could be negative).
+                       """
 
 """
     predict(mm::AbstractGLM, newX;
@@ -630,11 +638,11 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
     r = response(mm)
     len = size(newX, 1)
     res = interval === nothing ?
-        similar(r, len) :
-        (prediction=similar(r, len), lower=similar(r, len), upper=similar(r, len))
-    predict!(res, mm, newX,
-             offset=offset, interval=interval, level=level,
-             interval_method=interval_method)
+          similar(r, len) :
+          (prediction=similar(r, len), lower=similar(r, len), upper=similar(r, len))
+    return predict!(res, mm, newX;
+                    offset=offset, interval=interval, level=level,
+                    interval_method=interval_method)
 end
 
 """
@@ -652,7 +660,7 @@ $PREDICT_COMMON
 """
 function predict!(res::Union{AbstractVector,
                              NamedTuple{(:prediction, :lower, :upper),
-                                        <: NTuple{3, AbstractVector}}},
+                                        <: NTuple{3,AbstractVector}}},
                   mm::AbstractGLM, newX::AbstractMatrix;
                   offset::FPVector=eltype(newX)[],
                   interval::Union{Symbol,Nothing}=nothing,
@@ -664,7 +672,8 @@ function predict!(res::Union{AbstractVector,
             throw(ArgumentError("fit with offset, so `offset` kw arg must be an offset of length `size(newX, 1)`"))
         broadcast!(+, eta, eta, offset)
     else
-        length(offset) > 0 && throw(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
+        length(offset) > 0 &&
+            throw(ArgumentError("fit without offset, so value of `offset` kw arg does not make sense"))
     end
 
     if interval === nothing
@@ -686,7 +695,7 @@ function predict!(res::Union{AbstractVector,
         # 1. Estimate variance for eta based on variance for coefficients
         #    through the diagonal of newX*vcov(mm)*newX'
         vcovXnewT = vcov(mm)*newX'
-        stdeta = [sqrt(dot(view(newX, i, :), view(vcovXnewT, :, i))) for i in axes(newX,1)]
+        stdeta = [sqrt(dot(view(newX, i, :), view(vcovXnewT, :, i))) for i in axes(newX, 1)]
 
         if interval_method == :delta
             # 2. Now compute the variance for mu based on variance of eta and
@@ -709,25 +718,23 @@ end
 
 # A helper function to choose default values for eta
 function initialeta!(eta::AbstractVector,
-                    dist::UnivariateDistribution,
-                    link::Link,
-                    y::AbstractVector,
-                    wts::AbstractVector,
-                    off::AbstractVector)
-
-
-    n  = length(y)
+                     dist::UnivariateDistribution,
+                     link::Link,
+                     y::AbstractVector,
+                     wts::AbstractVector,
+                     off::AbstractVector)
+    n = length(y)
     lw = length(wts)
     lo = length(off)
 
     if lw == n
-        @inbounds @simd for i = eachindex(y, eta, wts)
-            μ      = mustart(dist, y[i], wts[i])
+        @inbounds @simd for i in eachindex(y, eta, wts)
+            μ = mustart(dist, y[i], wts[i])
             eta[i] = linkfun(link, μ)
         end
     elseif lw == 0
-        @inbounds @simd for i = eachindex(y, eta)
-            μ      = mustart(dist, y[i], 1)
+        @inbounds @simd for i in eachindex(y, eta)
+            μ = mustart(dist, y[i], 1)
             eta[i] = linkfun(link, μ)
         end
     else
@@ -735,7 +742,7 @@ function initialeta!(eta::AbstractVector,
     end
 
     if lo == n
-        @inbounds @simd for i = eachindex(eta, off)
+        @inbounds @simd for i in eachindex(eta, off)
             eta[i] -= off[i]
         end
     elseif lo != 0

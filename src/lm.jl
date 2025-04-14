@@ -17,18 +17,19 @@ mutable struct LmResp{V<:FPVector} <: ModResp  # response in a linear model
     offset::V                              # offset added to linear predictor (may have length 0)
     wts::V                                 # prior weights (may have length 0)
     y::V                                   # response
-    function LmResp{V}(mu::V, off::V, wts::V, y::V) where V
+    function LmResp{V}(mu::V, off::V, wts::V, y::V) where {V}
         n = length(y)
         length(mu) == n || error("mismatched lengths of mu and y")
         ll = length(off)
         ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
         ll = length(wts)
         ll == 0 || ll == n || error("length of wts is $ll, must be $n or 0")
-        new{V}(mu, off, wts, y)
+        return new{V}(mu, off, wts, y)
     end
 end
 
-function LmResp(y::AbstractVector{<:Real}, wts::Union{Nothing,AbstractVector{<:Real}}=nothing)
+function LmResp(y::AbstractVector{<:Real},
+                wts::Union{Nothing,AbstractVector{<:Real}}=nothing)
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
     _y = convert(Vector{float(eltype(y))}, y)
     _wts = if wts === nothing
@@ -39,11 +40,11 @@ function LmResp(y::AbstractVector{<:Real}, wts::Union{Nothing,AbstractVector{<:R
     return LmResp{typeof(_y)}(zero(_y), zero(_y), _wts, _y)
 end
 
-function updateμ!(r::LmResp{V}, linPr::V) where V<:FPVector
+function updateμ!(r::LmResp{V}, linPr::V) where {V<:FPVector}
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copyto!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
-    deviance(r)
+    return deviance(r)
 end
 
 updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
@@ -54,20 +55,20 @@ function deviance(r::LmResp)
     wts = r.wts
     v = zero(eltype(y)) + zero(eltype(y)) * zero(eltype(wts))
     if isempty(wts)
-        @inbounds @simd for i = eachindex(y,mu)
+        @inbounds @simd for i in eachindex(y, mu)
             v += abs2(y[i] - mu[i])
         end
     else
-        @inbounds @simd for i = eachindex(y,mu,wts)
+        @inbounds @simd for i in eachindex(y, mu, wts)
             v += abs2(y[i] - mu[i])*wts[i]
         end
     end
-    v
+    return v
 end
 
 function loglikelihood(r::LmResp)
     n = isempty(r.wts) ? length(r.y) : sum(r.wts)
-    -n/2 * (log(2π * deviance(r)/n) + 1)
+    return -n/2 * (log(2π * deviance(r)/n) + 1)
 end
 
 residuals(r::LmResp) = r.y - r.mu
@@ -130,7 +131,6 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
              wts::AbstractVector{<:Real}=similar(y, 0),
              dropcollinear::Bool=true,
              method::Symbol=:qr)
-
     if method === :cholesky
         fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear), nothing))
     elseif method === :qr
@@ -141,7 +141,7 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
 end
 
 function fit(::Type{LinearModel}, f::FormulaTerm, data;
-             wts::Union{AbstractVector{<:Real}, Nothing}=nothing,
+             wts::Union{AbstractVector{<:Real},Nothing}=nothing,
              dropcollinear::Bool=true,
              method::Symbol=:qr,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
@@ -205,11 +205,11 @@ function nulldeviance(obj::LinearModel)
             v += abs2(yi - m)
         end
     else
-        @inbounds @simd for i = eachindex(y,wts)
+        @inbounds @simd for i in eachindex(y, wts)
             v += abs2(y[i] - m)*wts[i]
         end
     end
-    v
+    return v
 end
 
 loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
@@ -217,7 +217,7 @@ loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
 function nullloglikelihood(obj::LinearModel)
     r = obj.rr
     n = isempty(r.wts) ? length(r.y) : sum(r.wts)
-    -n/2 * (log(2π * nulldeviance(obj)/n) + 1)
+    return -n/2 * (log(2π * nulldeviance(obj)/n) + 1)
 end
 
 r2(obj::LinearModel) = 1 - deviance(obj)/nulldeviance(obj)
@@ -244,9 +244,10 @@ function coeftable(mm::LinearModel; level::Real=0.95)
     end
     levstr = isinteger(level*100) ? string(Integer(level*100)) : string(level*100)
     cn = coefnames(mm)
-    CoefTable(hcat(cc,se,tt,p,cc+ci,cc-ci),
-              ["Coef.","Std. Error","t","Pr(>|t|)","Lower $levstr%","Upper $levstr%"],
-              cn, 4, 3)
+    return CoefTable(hcat(cc, se, tt, p, cc+ci, cc-ci),
+                     ["Coef.", "Std. Error", "t", "Pr(>|t|)", "Lower $levstr%",
+                      "Upper $levstr%"],
+                     cn, 4, 3)
 end
 
 """
@@ -268,18 +269,17 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
         predict!(res, mm, newx)
     else
         res = (prediction=retmean, lower=similar(retmean), upper=similar(retmean))
-        predict!(res, mm, newx, interval=interval, level=level)
+        predict!(res, mm, newx; interval=interval, level=level)
     end
     return res
 end
 
 function StatsModels.predict!(res::Union{AbstractVector,
                                          NamedTuple{(:prediction, :lower, :upper),
-                                                    <:NTuple{3, AbstractVector}}},
+                                                    <:NTuple{3,AbstractVector}}},
                               mm::LinearModel, newx::AbstractMatrix;
-                              interval::Union{Symbol, Nothing}=nothing,
+                              interval::Union{Symbol,Nothing}=nothing,
                               level::Real=0.95)
-
     if interval === nothing
         res isa AbstractVector ||
             throw(ArgumentError("`res` must be a vector when `interval == nothing` or is omitted"))
@@ -287,11 +287,11 @@ function StatsModels.predict!(res::Union{AbstractVector,
             throw(DimensionMismatch("length of `res` must equal the number of rows in `newx`"))
         res .= newx * coef(mm)
     elseif mm.pp isa DensePredChol &&
-        mm.pp.chol isa CholeskyPivoted &&
-        mm.pp.chol.rank < size(mm.pp.chol, 2)
-            throw(ArgumentError("prediction intervals are currently not implemented " *
-                                "when some independent variables have been dropped " *
-                                "from the model due to collinearity"))
+           mm.pp.chol isa CholeskyPivoted &&
+           mm.pp.chol.rank < size(mm.pp.chol, 2)
+        throw(ArgumentError("prediction intervals are currently not implemented " *
+                            "when some independent variables have been dropped " *
+                            "from the model due to collinearity"))
     elseif mm.pp isa DensePredQR && rank(mm.pp.qr.R) < size(mm.pp.qr.R, 2)
         throw(ArgumentError("prediction intervals are currently not implemented " *
                             "when some independent variables have been dropped " *
@@ -303,7 +303,8 @@ function StatsModels.predict!(res::Union{AbstractVector,
         prediction, lower, upper = res
         length(prediction) == length(lower) == length(upper) == size(newx, 1) ||
             throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newx`"))
-        length(mm.rr.wts) == 0 || error("prediction with confidence intervals not yet implemented for weighted regression")
+        length(mm.rr.wts) == 0 ||
+            error("prediction with confidence intervals not yet implemented for weighted regression")
 
         dev = deviance(mm)
         dofr = dof_residual(mm)
@@ -316,14 +317,15 @@ function StatsModels.predict!(res::Union{AbstractVector,
         ret .= quantile(TDist(dofr), (1 - level)/2) .* sqrt.(ret)
         prediction .= newx * coef(mm)
         lower .= prediction .+ ret
-        upper .= prediction -+ ret
+        upper .= prediction - + ret
     end
     return res
 end
 
 function confint(obj::LinearModel; level::Real=0.95)
-    hcat(coef(obj),coef(obj)) + stderror(obj) *
-    quantile(TDist(dof_residual(obj)), (1. - level)/2.) * [1. -1.]
+    return hcat(coef(obj), coef(obj)) +
+           stderror(obj) *
+           quantile(TDist(dof_residual(obj)), (1.0 - level)/2.0) * [1.0 -1.0]
 end
 
 """
@@ -336,12 +338,13 @@ Currently only implemented for linear models without weights.
 """
 function StatsBase.cooksdistance(obj::LinearModel)
     u = residuals(obj)
-    mse = dispersion(obj,true)
+    mse = dispersion(obj, true)
     k = dof(obj)-1
     d_res = dof_residual(obj)
     X = modelmatrix(obj)
     XtX = crossmodelmatrix(obj)
-    k == size(X,2) || throw(ArgumentError("Models with collinear terms are not currently supported."))
+    k == size(X, 2) ||
+        throw(ArgumentError("Models with collinear terms are not currently supported."))
     wts = obj.rr.wts
     if isempty(wts)
         hii = diag(X * inv(XtX) * X')
