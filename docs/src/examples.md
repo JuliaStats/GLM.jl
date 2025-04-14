@@ -511,7 +511,6 @@ julia> round(deviance(gm1), digits=5)
 In this example, we choose the best model from a set of λs, based on minimum BIC.
 
 ```jldoctest; filter = r"(\d*)\.(\d{6})\d+" => s"\1.\2"
-
 julia> using GLM, RDatasets, StatsBase, DataFrames, Optim
 
 julia> trees = DataFrame(dataset("datasets", "trees"));

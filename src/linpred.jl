@@ -385,8 +385,6 @@ function modelframe(f::FormulaTerm, data, contrasts::AbstractDict, ::Type{M}) wh
     f, modelcols(f, data)
 end
 
-modelframe(obj::LinPredModel) = obj.fr
-
 function modelmatrix(obj::LinPredModel; weighted::Bool=isweighted(obj))
     modelmatrix(obj.pp; weighted=weighted)
 end
