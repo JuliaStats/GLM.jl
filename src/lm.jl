@@ -212,7 +212,6 @@ An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, metho
 
 $FIT_LM_DOC
 """
-
 lm(X, y; kwargs...) = fit(LinearModel, X, y; kwargs...)
 
 
