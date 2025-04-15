@@ -103,15 +103,17 @@ module GLM
           The Cholesky decomposition is faster and more computationally efficient than
           QR, but is less numerically stable and thus may fail or produce less accurate
           estimates for some models.
-        - `wts::Vector`: Prior frequency (a.k.a. case) weights of observations.
-          Such weights are equivalent to repeating each observation a number of times equal
-          to its weight. Do note that this interpretation gives equal point estimates but
-          different standard errors from analytical (a.k.a. inverse variance) weights and
-          from probability (a.k.a. sampling) weights which are the default in some other
-          software.
-          Can be length 0 to indicate no weighting (default).
+        - `wts::AbstractWeights`: Weights of observations.
+           The weights can be of type `AnalyticWeights`, `FrequencyWeights`, 
+           `ProbabilityWeights`, or `UnitWeights`. `AnalyticWeights` describe a non-random
+           relative importance (usually between 0 and 1) for each observation. These weights may 
+           also be referred to as reliability weights, precision weights or inverse variance weights. 
+           `FrequencyWeights` describe the number of times (or frequency) each observation was seen. 
+           `ProbabilityWeights` represent the inverse of the sampling probability for each observation,
+           providing a correction mechanism for under- or over-sampling certain population groups. `UnitWeights` 
+           (default) describes the case in which all weights are equal to 1 (so no weighting takes place)
         - `contrasts::AbstractDict{Symbol}`: a `Dict` mapping term names
-          (as `Symbol`s) to term types (e.g. `ContinuousTerm`) or contrasts
+          (as `Symbol`s) to term types (e.g., `ContinuousTerm`) or contrasts
           (e.g., `HelmertCoding()`, `SeqDiffCoding(; levels=["a", "b", "c"])`,
           etc.). If contrasts are not provided for a variable, the appropriate
           term type will be guessed based on the data type from the data column:
