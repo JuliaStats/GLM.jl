@@ -911,8 +911,8 @@ end
 function invloglikhessian(m::GeneralizedLinearModel)
     r = varstruct(m)
     wts = weights(m)
-    return invfact(m.pp) * wts.sum / nobs(m)
+    return inverse(m.pp) * wts.sum / nobs(m)
 end
 
-invfact(f::DensePredChol) = invchol(f)
-invfact(f::DensePredQR) = invqr(f)
+inverse(f::DensePredChol) = invchol(f)
+innverse(f::DensePredQR) = invqr(f)

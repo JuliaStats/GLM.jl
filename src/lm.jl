@@ -381,11 +381,11 @@ function momentmatrix(m::LinearModel)
     X = modelmatrix(m; weighted=false)
     r = residuals(m; weighted=false)
     mm = X .* r
+    @show typeof(mm)
     if isweighted(m)
-        mm .* weights(m)
-    else
-        mm
+        mm .*= weights(m)
     end
+    return mm
 end
 
 invloglikhessian(m::LinearModel) = inverse(m.pp)
