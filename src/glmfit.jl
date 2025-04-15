@@ -327,7 +327,7 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
     y = r.y
     mu = r.mu
     wts = weights(r)
-    d = r.d
+    d = link(r)    
     ll = zero(eltype(mu))
     n = nobs(r)
     N = length(y)
@@ -338,6 +338,9 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
             ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
         end
     elseif wts isa AnalyticWeights
+        if d isa Union{Bernoulli, Binomial} 
+            @warn "non-integer #successes in a binomial/bernoulli glm"
+        end
         @inbounds for i in eachindex(y, mu, wts)
             ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, sum(wts), N)
         end
