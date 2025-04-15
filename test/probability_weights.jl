@@ -7,10 +7,8 @@ df = DataFrame(y = y, x1 = x1, x2 = x2, pweights = floor.(rand(rng, 50) * 6) .+ 
 clotting = DataFrame(
     u = log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
     lot1 = [118, 58, 42, 35, 27, 25, 21, 19, 18],
-    w = [1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7]
+    pweights = [1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7]
 )
-
-clotting.pweights = clotting.w
 
 quine = RDatasets.dataset("MASS", "quine")
 quine.aweights = log.(3 .+ 3 .* quine.Days)
@@ -19,10 +17,8 @@ dobson = DataFrame(
     Counts = [18.0, 17, 15, 20, 10, 20, 25, 13, 12],
     Outcome = categorical(repeat(string.('A':'C'), outer = 3)),
     Treatment = categorical(repeat(string.('a':'c'), inner = 3)),
-    w = [1, 2, 1, 2, 3, 4, 3, 2, 1]
+    pweights = [1, 2, 1, 2, 3, 4, 3, 2, 1]
 )
-
-dobson.pweights = dobson.w
 
 itr = Iterators.product((:qr, :cholesky), (true, false))
 
