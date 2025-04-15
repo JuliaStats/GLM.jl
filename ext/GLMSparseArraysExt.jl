@@ -87,26 +87,26 @@ function GLM.cholpred(X::SparseMatrixCSC, pivot::Bool=false, wts::AbstractWeight
     SparsePredChol(X, wts)
 end
 
-function GLM.delbeta!(p::SparsePredChol{T, M, C, <:AbstractWeights}, r::Vector{T}) where {T<:BlasReal, M, C}
-    scr = p.scratchm1 = p.X
+function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}) where {T}
+    scr = Diagonal(p.wts)*p.X
     XtWX = p.Xt*scr
     c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
 
-function GLM.delbeta!(p::SparsePredChol{T, M, C, <:AbstractWeights}, r::Vector{T}, wt::Vector{T}) where {T<:BlasReal, M, C}
+function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where {T}
     scr = mul!(p.scratchm1, Diagonal(wt), p.X)
     XtWX = p.Xt * scr
-    c = cholesky!(p.chol, Hermitian(XtWX))
+    c = cholesky!(p.chol, Symmetric(XtWX))
     p.delbeta = c\ mul!(p.delbeta, adjoint(scr), r)
 end
 
-function GLM._vcov(pp::SparsePredChol, Z::Matrix, A::Matrix)
-    ## SparsePredChol does not handle rankdeficient cases
+function GLM._vcov(pp::GLM.LinPred, Z::SparseMatrixCSC, A::Matrix)
     B = Z' * Z
     V = A * B * A
     return V
 end
+
 
 LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)
 LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
