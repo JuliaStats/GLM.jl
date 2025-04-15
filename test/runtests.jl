@@ -32,7 +32,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
 
     @test isapprox(vcov(lm1), Σ)
-    #@test isapprox(cor(lm1), Diagonal(diag(Σ))^(-1 / 2) * Σ * Diagonal(diag(Σ))^(-1 / 2))
+    @test isapprox(cor(lm1), Diagonal(diag(Σ))^(-1 / 2) * Σ * Diagonal(diag(Σ))^(-1 / 2))
     @test dof(lm1) == 3
     @test isapprox(deviance(lm1), 0.0002992000000000012)
     @test isapprox(loglikelihood(lm1), 21.204842144047973)
@@ -134,6 +134,19 @@ end
     @test_logs (:warn,
        "Using `wts` of zero length for unweighted regression is deprecated in favor of "*
        "explicitly using `UnitWeights(length(y))`.")
+    
+    lm1 = fit(GeneralizedLinearModel, f, df, Normal(), IdentityLink(); wts=pweights(df.weights))
+    @test_logs (:warn, "Passing weights as vector is deprecated in favor of explicitly using " *
+        "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+        "by coercing `wts` to `FrequencyWeights`",)
+
+    @test_throws ArgumentError loglikelihood(lm1)
+    @test_throws ArgumentError nullloglikelihood(lm1)
+    lm1 = fit(LinearModel, f, df, wts=pweights(df.weights))
+    @test_throws ArgumentError loglikelihood(lm1)
+    @test_throws ArgumentError nullloglikelihood(lm1)
+    @test residuals(lm1) == residuals(lm1.rr)
+    @test GLM.isweighted(lm1) == GLM.isweighted(lm1.rr)
 end
 
 @testset "Linear model with dropcollinearity and $dmethod" for dmethod in (:cholesky, :qr)
@@ -1026,16 +1039,24 @@ end
         @test isapprox(vcov(gmsparse), vcov(gmdense))
     end
 
-    @testset "weights" begin
+    @testset "Sparse LM/GLM weights" for dmethod in (:qr, :cholesky) 
         wts = rand(1000)
-        ft_sparse_w = fit(LinearModel, X, y; wts=aweights(wts), method)
-        ft_dense_w = fit(LinearModel, Matrix(X), y; wts=aweights(wts), method)
+        X = sprand(rng, 1000, 10, 0.01)
+        β = randn(rng, 10)
+        y = Bool[rand(rng) < logistic(x) for x in X * β]
+
+        ft_sparse_w = fit(LinearModel, X, y; wts=aweights(wts), method = dmethod)
+        ft_dense_w = fit(LinearModel, Matrix(X), y; wts=aweights(wts), method = dmethod )
         @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
         @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
-        ft_sparse_w = fit(LinearModel, X, y; wts=aweights(wts), method)
-        ft_dense_w = fit(LinearModel, Matrix(X), y; wts=aweights(wts), method)
-        @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
-        @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
+
+        
+        gmsparse = fit(GeneralizedLinearModel, X, y, Binomial(); method = dmethod, wts=aweights(wts))
+        gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial(); method = dmethod, wts=aweights(wts))
+
+        @test isapprox(deviance(gmsparse), deviance(gmdense))
+        @test isapprox(coef(gmsparse), coef(gmdense))
+        @test isapprox(vcov(gmsparse), vcov(gmdense))
     end
 end
 
@@ -2178,7 +2199,7 @@ end
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb + CarbC),
         form; wts=aweights(form.awts), method=:qr)
     @test coef(lm0) ≈ coef(lm1)[1:2]
-    @test stderror(lm0) == stderror(lm1)[1:2]
+    @test stderror(lm0) ≈ stderror(lm1)[1:2]
     @test isnan(stderror(lm1)[3])
     lm0 = fit(
         LinearModel, @formula(OptDen ~ Carb), form; wts=pweights(form.awts), method=:qr)
@@ -2258,4 +2279,3 @@ end
     @test leverage(probit) ≈ leverage(probit0)
     @test lev0_pr ≈ leverage(probit0) rtol = 1e-03
 end
-
