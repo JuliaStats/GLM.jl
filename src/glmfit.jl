@@ -81,7 +81,7 @@ end
 function deviance(r::GlmResp)
     wts = weights(r)
     d = sum(r.devresid)
-    wts isa ProbabilityWeights ? d * nobs(r) / wts.sum : d
+    wts isa ProbabilityWeights ? d * nobs(r) / sum(wts) : d
 end
 
 weights(r::GlmResp) = r.wts
@@ -306,7 +306,7 @@ function nulldeviance(m::GeneralizedLinearModel)
             end
         end
         if wts isa ProbabilityWeights
-            dev /= wts.sum / nobs(m)
+            dev /= sum(wts) / nobs(m)
         end
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
@@ -339,7 +339,7 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
         end
     elseif wts isa AnalyticWeights
         @inbounds for i in eachindex(y, mu, wts)
-            ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, wts.sum, N)
+            ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, sum(wts), N)
         end
     else
         throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
@@ -902,7 +902,7 @@ end
 function varstruct(x::GeneralizedLinearModel)
     wrkwt = working_weights(x)
     wts = weights(x)
-    wrkwts = wts isa ProbabilityWeights ? wrkwt .* (nobs(x) ./ wts.sum) : wrkwt
+    wrkwts = wts isa ProbabilityWeights ? wrkwt .* (nobs(x) ./ sum(wts)) : wrkwt
     wrkres = working_residuals(x)
     r = wrkwts .* wrkres
     r
@@ -911,7 +911,7 @@ end
 function invloglikhessian(m::GeneralizedLinearModel)
     r = varstruct(m)
     wts = weights(m)
-    return inverse(m.pp) * wts.sum / nobs(m)
+    return inverse(m.pp) * sum(wts) / nobs(m)
 end
 
 inverse(f::DensePredChol) = invchol(f)
