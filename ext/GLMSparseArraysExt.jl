@@ -1,7 +1,8 @@
 module GLMSparseArraysExt
 
 using GLM, LinearAlgebra, SparseArrays
-import GLM: AbstractWeights, UnitWeights
+import GLM: AbstractWeights, UnitWeights, BlasReal, uweights
+import LinearAlgebra
 ## QR
 mutable struct SparsePredQR{T,M<:SparseMatrixCSC,F,W<:AbstractWeights} <: GLM.LinPred
     X::M                           # model matrix
@@ -12,6 +13,7 @@ mutable struct SparsePredQR{T,M<:SparseMatrixCSC,F,W<:AbstractWeights} <: GLM.Li
     wts::W
     scratch::M
 end
+
 function SparsePredQR(X::SparseMatrixCSC{T}, wts::AbstractVector) where {T}
     # The one(float(T))* part is because of a promotion issue in SPQR.jl on Julia 1.9
     fqr = qr(sparse(one(float(T)) * I, size(X)...))
@@ -30,30 +32,35 @@ function GLM.qrpred(X::SparseMatrixCSC, pivot::Bool, wts::AbstractWeights=uweigh
     SparsePredQR(X, wts)
 end
 
-function GLM.delbeta!(p::SparsePredQR{T,M,F,<:AbstractWeights}, r::Vector{T}) where {T,M,F}
-    wts = p.wts
-    wtsqrt = sqrt.(wts)
+function GLM.delbeta!(p::SparsePredQR{T}, r::Vector{T}, wt::Vector{T}) where T
+    wtsqrt = sqrt.(wt)
     Wsqrt = Diagonal(wtsqrt)
     scr = mul!(p.scratch, Wsqrt, p.X)
     p.qr = qr(scr)
-    p.delbeta = p.qr \ (Wsqrt * r)
+    p.delbeta = p.qr \ (Wsqrt*r)
 end
 
-function GLM.delbeta!(p::SparsePredQR{T,M,F,<:UnitWeights}, r::Vector{T}) where {T,M,F}
+function GLM.delbeta!(p::SparsePredQR{T, M, F, <:UnitWeights}, r::Vector{T}) where {T<:BlasReal, M, F}
     p.qr = qr(p.X)
     p.delbeta = p.qr \ r
 end
 
-function GLM.inverse(x::SparsePredQR{T}) where {T}
+function GLM.delbeta!(p::SparsePredQR{T, M, F, <:AbstractWeights}, r::Vector{T}) where {T<:BlasReal, M, F}
+    W = Diagonal(sqrt.(p.wts))
+    p.qr = qr(W*p.X)
+    p.delbeta = p.qr \ (W*r)
+end
+
+function GLM.inverse(x::SparsePredQR{T}) where T
     Rinv = UpperTriangular(x.qr.R) \ Diagonal(ones(T, size(x.qr.R, 2)))
     pinv = invperm(x.qr.pcol)
-    RinvRinvt = Rinv * Rinv'
+    RinvRinvt = Rinv*Rinv'
     return RinvRinvt[pinv, pinv]
 end
 
+
 ## Cholesky
-mutable struct SparsePredChol{T,M<:SparseMatrixCSC,C,W<:AbstractWeights} <:
-               GLM.LinPred
+mutable struct SparsePredChol{T,M<:SparseMatrixCSC,C,W<:AbstractWeights} <: GLM.LinPred
     X::M                           # model matrix
     Xt::M                          # X'
     beta0::Vector{T}               # base vector for coefficients
@@ -80,35 +87,18 @@ function GLM.cholpred(X::SparseMatrixCSC, pivot::Bool=false, wts::AbstractWeight
     SparsePredChol(X, wts)
 end
 
-function GLM.delbeta!(p::SparsePredChol{T,M,C,<:UnitWeights},
-    r::Vector{T}, wt::Vector{T}) where {T,M,C}
+function GLM.delbeta!(p::SparsePredChol{T, M, C, <:AbstractWeights}, r::Vector{T}) where {T<:BlasReal, M, C}
+    scr = p.scratchm1 = p.X
+    XtWX = p.Xt*scr
+    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
+    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
+end
+
+function GLM.delbeta!(p::SparsePredChol{T, M, C, <:AbstractWeights}, r::Vector{T}, wt::Vector{T}) where {T<:BlasReal, M, C}
     scr = mul!(p.scratchm1, Diagonal(wt), p.X)
     XtWX = p.Xt * scr
-    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
-    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
-end
-
-function GLM.delbeta!(p::SparsePredChol{T,M,C,<:AbstractWeights},
-    r::Vector{T}, wt::Vector{T}) where {T,M,C}
-    scr = mul!(p.scratchm1, Diagonal(wt .* p.wts), p.X)
-    XtWX = p.Xt * scr
-    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
-    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
-end
-
-function GLM.delbeta!(p::SparsePredChol{T,M,C,<:UnitWeights}, r::Vector{T}) where {T,M,C}
-    scr = p.X
-    XtWX = p.Xt * scr
-    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
-    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
-end
-
-function GLM.delbeta!(
-    p::SparsePredChol{T,M,C,<:AbstractWeights}, r::Vector{T}) where {T,M,C}
-    scr = p.scratchm1 .= p.X .* p.wts
-    XtWX = p.Xt * scr
-    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
-    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
+    c = cholesky!(p.chol, Hermitian(XtWX))
+    p.delbeta = c\ mul!(p.delbeta, adjoint(scr), r)
 end
 
 function GLM._vcov(pp::SparsePredChol, Z::Matrix, A::Matrix)

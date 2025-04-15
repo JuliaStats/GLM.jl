@@ -60,7 +60,7 @@ function deviance(r::LmResp)
             v += abs2(y[i] - mu[i]) * wts[i]
         end
     end
-    return wts isa ProbabilityWeights ? v ./ sum(wts) ./ length(y) : v
+    return wts isa ProbabilityWeights ? v ./ (sum(wts) / length(y)) : v
 end
 
 weights(r::LmResp) = r.wts
@@ -98,6 +98,7 @@ function residuals(r::LmResp; weighted::Bool=false)
 end
 
 link(rr::LmResp) = IdentityLink()
+
 """
     LinearModel
 
@@ -257,9 +258,10 @@ function nullloglikelihood(m::LinearModel)
         n = nobs(m)
         -n / 2 * (log(2π * nulldeviance(m) / n) + 1)
     else
-        N = length(m.rr.y)
-        n = sum(log, wts)
-        (n - N * (log(2π * nulldeviance(m)/N) + 1))/2
+        # N = length(m.rr.y)
+        # n = sum(log, wts)
+        # (n - N * (log(2π * nulldeviance(m)/N) + 1))/2
+        throw(ArgumentError("The `nullloglikelihood` for probability weighted models is not currently supported."))
     end
 end
 

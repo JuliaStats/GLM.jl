@@ -457,13 +457,6 @@ function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
         devold = dev
     end
     cvg || throw(ConvergenceException(maxiter))
-    if weights(m) isa ProbabilityWeights
-        ## wrkwts and wrkresid are scaled by 
-        # the sum of the weights divided by the number 
-        # of observations
-        #m.rr.wrkwt .*=  nobs(m)/m.pp.wts.sum
-        #m.rr.devresid .*= nobs(m)/m.pp.wts.sum
-    end
     m.fit = true
     m
 end
@@ -900,7 +893,9 @@ end
 function momentmatrix(m::GeneralizedLinearModel)
     X = modelmatrix(m; weighted=false)
     r = varstruct(m)
-    m.rr.d isa Union{Gamma, InverseGaussian} && (r .= r.*(sum(working_weights(m)) / sum(abs2, r)))
+    if link(m) isa Union{Gamma, InverseGaussian}
+        r .*= sum(working_weights(m)) / sum(abs2, r)
+    end
     return Diagonal(r) * X
 end
 

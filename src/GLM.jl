@@ -66,7 +66,7 @@ module GLM
         negbin,         # interface to fitting negative binomial regression
         nobs,           # total number of observations
         predict,        # make predictions
-        ftest,           # compare models with an F test
+        ftest,          # compare models with an F test
         fweights, 
         pweights, 
         aweights

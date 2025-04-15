@@ -2,10 +2,8 @@ rng = StableRNG(123)
 x1 = rand(rng, 50)
 x2 = ifelse.(randn(rng, 50) .> 0, 1, 0)
 y = ifelse.(0.004 .- 0.01 .* x1 .+ 1.5 .* x2 .+ randn(rng, 50) .> 0, 1, 0)
-w = rand(rng, 50) * 6
-w = floor.(w) .+ 1
-df = DataFrame(y = y, x1 = x1, x2 = x2, w = w)
-df.pweights = df.w
+df = DataFrame(y = y, x1 = x1, x2 = x2, pweights = floor.(rand(rng, 50) * 6) .+ 1)
+
 clotting = DataFrame(
     u = log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
     lot1 = [118, 58, 42, 35, 27, 25, 21, 19, 18],
@@ -119,7 +117,6 @@ end
     @test deviance(model)≈47.063354817529856 rtol=1e-07
     @test nulldeviance(model)≈60.82748267747685 rtol=1e-07
     @test coef(model)≈[-0.9897210433718, 0.449902058467, 1.5467108410611] rtol=1e-04
-    ## Test broken because of https://github.com/JuliaStats/GLM.jl/issues/509
     @test dof_residual(model) == 47.0
     @test stderror(model)≈[0.647026270959, 0.74668663622095, 0.49056337945919] rtol=1e-04
 end
@@ -315,7 +312,8 @@ end
 
 @testset "InverseGaussian ProbabilityWeights with $dmethod" for dmethod in (:cholesky, :qr)
     gm8a = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, InverseGaussian();
-        wts=pweights(9*clotting.pweights/sum(clotting.pweights)), method=dmethod, rtol = 1e-08, atol = 1e-08, minstepfac = 1e-04,)
+           wts=pweights(9*clotting.pweights/sum(clotting.pweights)), method=dmethod,
+           rtol = 1e-08, atol = 1e-08, minstepfac = 1e-04,)
     @test dof(gm8a) == 3
     @test deviance(gm8a) ≈ 0.0058836 rtol=1e-04
     @test nulldeviance(gm8a) ≈ 0.07531257 rtol=1e-04
