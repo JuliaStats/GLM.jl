@@ -44,6 +44,9 @@ end
 dmethod, drop) in itr
     model = glm(@formula(y~1 + x1 + x2), df, Binomial(), LogitLink(), wts = aweights(df.w),
         method = dmethod, dropcollinear = drop, atol = 1e-08, rtol = 1e-08)
+
+    @test_log (:warn, "non-integer #successes in a binomial/bernoulli glm")
+    
     @test deviance(model)≈39.58120350785813 rtol=1e-06
     @test loglikelihood(model)≈-19.79060175392906 rtol=1e-06
     @test coef(model)≈[0.6333582770515337, 1.8861277804531265, 18.61281712203539] rtol=1e-06
