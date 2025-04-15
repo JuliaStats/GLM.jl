@@ -486,63 +486,10 @@ function StatsBase.fit!(m::AbstractGLM;
     _fit!(m, maxiter, minstepfac, atol, rtol, start)
 end
 
-function StatsBase.fit!(m::AbstractGLM,
-    y;
-    wts=uweights(length(y)),
-    offset=nothing,
-    maxiter::Integer=30,
-    minstepfac::Real=0.001,
-    atol::Real=1e-6,
-    rtol::Real=1e-6,
-    start=nothing,
-    kwargs...)
-    if haskey(kwargs, :maxIter)
-        Base.depwarn("'maxIter' argument is deprecated, use 'maxiter' instead", :fit!)
-        maxiter = kwargs[:maxIter]
-    end
-    if haskey(kwargs, :minStepFac)
-        Base.depwarn("'minStepFac' argument is deprecated, use 'minstepfac' instead", :fit!)
-        minstepfac = kwargs[:minStepFac]
-    end
-    if haskey(kwargs, :convTol)
-        Base.depwarn(
-            "'convTol' argument is deprecated, use `atol` and `rtol` instead", :fit!)
-        rtol = kwargs[:convTol]
-    end
-    if haskey(kwargs, :verbose)
-        Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""", :fit!)
-    end
-    if !issubset(keys(kwargs), (:maxIter, :minStepFac, :convTol, :verbose))
-        throw(ArgumentError("unsupported keyword argument"))
-    end
-    if haskey(kwargs, :tol)
-        Base.depwarn("`tol` argument is deprecated, use `atol` and `rtol` instead", :fit!)
-        rtol = kwargs[:tol]
-    end
-
-    r = m.rr
-    V = typeof(r.y)
-    copy!(r.y, y)
-    isa(offset, Nothing) || copy!(r.offset, offset)
-    initialeta!(r.eta, r.d, r.l, r.y, r.wts, r.offset)
-    updateμ!(r, r.eta)
-    fill!(m.pp.beta0, 0)
-    m.fit = false
-    m.maxiter = maxiter
-    m.minstepfac = minstepfac
-    m.atol = atol
-    m.rtol = rtol
-    if dofit
-        _fit!(m, maxiter, minstepfac, atol, rtol, start)
-    else
-        m
-    end
-end
-
 const FIT_GLM_DOC = """
     In the first method, `formula` must be a
     [StatsModels.jl `Formula` object](https://juliastats.org/StatsModels.jl/stable/formula/)
-    and `data` a table (in the [Tables.jl](https://tables.juliadata.org/stable/) definition, e.g. a data frame).
+    and `data` a table (in the [Tables.jl](https://tables.juliadata.org/stable/) definition, e.g., a data frame).
     In the second method, `X` must be a matrix holding values of the independent variable(s)
     in columns (including if appropriate the intercept), and `y` must be a vector holding
     values of the dependent variable.
@@ -872,7 +819,7 @@ function checky(y, d::Binomial)
 end
 
 function nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:AbstractWeights}
-    oftype(sum(one(eltype(r.wts))), length(r.y))
+    oftype(sum(one(eltype(weights(r)))), length(r.y))
 end
 nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = sum(r.wts)
 
@@ -887,7 +834,7 @@ function residuals(r::GlmResp; weighted::Bool=false)
     end
 
     if weighted
-        dres .*= sqrt.(r.wts)
+        dres .*= sqrt.(weights(r))
     end
 
     return dres
