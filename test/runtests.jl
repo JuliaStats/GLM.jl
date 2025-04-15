@@ -1057,6 +1057,18 @@ end
         @test isapprox(deviance(gmsparse), deviance(gmdense))
         @test isapprox(coef(gmsparse), coef(gmdense))
         @test isapprox(vcov(gmsparse), vcov(gmdense))
+
+        ft_sparse_w = fit(LinearModel, X, y; wts=pweights(wts), method = dmethod)
+        ft_dense_w = fit(LinearModel, Matrix(X), y; wts=pweights(wts), method = dmethod )
+        @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
+        @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
+        
+        gmsparse = fit(GeneralizedLinearModel, X, y, Binomial(); method = dmethod, wts=pweights(wts))
+        gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial(); method = dmethod, wts=pweights(wts))
+
+        @test isapprox(deviance(gmsparse), deviance(gmdense))
+        @test isapprox(coef(gmsparse), coef(gmdense))
+        @test isapprox(vcov(gmsparse), vcov(gmdense))
     end
 end
 
