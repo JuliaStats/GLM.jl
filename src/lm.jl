@@ -381,10 +381,7 @@ function momentmatrix(m::LinearModel)
     X = modelmatrix(m; weighted=false)
     r = residuals(m; weighted=false)
     mm = X .* r
-    @show typeof(mm)
-    if isweighted(m)
-        mm .*= weights(m)
-    end
+    isweighted(m) && (mm .*= weights(m))
     return mm
 end
 
