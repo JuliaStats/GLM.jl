@@ -56,11 +56,13 @@ function GLM.inverse(x::SparsePredQR{T}) where T
     ipiv = invperm(x.qr.pcol)
     if rnk < size(x.X, 2)
         ## rank deficient
-        Rinv = UpperTriangular(view(x.qr.R, 1:rnk, 1:rnk)) \ Diagonal(ones(T, rnk))
+        #Rinv = UpperTriangular(view(x.qr.R, 1:rnk, 1:rnk)) \ Diagonal(ones(T, rnk))
+        Rinv = view(x.qr.R, 1:rnk, 1:rnk) \ Diagonal(ones(T, rnk))
         xinv = similar(Rinv, size(x.X, 2), size(x.X, 2))        
-        xinv[ipiv[1:rnk], ipiv[1:rnk]] .= Rinv_ * Rinv_'
-        xinv[ipiv[rnk+1:end], :] .= NaN
-        xinv[:, ipiv[rnk+1:end]] .= NaN
+        xinv[1:rnk, 1:rnk] .= Rinv * Rinv'
+        xinv[rnk+1:end, :] .= NaN
+        xinv[:, rnk+1:end] .= NaN
+        xinv = xinv[ipiv, ipiv]
     else
         Rinv = UpperTriangular(x.qr.R) \ Diagonal(ones(T, rnk))
         xinv = Rinv * Rinv'
@@ -98,16 +100,16 @@ function GLM.cholpred(X::SparseMatrixCSC, pivot::Bool=false, wts::AbstractWeight
     SparsePredChol(X, wts)
 end
 
-function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}) where {T}
-    scr = mul!(p.scratchm1, Diagonal(p.wts), p.X)
-    XtWX = p.Xt*scr
+function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where {T}
+    scr = mul!(p.scratchm1, Diagonal(wt), p.X)
+    XtWX = p.Xt * scr
     c = cholesky!(p.chol, Symmetric(XtWX))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
 
-function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where {T}
-    scr = mul!(p.scratchm1, Diagonal(wt), p.X)
-    XtWX = p.Xt * scr
+function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}) where {T}
+    scr = mul!(p.scratchm1, Diagonal(p.wts), p.X)
+    XtWX = p.Xt*scr
     c = cholesky!(p.chol, Symmetric(XtWX))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end

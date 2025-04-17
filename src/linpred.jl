@@ -92,7 +92,7 @@ end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where {T<:BlasReal}
     r̃ = p.wts isa UnitWeights ? r : (wtsqrt = sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
-    rnk = rank(p.qr.R)
+    rnk = linpred_rank(p)
     if rnk == length(p.delbeta)
         p.delbeta = p.qr \ r̃
     else
@@ -266,19 +266,17 @@ end
 function invqr(p::DensePredQR{T,<:QRPivoted,<:AbstractWeights}) where {T}
     rnk = linpred_rank(p)
     k = length(p.delbeta)
+    ipiv = invperm(p.qr.p)
     if rnk == k
         Rinv = inv(p.qr.R)
         xinv = Rinv * Rinv'
-        ipiv = invperm(p.qr.p)
-        return xinv[ipiv, ipiv]
     else
         Rsub = UpperTriangular(view(p.qr.R, 1:rnk, 1:rnk))
         RsubInv = inv(Rsub)
         xinv = fill(convert(T, NaN), (k, k))
         xinv[1:rnk, 1:rnk] = RsubInv * RsubInv'
-        ipiv = invperm(p.qr.p)
-        return xinv[ipiv, ipiv]
     end
+    return xinv[ipiv, ipiv]
 end
 
 invchol(x::DensePred) = inv(cholesky!(x))

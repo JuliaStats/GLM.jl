@@ -1020,6 +1020,48 @@ end
     @test isapprox(vcov(gmsparse), vcov(gmdense))
 end
 
+@testset "Sparse GLM (rank deficient)" begin
+    rng = StableRNG(1)
+    X = sprand(rng, 1000, 10, 0.01)
+    β = randn(rng, 12)
+    X = [X[:, 1:8] X[:, 1:2] X[:, 9:10]]
+    y = Bool[rand(rng) < logistic(x) for x in X * β]
+
+    gmsparse = fit(GeneralizedLinearModel, X, y, Binomial(); method=:qr, rtol = 1.0e-8)
+    gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial(); method=:qr, rtol = 1.0e-8)
+
+    @test isapprox(deviance(gmsparse), deviance(gmdense))
+    @test isapprox(coef(gmsparse), coef(gmdense))
+    inan = isnan.(vcov(gmdense))
+    @test isnan.(vcov(gmsparse)) == inan
+    @test vcov(gmsparse)[.!inan] ≈ vcov(gmdense)[.!inan]
+    se0 = [1.4287165; 1.0703834; 1.2612823; 1.0018692; 1.3699154; 
+           5.32805; 2.0248812; 0.9454645; 1.3078763; 2.0653020]
+    se = stderror(gmsparse)
+    @test se[.!isnan.(se)] ≈ se0 atol = 1e-05
+end
+
+@testset "Sparse GLM weights (rank deficient)" begin
+    rng = StableRNG(1)
+    X = sprand(rng, 1000, 10, 0.5)
+    β = randn(rng, 12)
+    X = [X[:, 1:8] X[:, 1:2] X[:, 9:10]]
+    y = Bool[rand(rng) < logistic(x) for x in X * β]
+    w = rand(rng, 1000)
+    gmsparse = fit(LinearModel, X, y; wts = aweights(w), method=:qr)
+    gmdense = fit(LinearModel, Matrix(X), y; wts = aweights(w), method=:qr)
+    isnans = isnan.(stderror(gmsparse))
+    isnand = isnan.(stderror(gmdense))
+
+    @test isapprox(sort(coef(gmsparse)[.!isnans]), sort(coef(gmdense)[.!isnand]))
+    inand = isnan.(vcov(gmdense))
+    inans = isnan.(vcov(gmsparse))
+    se0 = [0.04834967;0.04718502;0.04734963;0.04692182;0.04834876; 0.04643505;
+           0.04393111; 0.04591312; 0.04518676; 0.04779138]
+    se = stderror(gmsparse)
+    @test se[.!isnans] ≈ se0 atol = 1e-05
+end
+
 @testset "Sparse LM" for method in (:qr, :cholesky)
     rng = StableRNG(1)
     X = sprand(rng, 1000, 10, 0.01)

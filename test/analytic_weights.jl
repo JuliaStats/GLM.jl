@@ -44,14 +44,13 @@ end
 dmethod, drop) in itr
     model = glm(@formula(y~1 + x1 + x2), df, Binomial(), LogitLink(), wts = aweights(df.w),
         method = dmethod, dropcollinear = drop, atol = 1e-08, rtol = 1e-08)
-
-    @test_throws ArgumentError loglikelihood(model)
-    
     @test deviance(model)≈39.58120350785813 rtol=1e-06
     @test coef(model)≈[0.6333582770515337, 1.8861277804531265, 18.61281712203539] rtol=1e-06
     @test stderror(model)≈[0.9021013750843575, 2.063002891039618, 2337.217357530545] rtol=1e-07
-    @test aic(model)≈45.58120350785812 rtol=1e-07
-    @test bic(model)≈49.237830982462725 rtol=1e-07
+    @test_throws ArgumentError loglikelihood(model)
+    @test_throws ArgumentError nullloglikelihood(model)
+    @test_throws ArgumentError aic(model)
+    @test_throws ArgumentError bic(model)
     @test GLM.momentmatrix(model)≈[1.095702695280752 0.1983501744547734 0.0;
                                    0.6292210259386299 0.2312324009639611 0.0;
                                    -0.869357286789858 -0.5816508224007081 -0.0;
@@ -84,11 +83,12 @@ dmethod, drop) in itr
     model = glm(@formula(y~1 + x1 + x2), df, Binomial(), ProbitLink(),
         wts = aweights(df.w), method = dmethod, dropcollinear = drop, rtol = 1e-09)
     @test deviance(model)≈39.595360462143866 rtol=1e-06
-    @test loglikelihood(model)≈-19.797680231071933 rtol=1e-06
     @test coef(model)≈[0.42120722997197313, 1.0416447141541567, 4.916910225354065] rtol=1e-07
     @test stderror(model)≈[0.5216506352923727, 1.1455457218079563, 325.2782732702344] rtol=1e-07
-    @test aic(model)≈45.595360462143866 rtol=1e-07
-    @test bic(model)≈49.25198793674846 rtol=1e-07
+    @test_throws ArgumentError loglikelihood(model)
+    @test_throws ArgumentError nullloglikelihood(model)
+    @test_throws ArgumentError aic(model)
+    @test_throws ArgumentError bic(model)
     @test GLM.momentmatrix(model)≈[1.8176341588673794 0.32903820904987535 0.0;
                                    1.0975399310212473 0.40333489019264895 0.0;
                                    -1.6205390909958874 -1.0842353418245372 -0.0;
@@ -122,9 +122,10 @@ dmethod, drop) in itr
         @formula(y~1 + x1 + x2), df, Binomial(), CauchitLink(), wts = aweights(df.w),
         method = dmethod, dropcollinear = drop, rtol = 1e-08, atol = 1e-08)
     @test deviance(model)≈39.627559015619845 rtol=1e-07
-    @test loglikelihood(model)≈-19.813779507809922 rtol=1e-07
-    @test aic(model)≈45.627559015619845 rtol=1e-07
-    @test bic(model)≈49.28418649022444 rtol=1e-07
+    @test_throws ArgumentError loglikelihood(model)
+    @test_throws ArgumentError nullloglikelihood(model)
+    @test_throws ArgumentError aic(model)
+    @test_throws ArgumentError bic(model)
     @test GLM.momentmatrix(model)≈[1.003054020887253 0.1815783979426737 0.0;
                                    0.4264622162277366 0.15672057689370572 0.0;
                                    -0.41221991029044563 -0.27579920646405165 -0.0;
@@ -158,11 +159,12 @@ dmethod, drop) in itr
         @formula(y~1 + x1 + x2), df, Binomial(), CloglogLink(), wts = aweights(df.w),
         method = dmethod, dropcollinear = drop, rtol = 5e-10, atol = 1e-10)
     @test deviance(model)≈39.61484762863061 rtol=1e-07
-    @test loglikelihood(model)≈-19.807423814315307 rtol=1e-07
     @test coef(model)≈[0.12095167614339054, 0.8666201161364425, 2.71457411130009] rtol=1e-07
     @test stderror(model)≈[0.46442064138194333, 0.9661962332997427, 462.67067410332123] rtol=1e-07
-    @test aic(model)≈45.61484762863061 rtol=1e-07
-    @test bic(model)≈49.27147510323522 rtol=1e-07
+    @test_throws ArgumentError loglikelihood(model)
+    @test_throws ArgumentError nullloglikelihood(model)
+    @test_throws ArgumentError aic(model)
+    @test_throws ArgumentError bic(model)
     @test GLM.momentmatrix(model)≈[1.9242952153533148 0.3483465846271526 0.0;
                                    1.2514530854268051 0.45989642702311906 0.0;
                                    -2.0153062620933504 -1.348357645985017 -0.0;
@@ -797,11 +799,11 @@ admit_agr = DataFrame(count = [28.0, 97, 93, 55, 33, 54, 28, 12],
         @test dof(gm14) == 4
         @test nobs(gm14) == 8
         @test isapprox(deviance(gm14), 474.9667184280627)
-        @test isapprox(loglikelihood(gm14), -237.48335921403134)
-        @test isapprox(aic(gm14), 482.96671842822883)
-        @test isapprox(aicc(gm14), 496.3000517613874)
-        @test isapprox(bic(gm14), 483.28448459477346)
         @test isapprox(coef(gm14),
             [0.164303051291, -0.7500299832, -1.36469792994, -1.68672866457], atol = 1e-5)
+        @test_throws ArgumentError loglikelihood(gm14)
+        @test_throws ArgumentError aic(gm14)
+        @test_throws ArgumentError aicc(gm14)
+        @test_throws ArgumentError bic(gm14)
     end
 end
