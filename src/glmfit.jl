@@ -850,12 +850,11 @@ function momentmatrix(m::GeneralizedLinearModel)
 end
 
 function varstruct(x::GeneralizedLinearModel)
-    wrkwt = working_weights(x)
+    wrkwts = working_weights(x)
     wts = weights(x)
-    wrkwts = wts isa ProbabilityWeights ? wrkwt .* (nobs(x) ./ sum(wts)) : wrkwt
+    wts isa ProbabilityWeights && (wrkwts .*= nobs(x) / sum(wts))
     wrkres = working_residuals(x)
-    r = wrkwts .* wrkres
-    r
+    return wrkwts .* wrkres
 end
 
 function invloglikhessian(m::GeneralizedLinearModel)
