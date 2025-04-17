@@ -52,10 +52,21 @@ function GLM.delbeta!(p::SparsePredQR{T, M, F, <:AbstractWeights}, r::Vector{T})
 end
 
 function GLM.inverse(x::SparsePredQR{T}) where T
-    Rinv = UpperTriangular(x.qr.R) \ Diagonal(ones(T, size(x.qr.R, 2)))
-    pinv = invperm(x.qr.pcol)
-    RinvRinvt = Rinv*Rinv'
-    return RinvRinvt[pinv, pinv]
+    rnk = GLM.linpred_rank(x)
+    ipiv = invperm(x.qr.pcol)
+    if rnk < size(x.X, 2)
+        ## rank deficient
+        Rinv = UpperTriangular(view(x.qr.R, 1:rnk, 1:rnk)) \ Diagonal(ones(T, rnk))
+        xinv = similar(Rinv, size(x.X, 2), size(x.X, 2))        
+        xinv[ipiv[1:rnk], ipiv[1:rnk]] .= Rinv_ * Rinv_'
+        xinv[ipiv[rnk+1:end], :] .= NaN
+        xinv[:, ipiv[rnk+1:end]] .= NaN
+    else
+        Rinv = UpperTriangular(x.qr.R) \ Diagonal(ones(T, rnk))
+        xinv = Rinv * Rinv'
+        xinv = xinv[ipiv, ipiv]
+    end
+    return xinv
 end
 
 
@@ -88,9 +99,9 @@ function GLM.cholpred(X::SparseMatrixCSC, pivot::Bool=false, wts::AbstractWeight
 end
 
 function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}) where {T}
-    scr = Diagonal(p.wts)*p.X
+    scr = mul!(p.scratchm1, Diagonal(p.wts), p.X)
     XtWX = p.Xt*scr
-    c = p.chol = cholesky(Symmetric{eltype(XtWX),typeof(XtWX)}(XtWX, 'L'))
+    c = cholesky!(p.chol, Symmetric(XtWX))
     p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
 
@@ -98,21 +109,16 @@ function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where {
     scr = mul!(p.scratchm1, Diagonal(wt), p.X)
     XtWX = p.Xt * scr
     c = cholesky!(p.chol, Symmetric(XtWX))
-    p.delbeta = c\ mul!(p.delbeta, adjoint(scr), r)
+    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
-
-function GLM._vcov(pp::GLM.LinPred, Z::SparseMatrixCSC, A::Matrix)
-    B = Z' * Z
-    V = A * B * A
-    return V
-end
-
 
 LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)
 LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 
 GLM.invchol(x::SparsePredChol) = cholesky!(x) \ Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
-
 GLM.inverse(x::SparsePredChol) = GLM.invchol(x)
+
+GLM.linpred_rank(p::SparsePredChol) = rank(sparse(p.chol))
+GLM.linpred_rank(p::SparsePredQR) = rank(p.qr)
 
 end

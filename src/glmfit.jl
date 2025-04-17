@@ -339,7 +339,7 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
         end
     elseif wts isa AnalyticWeights
         if d isa Union{Bernoulli, Binomial} 
-            @warn "non-integer #successes in a binomial/bernoulli glm"
+            throw(ArgumentError("The `loglikelihood` for analytic weighted models is not supported."))    
         end
         @inbounds for i in eachindex(y, mu, wts)
             ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, sum(wts), N)
@@ -367,6 +367,13 @@ function nullloglikelihood(m::GeneralizedLinearModel)
         if wts isa Union{FrequencyWeights,UnitWeights}
             @inbounds for i in eachindex(y, wts)
                 ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
+            end
+        elseif wts isa AnalyticWeights
+            if d isa Union{Bernoulli, Binomial} 
+                throw(ArgumentError("The `loglikelihood` for analytic weighted models is not supported."))    
+            end
+            @inbounds for i in eachindex(y, mu, wts)
+                ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, sum(wts), N)
             end
         else
             throw(ArgumentError("The `nullloglikelihood` for probability weighted models is not currently supported."))
@@ -852,9 +859,12 @@ end
 function varstruct(x::GeneralizedLinearModel)
     wrkwts = working_weights(x)
     wts = weights(x)
-    wts isa ProbabilityWeights && (wrkwts .*= nobs(x) / sum(wts))
     wrkres = working_residuals(x)
-    return wrkwts .* wrkres
+    if wts isa ProbabilityWeights
+        return wrkwts .* wrkres .* (nobs(x) / sum(wts))
+    else
+        return wrkwts .* wrkres
+    end
 end
 
 function invloglikhessian(m::GeneralizedLinearModel)
@@ -862,6 +872,3 @@ function invloglikhessian(m::GeneralizedLinearModel)
     wts = weights(m)
     return inverse(m.pp) * sum(wts) / nobs(m)
 end
-
-inverse(f::DensePredChol) = invchol(f)
-innverse(f::DensePredQR) = invqr(f)

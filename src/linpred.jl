@@ -323,7 +323,7 @@ end
 
 link(x::LinPredModel) = link(x.rr)
 
-function _vcov(pp::DensePred, Z::Matrix, A::Matrix)
+function _vcov(pp, Z, A)
     if linpred_rank(pp) < size(Z, 2)
         nancols = [all(isnan, col) for col in eachcol(A)]
         nnancols = .!nancols
@@ -331,7 +331,7 @@ function _vcov(pp::DensePred, Z::Matrix, A::Matrix)
         Zv = view(Z, :, nidx)
         B = Zv'Zv
         Av = view(A, nidx, nidx)
-        V = similar(pp.scratchm1, (size(A)...))
+        V = similar(A, (size(A)...))
         V[nidx, nidx] = Av * B * Av
         V[idx, :] .= NaN
         V[:, idx] .= NaN

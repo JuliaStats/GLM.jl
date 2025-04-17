@@ -1038,39 +1038,36 @@ end
         @test isapprox(coef(gmsparse), coef(gmdense))
         @test isapprox(vcov(gmsparse), vcov(gmdense))
     end
-
-    @testset "Sparse LM/GLM weights" for dmethod in (:qr, :cholesky) 
-        wts = rand(1000)
-        X = sprand(rng, 1000, 10, 0.01)
-        β = randn(rng, 10)
-        y = Bool[rand(rng) < logistic(x) for x in X * β]
-
-        ft_sparse_w = fit(LinearModel, X, y; wts=aweights(wts), method = dmethod)
-        ft_dense_w = fit(LinearModel, Matrix(X), y; wts=aweights(wts), method = dmethod )
-        @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
-        @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
-
-        
-        gmsparse = fit(GeneralizedLinearModel, X, y, Binomial(); method = dmethod, wts=aweights(wts))
-        gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial(); method = dmethod, wts=aweights(wts))
-
-        @test isapprox(deviance(gmsparse), deviance(gmdense))
-        @test isapprox(coef(gmsparse), coef(gmdense))
-        @test isapprox(vcov(gmsparse), vcov(gmdense))
-
-        ft_sparse_w = fit(LinearModel, X, y; wts=pweights(wts), method = dmethod)
-        ft_dense_w = fit(LinearModel, Matrix(X), y; wts=pweights(wts), method = dmethod )
-        @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
-        @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
-        
-        gmsparse = fit(GeneralizedLinearModel, X, y, Binomial(); method = dmethod, wts=pweights(wts))
-        gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial(); method = dmethod, wts=pweights(wts))
-
-        @test isapprox(deviance(gmsparse), deviance(gmdense))
-        @test isapprox(coef(gmsparse), coef(gmdense))
-        @test isapprox(vcov(gmsparse), vcov(gmdense))
-    end
 end
+
+@testset "Sparse LM/GLM weights" for dmethod in (:qr, :cholesky) 
+    rng = StableRNG(1)
+    wts = rand(1000)
+    X = sprand(rng, 1000, 10, 0.01)
+    β = randn(rng, 10)
+    y = Bool[rand(rng) < logistic(x) for x in X * β]
+    ft_sparse_w = fit(LinearModel, X, y; wts=aweights(wts), method = dmethod)
+    ft_dense_w = fit(LinearModel, Matrix(X), y; wts=aweights(wts), method = dmethod )
+    @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
+    @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
+    
+    gmsparse = fit(GeneralizedLinearModel, X, y, Binomial(); method = dmethod, wts=aweights(wts))
+    gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial(); method = dmethod, wts=aweights(wts))
+    @test isapprox(deviance(gmsparse), deviance(gmdense))
+    @test isapprox(coef(gmsparse), coef(gmdense))
+    @test isapprox(vcov(gmsparse), vcov(gmdense))
+    ft_sparse_w = fit(LinearModel, X, y; wts=pweights(wts), method = dmethod)
+    ft_dense_w = fit(LinearModel, Matrix(X), y; wts=pweights(wts), method = dmethod )
+    @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
+    @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
+    
+    gmsparse = fit(GeneralizedLinearModel, X, y, Binomial(); method = dmethod, wts=pweights(wts))
+    gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial(); method = dmethod, wts=pweights(wts))
+    @test isapprox(deviance(gmsparse), deviance(gmdense))
+    @test isapprox(coef(gmsparse), coef(gmdense))
+    @test isapprox(vcov(gmsparse), vcov(gmdense))
+end
+
 
 @testset "Predict" for dmethod in (:cholesky, :qr)
     # Binomial GLM
