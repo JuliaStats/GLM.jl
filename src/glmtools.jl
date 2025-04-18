@@ -374,20 +374,20 @@ mustart(::Bernoulli, y, wt) = (y + oftype(y, 1 / 2)) / 2
 mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1 / 2)) / (wt + one(y))
 function mustart(::Union{Gamma,InverseGaussian}, y, wt)
     fy = float(y)
-    iszero(y) ? oftype(y, 1 / 10) : fy
+    return iszero(y) ? oftype(y, 1 / 10) : fy
 end
 function mustart(::Geometric, y, wt)
     fy = float(y)
-    iszero(y) ? fy + oftype(fy, 1 / 6) : fy
+    return iszero(y) ? fy + oftype(fy, 1 / 6) : fy
 end
 function mustart(::NegativeBinomial, y, wt)
     fy = float(y)
-    iszero(y) ? fy + oftype(fy, 1 / 6) : fy
+    return iszero(y) ? fy + oftype(fy, 1 / 6) : fy
 end
 mustart(::Normal, y, wt) = y
 function mustart(::Poisson, y, wt)
     fy = float(y)
-    fy + oftype(fy, 1 / 10)
+    return fy + oftype(fy, 1 / 10)
 end
 
 """
@@ -506,31 +506,47 @@ loglik_obs(::Poisson, y, μ, wt, ϕ) = wt * logpdf(Poisson(μ), y)
 # The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
 #    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
 # Hence, p = θ/(μ+θ)
-loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt * logpdf(NegativeBinomial(d.r,
-                                                                            d.r / (μ + d.r)), y)
+function loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ)
+    return wt * logpdf(NegativeBinomial(d.r,
+                                        d.r / (μ + d.r)), y)
+end
 
 ## Slight different interface for analytic and probability weights
 ## ϕ is the deviance - not the deviance/n nor sum(wt)
 ## sumwt is sum(wt)
 ## n is the number of observations
-loglik_apweights_obs(::Bernoulli, y, μ, wt, ϕ, sumwt, n) = logpdf(Binomial(round(Int, wt),
-                                                                           μ),
-                                                                  round(wt * y))
-loglik_apweights_obs(::Binomial, y, μ, wt, ϕ, sumwt, n) = logpdf(Binomial(round(Int, wt),
-                                                                          μ), round(wt * y))
-loglik_apweights_obs(::Gamma, y, μ, wt, ϕ, sumwt, n) = wt * logpdf(Gamma(inv(ϕ / sumwt),
-                                                                         μ * ϕ / sumwt), y)
-loglik_apweights_obs(::Geometric, y, μ, wt, ϕ, sumwt, n) = wt *
-                                                           logpdf(Geometric(1 / (μ + 1)), y)
-loglik_apweights_obs(::InverseGaussian, y, μ, wt, ϕ, sumwt, n) = -(wt * (1 +
-                                                                         log(2π * (ϕ / sumwt))) +
-                                                                   3 * log(y) * wt) / 2
-loglik_apweights_obs(::Normal, y, μ, wt, ϕ, sumwt, n) = ((-log(2π * ϕ / n) - 1) + log(wt)) /
-                                                        2
+function loglik_apweights_obs(::Bernoulli, y, μ, wt, ϕ, sumwt, n)
+    return logpdf(Binomial(round(Int, wt),
+                           μ),
+                  round(wt * y))
+end
+function loglik_apweights_obs(::Binomial, y, μ, wt, ϕ, sumwt, n)
+    return logpdf(Binomial(round(Int, wt),
+                           μ), round(wt * y))
+end
+function loglik_apweights_obs(::Gamma, y, μ, wt, ϕ, sumwt, n)
+    return wt * logpdf(Gamma(inv(ϕ / sumwt),
+                             μ * ϕ / sumwt), y)
+end
+function loglik_apweights_obs(::Geometric, y, μ, wt, ϕ, sumwt, n)
+    return wt *
+           logpdf(Geometric(1 / (μ + 1)), y)
+end
+function loglik_apweights_obs(::InverseGaussian, y, μ, wt, ϕ, sumwt, n)
+    return -(wt * (1 +
+                   log(2π * (ϕ / sumwt))) +
+             3 * log(y) * wt) / 2
+end
+function loglik_apweights_obs(::Normal, y, μ, wt, ϕ, sumwt, n)
+    return ((-log(2π * ϕ / n) - 1) + log(wt)) /
+           2
+end
 loglik_apweights_obs(::Poisson, y, μ, wt, ϕ, sumwt, n) = wt * logpdf(Poisson(μ), y)
-loglik_apweights_obs(d::NegativeBinomial, y, μ, wt, ϕ, sumwt, n) = wt *
-                                                                   logpdf(NegativeBinomial(d.r,
-                                                                                           d.r /
-                                                                                           (μ +
-                                                                                            d.r)),
-                                                                          y)
+function loglik_apweights_obs(d::NegativeBinomial, y, μ, wt, ϕ, sumwt, n)
+    return wt *
+           logpdf(NegativeBinomial(d.r,
+                                   d.r /
+                                   (μ +
+                                    d.r)),
+                  y)
+end

@@ -18,7 +18,7 @@ function simplemm(x::AbstractVecOrMat)
     n = size(x, 2)
     mat = fill(one(float(eltype(x))), length(x), n + 1)
     copyto!(view(mat, :, 2:(n + 1)), x)
-    mat
+    return mat
 end
 
 linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
@@ -105,7 +105,7 @@ end
 end
 
 @testset "Cook's Distance in Linear Model with $dmethod" for dmethod in (:cholesky, :qr)
-    st_df = DataFrame(Y=[6.4, 7.4, 10.4, 15.1, 12.3, 11.4],
+    st_df = DataFrame(; Y=[6.4, 7.4, 10.4, 15.1, 12.3, 11.4],
                       XA=[1.5, 6.5, 11.5, 19.9, 17.0, 15.5],
                       XB=[1.8, 7.8, 11.8, 20.5, 17.3, 15.8],
                       XC=[3.0, 13.0, 23.0, 39.8, 34.0, 31.0],
@@ -132,8 +132,8 @@ end
 
     # linear regression, two full collinear variables (XC = 2 XA) hence should get the same results as the original
     # after pivoting
-    t_lm_colli = lm(@formula(Y ~ XA + XC), st_df, dropcollinear=true)
-    t_lm_colli_b = lm(@formula(Y ~ XC), st_df, dropcollinear=true)
+    t_lm_colli = lm(@formula(Y ~ XA + XC), st_df; dropcollinear=true)
+    t_lm_colli_b = lm(@formula(Y ~ XC), st_df; dropcollinear=true)
     @test isapprox(cooksdistance(t_lm_colli), cooksdistance(t_lm_colli_b))
 end
 
@@ -147,9 +147,10 @@ end
                 "Passing weights as vector is deprecated in favor of explicitly using " *
                 "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                 "by coercing `wts` to `FrequencyWeights`")
-    lm_model = lm(f, df, wts=df.weights; method=dmethod)
-    glm_model = glm(f, df, Normal(), wts=df.weights; method=dmethod)
+    lm_model = lm(f, df; wts=df.weights, method=dmethod)
+    glm_model = glm(f, df, Normal(); wts=df.weights, method=dmethod)
     @test residuals(lm_model) ≈ residuals(lm_model)
+    @test residuals(lm_model.rr) ≈ residuals(lm_model)
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
@@ -167,7 +168,7 @@ end
     @test r2(lm_model) ≈ 0.8330258148644486
     @test adjr2(lm_model) ≈ 0.832788298242634
 
-    lm_model = fit(LinearModel, f, df, wts=uweights(0))
+    lm_model = fit(LinearModel, f, df; wts=uweights(0))
     @test_logs (:warn,
                 "Using `wts` of zero length for unweighted regression is deprecated in favor of " *
                 "explicitly using `UnitWeights(length(y))`." *
@@ -183,7 +184,7 @@ end
 
     @test_throws ArgumentError loglikelihood(lm1)
     @test_throws ArgumentError nullloglikelihood(lm1)
-    lm1 = fit(LinearModel, f, df, wts=pweights(df.weights))
+    lm1 = fit(LinearModel, f, df; wts=pweights(df.weights))
     @test_throws ArgumentError loglikelihood(lm1)
     @test_throws ArgumentError nullloglikelihood(lm1)
     @test residuals(lm1) == residuals(lm1.rr)
@@ -212,8 +213,8 @@ end
 @testset "Linear model with $dmethod and rankdeficieny" for dmethod in (:cholesky, :qr)
     rng = StableRNG(1234321)
     # an example of rank deficiency caused by a missing cell in a table
-    dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner=6)),
-                      categorical(repeat(string.('a':'c'), inner=2, outer=4))],
+    dfrm = DataFrame([categorical(repeat(string.('A':'D'); inner=6)),
+                      categorical(repeat(string.('a':'c'); inner=2, outer=4))],
                      [:G, :H])
     f = @formula(0 ~ 1 + G * H)
     X = ModelMatrix(ModelFrame(f, dfrm)).m
@@ -271,7 +272,7 @@ end
 end
 
 @testset "saturated linear model" for dmethod in (:cholesky, :qr)
-    df1 = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
+    df1 = DataFrame(; x=["a", "b", "c"], y=[1, 2, 3])
     model = lm(@formula(y ~ x), df1; method=dmethod)
     ct = coeftable(model)
     @test dof_residual(model) == 0
@@ -317,7 +318,7 @@ end
                    Inf 0.0 1.0 -Inf Inf])
 
     # Saturated and rank-deficient model
-    df2 = DataFrame(x1=["a", "b", "c"], x2=["a", "b", "c"], y=[1, 2, 3])
+    df2 = DataFrame(; x1=["a", "b", "c"], x2=["a", "b", "c"], y=[1, 2, 3])
     for model in (lm(@formula(y ~ x1 + x2), df2; method=dmethod),
                   glm(@formula(y ~ x1 + x2), df2, Normal(), IdentityLink(); method=dmethod))
         ct = coeftable(model)
@@ -339,7 +340,7 @@ end
         # test case to test r2 for no intercept model
         # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt1.dat
 
-        data = DataFrame(x=60:70, y=130:140)
+        data = DataFrame(; x=60:70, y=130:140)
 
         mdl = lm(@formula(y ~ 0 + x), data; method=:cholesky)
         @test coef(mdl) ≈ [2.07438016528926]
@@ -363,7 +364,7 @@ end
         # test case to test r2 for no intercept model
         # https://www.itl.nist.gov/div898/strd/lls/data/LINKS/DATA/NoInt2.dat
 
-        data = DataFrame(x=[4, 5, 6], y=[3, 4, 4])
+        data = DataFrame(; x=[4, 5, 6], y=[3, 4, 4])
 
         mdl = lm(@formula(y ~ 0 + x), data; method=:cholesky)
         @test coef(mdl) ≈ [0.727272727272727]
@@ -384,7 +385,7 @@ end
     @testset "Test with without formula" begin
         X = [4 5 6]'
         y = [3, 4, 4]
-        data = DataFrame(x=[4, 5, 6], y=[3, 4, 4])
+        data = DataFrame(; x=[4, 5, 6], y=[3, 4, 4])
 
         mdl1 = lm(@formula(y ~ 0 + x), data; method=dmethod)
         mdl2 = lm(X, y)
@@ -407,7 +408,7 @@ end
 
 @testset "Linear model with QR method and NASTY data" begin
     x = [1, 2, 3, 4, 5, 6, 7, 8, 9]
-    nasty = DataFrame(X=x, TINY=1.0E-12 * x)
+    nasty = DataFrame(; X=x, TINY=1.0E-12 * x)
     mdl = lm(@formula(X ~ TINY), nasty)
     @test coef(mdl) ≈ [0, 1.0E+12]
     @test dof(mdl) ≈ 3
@@ -415,9 +416,9 @@ end
     @test adjr2(mdl) ≈ 1.0
 end
 
-dobson = DataFrame(Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
-                   Outcome=categorical(repeat(string.('A':'C'), outer=3)),
-                   Treatment=categorical(repeat(string.('a':'c'), inner=3)))
+dobson = DataFrame(; Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
+                   Outcome=categorical(repeat(string.('A':'C'); outer=3)),
+                   Treatment=categorical(repeat(string.('a':'c'); inner=3)))
 
 @testset "Poisson GLM with $dmethod" for dmethod in (:cholesky, :qr)
     gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
@@ -530,7 +531,7 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
 
 @testset "Normal offset with $dmethod" for dmethod in (:cholesky, :qr)
     gm6 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), IdentityLink(), method=dmethod,
+              Normal(), IdentityLink(); method=dmethod,
               offset=Array{Float64}(anorexia.Prewt))
     @test GLM.cancancel(gm6.rr)
     test_show(gm6)
@@ -551,7 +552,7 @@ end
 
 @testset "Normal LogLink offset with $dmethod" for dmethod in (:cholesky, :qr)
     gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
-              Normal(), LogLink(), method=dmethod, offset=anorexia.Prewt, rtol=1e-8)
+              Normal(), LogLink(); method=dmethod, offset=anorexia.Prewt, rtol=1e-8)
     @test !GLM.cancancel(gm7.rr)
     test_show(gm7)
     @test isapprox(deviance(gm7), 3265.207242977156)
@@ -569,7 +570,7 @@ end
 @testset "Poisson LogLink offset with $dmethod" for dmethod in (:cholesky, :qr)
     gm7p = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat),
                anorexia,
-               Poisson(), LogLink(), method=dmethod, offset=log.(anorexia.Prewt), rtol=1e-8)
+               Poisson(), LogLink(); method=dmethod, offset=log.(anorexia.Prewt), rtol=1e-8)
 
     @test GLM.cancancel(gm7p.rr)
     test_show(gm7p)
@@ -586,8 +587,8 @@ end
 @testset "Poisson LogLink offset with weights with $dmethod" for dmethod in (:cholesky, :qr)
     gm7pw = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat),
                 anorexia,
-                Poisson(), LogLink(), method=dmethod, offset=log.(anorexia.Prewt),
-                wts=fweights(repeat(1:4, outer=18)), rtol=1e-8)
+                Poisson(), LogLink(); method=dmethod, offset=log.(anorexia.Prewt),
+                wts=fweights(repeat(1:4; outer=18)), rtol=1e-8)
 
     @test GLM.cancancel(gm7pw.rr)
     test_show(gm7pw)
@@ -602,7 +603,7 @@ end
 end
 
 ## Gamma example from McCullagh & Nelder (1989, pp. 300-2)
-clotting = DataFrame(u=log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
+clotting = DataFrame(; u=log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
                      lot1=[118, 58, 42, 35, 27, 25, 21, 19, 18])
 
 @testset "Gamma with $dmethod" for dmethod in (:cholesky, :qr)
@@ -644,7 +645,7 @@ end
 end
 
 @testset "Gamma LogLink with $dmethod" for dmethod in (:cholesky, :qr)
-    gm9 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(),
+    gm9 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink();
               method=dmethod, rtol=1e-8, atol=0.0)
     @test !GLM.cancancel(gm9.rr)
     test_show(gm9)
@@ -681,13 +682,13 @@ end
 end
 
 # Logistic regression using aggregated data and weights
-admit_agr = DataFrame(count=[28.0, 97, 93, 55, 33, 54, 28, 12],
-                      admit=repeat([false, true], inner=[4]),
-                      rank=categorical(repeat(1:4, outer=2)))
+admit_agr = DataFrame(; count=[28.0, 97, 93, 55, 33, 54, 28, 12],
+                      admit=repeat([false, true]; inner=[4]),
+                      rank=categorical(repeat(1:4; outer=2)))
 
 @testset "Aggregated Binomial LogitLink" begin
     for distr in (Binomial, Bernoulli)
-        gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
+        gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr();
                    wts=fweights(Array(admit_agr.count)))
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
@@ -711,7 +712,7 @@ admit_agr2.p = admit_agr2.admit ./ admit_agr2.count
 
 ## The model matrix here is singular so tests like the deviance are just round off error
 @testset "Binomial LogitLink aggregated with $dmethod" for dmethod in (:cholesky, :qr)
-    gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial(),
+    gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial();
                wts=fweights(admit_agr2.count))
     test_show(gm15)
     @test dof(gm15) == 4
@@ -729,7 +730,7 @@ end
 
 # Weighted Gamma example (weights are totally made up)
 @testset "Gamma InverseLink Weights with $dmethod" for dmethod in (:cholesky, :qr)
-    gm16 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(),
+    gm16 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma();
                wts=fweights([1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7]))
     test_show(gm16)
     @test dof(gm16) == 3
@@ -747,7 +748,7 @@ end
 # Weighted Poisson example (weights are totally made up)
 @testset "Poisson LogLink Weights" begin
     gm17 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson,
-               Poisson(),
+               Poisson();
                wts=fweights([1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7]))
     test_show(gm17)
     @test dof(gm17) == 5
@@ -767,7 +768,7 @@ end
 quine = dataset("MASS", "quine")
 @testset "NegativeBinomial LogLink Fixed θ with $dmethod" for dmethod in (:cholesky, :qr)
     gm18 = fit(GeneralizedLinearModel, @formula(Days ~ Eth + Sex + Age + Lrn), quine,
-               NegativeBinomial(2.0), LogLink(), method=dmethod)
+               NegativeBinomial(2.0), LogLink(); method=dmethod)
     @test !GLM.cancancel(gm18.rr)
     test_show(gm18)
     @test dof(gm18) == 8
@@ -822,10 +823,10 @@ end
 
     @testset "NegativeBinomial Parameter estimation" begin
         # Issue #302
-        df = DataFrame(y=[1, 1, 0, 2, 3, 0, 0, 1, 1, 0, 2, 1, 3, 1, 1, 1, 4])
+        df = DataFrame(; y=[1, 1, 0, 2, 3, 0, 0, 1, 1, 0, 2, 1, 3, 1, 1, 1, 4])
         for maxiter in [30, 50]
             try
-                negbin(@formula(y ~ 1), df, maxiter=maxiter,
+                negbin(@formula(y ~ 1), df; maxiter=maxiter,
                        # set minstepfac to a very small value to avoid an ErrorException
                        # instead of a ConvergenceException
                        minstepfac=1e-20)
@@ -975,7 +976,7 @@ end
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat),
                     anorexia,
                     Poisson(), LogLink(); offset=log.(anorexia.Prewt),
-                    wts=fweights(repeat(1:4, outer=18)), rtol=1e-8, dropcollinear=false)
+                    wts=fweights(repeat(1:4; outer=18)), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3)
     @test GLM.cancancel(nointglm3.rr)
     test_show(nointglm3)
@@ -1033,7 +1034,7 @@ end
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat),
                     anorexia,
                     Poisson(), LogLink(); method=dmethod, offset=log.(anorexia.Prewt),
-                    wts=fweights(repeat(1:4, outer=18)), rtol=1e-8, dropcollinear=false)
+                    wts=fweights(repeat(1:4; outer=18)), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3)
     @test GLM.cancancel(nointglm3.rr)
     test_show(nointglm3)
@@ -1202,13 +1203,13 @@ end
     @test predict!((prediction=similar(Y, size(newX, 1)),
                     lower=similar(Y, size(newX, 1)),
                     upper=similar(Y, size(newX, 1))),
-                   gm11, newX, interval=:confidence, interval_method=:delta) ==
-          predict(gm11, newX, interval=:confidence, interval_method=:delta)
+                   gm11, newX; interval=:confidence, interval_method=:delta) ==
+          predict(gm11, newX; interval=:confidence, interval_method=:delta)
     @test predict!((prediction=similar(Y, size(newX, 1)),
                     lower=similar(Y, size(newX, 1)),
                     upper=similar(Y, size(newX, 1))),
-                   gm11, newX, interval=:confidence, interval_method=:transformation) ==
-          predict(gm11, newX, interval=:confidence, interval_method=:transformation)
+                   gm11, newX; interval=:confidence, interval_method=:transformation) ==
+          predict(gm11, newX; interval=:confidence, interval_method=:transformation)
     @test_throws ArgumentError predict!((prediction=similar(Y, size(newX, 1)),
                                          lower=similar(Y, size(newX, 1)),
                                          upper=similar(Y, size(newX, 1))),
@@ -1229,7 +1230,7 @@ end
 
     gm12 = fit(GeneralizedLinearModel, X, Y, Binomial(); method=dmethod, offset=off)
     @test_throws ArgumentError predict(gm12, newX)
-    @test isapprox(predict(gm12, newX, offset=newoff),
+    @test isapprox(predict(gm12, newX; offset=newoff),
                    logistic.(newX * coef(gm12) .+ newoff))
 
     # Prediction from DataFrames
@@ -1295,7 +1296,7 @@ end
     Ylm = X * [0.8, 1.6] + 0.8randn(rng, 10)
     mm = fit(LinearModel, X, Ylm; method=dmethod)
     pred1 = predict(mm, newX)
-    pred2 = predict(mm, newX, interval=:confidence)
+    pred2 = predict(mm, newX; interval=:confidence)
     se_pred = sqrt.(diag(newX * vcov(mm) * newX'))
 
     @test pred1 == pred2.prediction ≈
@@ -1316,7 +1317,7 @@ end
     @test ndims(pred2.lower) == 1
     @test ndims(pred2.upper) == 1
 
-    pred3 = predict(mm, newX, interval=:prediction)
+    pred3 = predict(mm, newX; interval=:prediction)
     @test pred1 == pred3.prediction ≈
           [1.1382137814295972, 1.2097057044789292, 1.7983095679661645,
            1.0139576473310072, 0.9738243263215998]
@@ -1337,13 +1338,13 @@ end
     @test predict!((prediction=similar(Y, size(newX, 1)),
                     lower=similar(Y, size(newX, 1)),
                     upper=similar(Y, size(newX, 1))),
-                   mm, newX, interval=:confidence) ==
-          predict(mm, newX, interval=:confidence)
+                   mm, newX; interval=:confidence) ==
+          predict(mm, newX; interval=:confidence)
     @test predict!((prediction=similar(Y, size(newX, 1)),
                     lower=similar(Y, size(newX, 1)),
                     upper=similar(Y, size(newX, 1))),
-                   mm, newX, interval=:prediction) ==
-          predict(mm, newX, interval=:prediction)
+                   mm, newX; interval=:prediction) ==
+          predict(mm, newX; interval=:prediction)
     @test_throws ArgumentError predict!((prediction=similar(Y, size(newX, 1)),
                                          lower=similar(Y, size(newX, 1)),
                                          upper=similar(Y, size(newX, 1))),
@@ -1417,11 +1418,11 @@ end
          1.0 2.0
          1.0 -1.0]
     y = [1.0, 3.0, -2.0]
-    m1 = lm(x, y, dropcollinear=true, method=dmethod)
-    m2 = lm(x, y, dropcollinear=false, method=dmethod)
+    m1 = lm(x, y; dropcollinear=true, method=dmethod)
+    m2 = lm(x, y; dropcollinear=false, method=dmethod)
 
-    p1 = predict(m1, x, interval=:confidence)
-    p2 = predict(m2, x, interval=:confidence)
+    p1 = predict(m1, x; interval=:confidence)
+    p2 = predict(m2, x; interval=:confidence)
 
     @test p1.prediction ≈ p2.prediction
     @test p1.upper ≈ p2.upper
@@ -1433,11 +1434,11 @@ end
          1.0 -1000.0 4.6
          1.0 5000 2.4]
     y = [1.0, 3.0, -2.0, 4.5]
-    m1 = lm(x, y, dropcollinear=true, method=dmethod)
-    m2 = lm(x, y, dropcollinear=false, method=dmethod)
+    m1 = lm(x, y; dropcollinear=true, method=dmethod)
+    m2 = lm(x, y; dropcollinear=false, method=dmethod)
 
-    p1 = predict(m1, x, interval=:confidence)
-    p2 = predict(m2, x, interval=:confidence)
+    p1 = predict(m1, x; interval=:confidence)
+    p2 = predict(m2, x; interval=:confidence)
 
     @test p1.prediction ≈ p2.prediction
     @test p1.upper ≈ p2.upper
@@ -1449,20 +1450,20 @@ end
          1.0 2.0 3.0
          1.0 -1.0 0.0]
     y = [1.0, 3.0, -2.0]
-    m1 = lm(x, y, method=dmethod)
-    m2 = lm(x[:, 1:2], y, method=dmethod)
+    m1 = lm(x, y; method=dmethod)
+    m2 = lm(x[:, 1:2], y; method=dmethod)
 
     @test predict(m1) ≈ predict(m2)
-    @test_broken predict(m1, interval=:confidence) ≈
-                 predict(m2, interval=:confidence)
-    @test_broken predict(m1, interval=:prediction) ≈
-                 predict(m2, interval=:prediction)
+    @test_broken predict(m1; interval=:confidence) ≈
+                 predict(m2; interval=:confidence)
+    @test_broken predict(m1; interval=:prediction) ≈
+                 predict(m2; interval=:prediction)
     @test_throws ArgumentError predict(m1, x, interval=:confidence)
     @test_throws ArgumentError predict(m1, x, interval=:prediction)
 end
 
 @testset "GLM confidence intervals with $dmethod" for dmethod in (:cholesky, :qr)
-    X = [fill(1, 50) range(0, 1, length=50)]
+    X = [fill(1, 50) range(0, 1; length=50)]
     Y = vec([0 0 0 1 0 1 1 0 0 0 0 0 0 0 1 0 1 1 0 1 1 0 1 0 0 1 1 1 0 1 1 1 1 1 0 1 0 1 1 1 0 1 1 1 1 1 1 1 1 1])
     gm = fit(GeneralizedLinearModel, X, Y, Binomial(); method=dmethod)
 
@@ -1474,9 +1475,9 @@ end
 
     R_glm_se = [0.09748766, 0.09808412, 0.07963897, 0.07495792, 0.05177654]
 
-    preds_transformation = predict(gm, newX, interval=:confidence,
+    preds_transformation = predict(gm, newX; interval=:confidence,
                                    interval_method=:transformation)
-    preds_delta = predict(gm, newX, interval=:confidence, interval_method=:delta)
+    preds_delta = predict(gm, newX; interval=:confidence, interval_method=:delta)
 
     @test preds_transformation.prediction == preds_delta.prediction
     @test preds_transformation.prediction ≈ ggplot_prediction atol = 1e-3
@@ -1490,7 +1491,7 @@ end
 end
 
 @testset "F test with $dmethod comparing to null model" for dmethod in (:cholesky, :qr)
-    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.0],
+    d = DataFrame(; Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.0],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, 0.9, 1, 1, 2.2, 2, 2],
                   Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
     mod = lm(@formula(Result ~ Treatment), d)
@@ -1533,7 +1534,7 @@ end
 end
 
 @testset "F test for model comparison" begin
-    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.0],
+    d = DataFrame(; Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.0],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, 0.9, 1, 1, 2.2, 2, 2],
                   Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
     mod = lm(@formula(Result ~ Treatment), d)
@@ -1650,8 +1651,8 @@ end
     @test hcat(t.cols[5:6]...) == confint(lm1)
     # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
     # supports keyword arguments
-    t = coeftable(lm1, level=0.99)
-    @test hcat(t.cols[5:6]...) == confint(lm1, level=0.99)
+    t = coeftable(lm1; level=0.99)
+    @test hcat(t.cols[5:6]...) == confint(lm1; level=0.99)
 
     gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
               dobson, Poisson())
@@ -1661,8 +1662,8 @@ end
     @test t.cols[4] ≈ [5.4267674619082684e-71, 0.024647114627808674, 0.12848651178787643,
                        0.9999999999999981, 0.9999999999999999]
     @test hcat(t.cols[5:6]...) == confint(gm1)
-    t = coeftable(gm1, level=0.99)
-    @test hcat(t.cols[5:6]...) == confint(gm1, level=0.99)
+    t = coeftable(gm1; level=0.99)
+    @test hcat(t.cols[5:6]...) == confint(gm1; level=0.99)
 end
 
 @testset "Issue 84" begin
@@ -1676,7 +1677,7 @@ end
 end
 
 @testset "Issue 117" begin
-    data = DataFrame(x=[1, 2, 3, 4], y=[24, 34, 44, 54])
+    data = DataFrame(; x=[1, 2, 3, 4], y=[24, 34, 44, 54])
     @test isapprox(coef(glm(@formula(y ~ x), data, Normal(), IdentityLink())), [14.0, 10])
 end
 
@@ -1719,10 +1720,10 @@ end
 
 @testset "Issue #286 (separable data)" begin
     x = rand(1000)
-    df = DataFrame(y=x .> 0.5, x₁=x, x₂=rand(1000))
+    df = DataFrame(; y=x .> 0.5, x₁=x, x₂=rand(1000))
     @testset "Binomial with $l" for l in (LogitLink(), ProbitLink(), CauchitLink(),
                                           CloglogLink())
-        @test deviance(glm(@formula(y ~ x₁ + x₂), df, Binomial(), l, maxiter=40)) < 1e-6
+        @test deviance(glm(@formula(y ~ x₁ + x₂), df, Binomial(), l; maxiter=40)) < 1e-6
     end
 end
 
@@ -1741,7 +1742,7 @@ end
 end
 
 @testset "hasintercept" begin
-    d = DataFrame(Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.0],
+    d = DataFrame(; Treatment=[1, 1, 1, 2, 2, 2, 1, 1, 1, 2, 2, 2.0],
                   Result=[1.1, 1.2, 1, 2.2, 1.9, 2, 0.9, 1, 1, 2.2, 2, 2],
                   Other=categorical([1, 1, 2, 1, 2, 1, 3, 1, 1, 2, 2, 1]))
 
@@ -1766,7 +1767,7 @@ end
     @testset "#444" begin
         X = randn(10, 2)
         y = X * ones(2) + randn(10)
-        @test coef(glm(X, y, Normal(), IdentityLink(), method=dmethod)) ==
+        @test coef(glm(X, y, Normal(), IdentityLink(); method=dmethod)) ==
               coef(glm(view(X, 1:10, :), view(y, 1:10), Normal(), IdentityLink();
                        method=dmethod))
 
@@ -1777,32 +1778,32 @@ end
         lm4 = lm(view(x, :, :), view(y, :); method=dmethod)
         @test coef(lm1) == coef(lm2) == coef(lm3) == coef(lm4)
 
-        lm5 = lm(x, y, wts=fweights(w), method=dmethod)
-        lm6 = lm(x, view(y, :), method=dmethod, wts=fweights(w))
-        lm7 = lm(view(x, :, :), y, method=dmethod, wts=fweights(w))
-        lm8 = lm(view(x, :, :), view(y, :), method=dmethod, wts=fweights(w))
-        lm9 = lm(x, y, method=dmethod, wts=fweights(view(w, :)))
-        lm10 = lm(x, view(y, :), method=dmethod, wts=fweights(view(w, :)))
-        lm11 = lm(view(x, :, :), y, method=dmethod, wts=fweights(view(w, :)))
-        lm12 = lm(view(x, :, :), view(y, :), method=dmethod, wts=fweights(view(w, :)))
+        lm5 = lm(x, y; wts=fweights(w), method=dmethod)
+        lm6 = lm(x, view(y, :); method=dmethod, wts=fweights(w))
+        lm7 = lm(view(x, :, :), y; method=dmethod, wts=fweights(w))
+        lm8 = lm(view(x, :, :), view(y, :); method=dmethod, wts=fweights(w))
+        lm9 = lm(x, y; method=dmethod, wts=fweights(view(w, :)))
+        lm10 = lm(x, view(y, :); method=dmethod, wts=fweights(view(w, :)))
+        lm11 = lm(view(x, :, :), y; method=dmethod, wts=fweights(view(w, :)))
+        lm12 = lm(view(x, :, :), view(y, :); method=dmethod, wts=fweights(view(w, :)))
         @test coef(lm5) == coef(lm6) == coef(lm7) == coef(lm8) == coef(lm9) == coef(lm10) ==
               coef(lm11) == coef(lm12)
 
         x, y, w = rand(100, 2), rand(Bool, 100), rand(100)
-        glm1 = glm(x, y, Binomial(), method=dmethod)
-        glm2 = glm(x, view(y, :), Binomial(), method=dmethod)
-        glm3 = glm(view(x, :, :), y, Binomial(), method=dmethod)
-        glm4 = glm(view(x, :, :), view(y, :), Binomial(), method=dmethod)
+        glm1 = glm(x, y, Binomial(); method=dmethod)
+        glm2 = glm(x, view(y, :), Binomial(); method=dmethod)
+        glm3 = glm(view(x, :, :), y, Binomial(); method=dmethod)
+        glm4 = glm(view(x, :, :), view(y, :), Binomial(); method=dmethod)
         @test coef(glm1) == coef(glm2) == coef(glm3) == coef(glm4)
 
-        glm5 = glm(x, y, Binomial(), wts=fweights(w))
-        glm6 = glm(x, view(y, :), Binomial(), wts=fweights(w))
-        glm7 = glm(view(x, :, :), y, Binomial(), wts=fweights(w))
-        glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=fweights(w))
-        glm9 = glm(x, y, Binomial(), wts=fweights(view(w, :)))
-        glm10 = glm(x, view(y, :), Binomial(), wts=fweights(view(w, :)))
-        glm11 = glm(view(x, :, :), y, Binomial(), wts=fweights(view(w, :)))
-        glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=fweights(view(w, :)))
+        glm5 = glm(x, y, Binomial(); wts=fweights(w))
+        glm6 = glm(x, view(y, :), Binomial(); wts=fweights(w))
+        glm7 = glm(view(x, :, :), y, Binomial(); wts=fweights(w))
+        glm8 = glm(view(x, :, :), view(y, :), Binomial(); wts=fweights(w))
+        glm9 = glm(x, y, Binomial(); wts=fweights(view(w, :)))
+        glm10 = glm(x, view(y, :), Binomial(); wts=fweights(view(w, :)))
+        glm11 = glm(view(x, :, :), y, Binomial(); wts=fweights(view(w, :)))
+        glm12 = glm(view(x, :, :), view(y, :), Binomial(); wts=fweights(view(w, :)))
         @test coef(glm5) == coef(glm6) == coef(glm7) == coef(glm8) == coef(glm9) ==
               coef(glm10) ==
               coef(glm11) == coef(glm12)
@@ -1912,9 +1913,9 @@ end
 
 @testset "momentmatrix" begin
     @testset "Poisson" begin
-        dobson = DataFrame(Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
-                           Outcome=categorical(repeat(string.('A':'C'), outer=3)),
-                           Treatment=categorical(repeat(string.('a':'c'), inner=3)),
+        dobson = DataFrame(; Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
+                           Outcome=categorical(repeat(string.('A':'C'); outer=3)),
+                           Treatment=categorical(repeat(string.('a':'c'); inner=3)),
                            Weights=[0.3, 0.2, 0.9, 0.8, 0.2, 0.3, 0.4, 0.8, 0.9])
 
         f = @formula(Counts ~ 1 + Outcome + Treatment)
@@ -1931,7 +1932,7 @@ end
                     -0.33333334610634496 -0.33333334610634496 -0.0 -0.0 -0.33333334610634496;
                     -3.6666667654825043 -0.0 -3.6666667654825043 -0.0 -3.6666667654825043]
 
-        gm_poisw = fit(GeneralizedLinearModel, f, dobson, Poisson(),
+        gm_poisw = fit(GeneralizedLinearModel, f, dobson, Poisson();
                        wts=fweights(dobson.Weights))
 
         mm0_poisw = [-0.9624647521850039 -0.0 -0.0 -0.0 -0.0;
@@ -1949,8 +1950,8 @@ end
     @testset "Binomial" begin
         f = @formula(admit ~ 1 + rank)
         gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(); rtol=1e-8)
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(),
-                      wts=fweights(admit_agr.count); rtol=1e-08)
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial();
+                      wts=fweights(admit_agr.count), rtol=1e-08)
 
         mm0_bin = [-0.5 -0.0 -0.0 -0.0
                    -0.5 -0.5 -0.0 -0.0
@@ -1977,7 +1978,7 @@ end
     @testset "Binomial ProbitLink" begin
         f = @formula(admit ~ 1 + rank)
         gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink())
-        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink(),
+        gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink();
                       wts=fweights(admit_agr.count), rtol=1e-8)
 
         mm0_bin = [-0.7978846 0.0000000 0.0000000 0.0000000
@@ -2008,21 +2009,21 @@ include("probability_weights.jl")
 
 @testset "contrasts argument" begin
     # DummyCoding (default)
-    m = lm(@formula(y ~ x), (y=1:25, x=repeat(1:5, 5)),
+    m = lm(@formula(y ~ x), (y=1:25, x=repeat(1:5, 5));
            contrasts=Dict(:x => DummyCoding()))
     mcat = lm(@formula(y ~ x), (y=1:25, x=categorical(repeat(1:5, 5))))
-    gm = glm(@formula(y ~ x), (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+    gm = glm(@formula(y ~ x), (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink();
              contrasts=Dict(:x => DummyCoding()))
     gmcat = glm(@formula(y ~ x), (y=1:25, x=categorical(repeat(1:5, 5))),
                 Normal(), IdentityLink())
     @test coef(m) == coef(mcat) ≈ [11, 1, 2, 3, 4]
     @test coef(gm) == coef(gmcat) ≈ [11, 1, 2, 3, 4]
 
-    m = fit(LinearModel, @formula(y ~ x), (y=1:25, x=repeat(1:5, 5)),
+    m = fit(LinearModel, @formula(y ~ x), (y=1:25, x=repeat(1:5, 5));
             contrasts=Dict(:x => DummyCoding()))
     mcat = fit(LinearModel, @formula(y ~ x), (y=1:25, x=categorical(repeat(1:5, 5))))
     gm = fit(GeneralizedLinearModel, @formula(y ~ x),
-             (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+             (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink();
              contrasts=Dict(:x => DummyCoding()))
     gmcat = fit(GeneralizedLinearModel, @formula(y ~ x),
                 (y=1:25, x=categorical(repeat(1:5, 5))),
@@ -2031,16 +2032,16 @@ include("probability_weights.jl")
     @test coef(gm) == coef(gmcat) ≈ [11, 1, 2, 3, 4]
 
     # EffectsCoding
-    m = lm(@formula(y ~ x), (y=1:25, x=repeat(1:5, 5)),
+    m = lm(@formula(y ~ x), (y=1:25, x=repeat(1:5, 5));
            contrasts=Dict(:x => EffectsCoding()))
-    gm = glm(@formula(y ~ x), (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+    gm = glm(@formula(y ~ x), (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink();
              contrasts=Dict(:x => EffectsCoding()))
     @test coef(m) ≈ coef(gm) ≈ [13, -1, 0, 1, 2]
 
-    m = fit(LinearModel, @formula(y ~ x), (y=1:25, x=repeat(1:5, 5)),
+    m = fit(LinearModel, @formula(y ~ x), (y=1:25, x=repeat(1:5, 5));
             contrasts=Dict(:x => EffectsCoding()))
     gm = fit(GeneralizedLinearModel, @formula(y ~ x),
-             (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink(),
+             (y=1:25, x=repeat(1:5, 5)), Normal(), IdentityLink();
              contrasts=Dict(:x => EffectsCoding()))
     @test coef(m) ≈ coef(gm) ≈ [13, -1, 0, 1, 2]
 end
@@ -2052,17 +2053,17 @@ end
     m = glm(rand(10, 2), rand(10), Normal(), IdentityLink())
     @test_throws ArgumentError formula(m)
 
-    df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
+    df = DataFrame(; x=["a", "b", "c"], y=[1, 2, 3])
     m = lm(@formula(y ~ x), df)
     @test formula(m)::FormulaTerm === m.formula
 
-    df = DataFrame(x=["a", "b", "c"], y=[1, 2, 3])
+    df = DataFrame(; x=["a", "b", "c"], y=[1, 2, 3])
     m = glm(@formula(y ~ x), df, Normal(), IdentityLink())
     @test formula(m)::FormulaTerm === m.formula
 end
 
 @testset "dropcollinear in GLM with Cholesky" begin
-    data = DataFrame(x1=[4, 5, 9, 6, 5], x2=[5, 3, 6, 7, 1],
+    data = DataFrame(; x1=[4, 5, 9, 6, 5], x2=[5, 3, 6, 7, 1],
                      x3=[4.2, 4.6, 8.4, 6.2, 4.2], y=[14, 14, 24, 20, 11])
 
     @testset "Check normal with identity link against equivalent linear model" begin
@@ -2143,8 +2144,8 @@ end
     @testset "`rankdeficient` test case of lm in glm" begin
         rng = StableRNG(1234321)
         # an example of rank deficiency caused by a missing cell in a table
-        dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner=6)),
-                          categorical(repeat(string.('a':'c'), inner=2, outer=4))],
+        dfrm = DataFrame([categorical(repeat(string.('A':'D'); inner=6)),
+                          categorical(repeat(string.('a':'c'); inner=2, outer=4))],
                          [:G, :H])
         f = @formula(0 ~ 1 + G * H)
         X = ModelMatrix(ModelFrame(f, dfrm)).m
@@ -2173,8 +2174,8 @@ end
     @testset "`rankdeficient` test in GLM with Gamma distribution" begin
         rng = StableRNG(1234321)
         # an example of rank deficiency caused by a missing cell in a table
-        dfrm = DataFrame([categorical(repeat(string.('A':'D'), inner=6)),
-                          categorical(repeat(string.('a':'c'), inner=2, outer=4))],
+        dfrm = DataFrame([categorical(repeat(string.('A':'D'); inner=6)),
+                          categorical(repeat(string.('a':'c'); inner=2, outer=4))],
                          [:G, :H])
         f = @formula(0 ~ 1 + G * H)
         X = ModelMatrix(ModelFrame(f, dfrm)).m
@@ -2272,12 +2273,12 @@ end
     X = [filip_data_df.x[i]^j for i in 1:length(filip_data_df.x), j in 0:10]
 
     # No weights
-    f1 = lm(X, filip_data_df.y, dropcollinear=false, method=:qr)
+    f1 = lm(X, filip_data_df.y; dropcollinear=false, method=:qr)
     @test coef(f1) ≈ filip_estimates_df.estimate rtol = 1e-7
     @test stderror(f1) ≈ filip_estimates_df.se rtol = 1e-7
 
     # Weights
-    f2 = lm(X, filip_data_df.y, dropcollinear=false,
+    f2 = lm(X, filip_data_df.y; dropcollinear=false,
             method=:qr, wts=uweights(length(filip_data_df.y)))
     @test coef(f2) ≈ filip_estimates_df.estimate rtol = 1e-7
     @test stderror(f2) ≈ filip_estimates_df.se rtol = 1e-7
@@ -2286,8 +2287,8 @@ end
 @testset "Non-finite deviance. Issue 417" begin
     X_fn = Downloads.download("https://github.com/JuliaStats/GLM.jl/files/6279630/x.txt")
     y_fn = Downloads.download("https://github.com/JuliaStats/GLM.jl/files/6279632/y.txt")
-    X_df = CSV.read(X_fn, DataFrame, header=false)
-    y_df = CSV.read(y_fn, DataFrame, header=false)
+    X_df = CSV.read(X_fn, DataFrame; header=false)
+    y_df = CSV.read(y_fn, DataFrame; header=false)
     df = hcat(y_df, select(X_df, Not("Column1")))
     ft = glm(@formula(Column1 ~ Column2 + Column3 + Column4), df, Gamma(), LogLink())
     @test coef(ft) ≈
@@ -2324,7 +2325,7 @@ end
 end
 
 rng = StableRNG(123)
-df = DataFrame(x_1=randn(rng, 10), x_2=randn(rng, 10), y=randn(rng, 10))
+df = DataFrame(; x_1=randn(rng, 10), x_2=randn(rng, 10), y=randn(rng, 10))
 df.xx_1 = df.x_1
 df.xx_2 = df.x_2
 df.d = rand(rng, 0:1, 10)
@@ -2346,21 +2347,21 @@ frmp1 = @formula(d ~ x_1 + xx_2 + +x_2 + xx_1)
                0.21412449742521156; 0.2160509316358758;
                0.23269115629631995; 0.33577412754649705]
 
-    lm0 = fit(LinearModel, frm0, df, method=method)
-    lm1 = fit(LinearModel, frm1, df, method=method)
+    lm0 = fit(LinearModel, frm0, df; method=method)
+    lm1 = fit(LinearModel, frm1, df; method=method)
     @test leverage(lm0) ≈ leverage(lm1)
     @test lev0 ≈ leverage(lm1)
-    glm1 = fit(GeneralizedLinearModel, frm1, df, Normal(), IdentityLink(), method=method)
+    glm1 = fit(GeneralizedLinearModel, frm1, df, Normal(), IdentityLink(); method=method)
     @test lev0 ≈ leverage(glm1)
-    probit0 = glm(frmp0, df, Binomial(), ProbitLink(), method=method)
-    probit = glm(frmp1, df, Binomial(), ProbitLink(), method=method)
+    probit0 = glm(frmp0, df, Binomial(), ProbitLink(); method=method)
+    probit = glm(frmp1, df, Binomial(), ProbitLink(); method=method)
     @test leverage(probit) ≈ leverage(probit0)
     @test lev0_pr ≈ leverage(probit0) rtol = 1e-03
 end
 
 @testset "Leverage weighted" for method in (:qr, :cholesky)
-    lm0 = fit(LinearModel, frm0, df, method=method, wts=fweights(df.w))
-    lm1 = fit(LinearModel, frm1, df, method=method, wts=fweights(df.w))
+    lm0 = fit(LinearModel, frm0, df; method=method, wts=fweights(df.w))
+    lm1 = fit(LinearModel, frm1, df; method=method, wts=fweights(df.w))
 
     lev0 = [0.4546669409864052, 0.39220506613766826, 0.31067464842874659,
             0.16105201633463462, 0.45458434896240396, 0.43751245519667181,
@@ -2375,11 +2376,11 @@ end
     @test leverage(lm0) ≈ leverage(lm1)
     @test lev0 ≈ leverage(lm1)
     glm1 = fit(GeneralizedLinearModel, frm1, df, Normal(),
-               IdentityLink(), method=method, wts=fweights(df.w))
+               IdentityLink(); method=method, wts=fweights(df.w))
     @test lev0 ≈ leverage(glm1)
-    probit0 = glm(frmp0, df, Binomial(), ProbitLink(), method=method, wts=aweights(df.w),
+    probit0 = glm(frmp0, df, Binomial(), ProbitLink(); method=method, wts=aweights(df.w),
                   atol=1e-10, rtol=1e-10, minstepfac=1e-10)
-    probit = glm(frmp1, df, Binomial(), ProbitLink(), method=method, wts=aweights(df.w),
+    probit = glm(frmp1, df, Binomial(), ProbitLink(); method=method, wts=aweights(df.w),
                  atol=1e-10, rtol=1e-10, minstepfac=1e-10)
     @test leverage(probit) ≈ leverage(probit0)
     @test cooksdistance(probit0) ≈ [9.548585e-04; 3.483554e-13; 2.982745e-01; 4.166364e-01;

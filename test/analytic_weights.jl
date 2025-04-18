@@ -5,9 +5,9 @@ x2 = ifelse.(randn(rng, 25) .> 0, 1, 0)
 y = ifelse.(0.004 .- 0.01 .* x1 .+ 1.5 .* x2 .+ randn(rng, 25) .> 0, 1, 0)
 w = rand(rng, 25) * 6
 w = floor.(w) .+ 1
-df = DataFrame(y=y, x1=x1, x2=x2, w=w)
+df = DataFrame(; y=y, x1=x1, x2=x2, w=w)
 
-clotting = DataFrame(u=log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
+clotting = DataFrame(; u=log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
                      lot1=[118, 58, 42, 35, 27, 25, 21, 19, 18],
                      w=[1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7])
 
@@ -15,9 +15,9 @@ quine.aweights = log.(3 .+ 3 .* quine.Days)
 quine.pweights = 1.0 ./ (quine.aweights ./ sum(quine.aweights))
 quine.fweights = floor.(quine.aweights)
 
-dobson = DataFrame(Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
-                   Outcome=categorical(repeat(string.('A':'C'), outer=3)),
-                   Treatment=categorical(repeat(string.('a':'c'), inner=3)),
+dobson = DataFrame(; Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
+                   Outcome=categorical(repeat(string.('A':'C'); outer=3)),
+                   Treatment=categorical(repeat(string.('a':'c'); inner=3)),
                    w=[1, 2, 1, 2, 3, 4, 3, 2, 1])
 
 itr = Iterators.product((:qr, :cholesky), (true, false))
@@ -823,9 +823,9 @@ end
            3.2758115948278728 3.2758115948278728 0.0 0.0 0.0 3.2758115948278728 0.0] rtol = 1e-04
 end
 
-admit_agr = DataFrame(count=[28.0, 97, 93, 55, 33, 54, 28, 12],
-                      admit=repeat([false, true], inner=[4]),
-                      rank=categorical(repeat(1:4, outer=2)))
+admit_agr = DataFrame(; count=[28.0, 97, 93, 55, 33, 54, 28, 12],
+                      admit=repeat([false, true]; inner=[4]),
+                      rank=categorical(repeat(1:4; outer=2)))
 
 @testset "Aggregated Binomial LogitLink (AnalyticWeights)" begin
     for distr in (Binomial, Bernoulli)

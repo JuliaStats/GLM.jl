@@ -28,7 +28,7 @@ end
 
 function GLM.qrpred(X::SparseMatrixCSC, pivot::Bool,
                     wts::AbstractWeights=uweights(size(X, 1)))
-    SparsePredQR(X, wts)
+    return SparsePredQR(X, wts)
 end
 
 function GLM.delbeta!(p::SparsePredQR{T}, r::Vector{T}, wt::Vector{T}) where {T}
@@ -36,20 +36,20 @@ function GLM.delbeta!(p::SparsePredQR{T}, r::Vector{T}, wt::Vector{T}) where {T}
     Wsqrt = Diagonal(wtsqrt)
     scr = mul!(p.scratch, Wsqrt, p.X)
     p.qr = qr(scr)
-    p.delbeta = p.qr \ (Wsqrt * r)
+    return p.delbeta = p.qr \ (Wsqrt * r)
 end
 
 function GLM.delbeta!(p::SparsePredQR{T,M,F,<:UnitWeights},
                       r::Vector{T}) where {T<:BlasReal,M,F}
     p.qr = qr(p.X)
-    p.delbeta = p.qr \ r
+    return p.delbeta = p.qr \ r
 end
 
 function GLM.delbeta!(p::SparsePredQR{T,M,F,<:AbstractWeights},
                       r::Vector{T}) where {T<:BlasReal,M,F}
     W = Diagonal(sqrt.(p.wts))
     p.qr = qr(W * p.X)
-    p.delbeta = p.qr \ (W * r)
+    return p.delbeta = p.qr \ (W * r)
 end
 
 function GLM.inverse(x::SparsePredQR{T}) where {T}
@@ -100,28 +100,30 @@ end
 
 function GLM.cholpred(X::SparseMatrixCSC, pivot::Bool=false,
                       wts::AbstractWeights=uweights(size(X, 1)))
-    SparsePredChol(X, wts)
+    return SparsePredChol(X, wts)
 end
 
 function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}, wt::Vector{T}) where {T}
     scr = mul!(p.scratchm1, Diagonal(wt), p.X)
     XtWX = p.Xt * scr
     c = cholesky!(p.chol, Symmetric(XtWX))
-    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
+    return p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
 
 function GLM.delbeta!(p::SparsePredChol{T}, r::Vector{T}) where {T}
     scr = mul!(p.scratchm1, Diagonal(p.wts), p.X)
     XtWX = p.Xt * scr
     c = cholesky!(p.chol, Symmetric(XtWX))
-    p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
+    return p.delbeta = c \ mul!(p.delbeta, adjoint(scr), r)
 end
 
 LinearAlgebra.cholesky(p::SparsePredChol{T}) where {T} = copy(p.chol)
 LinearAlgebra.cholesky!(p::SparsePredChol{T}) where {T} = p.chol
 
-GLM.invchol(x::SparsePredChol) = cholesky!(x) \
-                                 Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
+function GLM.invchol(x::SparsePredChol)
+    return cholesky!(x) \
+           Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
+end
 GLM.inverse(x::SparsePredChol) = GLM.invchol(x)
 
 GLM.linpred_rank(p::SparsePredChol) = rank(sparse(p.chol))

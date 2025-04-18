@@ -33,7 +33,7 @@ mutable struct LmResp{V<:FPVector,W<:AbstractWeights} <: ModResp  # response in 
         if lo != 0 && lo != n
             throw(DimensionMismatch("offset must have length $n but was $lo"))
         end
-        new{V,W}(mu, off, wts, y)
+        return new{V,W}(mu, off, wts, y)
     end
 end
 
@@ -49,7 +49,7 @@ function updateμ!(r::LmResp{V}, linPr::V) where {V<:FPVector}
     n = length(linPr)
     length(r.y) == n || error("length(linPr) is $n, should be $(length(r.y))")
     length(r.offset) == 0 ? copyto!(r.mu, linPr) : broadcast!(+, r.mu, linPr, r.offset)
-    deviance(r)
+    return deviance(r)
 end
 
 updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec(linPr)))
@@ -74,23 +74,23 @@ end
 
 weights(r::LmResp) = r.wts
 function isweighted(r::LmResp)
-    weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
+    return weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
 end
 
 nobs(r::LmResp{<:Any,W}) where {W<:FrequencyWeights} = sum(r.wts)
 function nobs(r::LmResp{<:Any,W}) where {W<:AbstractWeights}
-    oftype(sum(one(eltype(r.wts))), length(r.y))
+    return oftype(sum(one(eltype(r.wts))), length(r.y))
 end
 
 function loglikelihood(r::LmResp{T,<:Union{UnitWeights,FrequencyWeights}}) where {T}
     n = nobs(r)
-    -n / 2 * (log(2π * deviance(r) / n) + 1)
+    return -n / 2 * (log(2π * deviance(r) / n) + 1)
 end
 
 function loglikelihood(r::LmResp{T,<:AnalyticWeights}) where {T}
     N = length(r.y)
     n = sum(log, weights(r))
-    (n - N * (log(2π * deviance(r) / N) + 1)) / 2
+    return (n - N * (log(2π * deviance(r) / N) + 1)) / 2
 end
 
 function loglikelihood(r::LmResp{T,<:ProbabilityWeights}) where {T}
@@ -279,7 +279,7 @@ loglikelihood(obj::LinearModel) = loglikelihood(obj.rr)
 
 r2(obj::LinearModel) = 1 - deviance(obj) / nulldeviance(obj)
 function adjr2(obj::LinearModel)
-    1 - (1 - r²(obj)) * (nobs(obj) - hasintercept(obj)) / dof_residual(obj)
+    return 1 - (1 - r²(obj)) * (nobs(obj) - hasintercept(obj)) / dof_residual(obj)
 end
 
 working_residuals(x::LinearModel) = residuals(x)
@@ -306,9 +306,10 @@ function coeftable(mm::LinearModel; level::Real=0.95)
     end
     levstr = isinteger(level * 100) ? string(Integer(level * 100)) : string(level * 100)
     cn = coefnames(mm)
-    CoefTable(hcat(cc, se, tt, p, cc + ci, cc - ci),
-              ["Coef.", "Std. Error", "t", "Pr(>|t|)", "Lower $levstr%", "Upper $levstr%"],
-              cn, 4, 3)
+    return CoefTable(hcat(cc, se, tt, p, cc + ci, cc - ci),
+                     ["Coef.", "Std. Error", "t", "Pr(>|t|)", "Lower $levstr%",
+                      "Upper $levstr%"],
+                     cn, 4, 3)
 end
 
 """
@@ -330,7 +331,7 @@ function predict(mm::LinearModel, newx::AbstractMatrix;
         predict!(res, mm, newx)
     else
         res = (prediction=retmean, lower=similar(retmean), upper=similar(retmean))
-        predict!(res, mm, newx, interval=interval, level=level)
+        predict!(res, mm, newx; interval=interval, level=level)
     end
     return res
 end
@@ -383,9 +384,9 @@ function StatsModels.predict!(res::Union{AbstractVector,
 end
 
 function confint(obj::LinearModel; level::Real=0.95)
-    hcat(coef(obj), coef(obj)) +
-    stderror(obj) *
-    quantile(TDist(dof_residual(obj)), (1.0 - level) / 2.0) * [1.0 -1.0]
+    return hcat(coef(obj), coef(obj)) +
+           stderror(obj) *
+           quantile(TDist(dof_residual(obj)), (1.0 - level) / 2.0) * [1.0 -1.0]
 end
 
 function momentmatrix(m::LinearModel)

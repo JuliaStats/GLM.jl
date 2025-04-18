@@ -3,14 +3,14 @@ function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
     function first_derivative(θ::Real)
         tmp(yi, μi) = (yi + θ) / (μi + θ) + log(μi + θ) - 1 - log(θ) - digamma(θ + yi) +
                       digamma(θ)
-        unit_weights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
-        sum(wti * tmp(yi, μi) for (wti, yi, μi) in zip(wts, y, μ))
+        return unit_weights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
+               sum(wti * tmp(yi, μi) for (wti, yi, μi) in zip(wts, y, μ))
     end
     function second_derivative(θ::Real)
         tmp(yi, μi) = -(yi + θ) / (μi + θ)^2 + 2 / (μi + θ) - 1 / θ - trigamma(θ + yi) +
                       trigamma(θ)
-        unit_weights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
-        sum(wti * tmp(yi, μi) for (wti, yi, μi) in zip(wts, y, μ))
+        return unit_weights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
+               sum(wti * tmp(yi, μi) for (wti, yi, μi) in zip(wts, y, μ))
     end
 
     unit_weights = length(wts) == 0
@@ -37,7 +37,7 @@ function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
                    "indicate Poisson distributed data."
         throw(ConvergenceException(maxiter, NaN, NaN, info_msg))
     end
-    θ
+    return θ
 end
 
 """
@@ -136,5 +136,5 @@ function negbin(F,
         ll = loglikelihood(regmodel)
     end
     converged || throw(ConvergenceException(maxiter))
-    regmodel
+    return regmodel
 end

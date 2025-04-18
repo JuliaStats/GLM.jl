@@ -69,7 +69,7 @@ function ftest(mod::LinearModel)
     fstat = ((tss - rss) / rss) * ((n - p - 1) / p)
     fdist = FDist(p, dof_residual(mod))
 
-    SingleFTestResult(n, p, promote(fstat, ccdf(fdist, abs(fstat)))...)
+    return SingleFTestResult(n, p, promote(fstat, ccdf(fdist, abs(fstat)))...)
 end
 
 """
@@ -140,14 +140,14 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
     if forward
         for i in 2:length(mods)
             if dof(mods[i - 1]) >= dof(mods[i]) ||
-               !StatsModels.isnested(mods[i - 1], mods[i], atol=atol)
+               !StatsModels.isnested(mods[i - 1], mods[i]; atol=atol)
                 throw(ArgumentError("F test is only valid for nested models"))
             end
         end
     else
         for i in 2:length(mods)
             if dof(mods[i]) >= dof(mods[i - 1]) ||
-               !StatsModels.isnested(mods[i], mods[i - 1], atol=atol)
+               !StatsModels.isnested(mods[i], mods[i - 1]; atol=atol)
                 throw(ArgumentError("F test is only valid for nested models"))
             end
         end
@@ -178,7 +178,7 @@ function show(io::IO, ftr::SingleFTestResult)
     print(io, "F-test against the null model:\nF-statistic: ",
           StatsBase.TestStat(ftr.fstat), " ")
     print(io, "on ", ftr.nobs, " observations and ", ftr.dof, " degrees of freedom, ")
-    print(io, "p-value: ", PValue(ftr.pval))
+    return print(io, "p-value: ", PValue(ftr.pval))
 end
 
 function show(io::IO, ftr::FTestResult{N}) where {N}
@@ -232,7 +232,7 @@ function show(io::IO, ftr::FTestResult{N}) where {N}
         print(io, "\n")
         r == 1 && println(io, '─'^totwidth)
     end
-    print(io, '─'^totwidth)
+    return print(io, '─'^totwidth)
 end
 
 function ftest(r::LinearModel{T,<:ProbabilityWeights}) where {T}
