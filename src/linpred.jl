@@ -8,7 +8,7 @@ and `out` is updated to `p.X * p.scratchbeta`
 """
 function linpred!(out, p::LinPred, f::Real=1.0)
     mul!(out, p.X,
-        iszero(f) ? p.beta0 : broadcast!(muladd, p.scratchbeta, f, p.delbeta, p.beta0))
+         iszero(f) ? p.beta0 : broadcast!(muladd, p.scratchbeta, f, p.delbeta, p.beta0))
 end
 
 """
@@ -16,8 +16,7 @@ end
 
 Return the linear predictor `p.X * (p.beta0 .+ f * p.delbeta)`
 """
-linpred(p::LinPred, f::Real=1.0) = linpred!(
-    Vector{eltype(p.X)}(undef, size(p.X, 1)), p, f)
+linpred(p::LinPred, f::Real=1.0) = linpred!(Vector{eltype(p.X)}(undef, size(p.X, 1)), p, f)
 
 """
     DensePredQR
@@ -33,8 +32,8 @@ A `LinPred` type with a dense QR decomposition of `X`
 - `qr`: either a `QRCompactWY` or `QRPivoted` object created from `X`, with optional row weights.
 - `scratchm1`: scratch Matrix{T} of the same size as `X`
 """
-mutable struct DensePredQR{
-    T<:BlasReal,Q<:Union{QRCompactWY,QRPivoted},W<:AbstractWeights} <: DensePred
+mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY,QRPivoted},
+                           W<:AbstractWeights} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
@@ -43,8 +42,8 @@ mutable struct DensePredQR{
     wts::W
     scratchm1::Matrix{T}
 
-    function DensePredQR(
-        X::AbstractMatrix, pivot::Bool, wts::W) where {W<:Union{AbstractWeights}}
+    function DensePredQR(X::AbstractMatrix, pivot::Bool,
+                         wts::W) where {W<:Union{AbstractWeights}}
         n, p = size(X)
         T = typeof(float(zero(eltype(X))))
         Q = pivot ? QRPivoted : QRCompactWY
@@ -56,12 +55,12 @@ mutable struct DensePredQR{
         end
         F = pivot ? qr!(cfX, ColumnNorm()) : qr!(cfX)
         new{T,Q,W}(Matrix{T}(X),
-            zeros(T, p),
-            zeros(T, p),
-            zeros(T, p),
-            F,
-            wts,
-            similar(X, T))
+                   zeros(T, p),
+                   zeros(T, p),
+                   zeros(T, p),
+                   F,
+                   wts,
+                   similar(X, T))
     end
 end
 
@@ -79,7 +78,8 @@ function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where {T<:BlasR
     return p
 end
 
-function delbeta!(p::DensePredQR{T,<:QRCompactWY,<:AbstractWeights}, r::Vector{T}, wt::AbstractVector) where {T<:BlasReal}
+function delbeta!(p::DensePredQR{T,<:QRCompactWY,<:AbstractWeights}, r::Vector{T},
+                  wt::AbstractVector) where {T<:BlasReal}
     X = p.X
     wtsqrt = sqrt.(wt)
     sqrtW = Diagonal(wtsqrt)
@@ -105,7 +105,8 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where {T<:BlasRea
     return p
 end
 
-function delbeta!(p::DensePredQR{T,<:QRPivoted,<:AbstractWeights}, r::Vector{T}, wt::AbstractVector{T}) where {T<:BlasReal}
+function delbeta!(p::DensePredQR{T,<:QRPivoted,<:AbstractWeights}, r::Vector{T},
+                  wt::AbstractVector{T}) where {T<:BlasReal}
     X = p.X
     wtsqrt = sqrt.(wt)
     sqrtW = Diagonal(wtsqrt)
@@ -116,7 +117,7 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted,<:AbstractWeights}, r::Vector{T},
     rnk = linpred_rank(p)
     R = UpperTriangular(view(parent(p.qr.R), 1:rnk, 1:rnk))
     permute!(p.delbeta, p.qr.p)
-    for k in (rnk+1):length(p.delbeta)
+    for k in (rnk + 1):length(p.delbeta)
         p.delbeta[k] = zero(T)
     end
     p.delbeta[1:rnk] = R \ view(p.qr.Q' * r̃, 1:rnk)
@@ -162,15 +163,15 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights)
         mul!(scr, Diagonal(wts), X)
         F = Hermitian(float(scr'X))
     end
-    F = pivot ? cholesky!(F, RowMaximum(); tol = -one(T), check = false) : cholesky!(F)
+    F = pivot ? cholesky!(F, RowMaximum(); tol=-one(T), check=false) : cholesky!(F)
     DensePredChol(Matrix{T}(X),
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        zeros(T, size(X, 2)),
-        F,
-        wts,
-        scr,
-        similar(cholfactors(F)))
+                  zeros(T, size(X, 2)),
+                  zeros(T, size(X, 2)),
+                  zeros(T, size(X, 2)),
+                  F,
+                  wts,
+                  scr,
+                  similar(cholfactors(F)))
 end
 
 function DensePredChol(X::AbstractMatrix, pivot::Bool)
@@ -180,7 +181,8 @@ end
 function cholpred(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights=uweights(size(X, 1)))
     DensePredChol(X, pivot, wts)
 end
-function qrpred(X::AbstractMatrix, pivot::Bool=false, wts::AbstractWeights=uweights(size(X, 1)))
+function qrpred(X::AbstractMatrix, pivot::Bool=false,
+                wts::AbstractWeights=uweights(size(X, 1)))
     DensePredQR(X, pivot, wts)
 end
 
@@ -193,13 +195,15 @@ function cholesky(p::DensePredChol{T}) where {T<:FP}
     Cholesky(copy(cholfactors(c)), c.uplo, c.info)
 end
 
-function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights}, r::Vector{T}) where {T<:BlasReal}
+function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights},
+                  r::Vector{T}) where {T<:BlasReal}
     X = p.wts isa UnitWeights ? p.scratchm1 .= p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Vector{T}) where {T<:BlasReal}
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights},
+                  r::Vector{T}) where {T<:BlasReal}
     ch = p.chol
     X = p.wts isa UnitWeights ? p.scratchm1 .= p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     delbeta = mul!(p.delbeta, adjoint(X), r)
@@ -208,7 +212,7 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Ve
         ldiv!(ch, delbeta)
     else
         permute!(delbeta, ch.p)
-        for k in (rnk+1):length(delbeta)
+        for k in (rnk + 1):length(delbeta)
             delbeta[k] = zero(T)
         end
         LAPACK.potrs!(ch.uplo, view(ch.factors, 1:rnk, 1:rnk), view(delbeta, 1:rnk))
@@ -217,7 +221,8 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Ve
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights}, r::Vector{T}, wt::Vector{T}) where {T<:BlasReal}
+function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights}, r::Vector{T},
+                  wt::Vector{T}) where {T<:BlasReal}
     scr = mul!(p.scratchm1, Diagonal(wt), p.X)
     cholesky!(Hermitian(mul!(cholfactors(p.chol), transpose(scr), p.X), :U))
     mul!(p.delbeta, transpose(scr), r)
@@ -225,7 +230,8 @@ function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights}, r::Vector{T}
     p
 end
 
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Vector{T}, wt::Vector{T}) where {T<:BlasReal}
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Vector{T},
+                  wt::Vector{T}) where {T<:BlasReal}
     piv = p.chol.p # inverse vector
     delbeta = p.delbeta
     # p.scratchm1 = WX
@@ -243,7 +249,7 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Ve
         ldiv!(p.chol, delbeta)
     else
         permute!(delbeta, piv)
-        for k in (rnk+1):length(delbeta)
+        for k in (rnk + 1):length(delbeta)
             delbeta[k] = -zero(T)
         end
         # shift full rank column to 1:rank
@@ -251,12 +257,11 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Ve
         cf .= p.scratchm2[piv, piv]
         cholesky!(Hermitian(view(cf, 1:rnk, 1:rnk), Symbol(p.chol.uplo)))
         ldiv!(Cholesky(view(cf, 1:rnk, 1:rnk), Symbol(p.chol.uplo), p.chol.info),
-            view(delbeta, 1:rnk))
+              view(delbeta, 1:rnk))
         invpermute!(delbeta, piv)
     end
     p
 end
-
 
 function invqr(p::DensePredQR{T,<:QRCompactWY,<:AbstractWeights}) where {T}
     Rinv = inv(p.qr.R)
@@ -321,7 +326,7 @@ end
 
 link(x::LinPredModel) = link(x.rr)
 
-function _vcov(pp, Z, A)
+function _vcov(pp::LinPred, Z::AbstractMatrix, A::AbstractMatrix)
     if linpred_rank(pp) < size(Z, 2)
         nancols = [all(isnan, col) for col in eachcol(A)]
         nnancols = .!nancols
@@ -453,7 +458,8 @@ linpred_rank(x::LinPredModel) = linpred_rank(x.pp)
 linpred_rank(x::LinPred) = length(x.beta0)
 linpred_rank(x::DensePredChol{<:Any,<:CholeskyPivoted}) = rank(x.chol)
 linpred_rank(x::DensePredChol{<:Any,<:Cholesky}) = rank(x.chol.U)
-linpred_rank(x::DensePredQR{T,<:QRPivoted}) where {T} = rank(x.qr.R; rtol=size(x.X, 1) * eps(T))
+linpred_rank(x::DensePredQR{T,<:QRPivoted}) where {T} = rank(x.qr.R;
+                                                             rtol=size(x.X, 1) * eps(T))
 
 ispivoted(x::LinPred) = false
 ispivoted(x::DensePredChol{<:Any,<:CholeskyPivoted}) = true
@@ -466,8 +472,8 @@ _coltype(::ContinuousTerm{T}) where {T} = T
 # Function common to all LinPred models, but documented separately
 # for LinearModel and GeneralizedLinearModel
 function StatsBase.predict(mm::LinPredModel, data;
-    interval::Union{Symbol,Nothing}=nothing,
-    kwargs...)
+                           interval::Union{Symbol,Nothing}=nothing,
+                           kwargs...)
     Tables.istable(data) ||
         throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
 
@@ -479,7 +485,7 @@ function StatsBase.predict(mm::LinPredModel, data;
     fill!(prediction, missing)
     if interval === nothing
         predict!(view(prediction, nonmissings), mm, newx;
-            interval=interval, kwargs...)
+                 interval=interval, kwargs...)
         return prediction
     else
         # Finding integer indices once is faster
@@ -487,10 +493,10 @@ function StatsBase.predict(mm::LinPredModel, data;
         lower = Vector{Union{Float64,Missing}}(missing, length(nonmissings))
         upper = Vector{Union{Float64,Missing}}(missing, length(nonmissings))
         tup = (prediction=view(prediction, nonmissinginds),
-            lower=view(lower, nonmissinginds),
-            upper=view(upper, nonmissinginds))
+               lower=view(lower, nonmissinginds),
+               upper=view(upper, nonmissinginds))
         predict!(tup, mm, newx;
-            interval=interval, kwargs...)
+                 interval=interval, kwargs...)
         return (prediction=prediction, lower=lower, upper=upper)
     end
 end
