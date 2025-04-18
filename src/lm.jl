@@ -22,7 +22,7 @@ mutable struct LmResp{V<:FPVector,W<:AbstractWeights} <: ModResp  # response in 
         nμ = length(mu)
         lw = length(wts)
         lo = length(off)
-        if !(nμ == n)
+        if nμ != n
             throw(DimensionMismatch("lengths of `mu` and `y` ($nμ, $n) are not equal"))
         end
 
