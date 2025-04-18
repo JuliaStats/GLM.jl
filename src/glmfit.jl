@@ -866,7 +866,7 @@ end
 
 function StatsBase.cooksdistance(m::GeneralizedLinearModel)
     h = leverage(m)
-    hh = h ./ (1.0 .- h) .^ 2
+    hh = h ./ (1 .- h) .^ 2
     Rp = pearson_residuals(m)
     return (Rp .^ 2) .* hh ./ (dispersion(m)^2 * dof(m))
 end
