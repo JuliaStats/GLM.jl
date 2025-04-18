@@ -73,18 +73,18 @@ end
 
 function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
                  wts::AbstractWeights) where {D,L}
-    GlmResp(float(y), d, l, float(off), wts)
+    return GlmResp(float(y), d, l, float(off), wts)
 end
 
 function deviance(r::GlmResp)
     wts = weights(r)
     d = sum(r.devresid)
-    wts isa ProbabilityWeights ? d * nobs(r) / sum(wts) : d
+    return wts isa ProbabilityWeights ? d * nobs(r) / sum(wts) : d
 end
 
 weights(r::GlmResp) = r.wts
 function isweighted(r::GlmResp)
-    weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
+    return weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
 end
 
 """
@@ -239,7 +239,7 @@ Overwrite `v` with the working response of `r`
 """
 function wrkresp!(v::T, r::GlmResp{T}) where {T<:FPVector}
     broadcast!(+, v, r.eta, r.wrkresid)
-    isempty(r.offset) ? v : broadcast!(-, v, v, r.offset)
+    return isempty(r.offset) ? v : broadcast!(-, v, v, r.offset)
 end
 
 abstract type AbstractGLM <: LinPredModel end
@@ -257,7 +257,7 @@ end
 
 function GeneralizedLinearModel(rr::GlmResp, pp::LinPred,
                                 f::Union{FormulaTerm,Nothing}, fit::Bool)
-    GeneralizedLinearModel(rr, pp, f, fit, 0, NaN, NaN, NaN)
+    return GeneralizedLinearModel(rr, pp, f, fit, 0, NaN, NaN, NaN)
 end
 
 function coeftable(mm::AbstractGLM; level::Real=0.95)
@@ -268,14 +268,15 @@ function coeftable(mm::AbstractGLM; level::Real=0.95)
     ci = se * quantile(Normal(), (1 - level) / 2)
     levstr = isinteger(level * 100) ? string(Integer(level * 100)) : string(level * 100)
     cn = coefnames(mm)
-    CoefTable(hcat(cc, se, zz, p, cc + ci, cc - ci),
-              ["Coef.", "Std. Error", "z", "Pr(>|z|)", "Lower $levstr%", "Upper $levstr%"],
-              cn, 4, 3)
+    return CoefTable(hcat(cc, se, zz, p, cc + ci, cc - ci),
+                     ["Coef.", "Std. Error", "z", "Pr(>|z|)", "Lower $levstr%",
+                      "Upper $levstr%"],
+                     cn, 4, 3)
 end
 
 function confint(obj::AbstractGLM; level::Real=0.95)
-    hcat(coef(obj), coef(obj)) +
-    stderror(obj) * quantile(Normal(), (1.0 - level) / 2.0) * [1.0 -1.0]
+    return hcat(coef(obj), coef(obj)) +
+           stderror(obj) * quantile(Normal(), (1.0 - level) / 2.0) * [1.0 -1.0]
 end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
@@ -465,7 +466,7 @@ function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
     end
     cvg || throw(ConvergenceException(maxiter))
     m.fit = true
-    m
+    return m
 end
 
 function StatsBase.fit!(m::AbstractGLM;
@@ -488,7 +489,7 @@ function StatsBase.fit!(m::AbstractGLM;
     m.atol = atol
     m.rtol = rtol
 
-    _fit!(m, maxiter, minstepfac, atol, rtol, start)
+    return _fit!(m, maxiter, minstepfac, atol, rtol, start)
 end
 
 const FIT_GLM_DOC = """
@@ -570,7 +571,7 @@ function fit(::Type{M},
              y::AbstractVector,
              d::UnivariateDistribution,
              l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM}
-    fit(M, float(X), float(y), d, l; kwargs...)
+    return fit(M, float(X), float(y), d, l; kwargs...)
 end
 
 function fit(::Type{M},
@@ -688,9 +689,9 @@ function predict(mm::AbstractGLM, newX::AbstractMatrix;
     res = interval === nothing ?
           similar(r, len) :
           (prediction=similar(r, len), lower=similar(r, len), upper=similar(r, len))
-    predict!(res, mm, newX,
-             offset=offset, interval=interval, level=level,
-             interval_method=interval_method)
+    return predict!(res, mm, newX;
+                    offset=offset, interval=interval, level=level,
+                    interval_method=interval_method)
 end
 
 """
@@ -816,7 +817,7 @@ function checky(y, d::Binomial)
 end
 
 function nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:AbstractWeights}
-    oftype(sum(one(eltype(weights(r)))), length(r.y))
+    return oftype(sum(one(eltype(weights(r)))), length(r.y))
 end
 nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = sum(r.wts)
 
@@ -867,7 +868,7 @@ function StatsBase.cooksdistance(m::GeneralizedLinearModel)
     h = leverage(m)
     hh = h ./ (1.0 .- h) .^ 2
     Rp = pearson_residuals(m)
-    (Rp .^ 2) .* hh ./ (dispersion(m)^2 * dof(m))
+    return (Rp .^ 2) .* hh ./ (dispersion(m)^2 * dof(m))
 end
 
 function pearson_residuals(m::GeneralizedLinearModel)

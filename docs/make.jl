@@ -1,6 +1,6 @@
 using Distributions, Documenter, GLM, StatsBase
 
-makedocs(format=Documenter.HTML(),
+makedocs(; format=Documenter.HTML(),
          sitename="GLM",
          modules=[GLM],
          pages=["Home" => "index.md",
@@ -10,5 +10,5 @@ makedocs(format=Documenter.HTML(),
          doctest=true,
          warnonly=[:missing_docs])
 
-deploydocs(repo="github.com/JuliaStats/GLM.jl.git",
+deploydocs(; repo="github.com/JuliaStats/GLM.jl.git",
            push_preview=true)
