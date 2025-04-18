@@ -56,7 +56,6 @@ function GLM.inverse(x::SparsePredQR{T}) where T
     ipiv = invperm(x.qr.pcol)
     if rnk < size(x.X, 2)
         ## rank deficient
-        #Rinv = UpperTriangular(view(x.qr.R, 1:rnk, 1:rnk)) \ Diagonal(ones(T, rnk))
         Rinv = view(x.qr.R, 1:rnk, 1:rnk) \ Diagonal(ones(T, rnk))
         xinv = similar(Rinv, size(x.X, 2), size(x.X, 2))        
         xinv[1:rnk, 1:rnk] .= Rinv * Rinv'
