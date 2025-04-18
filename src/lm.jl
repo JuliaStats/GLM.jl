@@ -28,7 +28,7 @@ mutable struct LmResp{V<:FPVector,W<:AbstractWeights} <: ModResp  # response in 
 
         # Lengths of wts and off can be either n or 0
         if lw != n
-            throw(DimensionMismatch("wts must have length $n but was $lw"))
+            throw(DimensionMismatch("`wts` must have length $n but was $lw"))
         end
         if lo != 0 && lo != n
             throw(DimensionMismatch("offset must have length $n but was $lo"))
