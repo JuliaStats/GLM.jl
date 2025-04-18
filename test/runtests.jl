@@ -153,6 +153,11 @@ end
     @test residuals(lm_model) ≈ residuals(lm_model)
     @test residuals(lm_model; weighted=true) ≈
           sqrt.(GLM.weights(lm_model)) .* (df.FoodExp .- predict(lm_model))
+    @test residuals(glm_model; weighted=true) ≈ residuals(lm_model; weighted=true)
+    @test residuals(glm_model; weighted=false) ≈ residuals(lm_model; weighted=false)
+    @test residuals(glm_model.rr; weighted=false) ≈ residuals(lm_model; weighted=false)
+    @test residuals(glm_model.rr; weighted=true) ≈ residuals(lm_model; weighted=true)
+
     @test GLM.varstruct(lm_model) ==
           (GLM.working_weights(lm_model) .* GLM.working_residuals(lm_model), 1.0)
     @test residuals(lm_model.rr) ≈ residuals(lm_model)
@@ -166,6 +171,7 @@ end
                     -0.06772589439264813 6.670664781664879e-5])
     @test isapprox(first(predict(lm_model)), 357.57694841780994)
     @test isapprox(loglikelihood(lm_model), -4353.946729075838)
+    @test isapprox(loglikelihood(lm_model.rr), -4353.946729075838)
     @test isapprox(loglikelihood(glm_model), -4353.946729075838)
     @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
     @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
