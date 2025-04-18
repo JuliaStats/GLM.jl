@@ -19,11 +19,20 @@ mutable struct LmResp{V<:FPVector,W<:AbstractWeights} <: ModResp  # response in 
     y::V                                   # response
     function LmResp{V,W}(mu::V, off::V, wts::W, y::V) where {V,W}
         n = length(y)
-        length(mu) == n || error("mismatched lengths of mu and y")
-        ll = length(off)
-        ll == 0 || ll == n || error("length of offset is $ll, must be $n or 0")
-        ll = length(wts)
-        ll == n || ll == 0 || error("length of wts is $ll, must be $n or 0")
+        nμ = length(mu)
+        lw = length(wts)
+        lo = length(off)
+        if !(nμ == n)
+            throw(DimensionMismatch("lengths of μ and y ($nμ, $n) are not equal"))
+        end
+
+        # Lengths of wts and off can be either n or 0
+        if lw != n
+            throw(DimensionMismatch("wts must have length $n but was $lw"))
+        end
+        if lo != 0 && lo != n
+            throw(DimensionMismatch("offset must have length $n but was $lo"))
+        end
         new{V,W}(mu, off, wts, y)
     end
 end
@@ -169,10 +178,14 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
              dropcollinear::Bool=true, method::Symbol=:qr)
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
     _wts = convert_weights(wts)
-    if isempty(wts)
+    if isempty(_wts)
         Base.depwarn("Using `wts` of zero length for unweighted regression is deprecated in favor of " *
-                     "explicitly using `UnitWeights(length(y))`.", :fit)
+                     "explicitly using `UnitWeights(length(y))`." *
+                     " Proceeding by coercing `wts` to UnitWeights of size $(length(y)).",
+                     :fit)
+        _wts = uweights(length(y))
     end
+
     if method === :cholesky
         fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), nothing))
     elseif method === :qr

@@ -73,7 +73,7 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 function delbeta! end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where {T<:BlasReal}
-    r̃ = p.wts isa UnitWeights ? r : (wtsqrt = sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
+    r̃ = p.wts isa UnitWeights ? r : (wtsqrt=sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
     p.delbeta = p.qr \ r̃
     return p
 end
@@ -91,7 +91,7 @@ function delbeta!(p::DensePredQR{T,<:QRCompactWY,<:AbstractWeights}, r::Vector{T
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where {T<:BlasReal}
-    r̃ = p.wts isa UnitWeights ? r : (wtsqrt = sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
+    r̃ = p.wts isa UnitWeights ? r : (wtsqrt=sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
     rnk = linpred_rank(p)
     if rnk == length(p.delbeta)
         p.delbeta = p.qr \ r̃
@@ -163,7 +163,7 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights)
         mul!(scr, Diagonal(wts), X)
         F = Hermitian(float(scr'X))
     end
-    F = pivot ? cholesky!(F, RowMaximum(); tol=-one(T), check=false) : cholesky!(F)
+    F = pivot ? cholesky!(F, RowMaximum(); tol=(-one(T)), check=false) : cholesky!(F)
     DensePredChol(Matrix{T}(X),
                   zeros(T, size(X, 2)),
                   zeros(T, size(X, 2)),

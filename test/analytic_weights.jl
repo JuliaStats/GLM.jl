@@ -25,6 +25,7 @@ itr = Iterators.product((:qr, :cholesky), (true, false))
 @testset "Linear model ftest with $dmethod method with dropcollinear=$drop" for (dmethod,
                                                                                  drop) in
                                                                                 itr
+
     model_0 = lm(@formula(y ~ x1), df; wts=aweights(df.w), method=dmethod,
                  dropcollinear=drop)
     model_1 = lm(@formula(y ~ x1 + x2), df; wts=aweights(df.w),
@@ -40,6 +41,7 @@ end
 @testset "GLM: Binomial with LogitLink link - AnalyticWeights with $dmethod method" for (dmethod,
                                                                                          drop) in
                                                                                         itr
+
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), LogitLink(), wts=aweights(df.w),
                 method=dmethod, dropcollinear=drop, atol=1e-08, rtol=1e-08)
     @test deviance(model) ≈ 39.58120350785813 rtol = 1e-06
@@ -49,6 +51,12 @@ end
     @test_throws ArgumentError nullloglikelihood(model)
     @test_throws ArgumentError aic(model)
     @test_throws ArgumentError bic(model)
+    @test cooksdistance(model) ≈ [2.672806e-01; 2.516262e-02; 1.367146e-01; 3.382852e-02;
+                                  3.708084e-10; 2.144406e-02; 2.290360e-01; 2.113025e-02; 9.451432e-03;
+                                  2.145286e-03; 3.021442e-10; 2.085282e-10; 3.571678e-12; 2.593863e-11;
+                                  1.727869e-10; 3.657217e-10; 7.122122e-02; 6.682159e-02; 2.762688e+00;
+                                  2.051375e-01; 9.093471e-10; 2.544133e-10; 2.780846e-10; 2.258433e-10;
+                                  3.242331e-02] rtol = 1e-04
     @test GLM.momentmatrix(model) ≈ [1.095702695280752 0.1983501744547734 0.0;
                                      0.6292210259386299 0.2312324009639611 0.0;
                                      -0.869357286789858 -0.5816508224007081 -0.0;
@@ -79,6 +87,7 @@ end
 @testset "GLM: Binomial with ProbitLink link - AnalyticWeights with $dmethod method" for (dmethod,
                                                                                           drop) in
                                                                                          itr
+
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), ProbitLink(),
                 wts=aweights(df.w), method=dmethod, dropcollinear=drop, rtol=1e-09)
     @test deviance(model) ≈ 39.595360462143866 rtol = 1e-06
@@ -118,6 +127,7 @@ end
 @testset "GLM: Binomial with CauchitLink link - AnalyticWeights - method $dmethod" for (dmethod,
                                                                                         drop) in
                                                                                        itr
+
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), CauchitLink(),
                 wts=aweights(df.w),
                 method=dmethod, dropcollinear=drop, rtol=1e-08, atol=1e-08)
@@ -156,6 +166,7 @@ end
 @testset "GLM: Binomial with CloglogLink link - AnalyticWeights with $dmethod method" for (dmethod,
                                                                                            drop) in
                                                                                           itr
+
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), CloglogLink(),
                 wts=aweights(df.w),
                 method=dmethod, dropcollinear=drop, rtol=5e-10, atol=1e-10)
@@ -196,6 +207,7 @@ end
 @testset "GLM: Gamma with InverseLink link - AnalyticWeights with $dmethod method" for (dmethod,
                                                                                         drop) in
                                                                                        itr
+
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), InverseLink(),
                 wts=aweights(clotting.w), method=dmethod, dropcollinear=drop, atol=1e-07,
                 rtol=1e-08)
@@ -219,6 +231,7 @@ end
 @testset "GLM: Gamma with IdentityLink link - AnalyticWeights with $dmethod method" for (dmethod,
                                                                                          drop) in
                                                                                         itr
+
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(),
                 wts=aweights(clotting.w), method=dmethod, dropcollinear=drop,
                 rtol=1e-10, atol=1e-10, minstepfac=0.00001)
@@ -242,6 +255,7 @@ end
 @testset "GLM: Gamma with LogLink link - AnalyticWeights with $dmethod method" for (dmethod,
                                                                                     drop) in
                                                                                    itr
+
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(),
                 wts=aweights(clotting.w), method=dmethod, dropcollinear=drop, atol=1e-09,
                 rtol=1e-09)
@@ -265,6 +279,7 @@ end
 @testset "GLM: Gamma with InverseLink link - AnalyticWeights with $dmethod method" for (dmethod,
                                                                                         drop) in
                                                                                        itr
+
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), InverseLink(),
                 wts=aweights(clotting.w), method=dmethod, dropcollinear=drop, atol=1e-09,
                 rtol=1e-09)
@@ -288,6 +303,7 @@ end
 @testset "GLM: InverseGaussian with InverseSquareLink link - AnalyticWeights with $dmethod method" for (dmethod,
                                                                                                         drop) in
                                                                                                        itr
+
     model = glm(@formula(lot1 ~ 1 + u), clotting, InverseGaussian(), InverseSquareLink(),
                 wts=aweights(clotting.w), method=dmethod, dropcollinear=drop, atol=1e-09,
                 rtol=1e-09)
@@ -311,6 +327,7 @@ end
 @testset "GLM:  NegativeBinomial with LogLink link - AnalyticWeights - method: dmethod" for (dmethod,
                                                                                              drop) in
                                                                                             itr
+
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(2),
                 LogLink(), wts=aweights(quine.aweights), method=dmethod,
                 dropcollinear=drop, atol=1e-08, rtol=1e-08)
@@ -477,6 +494,7 @@ end
 @testset "GLM:  NegativeBinomial with LogLink link - AnalyticWeights with $dmethod method" for (dmethod,
                                                                                                 drop) in
                                                                                                itr
+
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine,
                 NegativeBinomial(2), LogLink(), wts=aweights(quine.aweights),
                 method=dmethod, dropcollinear=drop, rtol=1e-08, atol=1e-08)
@@ -642,6 +660,7 @@ end
 @testset "GLM:  NegativeBinomial with SqrtLink link - AnalyticWeights with $dmethod method" for (dmethod,
                                                                                                  drop) in
                                                                                                 itr
+
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(2),
                 SqrtLink(), wts=aweights(quine.aweights),
                 method=dmethod, dropcollinear=drop, rtol=1e-08, atol=1e-09)

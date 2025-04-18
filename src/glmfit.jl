@@ -53,7 +53,7 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
         throw(DimensionMismatch("wts must have length $n but was $lw"))
     end
     if lo != 0 && lo != n
-        throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
+        throw(DimensionMismatch("offset must have length $n but was $lo"))
     end
 
     return GlmResp{V,D,L,W}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
@@ -543,17 +543,15 @@ function fit(::Type{M},
     end
 
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
-    _wts = if wts isa AbstractWeights
-        wts
-    elseif wts isa AbstractVector
-        Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
-                     "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                     "by coercing `wts` to `FrequencyWeights`",
+    _wts = convert_weights(wts)
+    if isempty(_wts)
+        Base.depwarn("Using `wts` of zero length for unweighted regression is deprecated in favor of " *
+                     "explicitly using `UnitWeights(length(y))`." *
+                     " Proceeding by coercing `wts` to UnitWeights of size $(length(y)).",
                      :fit)
-        fweights(wts)
-    else
-        throw(ArgumentError("`wts` should be an AbstractVector coercible to AbstractWeights"))
+        _wts = uweights(length(y))
     end
+
     rr = GlmResp(y, d, l, offset, _wts)
 
     if method === :cholesky
@@ -589,16 +587,13 @@ function fit(::Type{M},
              fitargs...) where {M<:AbstractGLM}
     f, (y, X) = modelframe(f, data, contrasts, M)
     wts = wts === nothing ? uweights(length(y)) : wts
-    _wts = if wts isa AbstractWeights
-        wts
-    elseif wts isa AbstractVector
-        Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
-                     "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                     "by coercing `wts` to `FrequencyWeights`",
+    _wts = convert_weights(wts)
+    if isempty(_wts)
+        Base.depwarn("Using `wts` of zero length for unweighted regression is deprecated in favor of " *
+                     "explicitly using `UnitWeights(length(y))`." *
+                     " Proceeding by coercing `wts` to UnitWeights of size $(length(y)).",
                      :fit)
-        fweights(wts)
-    else
-        throw(ArgumentError("`wts` should be an AbstractVector coercible to AbstractWeights"))
+        _wts = uweights(length(y))
     end
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
@@ -866,4 +861,20 @@ function invloglikhessian(m::GeneralizedLinearModel)
     r = varstruct(m)
     wts = weights(m)
     return inverse(m.pp) * sum(wts) / nobs(m)
+end
+
+function StatsBase.cooksdistance(m::GeneralizedLinearModel)
+    h = leverage(m)
+    hh = h ./ (1.0 .- h) .^ 2
+    Rp = pearson_residuals(m)
+    (Rp .^ 2) .* hh ./ (dispersion(m)^2 * dof(m))
+end
+
+function pearson_residuals(m::GeneralizedLinearModel)
+    y = m.rr.y
+    μ = predict(m)
+    v = GLM.glmvar.(m.rr.d, μ)
+    w = weights(m)
+    r = ((y .- μ) .* sqrt.(w)) ./ sqrt.(v)
+    return r
 end

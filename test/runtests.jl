@@ -23,6 +23,36 @@ end
 
 linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
 
+@testset "Test GLmResp/LmResp constructor" begin
+    y = ifelse.(randn(10) .< 0, 1.0, 0.0)
+    d = Binomial()
+    η = similar(y)
+    μ = similar(y)
+    wts = similar(y)
+    aw = aweights(wts)
+    uw = GLM.uweights(10)
+    o = ones(10)
+    oe = Float64[]
+    l = GLM.LogitLink()
+
+    ## wts must be AbstractWeights
+    @test_throws ArgumentError GLM.GlmResp(y, d, l, η, μ, oe, wts)
+    ## Length of weights must match length of y
+    @test_throws DimensionMismatch GLM.GlmResp(y, d, l, η, μ, oe, uw[1:9])
+    @test_throws DimensionMismatch GLM.LmResp{typeof(y),typeof(aw)}(μ, oe, aw[1:2], y)
+    @test_throws DimensionMismatch GLM.LmResp{typeof(y),typeof(aw)}(μ, oe, aw, y[1:2])
+    ## Length of y must match length of η
+    @test_throws DimensionMismatch GLM.GlmResp(y[1:9], d, l, η, μ, oe, uw)
+    ## Length of y must match length of μ
+    @test_throws DimensionMismatch GLM.GlmResp(y, d, l, η, μ[1:9], oe, uw)
+    @test_throws DimensionMismatch GLM.LmResp{typeof(y),typeof(aw)}(μ[1:2], oe, aw, y)
+    ## Length of offset must match length of y
+    @test_throws DimensionMismatch GLM.GlmResp(y, d, l, η, μ, o[1:9], uw)
+    @test_throws DimensionMismatch GLM.LmResp{typeof(y),typeof(aw)}(μ, o[1:9], aw, y)
+    ## y must be in the support of d
+    @test_throws ArgumentError GLM.GlmResp([1.0, 2.0], d, l, η, μ, o, uw)
+end
+
 @testset "LM with $dmethod" for dmethod in (:cholesky, :qr)
     Σ = [6.136653061224592e-05 -9.464489795918525e-05
          -9.464489795918525e-05 1.831836734693908e-04]
@@ -30,7 +60,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form; method=dmethod)
     test_show(lm1)
     @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
-
+    @test residuals(lm1.rr) ≈ residuals(lm1)
     @test isapprox(vcov(lm1), Σ)
     @test isapprox(cor(lm1), Diagonal(diag(Σ))^(-1 / 2) * Σ * Diagonal(diag(Σ))^(-1 / 2))
     @test dof(lm1) == 3
@@ -45,6 +75,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     @test isapprox(aic(lm1), -36.409684288095946)
     @test isapprox(aicc(lm1), -24.409684288095946)
     @test isapprox(bic(lm1), -37.03440588041178)
+    @test GLM.working_residuals(lm1) ≈ residuals(lm1)
     lm2 = fit(LinearModel, hcat(ones(6), 10form.Carb), form.OptDen; method=dmethod)
     if dmethod == :cholesky
         @test isa(lm2.pp.chol, CholeskyPivoted)
@@ -111,9 +142,14 @@ end
     N = nrow(df)
     df.weights = fweights(repeat(1:5, Int(N / 5)))
     f = @formula(FoodExp ~ Income)
-
+    @test GLM.convert_weights(repeat(1:5, Int(N / 5))) == df.weights
+    @test_logs (:warn,
+                "Passing weights as vector is deprecated in favor of explicitly using " *
+                "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                "by coercing `wts` to `FrequencyWeights`")
     lm_model = lm(f, df, wts=df.weights; method=dmethod)
     glm_model = glm(f, df, Normal(), wts=df.weights; method=dmethod)
+    @test residuals(lm_model) ≈ residuals(lm_model)
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
@@ -127,11 +163,16 @@ end
     @test isapprox(loglikelihood(glm_model), -4353.946729075838)
     @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
     @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
+    @test GLM.working_residuals(lm_model) ≈ residuals(lm_model)
+    @test r2(lm_model) ≈ 0.8330258148644486
+    @test adjr2(lm_model) ≈ 0.832788298242634
 
     lm_model = fit(LinearModel, f, df, wts=uweights(0))
     @test_logs (:warn,
                 "Using `wts` of zero length for unweighted regression is deprecated in favor of " *
-                "explicitly using `UnitWeights(length(y))`.")
+                "explicitly using `UnitWeights(length(y))`." *
+                " Proceeding by coercing `wts` to UnitWeights of size $(N).")
+    @test GLM.weights(lm_model) == uweights(N)
 
     lm1 = fit(GeneralizedLinearModel, f, df, Normal(), IdentityLink();
               wts=pweights(df.weights))
@@ -1016,6 +1057,10 @@ end
     X = sprand(rng, 1000, 10, 0.01)
     β = randn(rng, 10)
     y = Bool[rand(rng) < logistic(x) for x in X * β]
+    @test_throws DimensionMismatch fit(GeneralizedLinearModel, Matrix(X)[1:20, :], y,
+                                       Binomial(); method=:cholesky)
+    @test_throws ArgumentError fit(GeneralizedLinearModel, Matrix(X), y,
+                                   Binomial(); method=:chol)
     gmsparse = fit(GeneralizedLinearModel, X, y, Binomial(); method=:cholesky)
     gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial(); method=:cholesky)
 
@@ -2332,8 +2377,13 @@ end
     glm1 = fit(GeneralizedLinearModel, frm1, df, Normal(),
                IdentityLink(), method=method, wts=fweights(df.w))
     @test lev0 ≈ leverage(glm1)
-    probit0 = glm(frmp0, df, Binomial(), ProbitLink(), method=method, wts=aweights(df.w))
-    probit = glm(frmp1, df, Binomial(), ProbitLink(), method=method, wts=aweights(df.w))
+    probit0 = glm(frmp0, df, Binomial(), ProbitLink(), method=method, wts=aweights(df.w),
+                  atol=1e-10, rtol=1e-10, minstepfac=1e-10)
+    probit = glm(frmp1, df, Binomial(), ProbitLink(), method=method, wts=aweights(df.w),
+                 atol=1e-10, rtol=1e-10, minstepfac=1e-10)
     @test leverage(probit) ≈ leverage(probit0)
+    @test cooksdistance(probit0) ≈ [9.548585e-04; 3.483554e-13; 2.982745e-01; 4.166364e-01;
+                                    2.100668e-05; 2.648063e+00; 2.165093e-03; 2.321434e-03;
+                                    7.665988e-02; 3.416970e-02] rtol = 1e-04
     @test lev0_pr ≈ leverage(probit0) rtol = 1e-03
 end
