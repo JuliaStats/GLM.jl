@@ -339,7 +339,7 @@ function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
         end
     elseif wts isa AnalyticWeights
         if d isa Union{Bernoulli, Binomial} 
-            throw(ArgumentError("The `loglikelihood` for analytic weighted models is not supported."))    
+                throw(ArgumentError("The `loglikelihood` for analytic weighted models with `Bernoulli` and `Binomial` families is not supported."))    
         end
         @inbounds for i in eachindex(y, mu, wts)
             ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, sum(wts), N)
