@@ -874,7 +874,7 @@ end
 function pearson_residuals(m::GeneralizedLinearModel)
     y = m.rr.y
     μ = predict(m)
-    v = GLM.glmvar.(m.rr.d, μ)
+    v = glmvar.(m.rr.d, μ)
     w = weights(m)
     r = ((y .- μ) .* sqrt.(w)) ./ sqrt.(v)
     return r
