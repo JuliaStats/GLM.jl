@@ -149,7 +149,12 @@ end
                 "by coercing `wts` to `FrequencyWeights`")
     lm_model = lm(f, df; wts=df.weights, method=dmethod)
     glm_model = glm(f, df, Normal(); wts=df.weights, method=dmethod)
+    @test residuals(lm_model) ≈ df.FoodExp .- predict(lm_model)
     @test residuals(lm_model) ≈ residuals(lm_model)
+    @test residuals(lm_model; weighted=true) ≈
+          sqrt.(GLM.weights(lm_model)) .* (df.FoodExp .- predict(lm_model))
+    @test GLM.varstruct(lm_model) ==
+          (GLM.working_weights(lm_model) .* GLM.working_residuals(lm_model), 1.0)
     @test residuals(lm_model.rr) ≈ residuals(lm_model)
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
