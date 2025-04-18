@@ -545,7 +545,7 @@ function fit(::Type{M},
 
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
     _wts = convert_weights(wts)
-    if isempty(_wts)
+    if !wts isa AbstractWeights && isempty(_wts)
         Base.depwarn("Using `wts` of zero length for unweighted regression is deprecated in favor of " *
                      "explicitly using `UnitWeights(length(y))`." *
                      " Proceeding by coercing `wts` to UnitWeights of size $(length(y)).",
