@@ -39,7 +39,7 @@ struct CauchitLink <: Link01 end
 A [`Link01`](@ref) corresponding to the extreme value (or log-Weibull) distribution.  The
 link is the complementary log-log transformation, `log(1 - log(-μ))`.
 """
-struct CloglogLink  <: Link01 end
+struct CloglogLink <: Link01 end
 
 """
     IdentityLink
@@ -53,14 +53,14 @@ struct IdentityLink <: Link end
 
 The canonical [`Link`](@ref) for [`Distributions.Gamma`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.Gamma) distribution, defined as `η = inv(μ)`.
 """
-struct InverseLink  <: Link end
+struct InverseLink <: Link end
 
 """
     InverseSquareLink
 
 The canonical [`Link`](@ref) for [`Distributions.InverseGaussian`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.InverseGaussian) distribution, defined as `η = inv(abs2(μ))`.
 """
-struct InverseSquareLink  <: Link end
+struct InverseSquareLink <: Link end
 
 """
     LogitLink
@@ -84,7 +84,7 @@ struct LogLink <: Link end
 The canonical [`Link`](@ref) for [`Distributions.NegativeBinomial`](https://juliastats.org/Distributions.jl/stable/univariate/#Distributions.NegativeBinomial) distribution, defined as `η = log(μ/(μ+θ))`.
 The shape parameter θ has to be fixed for the distribution to belong to the exponential family.
 """
-struct NegativeBinomialLink  <: Link
+struct NegativeBinomialLink <: Link
     θ::Float64
 end
 
@@ -198,12 +198,12 @@ LogitLink()
 """
 function canonicallink end
 
-linkfun(::CauchitLink, μ::Real) = tan(pi * (μ - oftype(μ, 1/2)))
-linkinv(::CauchitLink, η::Real) = oftype(η, 1/2) + atan(η) / pi
+linkfun(::CauchitLink, μ::Real) = tan(pi * (μ - oftype(μ, 1 / 2)))
+linkinv(::CauchitLink, η::Real) = oftype(η, 1 / 2) + atan(η) / pi
 function inverselink(::CauchitLink, η::Real)
     # atan decays so slowly that we don't need to be careful when evaluating μ
     μ = atan(η) / π
-    μ += one(μ)/2
+    μ += one(μ) / 2
     return μ, inv(π * (1 + abs2(η))), 1 - μ
 end
 
@@ -283,7 +283,7 @@ linkfun(::ProbitLink, μ::Real) = -sqrt2 * erfcinv(2μ)
 linkinv(::ProbitLink, η::Real) = erfc(-η / sqrt2) / 2
 
 function inverselink(::ProbitLink, η::Real)
-    μ   =  cdf(Normal(), η)
+    μ = cdf(Normal(), η)
     omμ = ccdf(Normal(), η)
     return μ, pdf(Normal(), η), omμ
 end
@@ -337,7 +337,7 @@ glmvar(::Union{Bernoulli,Binomial}, μ::Real) = μ * (1 - μ)
 glmvar(::Gamma, μ::Real) = abs2(μ)
 glmvar(::Geometric, μ::Real) = μ * (1 + μ)
 glmvar(::InverseGaussian, μ::Real) = μ^3
-glmvar(d::NegativeBinomial, μ::Real) = μ * (1 + μ/d.r)
+glmvar(d::NegativeBinomial, μ::Real) = μ * (1 + μ / d.r)
 glmvar(::Normal, μ::Real) = one(μ)
 glmvar(::Poisson, μ::Real) = μ
 
@@ -370,11 +370,11 @@ true
 """
 function mustart end
 
-mustart(::Bernoulli, y, wt) = (y + oftype(y, 1/2)) / 2
-mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1/2)) / (wt + one(y))
-function mustart(::Union{Gamma, InverseGaussian}, y, wt)
+mustart(::Bernoulli, y, wt) = (y + oftype(y, 1 / 2)) / 2
+mustart(::Binomial, y, wt) = (wt * y + oftype(y, 1 / 2)) / (wt + one(y))
+function mustart(::Union{Gamma,InverseGaussian}, y, wt)
     fy = float(y)
-    iszero(y) ? oftype(y, 1/10) : fy
+    iszero(y) ? oftype(y, 1 / 10) : fy
 end
 function mustart(::Geometric, y, wt)
     fy = float(y)
@@ -382,12 +382,12 @@ function mustart(::Geometric, y, wt)
 end
 function mustart(::NegativeBinomial, y, wt)
     fy = float(y)
-    iszero(y) ? fy + oftype(fy, 1/6) : fy
+    iszero(y) ? fy + oftype(fy, 1 / 6) : fy
 end
 mustart(::Normal, y, wt) = y
 function mustart(::Poisson, y, wt)
     fy = float(y)
-    fy + oftype(fy, 1/10)
+    fy + oftype(fy, 1 / 10)
 end
 
 """
@@ -430,7 +430,7 @@ function devresid(::Binomial, y, μ::Real)
     elseif y == 0
         return -2 * log1p(-μ)
     else
-        return 2 * (y * (log(y) - log(μ)) + (1 - y)*(log1p(-y) - log1p(-μ)))
+        return 2 * (y * (log(y) - log(μ)) + (1 - y) * (log1p(-y) - log1p(-μ)))
     end
 end
 devresid(::Gamma, y, μ::Real) = -2 * (log(y / μ) - (y - μ) / μ)
@@ -442,7 +442,7 @@ devresid(::InverseGaussian, y, μ::Real) = abs2(y - μ) / (y * abs2(μ))
 function devresid(d::NegativeBinomial, y, μ::Real)
     μ == 0 && return convert(float(promote_type(typeof(μ), typeof(y))), NaN)
     θ = d.r
-    return 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ)/(y + θ)))
+    return 2 * (xlogy(y, y / μ) + xlogy(y + θ, (μ + θ) / (y + θ)))
 end
 devresid(::Normal, y, μ::Real) = abs2(y - μ)
 devresid(::Poisson, y, μ::Real) = 2 * (xlogy(y, y / μ) - (y - μ))
@@ -463,7 +463,7 @@ false
 ```
 """
 dispersion_parameter(D) = true
-dispersion_parameter(::Union{Bernoulli, Binomial, Poisson}) = false
+dispersion_parameter(::Union{Bernoulli,Binomial,Poisson}) = false
 
 """
     _safe_int(x::T)
@@ -490,34 +490,47 @@ The loglikelihood of a fitted model is the sum of these values over all the obse
 """
 function loglik_obs end
 
-loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt*logpdf(Bernoulli(μ), y)
-loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), _safe_int(y*wt))
-loglik_obs(::Gamma, y, μ, wt, ϕ) = wt*logpdf(Gamma(inv(ϕ), μ*ϕ), y)
+loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt * logpdf(Bernoulli(μ), y)
+loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), _safe_int(y * wt))
+loglik_obs(::Gamma, y, μ, wt, ϕ) = wt * logpdf(Gamma(inv(ϕ), μ * ϕ), y)
 # In Distributions.jl, a Geometric distribution characterizes the number of failures before
 # the first success in a sequence of independent Bernoulli trials with success rate p.
 # The mean of Geometric distribution is (1 - p) / p.
 # Hence, p = 1 / (1 + μ).
 loglik_obs(::Geometric, y, μ, wt, ϕ) = wt * logpdf(Geometric(1 / (μ + 1)), y)
-loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt*logpdf(InverseGaussian(μ, inv(ϕ)), y)
-loglik_obs(::Normal, y, μ, wt, ϕ) = wt*logpdf(Normal(μ, sqrt(ϕ)), y)
-loglik_obs(::Poisson, y, μ, wt, ϕ) = wt*logpdf(Poisson(μ), y)
+loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt * logpdf(InverseGaussian(μ, inv(ϕ)), y)
+loglik_obs(::Normal, y, μ, wt, ϕ) = wt * logpdf(Normal(μ, sqrt(ϕ)), y)
+loglik_obs(::Poisson, y, μ, wt, ϕ) = wt * logpdf(Poisson(μ), y)
 # We use the following parameterization for the Negative Binomial distribution:
 #    (Γ(θ+y) / (Γ(θ) * y!)) * μ^y * θ^θ / (μ+θ)^{θ+y}
 # The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
 #    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
 # Hence, p = θ/(μ+θ)
-loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
-
+loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ) = wt * logpdf(NegativeBinomial(d.r,
+                                                                            d.r / (μ + d.r)), y)
 
 ## Slight different interface for analytic and probability weights
 ## ϕ is the deviance - not the deviance/n nor sum(wt)
 ## sumwt is sum(wt)
 ## n is the number of observations
-loglik_apweights_obs(::Bernoulli, y, μ, wt, ϕ, sumwt, n) = logpdf(Binomial(round(Int, wt), μ), round(wt*y))
-loglik_apweights_obs(::Binomial, y, μ, wt, ϕ, sumwt, n) = logpdf(Binomial(round(Int, wt), μ), round(wt*y))
-loglik_apweights_obs(::Gamma, y, μ, wt, ϕ, sumwt, n) = wt*logpdf(Gamma(inv(ϕ/sumwt), μ*ϕ/sumwt), y)
-loglik_apweights_obs(::Geometric, y, μ, wt, ϕ, sumwt, n) = wt*logpdf(Geometric(1 / (μ + 1)), y)
-loglik_apweights_obs(::InverseGaussian, y, μ, wt, ϕ, sumwt, n) = -(wt*(1 + log(2π*(ϕ/sumwt))) + 3*log(y)*wt)/2
-loglik_apweights_obs(::Normal, y, μ, wt, ϕ, sumwt, n) = ((-log(2π*ϕ/n) - 1) + log(wt))/2
-loglik_apweights_obs(::Poisson, y, μ, wt, ϕ, sumwt, n) = wt*logpdf(Poisson(μ), y)
-loglik_apweights_obs(d::NegativeBinomial, y, μ, wt, ϕ, sumwt, n) = wt*logpdf(NegativeBinomial(d.r, d.r/(μ+d.r)), y)
+loglik_apweights_obs(::Bernoulli, y, μ, wt, ϕ, sumwt, n) = logpdf(Binomial(round(Int, wt),
+                                                                           μ),
+                                                                  round(wt * y))
+loglik_apweights_obs(::Binomial, y, μ, wt, ϕ, sumwt, n) = logpdf(Binomial(round(Int, wt),
+                                                                          μ), round(wt * y))
+loglik_apweights_obs(::Gamma, y, μ, wt, ϕ, sumwt, n) = wt * logpdf(Gamma(inv(ϕ / sumwt),
+                                                                         μ * ϕ / sumwt), y)
+loglik_apweights_obs(::Geometric, y, μ, wt, ϕ, sumwt, n) = wt *
+                                                           logpdf(Geometric(1 / (μ + 1)), y)
+loglik_apweights_obs(::InverseGaussian, y, μ, wt, ϕ, sumwt, n) = -(wt * (1 +
+                                                                         log(2π * (ϕ / sumwt))) +
+                                                                   3 * log(y) * wt) / 2
+loglik_apweights_obs(::Normal, y, μ, wt, ϕ, sumwt, n) = ((-log(2π * ϕ / n) - 1) + log(wt)) /
+                                                        2
+loglik_apweights_obs(::Poisson, y, μ, wt, ϕ, sumwt, n) = wt * logpdf(Poisson(μ), y)
+loglik_apweights_obs(d::NegativeBinomial, y, μ, wt, ϕ, sumwt, n) = wt *
+                                                                   logpdf(NegativeBinomial(d.r,
+                                                                                           d.r /
+                                                                                           (μ +
+                                                                                            d.r)),
+                                                                          y)

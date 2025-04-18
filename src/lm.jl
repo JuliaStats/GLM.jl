@@ -154,11 +154,10 @@ function convert_weights(wts)
     if wts isa Union{FrequencyWeights,AnalyticWeights,ProbabilityWeights,UnitWeights}
         wts
     elseif wts isa AbstractVector
-        Base.depwarn(
-            "Passing weights as vector is deprecated in favor of explicitly using " *
-            "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-            "by coercing `wts` to `FrequencyWeights`",
-            :fit)
+        Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
+                     "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                     "by coercing `wts` to `FrequencyWeights`",
+                     :fit)
         fweights(wts)
     else
         throw(ArgumentError("`wts` should be an `AbstractVector` coercible to `AbstractWeights`"))
@@ -166,14 +165,13 @@ function convert_weights(wts)
 end
 
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real};
-    wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(length(y)),
-    dropcollinear::Bool=true, method::Symbol=:qr)
+             wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(length(y)),
+             dropcollinear::Bool=true, method::Symbol=:qr)
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
     _wts = convert_weights(wts)
     if isempty(wts)
-        Base.depwarn(
-             "Using `wts` of zero length for unweighted regression is deprecated in favor of "*
-             "explicitly using `UnitWeights(length(y))`.", :fit)
+        Base.depwarn("Using `wts` of zero length for unweighted regression is deprecated in favor of " *
+                     "explicitly using `UnitWeights(length(y))`.", :fit)
     end
     if method === :cholesky
         fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), nothing))
@@ -214,7 +212,6 @@ An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, metho
 $FIT_LM_DOC
 """
 lm(X, y; kwargs...) = fit(LinearModel, X, y; kwargs...)
-
 
 dof(x::LinearModel) = linpred_rank(x.pp) + 1
 
@@ -297,8 +294,8 @@ function coeftable(mm::LinearModel; level::Real=0.95)
     levstr = isinteger(level * 100) ? string(Integer(level * 100)) : string(level * 100)
     cn = coefnames(mm)
     CoefTable(hcat(cc, se, tt, p, cc + ci, cc - ci),
-        ["Coef.", "Std. Error", "t", "Pr(>|t|)", "Lower $levstr%", "Upper $levstr%"],
-        cn, 4, 3)
+              ["Coef.", "Std. Error", "t", "Pr(>|t|)", "Lower $levstr%", "Upper $levstr%"],
+              cn, 4, 3)
 end
 
 """
@@ -313,7 +310,7 @@ Valid values of `interval` are `:confidence` delimiting the  uncertainty of the
 predicted relationship, and `:prediction` delimiting estimated bounds for new data points.
 """
 function predict(mm::LinearModel, newx::AbstractMatrix;
-    interval::Union{Symbol,Nothing}=nothing, level::Real=0.95)
+                 interval::Union{Symbol,Nothing}=nothing, level::Real=0.95)
     retmean = similar(view(newx, :, 1))
     if interval === nothing
         res = retmean
@@ -327,9 +324,9 @@ end
 
 function StatsModels.predict!(res::Union{AbstractVector,
                                          NamedTuple{(:prediction, :lower, :upper),
-                                                    <:NTuple{3, AbstractVector}}},
+                                                    <:NTuple{3,AbstractVector}}},
                               mm::LinearModel, newx::AbstractMatrix;
-                              interval::Union{Symbol, Nothing}=nothing,
+                              interval::Union{Symbol,Nothing}=nothing,
                               level::Real=0.95)
     if interval === nothing
         res isa AbstractVector ||
@@ -354,7 +351,8 @@ function StatsModels.predict!(res::Union{AbstractVector,
         prediction, lower, upper = res
         length(prediction) == length(lower) == length(upper) == size(newx, 1) ||
             throw(DimensionMismatch("length of vectors in `res` must equal the number of rows in `newx`"))
-        isweighted(mm) && error("prediction with confidence intervals not yet implemented for weighted regression")
+        isweighted(mm) &&
+            error("prediction with confidence intervals not yet implemented for weighted regression")
         dev = deviance(mm)
         dofr = dof_residual(mm)
         ret = diag(newx * vcov(mm) * newx')
