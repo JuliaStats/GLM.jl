@@ -449,6 +449,8 @@ dobson = DataFrame(; Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
     # Deprecated methods
     @test gm1.model === gm1
     @test gm1.mf.f == formula(gm1)
+    @test cooksdistance(gm1) ≈ [0.35162220; 0.43125000; 0.01468043; 0.03906913; 0.35640497;
+                                0.62024818; 0.62510614; 0.00356405; 0.44408301] rtol = 1e-04
 end
 
 ## Example from http://www.ats.ucla.edu/stat/r/dae/logit.htm

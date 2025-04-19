@@ -1,20 +1,23 @@
-function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractVector;
+function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractWeights;
                    maxiter=30, tol=1.e-6)
     function first_derivative(θ::Real)
-        tmp(yi, μi) = (yi + θ) / (μi + θ) + log(μi + θ) - 1 - log(θ) - digamma(θ + yi) +
-                      digamma(θ)
-        return unit_weights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
+        function tmp(yi, μi)
+            return (yi + θ) / (μi + θ) + log(μi + θ) - 1 - log(θ) - digamma(θ + yi) +
+                   digamma(θ)
+        end
+        return wts isa UnitWeights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
                sum(wti * tmp(yi, μi) for (wti, yi, μi) in zip(wts, y, μ))
     end
     function second_derivative(θ::Real)
-        tmp(yi, μi) = -(yi + θ) / (μi + θ)^2 + 2 / (μi + θ) - 1 / θ - trigamma(θ + yi) +
-                      trigamma(θ)
-        return unit_weights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
+        function tmp(yi, μi)
+            return -(yi + θ) / (μi + θ)^2 + 2 / (μi + θ) - 1 / θ - trigamma(θ + yi) +
+                   trigamma(θ)
+        end
+        return wts isa UnitWeights ? sum(tmp(yi, μi) for (yi, μi) in zip(y, μ)) :
                sum(wti * tmp(yi, μi) for (wti, yi, μi) in zip(wts, y, μ))
     end
 
-    unit_weights = length(wts) == 0
-    if unit_weights
+    if wts isa UnitWeights
         n = length(y)
         θ = n / sum((yi / μi - 1)^2 for (yi, μi) in zip(y, μ))
     else
@@ -71,7 +74,7 @@ In both cases, `link` may specify the link function
 function negbin(F,
                 D,
                 args...;
-                wts::Union{Nothing,AbstractVector}=nothing,
+                wts::Union{Nothing,AbstractWeights}=nothing,
                 initialθ::Real=Inf,
                 dropcollinear::Bool=true,
                 method::Symbol=:qr,
