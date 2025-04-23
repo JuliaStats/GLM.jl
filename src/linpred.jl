@@ -67,6 +67,7 @@ end
 
 DensePredQR(X::AbstractMatrix) = DensePredQR(X, false, uweights(size(X, 1)))
 
+
 """
     delbeta!(p::LinPred, r::Vector)
 
