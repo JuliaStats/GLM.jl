@@ -390,8 +390,8 @@ function confint(obj::LinearModel; level::Real=0.95)
 end
 
 function momentmatrix(m::LinearModel)
-    X = modelmatrix(m; weighted=false)
-    r = residuals(m; weighted=false)
+    X = modelmatrix(m)
+    r = residuals(m)
     mm = X .* r
     isweighted(m) && (mm .*= weights(m))
     return mm
