@@ -199,7 +199,7 @@ end
 
 function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights},
                   r::Vector{T}) where {T<:BlasReal}
-    X = p.wts isa UnitWeights ? p.scratchm1 .= p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
+    X = p.wts isa UnitWeights ? p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
     return p
 end
