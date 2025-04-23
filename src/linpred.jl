@@ -66,6 +66,7 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY,QRPivoted},
 end
 
 DensePredQR(X::AbstractMatrix) = DensePredQR(X, false, uweights(size(X, 1)))
+
 """
     delbeta!(p::LinPred, r::Vector)
 
