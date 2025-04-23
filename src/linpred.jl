@@ -402,7 +402,7 @@ function leverage(pp::DensePredChol{T,<:Cholesky}) where {T}
 end
 
 function leverage(pp::DensePredQR{T,<:QRPivoted}) where {T}
-    X = modelmatrix(pp; weighted=false)
+    X = modelmatrix(pp)
     rnk = linpred_rank(pp)
     R = UpperTriangular(view(parent(pp.qr.R), 1:rnk, 1:rnk))
     return sum(x -> x^2, view(X, :, pp.qr.p[1:rnk]) / R; dims=2)
