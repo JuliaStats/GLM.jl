@@ -75,7 +75,7 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 function delbeta! end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where {T<:BlasReal}
-    r̃ = p.wts isa UnitWeights ? r : (wtsqrt=sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
+    r̃ = p.wts isa UnitWeights ? r : sqrt.(p.wts) .* r
     p.delbeta = p.qr \ r̃
     return p
 end
