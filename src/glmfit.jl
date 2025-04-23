@@ -319,9 +319,8 @@ function nulldeviance(m::GeneralizedLinearModel)
     return dev
 end
 
-loglikelihood(m::AbstractGLM) = loglikelihood(m.rr)
-
-function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
+function loglikelihood(m::AbstractGLM)
+    r = m.rr
     y = r.y
     mu = r.mu
     wts = weights(r)
