@@ -202,7 +202,7 @@ function fit(::Type{LinearModel}, f::FormulaTerm, data;
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     f, (y, X) = modelframe(f, data, contrasts, LinearModel)
     _wts = convert_weights(wts)
-    _wts = isempty(_wts) ? uweights(length(y)) : _wts
+    _wts = !(wts isa AbstractWeights) && isempty(_wts) ? uweights(length(y)) : _wts
     if method === :cholesky
         fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), f))
     elseif method === :qr
