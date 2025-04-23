@@ -795,7 +795,7 @@ function _initialeta!(eta, dist, link, y, wts::AbstractWeights)
             eta[i] = linkfun(link, μ)
         end
     else
-        @inbounds @simd for i in eachindex(y, eta)
+        @inbounds @simd for i in eachindex(y, eta, wts)
             μ = mustart(dist, y[i], wts[i])
             eta[i] = linkfun(link, μ)
         end
