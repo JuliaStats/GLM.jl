@@ -174,7 +174,7 @@ function convert_weights(wts)
 end
 
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real};
-             wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(length(y)),
+             wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(length(y)),
              dropcollinear::Bool=true, method::Symbol=:qr)
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
     _wts = convert_weights(wts)
