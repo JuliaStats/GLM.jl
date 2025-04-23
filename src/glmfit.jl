@@ -110,7 +110,7 @@ the linear predictor, `linPr`.
 """
 function updateμ! end
 
-function updateμ!(r::GlmResp{T}, linPr::T) where {T}
+function updateμ!(r::GlmResp{T}, linPr::T) where {T<:FPVector}
     isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
     if isweighted(r)
