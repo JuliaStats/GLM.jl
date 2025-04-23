@@ -53,7 +53,7 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
         throw(DimensionMismatch("wts must have length $n but was $lw"))
     end
     if lo != 0 && lo != n
-        throw(DimensionMismatch("offset must have length $n but was $lo"))
+        throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
     end
 
     return GlmResp{V,D,L,W}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
