@@ -251,7 +251,7 @@ function nulldeviance(obj::LinearModel)
 
     v = zero(eltype(y)) * zero(eltype(wts))
     if wts isa UnitWeights
-        @inbounds @simd for i in eachindex(y, wts)
+        @inbounds @simd for i in eachindex(y)
             v += abs2(y[i] - m)
         end
     else
