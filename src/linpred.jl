@@ -93,7 +93,7 @@ function delbeta!(p::DensePredQR{T,<:QRCompactWY,<:AbstractWeights}, r::Vector{T
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where {T<:BlasReal}
-    r̃ = p.wts isa UnitWeights ? r : (wtsqrt=sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
+    r̃ = p.wts isa UnitWeights ? r : sqrt.(p.wts) .* r
     rnk = linpred_rank(p)
     if rnk == length(p.delbeta)
         p.delbeta = p.qr \ r̃
