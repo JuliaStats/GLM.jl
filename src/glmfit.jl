@@ -581,7 +581,6 @@ function fit(::Type{M},
              wts::Union{AbstractVector,Nothing}=nothing,
              dropcollinear::Bool=true,
              method::Symbol=:qr,
-             dofit::Union{Bool,Nothing}=nothing,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
              fitargs...) where {M<:AbstractGLM}
     f, (y, X) = modelframe(f, data, contrasts, M)
