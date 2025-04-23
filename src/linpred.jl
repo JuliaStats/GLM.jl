@@ -409,7 +409,7 @@ function leverage(pp::DensePredQR{T,<:QRPivoted}) where {T}
 end
 
 function leverage(pp::DensePredQR{T,<:QRCompactWY}) where {T}
-    X = modelmatrix(pp; weighted=false)
+    X = modelmatrix(pp)
     return sum(x -> x^2, X / pp.qr.R; dims=2)
 end
 
