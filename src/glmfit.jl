@@ -533,7 +533,6 @@ function fit(::Type{M},
              l::Link=canonicallink(d);
              dropcollinear::Bool=true,
              method::Symbol=:qr,
-             dofit::Union{Bool,Nothing}=nothing,
              wts::AbstractWeights=uweights(length(y)),
              offset::AbstractVector{<:Real}=similar(y, 0),
              fitargs...) where {M<:AbstractGLM}
