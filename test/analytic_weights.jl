@@ -12,7 +12,6 @@ clotting = DataFrame(; u=log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
                      w=[1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7])
 
 quine.aweights = log.(3 .+ 3 .* quine.Days)
-quine.fweights = floor.(quine.aweights)
 
 dobson = DataFrame(; Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
                    Outcome=categorical(repeat(string.('A':'C'); outer=3)),
