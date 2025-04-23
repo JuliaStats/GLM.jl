@@ -785,7 +785,11 @@ function initialeta!(eta::AbstractVector,
     return eta
 end
 
-function _initialeta!(eta, dist, link, y, wts::AbstractWeights)
+function _initialeta!(eta::AbstractVector,
+                      dist::UnivariateDistribution,
+                      link::Link,
+                      y::AbstractVector,
+                      wts::AbstractWeights)
     if wts isa UnitWeights
         @inbounds @simd for i in eachindex(y, eta)
             μ = mustart(dist, y[i], 1)
