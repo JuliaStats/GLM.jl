@@ -44,7 +44,7 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY,QRPivoted},
     scratchm1::Matrix{T}
 
     function DensePredQR(X::AbstractMatrix, pivot::Bool,
-                         wts::W) where {W<:Union{AbstractWeights}}
+                         wts::W) where {W<:AbstractWeights}
         n, p = size(X)
         T = typeof(float(zero(eltype(X))))
         Q = pivot ? QRPivoted : QRCompactWY
