@@ -397,7 +397,7 @@ function leverage(pp::DensePredChol{T,<:CholeskyPivoted}) where {T}
 end
 
 function leverage(pp::DensePredChol{T,<:Cholesky}) where {T}
-    X = modelmatrix(pp; weighted=false)
+    X = modelmatrix(pp)
     return sum(x -> x^2, X / pp.chol.U; dims=2)
 end
 
