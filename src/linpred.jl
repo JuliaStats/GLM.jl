@@ -387,7 +387,7 @@ function leverage(x::LinPredModel)
 end
 
 function leverage(pp::DensePredChol{T,<:CholeskyPivoted}) where {T}
-    X = modelmatrix(pp; weighted=false)
+    X = modelmatrix(pp)
     rnk = rank(pp.chol)
     A = inverse(pp)
     p = pp.chol.p[1:rnk]
