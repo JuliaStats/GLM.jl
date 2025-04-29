@@ -1855,7 +1855,7 @@ end
         @test GLM.linkinv(InverseLink(), 10) ≈ GLM.linkinv(PowerLink(-1), 10)
         @test GLM.linkinv(InverseSquareLink(), 10) ≈ GLM.linkinv(PowerLink(-2), 10)
         @test GLM.linkinv(PowerLink(1 / 3), 10) ≈ 1000.0
-        @test GLM.linkinv(CauchitLInk(), 0.0) ≈ 0.5
+        @test GLM.linkinv(CauchitLink(), 0.0) ≈ 0.5
 
         @test PowerLink(1 / 3) == PowerLink(1 / 3)
         @test isequal(PowerLink(1 / 3), PowerLink(1 / 3))
