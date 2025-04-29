@@ -7,7 +7,7 @@ using LogExpFunctions: logistic, logit, xlogy
 @reexport using StatsModels
 using Distributions: sqrt2, sqrt2π
 
-import Base: (\), convert, show, size
+import Base: \, convert, show, size
 import LinearAlgebra: cholesky, cholesky!
 import Statistics: cor
 using StatsAPI
