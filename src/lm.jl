@@ -196,7 +196,7 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
 end
 
 function fit(::Type{LinearModel}, f::FormulaTerm, data;
-             wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(0),
+             wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(0),
              dropcollinear::Bool=true,
              method::Symbol=:qr,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
