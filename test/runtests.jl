@@ -1117,7 +1117,8 @@ end
     @test predict(gm13, newd; interval=:confidence, interval_method=:delta) ==
           DataFrame(predict(gm11, newX; interval=:confidence, interval_method=:delta))
     @test predict(gm13, newd; interval=:confidence, interval_method=:transformation) ==
-          DataFrame(predict(gm11, newX; interval=:confidence, interval_method=:transformation))
+          DataFrame(predict(gm11, newX; interval=:confidence,
+                            interval_method=:transformation))
 
     # Prediction from DataFrames with missing values
     drep = d[[1, 2, 3, 3, 4, 5, 6, 7, 8, 8, 9, 10], :]
