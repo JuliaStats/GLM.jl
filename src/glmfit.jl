@@ -245,7 +245,6 @@ function GeneralizedLinearModel(rr::GlmResp, pp::LinPred,
                                   NaN, NaN)
 end
 
-
 """
     coeftable(mm::AbstractGLM; level::Real=0.95)
     coeftable(mm::LinearModel; level::Real=0.95)
