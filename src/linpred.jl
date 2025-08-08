@@ -328,6 +328,13 @@ function nobs(obj::LinPredModel)
 end
 
 coef(x::LinPred) = x.beta0
+
+"""
+    coef(obj::LinearModel)
+    coef(obj::GLM)
+
+Returns the coefficient estimates as a vector
+"""
 coef(obj::LinPredModel) = coef(obj.pp)
 function coefnames(x::LinPredModel)
     return x.formula === nothing ? ["x$i" for i in 1:length(coef(x))] :

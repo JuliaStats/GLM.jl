@@ -245,6 +245,15 @@ function GeneralizedLinearModel(rr::GlmResp, pp::LinPred,
                                   NaN, NaN)
 end
 
+
+"""
+    coeftable(mm::AbstractGLM; level::Real=0.95)
+    coeftable(mm::LinearModel; level::Real=0.95)
+
+Returns formatted table of coefficients.
+Each row shows the estimate, standard error, z statstics, p-value, lower- and upper confidence interval
+for each paramter in the model
+"""
 function coeftable(mm::AbstractGLM; level::Real=0.95)
     cc = coef(mm)
     se = stderror(mm)
@@ -259,6 +268,14 @@ function coeftable(mm::AbstractGLM; level::Real=0.95)
                      cn, 4, 3)
 end
 
+"""
+    confint(obj::AbstractGLM; level::Real=0.95)
+    confint(obj::LinearModel; level::Real=0.95)
+    
+Computes and returns the confidence interval for the coefficients as p × 2 matrix
+where p is the number of parameters in the model.
+Each row corresponds to the confidence interval for a parameter. 
+"""
 function confint(obj::AbstractGLM; level::Real=0.95)
     return hcat(coef(obj), coef(obj)) +
            stderror(obj)*quantile(Normal(), (1.0 - level)/2.0)*[1.0 -1.0]
