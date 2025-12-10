@@ -9,8 +9,7 @@ clotting = DataFrame(; u=log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
                      pweights=[1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7])
 
 quine = RDatasets.dataset("MASS", "quine")
-quine.aweights = log.(3 .+ 3 .* quine.Days)
-quine.pweights = quine.aweights
+quine.pweights = log.(3 .+ 3 .* quine.Days)
 dobson = DataFrame(; Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
                    Outcome=categorical(repeat(string.('A':'C'); outer=3)),
                    Treatment=categorical(repeat(string.('a':'c'); inner=3)),
@@ -21,6 +20,7 @@ itr = Iterators.product((:qr, :cholesky), (true, false))
 @testset "Linear Model ftest/loglikelihod with $dmethod method with dropcollinear=$drop" for (dmethod,
                                                                                               drop) in
                                                                                              itr
+
     model_1 = lm(@formula(y ~ x1 + x2), df; wts=pweights(df.pweights), method=dmethod)
     X = hcat(ones(length(df.y)), df.x1, df.x2)
     model_2 = lm(X, y; wts=pweights(df.pweights))
@@ -33,6 +33,7 @@ end
 @testset "GLM: Binomial with LogitLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod,
                                                                                                                      drop) in
                                                                                                                     itr
+
     model = glm(@formula(y ~ 1 + x1 + x2),
                 df,
                 Binomial(),
@@ -53,6 +54,7 @@ end
 @testset "GLM: Binomial with ProbitLink link - ProbabilityWeights with $dmethod method  with dropcollinear=$drop" for (dmethod,
                                                                                                                        drop) in
                                                                                                                       itr
+
     model = glm(@formula(y ~ 1 + x1 + x2),
                 df,
                 Binomial(),
@@ -73,6 +75,7 @@ end
 @testset "GLM: Binomial with CauchitLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod,
                                                                                                                        drop) in
                                                                                                                       itr
+
     model = glm(@formula(y ~ 1 + x1 + x2),
                 df,
                 Binomial(),
@@ -93,6 +96,7 @@ end
 @testset "GLM: Binomial with CloglogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod,
                                                                                                                        drop) in
                                                                                                                       itr
+
     model = glm(@formula(y ~ 1 + x1 + x2),
                 df,
                 Binomial(),
@@ -113,6 +117,7 @@ end
 @testset "GLM: Gamma with LogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod,
                                                                                                                 drop) in
                                                                                                                itr
+
     model = glm(@formula(lot1 ~ 1 + u),
                 clotting,
                 Gamma(),
@@ -134,6 +139,7 @@ end
 @testset "GLM: NegativeBinomial(2) with LogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod,
                                                                                                                               drop) in
                                                                                                                              itr
+
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn),
                 quine,
                 NegativeBinomial(2),
@@ -167,6 +173,7 @@ end
 @testset "GLM:  NegativeBinomial(1) with LogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod,
                                                                                                                                drop) in
                                                                                                                               itr
+
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn),
                 quine,
                 NegativeBinomial(1),
@@ -217,6 +224,7 @@ end
 @testset "GLM: NegaiveBinomial(2) with SqrtLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod,
                                                                                                                               drop) in
                                                                                                                              itr
+
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn),
                 quine,
                 NegativeBinomial(2),
@@ -251,6 +259,7 @@ end
 @testset "GLM: Poisson with LogLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod,
                                                                                                                   drop) in
                                                                                                                  itr
+
     model = glm(@formula(Counts ~ 1 + Outcome + Treatment),
                 dobson,
                 Poisson(),

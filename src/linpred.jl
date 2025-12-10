@@ -44,7 +44,7 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY,QRPivoted},
     scratchm1::Matrix{T}
 
     function DensePredQR(X::AbstractMatrix, pivot::Bool,
-                         wts::W) where {W<:Union{AbstractWeights}}
+                         wts::W) where {W<:AbstractWeights}
         n, p = size(X)
         T = typeof(float(zero(eltype(X))))
         Q = pivot ? QRPivoted : QRCompactWY
@@ -66,6 +66,7 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY,QRPivoted},
 end
 
 DensePredQR(X::AbstractMatrix) = DensePredQR(X, false, uweights(size(X, 1)))
+
 """
     delbeta!(p::LinPred, r::Vector)
 
@@ -74,7 +75,7 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 function delbeta! end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where {T<:BlasReal}
-    r̃ = p.wts isa UnitWeights ? r : (wtsqrt=sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
+    r̃ = p.wts isa UnitWeights ? r : sqrt.(p.wts) .* r
     p.delbeta = p.qr \ r̃
     return p
 end
@@ -92,7 +93,7 @@ function delbeta!(p::DensePredQR{T,<:QRCompactWY,<:AbstractWeights}, r::Vector{T
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where {T<:BlasReal}
-    r̃ = p.wts isa UnitWeights ? r : (wtsqrt=sqrt.(p.wts); wtsqrt .*= r; wtsqrt)
+    r̃ = p.wts isa UnitWeights ? r : sqrt.(p.wts) .* r
     rnk = linpred_rank(p)
     if rnk == length(p.delbeta)
         p.delbeta = p.qr \ r̃
@@ -198,7 +199,7 @@ end
 
 function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights},
                   r::Vector{T}) where {T<:BlasReal}
-    X = p.wts isa UnitWeights ? p.scratchm1 .= p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
+    X = p.wts isa UnitWeights ? p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
     return p
 end
@@ -386,7 +387,7 @@ function leverage(x::LinPredModel)
 end
 
 function leverage(pp::DensePredChol{T,<:CholeskyPivoted}) where {T}
-    X = modelmatrix(pp; weighted=false)
+    X = modelmatrix(pp)
     rnk = rank(pp.chol)
     A = inverse(pp)
     p = pp.chol.p[1:rnk]
@@ -396,19 +397,19 @@ function leverage(pp::DensePredChol{T,<:CholeskyPivoted}) where {T}
 end
 
 function leverage(pp::DensePredChol{T,<:Cholesky}) where {T}
-    X = modelmatrix(pp; weighted=false)
+    X = modelmatrix(pp)
     return sum(x -> x^2, X / pp.chol.U; dims=2)
 end
 
 function leverage(pp::DensePredQR{T,<:QRPivoted}) where {T}
-    X = modelmatrix(pp; weighted=false)
+    X = modelmatrix(pp)
     rnk = linpred_rank(pp)
     R = UpperTriangular(view(parent(pp.qr.R), 1:rnk, 1:rnk))
     return sum(x -> x^2, view(X, :, pp.qr.p[1:rnk]) / R; dims=2)
 end
 
 function leverage(pp::DensePredQR{T,<:QRCompactWY}) where {T}
-    X = modelmatrix(pp; weighted=false)
+    X = modelmatrix(pp)
     return sum(x -> x^2, X / pp.qr.R; dims=2)
 end
 

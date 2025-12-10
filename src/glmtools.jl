@@ -514,12 +514,7 @@ end
 ## ϕ is the deviance - not the deviance/n nor sum(wt)
 ## sumwt is sum(wt)
 ## n is the number of observations
-function loglik_apweights_obs(::Bernoulli, y, μ, wt, ϕ, sumwt, n)
-    return logpdf(Binomial(round(Int, wt), μ), round(wt * y))
-end
-function loglik_apweights_obs(::Binomial, y, μ, wt, ϕ, sumwt, n)
-    return logpdf(Binomial(round(Int, wt), μ), round(wt * y))
-end
+
 function loglik_apweights_obs(::Gamma, y, μ, wt, ϕ, sumwt, n)
     return wt * logpdf(Gamma(inv(ϕ / sumwt), μ * ϕ / sumwt), y)
 end

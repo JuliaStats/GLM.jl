@@ -112,7 +112,7 @@ function negbin(F,
     wts = regmodel.rr.wts
     lw, ly = length(wts), length(y)
     if lw != ly && lw != 0
-        throw(ArgumentError("length of wts must be either $ly was $lw"))
+        throw(ArgumentError("length of `wts` must be $ly but was $lw"))
     end
 
     θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)

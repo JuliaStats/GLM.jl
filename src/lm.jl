@@ -174,7 +174,7 @@ function convert_weights(wts)
 end
 
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real};
-             wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(length(y)),
+             wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(length(y)),
              dropcollinear::Bool=true, method::Symbol=:qr)
     # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
     _wts = convert_weights(wts)
@@ -196,7 +196,7 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
 end
 
 function fit(::Type{LinearModel}, f::FormulaTerm, data;
-             wts::Union{AbstractWeights{<:Real},AbstractVector{<:Real}}=uweights(0),
+             wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(0),
              dropcollinear::Bool=true,
              method::Symbol=:qr,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
@@ -251,7 +251,7 @@ function nulldeviance(obj::LinearModel)
 
     v = zero(eltype(y)) * zero(eltype(wts))
     if wts isa UnitWeights
-        @inbounds @simd for i in eachindex(y, wts)
+        @inbounds @simd for i in eachindex(y)
             v += abs2(y[i] - m)
         end
     else
@@ -390,8 +390,8 @@ function confint(obj::LinearModel; level::Real=0.95)
 end
 
 function momentmatrix(m::LinearModel)
-    X = modelmatrix(m; weighted=false)
-    r = residuals(m; weighted=false)
+    X = modelmatrix(m)
+    r = residuals(m)
     mm = X .* r
     isweighted(m) && (mm .*= weights(m))
     return mm

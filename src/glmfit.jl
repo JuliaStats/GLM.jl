@@ -17,7 +17,7 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link,W<:AbstractWeights}
     mu::V
     "`offset:` offset added to `Xβ` to form `eta`.  Can be of length 0"
     offset::V
-    "`wts`: case weights. If unspecified, defaults to `uweights(length(y))`"
+    "`wts`: prior case weights"
     wts::W
     "`wrkwt`: working case weights for the Iteratively Reweighted Least Squares (IRLS) algorithm"
     wrkwt::V
@@ -53,7 +53,7 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
         throw(DimensionMismatch("wts must have length $n but was $lw"))
     end
     if lo != 0 && lo != n
-        throw(DimensionMismatch("offset must have length $n but was $lo"))
+        throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
     end
 
     return GlmResp{V,D,L,W}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
@@ -110,7 +110,7 @@ the linear predictor, `linPr`.
 """
 function updateμ! end
 
-function updateμ!(r::GlmResp{T}, linPr::T) where {T}
+function updateμ!(r::GlmResp{T}, linPr::T) where {T<:FPVector}
     isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
     if isweighted(r)
@@ -319,9 +319,8 @@ function nulldeviance(m::GeneralizedLinearModel)
     return dev
 end
 
-loglikelihood(m::AbstractGLM) = loglikelihood(m.rr)
-
-function loglikelihood(r::GlmResp{T,D,L,<:AbstractWeights}) where {T,D,L}
+function loglikelihood(m::AbstractGLM)
+    r = m.rr
     y = r.y
     mu = r.mu
     wts = weights(r)
@@ -368,7 +367,7 @@ function nullloglikelihood(m::GeneralizedLinearModel)
             end
         elseif wts isa AnalyticWeights
             if d isa Union{Bernoulli,Binomial}
-                throw(ArgumentError("The `loglikelihood` for analytic weighted models is not supported."))
+                throw(ArgumentError("The `nullloglikelihood` for analytic weighted models with `Bernoulli` and `Binomial` families is not supported."))
             end
             @inbounds for i in eachindex(y, mu, wts)
                 ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, sum(wts), N)
@@ -534,7 +533,6 @@ function fit(::Type{M},
              l::Link=canonicallink(d);
              dropcollinear::Bool=true,
              method::Symbol=:qr,
-             dofit::Union{Bool,Nothing}=nothing,
              wts::AbstractWeights=uweights(length(y)),
              offset::AbstractVector{<:Real}=similar(y, 0),
              fitargs...) where {M<:AbstractGLM}
@@ -583,13 +581,12 @@ function fit(::Type{M},
              wts::Union{AbstractVector,Nothing}=nothing,
              dropcollinear::Bool=true,
              method::Symbol=:qr,
-             dofit::Union{Bool,Nothing}=nothing,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
              fitargs...) where {M<:AbstractGLM}
     f, (y, X) = modelframe(f, data, contrasts, M)
     wts = wts === nothing ? uweights(length(y)) : wts
     _wts = convert_weights(wts)
-    if isempty(_wts)
+    if !(wts isa AbstractWeights) && isempty(_wts)
         Base.depwarn("Using `wts` of zero length for unweighted regression is deprecated in favor of " *
                      "explicitly using `UnitWeights(length(y))`." *
                      " Proceeding by coercing `wts` to UnitWeights of size $(length(y)).",
@@ -788,14 +785,18 @@ function initialeta!(eta::AbstractVector,
     return eta
 end
 
-function _initialeta!(eta, dist, link, y, wts::AbstractWeights)
+function _initialeta!(eta::AbstractVector,
+                      dist::UnivariateDistribution,
+                      link::Link,
+                      y::AbstractVector,
+                      wts::AbstractWeights)
     if wts isa UnitWeights
         @inbounds @simd for i in eachindex(y, eta)
             μ = mustart(dist, y[i], 1)
             eta[i] = linkfun(link, μ)
         end
     else
-        @inbounds @simd for i in eachindex(y, eta)
+        @inbounds @simd for i in eachindex(y, eta, wts)
             μ = mustart(dist, y[i], wts[i])
             eta[i] = linkfun(link, μ)
         end
