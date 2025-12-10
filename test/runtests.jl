@@ -2402,3 +2402,117 @@ end
                                     7.665988e-02; 3.416970e-02] rtol = 1e-04
     @test lev0_pr ≈ leverage(probit0) rtol = 1e-03
 end
+
+# Tests requested in PR #487 review
+@testset "Weight types produce consistent results" begin
+    # Test that different weight types with same underlying weights produce same results
+    # when appropriate (fweights vs raw vector)
+    rng = StableRNG(42)
+    n = 50
+    X = [ones(n) randn(rng, n)]
+    y = X * [1.0, 2.0] + randn(rng, n) * 0.5
+    w = rand(rng, 1:10, n)
+
+    # FrequencyWeights should match raw vector (after deprecation warning)
+    lm_fweights = lm(X, y; wts=fweights(w))
+    lm_raw = @test_logs (:warn, r"Passing weights as vector is deprecated") lm(X, y; wts=w)
+    @test coef(lm_fweights) ≈ coef(lm_raw)
+    @test stderror(lm_fweights) ≈ stderror(lm_raw)
+
+    # Compare weight types for linear model - coefficients should match (weighted least squares)
+    lm_aweights = lm(X, y; wts=aweights(Float64.(w)))
+    @test coef(lm_fweights) ≈ coef(lm_aweights)
+
+    # Test GLM with different weight types
+    y_bin = ifelse.(y .> median(y), 1.0, 0.0)
+    glm_fweights = glm(X, y_bin, Binomial(); wts=fweights(w))
+    glm_aweights = glm(X, y_bin, Binomial(); wts=aweights(Float64.(w)))
+
+    # Coefficients should match for frequency and analytic weights
+    @test coef(glm_fweights) ≈ coef(glm_aweights)
+end
+
+@testset "Empty weights deprecation warning" begin
+    X = [ones(10) randn(10)]
+    y = randn(10)
+
+    # Empty weights should trigger deprecation warning and create UnitWeights
+    @test_logs (:warn, r"Using `wts` of zero length.*UnitWeights") begin
+        model = lm(X, y; wts=uweights(0))
+        @test GLM.weights(model) == uweights(10)
+    end
+end
+
+@testset "loglik_apweights_obs coverage" begin
+    # Test loglik_apweights_obs functions for various distributions
+    # These are used internally for analytic weights loglikelihood calculations
+
+    # Test Gamma with analytic weights
+    clotting = DataFrame(; u=log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
+                         lot1=[118.0, 58, 42, 35, 27, 25, 21, 19, 18],
+                         w=[1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7])
+
+    gm_gamma = glm(@formula(lot1 ~ u), clotting, Gamma(), InverseLink();
+                   wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
+    # Should compute without error and return valid loglikelihood
+    @test isfinite(loglikelihood(gm_gamma))
+    @test loglikelihood(gm_gamma) ≈ -43.359078787690514 rtol = 1e-06
+
+    # Test Geometric with analytic weights (NegativeBinomial(1) is equivalent)
+    quine = RDatasets.dataset("MASS", "quine")
+    quine.w = log.(3 .+ 3 .* quine.Days)
+
+    gm_geom = glm(@formula(Days ~ Eth + Sex), quine, Geometric(), LogLink();
+                  wts=aweights(quine.w), atol=1e-08, rtol=1e-08)
+    @test isfinite(loglikelihood(gm_geom))
+
+    # Test InverseGaussian with analytic weights
+    gm_ig = glm(@formula(lot1 ~ u), clotting, InverseGaussian(), InverseSquareLink();
+                wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
+    @test isfinite(loglikelihood(gm_ig))
+end
+
+@testset "Weight conversion function" begin
+    # Test convert_weights helper function
+    w = [1.0, 2.0, 3.0, 4.0, 5.0]
+
+    # Vector should be converted to FrequencyWeights (with deprecation warning)
+    # Note: Base.depwarn is used internally, which behaves differently from @warn
+    converted = GLM.convert_weights(w)
+    @test converted isa FrequencyWeights
+    @test convert(Vector, converted) == w
+
+    # AbstractWeights should pass through unchanged
+    aw = aweights(w)
+    @test GLM.convert_weights(aw) === aw
+
+    fw = fweights(w)
+    @test GLM.convert_weights(fw) === fw
+
+    pw = pweights(w)
+    @test GLM.convert_weights(pw) === pw
+end
+
+@testset "isweighted function" begin
+    X = [ones(10) randn(10)]
+    y = randn(10)
+
+    # Unweighted model
+    lm_unweighted = lm(X, y)
+    @test !GLM.isweighted(lm_unweighted)
+    @test !GLM.isweighted(lm_unweighted.rr)
+
+    # Weighted model
+    w = rand(10)
+    lm_weighted = lm(X, y; wts=fweights(w))
+    @test GLM.isweighted(lm_weighted)
+    @test GLM.isweighted(lm_weighted.rr)
+
+    # GLM versions
+    y_pos = abs.(y) .+ 1
+    glm_unweighted = glm(X, y_pos, Gamma(), LogLink())
+    @test !GLM.isweighted(glm_unweighted)
+
+    glm_weighted = glm(X, y_pos, Gamma(), LogLink(); wts=fweights(w))
+    @test GLM.isweighted(glm_weighted)
+end
