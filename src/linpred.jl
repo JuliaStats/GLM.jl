@@ -378,7 +378,7 @@ function modelmatrix(obj::LinPredModel; weighted::Bool=false)
 end
 
 function modelmatrix(pp::LinPred; weighted::Bool=false)
-    return weighted ? Diagonal(sqrt.(pp.wts)) * pp.X : pp.X
+    return weighted && isweighted(pp) ? Diagonal(sqrt.(pp.wts)) * pp.X : pp.X
 end
 
 function leverage(x::LinPredModel)
