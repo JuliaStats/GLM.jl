@@ -222,7 +222,7 @@ regardless of the type of weights.
 
 ```jldoctest weights
 julia> loglikelihood(m_aweights)
--16.29630756138424
+-16.296307561384253
 
 julia> loglikelihood(m_fweights)
 -25.518609617564483

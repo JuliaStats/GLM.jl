@@ -541,16 +541,7 @@ function fit(::Type{M},
         throw(DimensionMismatch("number of rows in X and y must match"))
     end
 
-    # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
-    _wts = convert_weights(wts)
-    if !(wts isa AbstractWeights) && isempty(_wts)
-        Base.depwarn("Using `wts` of zero length for unweighted regression is deprecated in favor of " *
-                     "explicitly using `UnitWeights(length(y))`." *
-                     " Proceeding by coercing `wts` to UnitWeights of size $(length(y)).",
-                     :fit)
-        _wts = uweights(length(y))
-    end
-
+    _wts = convert_weights(wts, length(y))
     rr = GlmResp(y, d, l, offset, _wts)
 
     if method === :cholesky
@@ -584,15 +575,8 @@ function fit(::Type{M},
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
              fitargs...) where {M<:AbstractGLM}
     f, (y, X) = modelframe(f, data, contrasts, M)
-    wts = wts === nothing ? uweights(length(y)) : wts
-    _wts = convert_weights(wts)
-    if !(wts isa AbstractWeights) && isempty(_wts)
-        Base.depwarn("Using `wts` of zero length for unweighted regression is deprecated in favor of " *
-                     "explicitly using `UnitWeights(length(y))`." *
-                     " Proceeding by coercing `wts` to UnitWeights of size $(length(y)).",
-                     :fit)
-        _wts = uweights(length(y))
-    end
+    wts = wts === nothing ? uweights(0) : wts
+    _wts = convert_weights(wts, length(y))
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
         throw(DimensionMismatch("number of rows in X and y must match"))

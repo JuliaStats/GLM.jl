@@ -159,8 +159,8 @@ Fit a linear model to data.
 $FIT_LM_DOC
 """
 
-function convert_weights(wts)
-    if wts isa Union{FrequencyWeights,AnalyticWeights,ProbabilityWeights,UnitWeights}
+function convert_weights(wts, n::Integer)
+    _wts = if wts isa Union{FrequencyWeights,AnalyticWeights,ProbabilityWeights,UnitWeights}
         wts
     elseif wts isa AbstractVector
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
@@ -171,21 +171,20 @@ function convert_weights(wts)
     else
         throw(ArgumentError("`wts` should be an `AbstractVector` coercible to `AbstractWeights`"))
     end
+    if isempty(_wts)
+        Base.depwarn("Using `wts` of zero length for unweighted regression is deprecated in favor of " *
+                     "explicitly using `UnitWeights(length(y))`." *
+                     " Proceeding by coercing `wts` to UnitWeights of size $n.",
+                     :fit)
+        return uweights(n)
+    end
+    return _wts
 end
 
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real};
              wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(length(y)),
              dropcollinear::Bool=true, method::Symbol=:qr)
-    # For backward compatibility accept wts as AbstractArray and coerce them to FrequencyWeights
-    _wts = convert_weights(wts)
-    if isempty(_wts)
-        Base.depwarn("Using `wts` of zero length for unweighted regression is deprecated in favor of " *
-                     "explicitly using `UnitWeights(length(y))`." *
-                     " Proceeding by coercing `wts` to UnitWeights of size $(length(y)).",
-                     :fit)
-        _wts = uweights(length(y))
-    end
-
+    _wts = convert_weights(wts, length(y))
     if method === :cholesky
         fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), nothing))
     elseif method === :qr
@@ -201,8 +200,7 @@ function fit(::Type{LinearModel}, f::FormulaTerm, data;
              method::Symbol=:qr,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     f, (y, X) = modelframe(f, data, contrasts, LinearModel)
-    _wts = convert_weights(wts)
-    _wts = isempty(_wts) ? uweights(length(y)) : _wts
+    _wts = convert_weights(wts, length(y))
     if method === :cholesky
         fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), f))
     elseif method === :qr

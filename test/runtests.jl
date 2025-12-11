@@ -60,6 +60,9 @@ end
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form; method=dmethod)
     test_show(lm1)
     @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
+    expected_resid = [-0.006714285714285714, 0.0010285714285714898, 0.0027714285714285913,
+                      0.0071428571428572285, 0.007514285714285696, -0.011742857142857166]
+    @test residuals(lm1) ≈ expected_resid
     @test residuals(lm1.rr) ≈ residuals(lm1)
     @test isapprox(vcov(lm1), Σ)
     @test isapprox(cor(lm1), Diagonal(diag(Σ))^(-1 / 2) * Σ * Diagonal(diag(Σ))^(-1 / 2))
@@ -142,15 +145,21 @@ end
     N = nrow(df)
     df.weights = fweights(repeat(1:5, Int(N / 5)))
     f = @formula(FoodExp ~ Income)
-    @test GLM.convert_weights(repeat(1:5, Int(N / 5))) == df.weights
+    @test GLM.convert_weights(repeat(1:5, Int(N / 5)), N) == df.weights
     @test_logs (:warn,
                 "Passing weights as vector is deprecated in favor of explicitly using " *
                 "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
                 "by coercing `wts` to `FrequencyWeights`")
     lm_model = lm(f, df; wts=df.weights, method=dmethod)
     glm_model = glm(f, df, Normal(); wts=df.weights, method=dmethod)
+    # Check residuals against expected values (first and last 5)
+    expected_resid_first5 = [-101.73752382323588, -105.26761187514256, -104.55155668451636,
+                             -60.47017552384705, -21.981021746539113]
+    expected_resid_last5 = [-60.90568125081245, -116.924839538909, 32.45199541112112,
+                            8.832096603368427, 84.38185070415943]
+    @test residuals(lm_model)[1:5] ≈ expected_resid_first5
+    @test residuals(lm_model)[end-4:end] ≈ expected_resid_last5
     @test residuals(lm_model) ≈ df.FoodExp .- predict(lm_model)
-    @test residuals(lm_model) ≈ residuals(lm_model)
     @test residuals(lm_model; weighted=true) ≈
           sqrt.(GLM.weights(lm_model)) .* (df.FoodExp .- predict(lm_model))
     @test residuals(glm_model; weighted=true) ≈ residuals(lm_model; weighted=true)
@@ -2475,22 +2484,28 @@ end
 @testset "Weight conversion function" begin
     # Test convert_weights helper function
     w = [1.0, 2.0, 3.0, 4.0, 5.0]
+    n = length(w)
 
     # Vector should be converted to FrequencyWeights (with deprecation warning)
     # Note: Base.depwarn is used internally, which behaves differently from @warn
-    converted = GLM.convert_weights(w)
+    converted = GLM.convert_weights(w, n)
     @test converted isa FrequencyWeights
     @test convert(Vector, converted) == w
 
     # AbstractWeights should pass through unchanged
     aw = aweights(w)
-    @test GLM.convert_weights(aw) === aw
+    @test GLM.convert_weights(aw, n) === aw
 
     fw = fweights(w)
-    @test GLM.convert_weights(fw) === fw
+    @test GLM.convert_weights(fw, n) === fw
 
     pw = pweights(w)
-    @test GLM.convert_weights(pw) === pw
+    @test GLM.convert_weights(pw, n) === pw
+
+    # Empty weights should be converted to UnitWeights of size n
+    empty_wts = GLM.convert_weights(uweights(0), n)
+    @test empty_wts isa UnitWeights
+    @test length(empty_wts) == n
 end
 
 @testset "isweighted function" begin
