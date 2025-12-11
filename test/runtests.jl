@@ -158,7 +158,7 @@ end
     expected_resid_last5 = [-60.90568125081245, -116.924839538909, 32.45199541112112,
                             8.832096603368427, 84.38185070415943]
     @test residuals(lm_model)[1:5] ≈ expected_resid_first5
-    @test residuals(lm_model)[end-4:end] ≈ expected_resid_last5
+    @test residuals(lm_model)[(end - 4):end] ≈ expected_resid_last5
     @test residuals(lm_model) ≈ df.FoodExp .- predict(lm_model)
     @test residuals(lm_model; weighted=true) ≈
           sqrt.(GLM.weights(lm_model)) .* (df.FoodExp .- predict(lm_model))
