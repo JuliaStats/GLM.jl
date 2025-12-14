@@ -159,7 +159,7 @@ Since the Cholesky method with `dropcollinear = true` aggressively detects multi
 if you ever encounter multicollinearity in any GLM model with Cholesky,
 it is worth trying the same model with QR decomposition.
 The following example is taken from `Introductory Econometrics: A Modern Approach, 7e" by Jeffrey M. Wooldridge`.
-The dataset is used to study the relationship between firm size—often measured by annual sales—and spending on 
+The dataset is used to study the relationship between firm size—often measured by annual sales—and spending on
 research and development (R&D).
 The following shows that for the given model,
 the Cholesky method detects multicollinearity in the design matrix with `dropcollinear=true`

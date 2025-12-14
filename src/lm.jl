@@ -15,7 +15,7 @@ Either or both `offset` and `wts` may be of length 0
 mutable struct LmResp{V<:FPVector,W<:AbstractWeights} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
-    wts::W                                 # prior weights (may have length 0)
+    wts::W                                 # prior weights
     y::V                                   # response
     function LmResp{V,W}(mu::V, off::V, wts::W, y::V) where {V,W}
         n = length(y)
@@ -25,8 +25,6 @@ mutable struct LmResp{V<:FPVector,W<:AbstractWeights} <: ModResp  # response in 
         if nμ != n
             throw(DimensionMismatch("lengths of `mu` and `y` ($nμ, $n) are not equal"))
         end
-
-        # Lengths of wts and off can be either n or 0
         if lw != n
             throw(DimensionMismatch("`wts` must have length $n but was $lw"))
         end
@@ -60,7 +58,7 @@ function deviance(r::LmResp)
     wts = r.wts
     if wts isa UnitWeights
         v = zero(eltype(y)) + zero(eltype(y))
-        @inbounds @simd for i in eachindex(y, mu, wts)
+        @inbounds @simd for i in eachindex(y, mu)
             v += abs2(y[i] - mu[i])
         end
     else
@@ -77,23 +75,23 @@ function isweighted(r::LmResp)
     return weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
 end
 
-nobs(r::LmResp{<:Any,W}) where {W<:FrequencyWeights} = sum(r.wts)
-function nobs(r::LmResp{<:Any,W}) where {W<:AbstractWeights}
+nobs(r::LmResp{<:Any,<:FrequencyWeights}) = sum(r.wts)
+function nobs(r::LmResp{<:Any,<:AbstractWeights})
     return oftype(sum(one(eltype(r.wts))), length(r.y))
 end
 
-function loglikelihood(r::LmResp{T,<:Union{UnitWeights,FrequencyWeights}}) where {T}
+function loglikelihood(r::LmResp{<:Any,<:Union{UnitWeights,FrequencyWeights}})
     n = nobs(r)
     return -n / 2 * (log(2π * deviance(r) / n) + 1)
 end
 
-function loglikelihood(r::LmResp{T,<:AnalyticWeights}) where {T}
+function loglikelihood(r::LmResp{<:Any,<:AnalyticWeights})
     N = length(r.y)
     n = sum(log, weights(r))
     return (n - N * (log(2π * deviance(r) / N) + 1)) / 2
 end
 
-function loglikelihood(r::LmResp{T,<:ProbabilityWeights}) where {T}
+function loglikelihood(r::LmResp{<:Any,<:ProbabilityWeights})
     throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
 end
 
@@ -159,26 +157,21 @@ Fit a linear model to data.
 $FIT_LM_DOC
 """
 
-function convert_weights(wts, n::Integer)
-    _wts = if wts isa Union{FrequencyWeights,AnalyticWeights,ProbabilityWeights,UnitWeights}
-        wts
-    elseif wts isa AbstractVector
-        Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
-                     "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                     "by coercing `wts` to `FrequencyWeights`",
-                     :fit)
-        fweights(wts)
-    else
-        throw(ArgumentError("`wts` should be an `AbstractVector` coercible to `AbstractWeights`"))
-    end
-    if isempty(_wts)
-        Base.depwarn("Using `wts` of zero length for unweighted regression is deprecated in favor of " *
-                     "explicitly using `UnitWeights(length(y))`." *
-                     " Proceeding by coercing `wts` to UnitWeights of size $n.",
-                     :fit)
+function convert_weights(wts::AbstractWeights, n::Integer)
+    # Empty UnitWeights is the internal default for formula-based fit methods,
+    # so we silently expand it to the correct size without warning
+    if wts isa UnitWeights && isempty(wts)
         return uweights(n)
     end
-    return _wts
+    return wts
+end
+
+function convert_weights(wts::AbstractVector, n::Integer)
+    Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
+                 "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                 "by coercing `wts` to `FrequencyWeights`",
+                 :fit)
+    return fweights(wts)
 end
 
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real};
@@ -266,9 +259,6 @@ function nullloglikelihood(m::LinearModel)
         n = nobs(m)
         -n / 2 * (log(2π * nulldeviance(m) / n) + 1)
     else
-        # N = length(m.rr.y)
-        # n = sum(log, wts)
-        # (n - N * (log(2π * nulldeviance(m)/N) + 1))/2
         throw(ArgumentError("The `nullloglikelihood` for probability weighted models is not currently supported."))
     end
 end
@@ -281,7 +271,8 @@ function adjr2(obj::LinearModel)
 end
 
 working_residuals(x::LinearModel) = residuals(x)
-working_weights(x::LinearModel) = x.pp.wts
+working_weights(r::LmResp) = r.wts
+working_weights(x::LinearModel) = working_weights(x.rr)
 
 function dispersion(x::LinearModel, sqr::Bool=false)
     dofr = dof_residual(x)

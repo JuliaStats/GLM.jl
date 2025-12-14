@@ -124,6 +124,7 @@ function GLM.invchol(x::SparsePredChol)
     return cholesky!(x) \
            Matrix{Float64}(I, size(x.X, 2), size(x.X, 2))
 end
+
 GLM.inverse(x::SparsePredChol) = GLM.invchol(x)
 
 GLM.linpred_rank(p::SparsePredChol) = rank(sparse(p.chol))

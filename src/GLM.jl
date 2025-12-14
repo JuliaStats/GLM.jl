@@ -1,4 +1,5 @@
 module GLM
+
 using Distributions, LinearAlgebra, Printf, Reexport, Statistics, StatsBase
 using LinearAlgebra: copytri!, QRCompactWY, Cholesky, CholeskyPivoted, BlasReal
 using Printf: @sprintf
@@ -62,16 +63,16 @@ export
       devresid,       # vector of squared deviance residuals
       formula,        # extract the formula from a model
       glm,            # general interface
-      leverage,       # leverage 
+      leverage,       # leverage
       linpred,        # linear predictor
       lm,             # linear model
       negbin,         # interface to fitting negative binomial regression
       nobs,           # total number of observations
       predict,        # make predictions
       ftest,          # compare models with an F test
-      fweights,
-      pweights,
-      aweights
+      fweights,       # frequency weights
+      pweights,       # probability weights
+      aweights        # analytical weights
 
 const FP = AbstractFloat
 const FPVector{T<:FP} = AbstractArray{T,1}
@@ -106,13 +107,13 @@ const COMMON_FIT_KWARGS_DOCS = """
       QR, but is less numerically stable and thus may fail or produce less accurate
       estimates for some models.
     - `wts::AbstractWeights`: Weights of observations.
-       The weights can be of type `AnalyticWeights`, `FrequencyWeights`, 
+       The weights can be of type `AnalyticWeights`, `FrequencyWeights`,
        `ProbabilityWeights`, or `UnitWeights`. `AnalyticWeights` describe a non-random
-       relative importance (usually between 0 and 1) for each observation. These weights may 
-       also be referred to as reliability weights, precision weights or inverse variance weights. 
-       `FrequencyWeights` describe the number of times (or frequency) each observation was seen. 
+       relative importance (usually between 0 and 1) for each observation. These weights may
+       also be referred to as reliability weights, precision weights or inverse variance weights.
+       `FrequencyWeights` describe the number of times (or frequency) each observation was seen.
        `ProbabilityWeights` represent the inverse of the sampling probability for each observation,
-       providing a correction mechanism for under- or over-sampling certain population groups. `UnitWeights` 
+       providing a correction mechanism for under- or over-sampling certain population groups. `UnitWeights`
        (default) describes the case in which all weights are equal to 1 (so no weighting takes place)
     - `contrasts::AbstractDict{Symbol}`: a `Dict` mapping term names
       (as `Symbol`s) to term types (e.g., `ContinuousTerm`) or contrasts

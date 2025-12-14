@@ -337,7 +337,11 @@ end
     @test stderror(model) ≈ [0.1950707397084349, 0.13200639191036218, 0.1373161597645507,
                              0.2088476016141468, 0.20252412726336674, 0.21060778935484836,
                              0.16126722793064027] rtol = 1e-07
-    ## Tests below are broken because dof(model)==8 instead of 7
+    # Tests below are broken because dof(model)==8 instead of 7.
+    # GLM.jl computes dof = linpred_rank + dispersion_parameter, where dispersion_parameter
+    # is 1 for NegativeBinomial (counting the shape parameter θ). This differs from R's
+    # calculation for weighted models. Needs investigation to determine if the discrepancy
+    # is in GLM.jl's dof calculation or in the expected R values.
     @test_broken aic(model) ≈ 4023.1878928645556 rtol = 1e-07
     @test_broken bic(model) ≈ 4044.073139216514 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈

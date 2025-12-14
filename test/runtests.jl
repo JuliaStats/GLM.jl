@@ -2430,7 +2430,9 @@ end
 
     # Compare weight types for linear model - coefficients should match (weighted least squares)
     lm_aweights = lm(X, y; wts=aweights(Float64.(w)))
+    lm_pweights = lm(X, y; wts=pweights(Float64.(w)))
     @test coef(lm_fweights) ≈ coef(lm_aweights)
+    @test coef(lm_fweights) ≈ coef(lm_pweights)
 
     # Test GLM with different weight types
     y_bin = ifelse.(y .> median(y), 1.0, 0.0)
@@ -2441,14 +2443,20 @@ end
     @test coef(glm_fweights) ≈ coef(glm_aweights)
 end
 
-@testset "Empty weights deprecation warning" begin
+@testset "Weight conversion and deprecation" begin
     X = [ones(10) randn(10)]
     y = randn(10)
 
-    # Empty weights should trigger deprecation warning and create UnitWeights
-    @test_logs (:warn, r"Using `wts` of zero length.*UnitWeights") begin
-        model = lm(X, y; wts=uweights(0))
-        @test GLM.weights(model) == uweights(10)
+    # Empty UnitWeights should silently expand to correct size (no warning)
+    # This is the internal default for formula-based fit methods
+    model = lm(X, y; wts=uweights(0))
+    @test GLM.weights(model) == uweights(10)
+
+    # Plain Vector weights should trigger deprecation warning and convert to FrequencyWeights
+    w = ones(10)
+    @test_logs (:warn, r"Passing weights as vector is deprecated") begin
+        model = lm(X, y; wts=w)
+        @test GLM.weights(model) isa FrequencyWeights
     end
 end
 
@@ -2474,11 +2482,15 @@ end
     gm_geom = glm(@formula(Days ~ Eth + Sex), quine, Geometric(), LogLink();
                   wts=aweights(quine.w), atol=1e-08, rtol=1e-08)
     @test isfinite(loglikelihood(gm_geom))
+    # Value verified against R: glm(..., family=negative.binomial(theta=1, link="log"), weights=w)
+    @test loglikelihood(gm_geom) ≈ -2055.246 rtol = 1e-05
 
     # Test InverseGaussian with analytic weights
     gm_ig = glm(@formula(lot1 ~ u), clotting, InverseGaussian(), InverseSquareLink();
                 wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
     @test isfinite(loglikelihood(gm_ig))
+    # Value verified against R: glm(..., family=inverse.gaussian(link="1/mu^2"), weights=w)
+    @test loglikelihood(gm_ig) ≈ -86.82547 rtol = 1e-05
 end
 
 @testset "Weight conversion function" begin
@@ -2501,6 +2513,9 @@ end
 
     pw = pweights(w)
     @test GLM.convert_weights(pw, n) === pw
+
+    uw = uweights(n)
+    @test GLM.convert_weights(uw, n) === uw
 
     # Empty weights should be converted to UnitWeights of size n
     empty_wts = GLM.convert_weights(uweights(0), n)

@@ -86,6 +86,7 @@ weights(r::GlmResp) = r.wts
 function isweighted(r::GlmResp)
     return weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
 end
+working_weights(r::GlmResp) = r.wrkwt
 
 """
     cancancel(r::GlmResp{V,D,L})

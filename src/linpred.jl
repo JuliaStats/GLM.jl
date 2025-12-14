@@ -80,7 +80,7 @@ function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where {T<:BlasR
     return p
 end
 
-function delbeta!(p::DensePredQR{T,<:QRCompactWY,<:AbstractWeights}, r::Vector{T},
+function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T},
                   wt::AbstractVector) where {T<:BlasReal}
     X = p.X
     wtsqrt = sqrt.(wt)
@@ -107,7 +107,7 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where {T<:BlasRea
     return p
 end
 
-function delbeta!(p::DensePredQR{T,<:QRPivoted,<:AbstractWeights}, r::Vector{T},
+function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T},
                   wt::AbstractVector{T}) where {T<:BlasReal}
     X = p.X
     wtsqrt = sqrt.(wt)
@@ -223,7 +223,7 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights},
     return p
 end
 
-function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights}, r::Vector{T},
+function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T},
                   wt::Vector{T}) where {T<:BlasReal}
     scr = mul!(p.scratchm1, Diagonal(wt), p.X)
     cholesky!(Hermitian(mul!(cholfactors(p.chol), transpose(scr), p.X), :U))
@@ -265,12 +265,12 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Ve
     return p
 end
 
-function invqr(p::DensePredQR{T,<:QRCompactWY,<:AbstractWeights}) where {T}
+function invqr(p::DensePredQR{T,<:QRCompactWY}) where {T}
     Rinv = inv(p.qr.R)
     return Rinv * Rinv'
 end
 
-function invqr(p::DensePredQR{T,<:QRPivoted,<:AbstractWeights}) where {T}
+function invqr(p::DensePredQR{T,<:QRPivoted}) where {T}
     rnk = linpred_rank(p)
     k = length(p.delbeta)
     ipiv = invperm(p.qr.p)
@@ -307,7 +307,7 @@ inverse(x::DensePred) = invchol(x)
 inverse(x::DensePredQR) = invqr(x)
 
 working_residuals(x::LinPredModel) = x.rr.wrkresid
-working_weights(x::LinPredModel) = x.rr.wrkwt
+working_weights(x::LinPredModel) = working_weights(x.rr)
 
 function vcov(x::LinPredModel)
     if weights(x) isa ProbabilityWeights

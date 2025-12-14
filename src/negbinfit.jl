@@ -111,7 +111,7 @@ function negbin(F,
     y = regmodel.rr.y
     wts = regmodel.rr.wts
     lw, ly = length(wts), length(y)
-    if lw != ly && lw != 0
+    if lw != ly
         throw(ArgumentError("length of `wts` must be $ly but was $lw"))
     end
 
