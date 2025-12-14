@@ -147,7 +147,7 @@ const FIT_LM_DOC = """
 
 """
     fit(LinearModel, formula::FormulaTerm, data;
-        wts::Union{AbstractWeights}=uweights(0),
+        wts::AbstractWeights=uweights(0),
         dropcollinear::Bool=true, method::Symbol=:qr,
         contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
