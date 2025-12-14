@@ -306,7 +306,7 @@ end
 inverse(x::DensePred) = invchol(x)
 inverse(x::DensePredQR) = invqr(x)
 
-working_residuals(x::LinPredModel) = x.rr.wrkresid
+working_residuals(x::LinPredModel) = working_residuals(x.rr)
 working_weights(x::LinPredModel) = working_weights(x.rr)
 
 function vcov(x::LinPredModel)

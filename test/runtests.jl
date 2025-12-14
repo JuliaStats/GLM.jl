@@ -28,7 +28,7 @@ linreg(x::AbstractVecOrMat, y::AbstractVector) = qr!(simplemm(x)) \ y
     d = Binomial()
     η = similar(y)
     μ = similar(y)
-    wts = similar(y)
+    wts = ones(length(y))
     aw = aweights(wts)
     uw = GLM.uweights(10)
     o = ones(10)
@@ -2460,9 +2460,22 @@ end
         model = lm(X, y; wts=w)
         @test GLM.weights(model) isa FrequencyWeights
     end
+
+    # Test whether the same deprecation warnings occur for GLM
+    y_count = rand(0:10, 10)
+
+    # Empty UnitWeights should silently expand to correct size (no warning) for GLM
+    glm_model = glm(X, y_count, Poisson(); wts=uweights(0))
+    @test GLM.weights(glm_model) == uweights(10)
+
+    # Plain Vector weights should trigger deprecation warning and convert to FrequencyWeights for GLM
+    @test_logs (:warn, r"Passing weights as vector is deprecated") begin
+        glm_model = glm(X, y_count, Poisson(); wts=w)
+        @test GLM.weights(glm_model) isa FrequencyWeights
+    end
 end
 
-@testset "loglik_apweights_obs coverage" begin
+@testset "loglikelihood with analytic weights" begin
     # Test loglik_apweights_obs functions for various distributions
     # These are used internally for analytic weights loglikelihood calculations
 

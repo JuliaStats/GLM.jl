@@ -80,6 +80,8 @@ function nobs(r::LmResp{<:Any,<:AbstractWeights})
     return oftype(sum(one(eltype(r.wts))), length(r.y))
 end
 
+working_weights(r::LmResp) = r.wts
+
 function loglikelihood(r::LmResp{<:Any,<:Union{UnitWeights,FrequencyWeights}})
     n = nobs(r)
     return -n / 2 * (log(2π * deviance(r) / n) + 1)
@@ -151,7 +153,7 @@ const FIT_LM_DOC = """
         dropcollinear::Bool=true, method::Symbol=:qr,
         contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
-        wts::Union{AbstractWeights}=uweights(length(y)),
+        wts::AbstractWeights=uweights(length(y)),
         dropcollinear::Bool=true, method::Symbol=:qr)
 
 Fit a linear model to data.
@@ -256,8 +258,6 @@ function adjr2(obj::LinearModel)
 end
 
 working_residuals(x::LinearModel) = residuals(x)
-working_weights(r::LmResp) = r.wts
-working_weights(x::LinearModel) = working_weights(x.rr)
 
 function dispersion(x::LinearModel, sqr::Bool=false)
     dofr = dof_residual(x)

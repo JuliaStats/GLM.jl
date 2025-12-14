@@ -840,6 +840,7 @@ admit_agr = DataFrame(; count=[28.0, 97, 93, 55, 33, 54, 28, 12],
                        [0.164303051291, -0.7500299832, -1.36469792994, -1.68672866457],
                        atol=1e-5)
         @test_throws ArgumentError loglikelihood(gm14)
+        @test_throws ArgumentError nullloglikelihood(gm14)
         @test_throws ArgumentError aic(gm14)
         @test_throws ArgumentError aicc(gm14)
         @test_throws ArgumentError bic(gm14)

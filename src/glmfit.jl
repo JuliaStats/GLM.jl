@@ -87,6 +87,7 @@ function isweighted(r::GlmResp)
     return weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
 end
 working_weights(r::GlmResp) = r.wrkwt
+working_residuals(r::GlmResp) = r.wrkresid
 
 """
     cancancel(r::GlmResp{V,D,L})
@@ -522,7 +523,7 @@ function fit(::Type{M},
              l::Link=canonicallink(d);
              dropcollinear::Bool=true,
              method::Symbol=:qr,
-             wts::AbstractWeights=uweights(length(y)),
+             wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(length(y)),
              offset::AbstractVector{<:Real}=similar(y, 0),
              fitargs...) where {M<:AbstractGLM}
     # Check that X and y have the same number of observations

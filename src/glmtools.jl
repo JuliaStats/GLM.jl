@@ -486,7 +486,7 @@ weight type `W`.
 
 Arguments:
 - `D`: Distribution type
-- `W`: Weight type (FrequencyWeights, UnitWeights, or AnalyticWeights)
+- `W`: Weight type (`FrequencyWeights`, `UnitWeights`, or `AnalyticWeights`)
 - `y`: Observed response value
 - `μ`: Fitted mean value
 - `wt`: Weight for this observation
@@ -515,12 +515,9 @@ function loglik_obs(::Binomial, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt,
 end
 
 # Gamma
-function loglik_obs(::Gamma, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt, n)
+function loglik_obs(::Gamma, ::Type{<:AbstractWeights}, y, μ, wt, δ, sumwt, n)
     ϕ = δ / sumwt  # sumwt = nobs for FrequencyWeights/UnitWeights
     return wt * logpdf(Gamma(inv(ϕ), μ * ϕ), y)
-end
-function loglik_obs(::Gamma, ::Type{<:AnalyticWeights}, y, μ, wt, δ, sumwt, n)
-    return wt * logpdf(Gamma(inv(δ / sumwt), μ * δ / sumwt), y)
 end
 
 # Geometric
@@ -528,10 +525,7 @@ end
 # the first success in a sequence of independent Bernoulli trials with success rate p.
 # The mean of Geometric distribution is (1 - p) / p.
 # Hence, p = 1 / (1 + μ).
-function loglik_obs(::Geometric, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt, n)
-    return wt * logpdf(Geometric(1 / (μ + 1)), y)
-end
-function loglik_obs(::Geometric, ::Type{<:AnalyticWeights}, y, μ, wt, δ, sumwt, n)
+function loglik_obs(::Geometric, ::Type{<:AbstractWeights}, y, μ, wt, δ, sumwt, n)
     return wt * logpdf(Geometric(1 / (μ + 1)), y)
 end
 
@@ -567,9 +561,6 @@ end
 # The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
 #    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
 # Hence, p = θ/(μ+θ)
-function loglik_obs(d::NegativeBinomial, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt, n)
-    return wt * logpdf(NegativeBinomial(d.r, d.r / (μ + d.r)), y)
-end
-function loglik_obs(d::NegativeBinomial, ::Type{<:AnalyticWeights}, y, μ, wt, δ, sumwt, n)
+function loglik_obs(d::NegativeBinomial, ::Type{<:AbstractWeights}, y, μ, wt, δ, sumwt, n)
     return wt * logpdf(NegativeBinomial(d.r, d.r / (μ + d.r)), y)
 end

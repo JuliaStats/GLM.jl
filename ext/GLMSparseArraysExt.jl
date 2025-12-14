@@ -2,7 +2,7 @@ module GLMSparseArraysExt
 
 using GLM, LinearAlgebra, SparseArrays
 import GLM: AbstractWeights, UnitWeights, BlasReal, uweights
-using LinearAlgebra: LinearAlgebra
+
 ## QR
 mutable struct SparsePredQR{T,M<:SparseMatrixCSC,F,W<:AbstractWeights} <: GLM.LinPred
     X::M                           # model matrix
