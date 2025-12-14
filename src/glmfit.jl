@@ -327,23 +327,17 @@ function loglikelihood(m::AbstractGLM)
     wts = weights(r)
     d = link(r)
     ll = zero(eltype(mu))
-    n = nobs(r)
     N = length(y)
     δ = deviance(r)
-    ϕ = δ / n
-    if wts isa Union{FrequencyWeights,UnitWeights}
-        @inbounds for i in eachindex(y, mu)
-            ll += loglik_obs(d, y[i], mu[i], wts[i], ϕ)
-        end
-    elseif wts isa AnalyticWeights
-        if d isa Union{Bernoulli,Binomial}
-            throw(ArgumentError("The `loglikelihood` for analytic weighted models with `Bernoulli` and `Binomial` families is not supported."))
-        end
-        @inbounds for i in eachindex(y, mu, wts)
-            ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, sum(wts), N)
-        end
-    else
+    sumwt = sum(wts)
+    W = typeof(wts)
+    if W <: AnalyticWeights && d isa Union{Bernoulli,Binomial}
+        throw(ArgumentError("The `loglikelihood` for analytic weighted models with `Bernoulli` and `Binomial` families is not supported."))
+    elseif W <: ProbabilityWeights
         throw(ArgumentError("The `loglikelihood` for probability weighted models is not currently supported."))
+    end
+    @inbounds for i in eachindex(y, mu, wts)
+        ll += loglik_obs(d, W, y[i], mu[i], wts[i], δ, sumwt, N)
     end
     return ll
 end
@@ -357,24 +351,18 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     offset = r.offset
     hasint = hasintercept(m)
     ll = zero(eltype(y))
+    W = typeof(wts)
     if isempty(r.offset) # Faster method
         mu = hasint ? mean(y, wts) : linkinv(r.link, zero(ll) / 1)
         δ = nulldeviance(m)
-        ϕ = nulldeviance(m) / nobs(m)
         N = length(y)
-        if wts isa Union{FrequencyWeights,UnitWeights}
-            @inbounds for i in eachindex(y, wts)
-                ll += loglik_obs(d, y[i], mu, wts[i], ϕ)
-            end
-        elseif wts isa AnalyticWeights
-            if d isa Union{Bernoulli,Binomial}
-                throw(ArgumentError("The `nullloglikelihood` for analytic weighted models with `Bernoulli` and `Binomial` families is not supported."))
-            end
-            @inbounds for i in eachindex(y, mu, wts)
-                ll += loglik_apweights_obs(d, y[i], mu[i], wts[i], δ, sum(wts), N)
-            end
-        else
+        if W <: AnalyticWeights && d isa Union{Bernoulli,Binomial}
+            throw(ArgumentError("The `nullloglikelihood` for analytic weighted models with `Bernoulli` and `Binomial` families is not supported."))
+        elseif W <: ProbabilityWeights
             throw(ArgumentError("The `nullloglikelihood` for probability weighted models is not currently supported."))
+        end
+        @inbounds for i in eachindex(y, wts)
+            ll += loglik_obs(d, W, y[i], mu, wts[i], δ, sumwt, N)
         end
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)

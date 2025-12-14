@@ -479,9 +479,20 @@ end
 _safe_int(x) = Int(x)
 
 """
-    GLM.loglik_obs(D, y, μ, wt, ϕ)
+    GLM.loglik_obs(D, ::Type{W}, y, μ, wt, δ, sumwt, n)
 
-Returns `wt * logpdf(D(μ, ϕ), y)` where the parameters of `D` are derived from `μ` and `ϕ`.
+Returns the log-likelihood contribution for a single observation, dispatching on the
+weight type `W`.
+
+Arguments:
+- `D`: Distribution type
+- `W`: Weight type (FrequencyWeights, UnitWeights, or AnalyticWeights)
+- `y`: Observed response value
+- `μ`: Fitted mean value
+- `wt`: Weight for this observation
+- `δ`: Total deviance
+- `sumwt`: Sum of all weights
+- `n`: Number of observations
 
 The `wt` argument is a multiplier of the result except in the case of the `Binomial` where
 `wt` is the number of trials and `μ` is the proportion of successes.
@@ -490,44 +501,75 @@ The loglikelihood of a fitted model is the sum of these values over all the obse
 """
 function loglik_obs end
 
-loglik_obs(::Bernoulli, y, μ, wt, ϕ) = wt * logpdf(Bernoulli(μ), y)
-loglik_obs(::Binomial, y, μ, wt, ϕ) = logpdf(Binomial(Int(wt), μ), _safe_int(y * wt))
-loglik_obs(::Gamma, y, μ, wt, ϕ) = wt * logpdf(Gamma(inv(ϕ), μ * ϕ), y)
+# Type alias for frequency-like weights
+const FreqLikeWeights = Union{FrequencyWeights,UnitWeights}
+
+# Bernoulli - only supported for FrequencyWeights/UnitWeights
+function loglik_obs(::Bernoulli, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt, n)
+    return wt * logpdf(Bernoulli(μ), y)
+end
+
+# Binomial - only supported for FrequencyWeights/UnitWeights
+function loglik_obs(::Binomial, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt, n)
+    return logpdf(Binomial(Int(wt), μ), _safe_int(y * wt))
+end
+
+# Gamma
+function loglik_obs(::Gamma, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt, n)
+    ϕ = δ / sumwt  # sumwt = nobs for FrequencyWeights/UnitWeights
+    return wt * logpdf(Gamma(inv(ϕ), μ * ϕ), y)
+end
+function loglik_obs(::Gamma, ::Type{<:AnalyticWeights}, y, μ, wt, δ, sumwt, n)
+    return wt * logpdf(Gamma(inv(δ / sumwt), μ * δ / sumwt), y)
+end
+
+# Geometric
 # In Distributions.jl, a Geometric distribution characterizes the number of failures before
 # the first success in a sequence of independent Bernoulli trials with success rate p.
 # The mean of Geometric distribution is (1 - p) / p.
 # Hence, p = 1 / (1 + μ).
-loglik_obs(::Geometric, y, μ, wt, ϕ) = wt * logpdf(Geometric(1 / (μ + 1)), y)
-loglik_obs(::InverseGaussian, y, μ, wt, ϕ) = wt * logpdf(InverseGaussian(μ, inv(ϕ)), y)
-loglik_obs(::Normal, y, μ, wt, ϕ) = wt * logpdf(Normal(μ, sqrt(ϕ)), y)
-loglik_obs(::Poisson, y, μ, wt, ϕ) = wt * logpdf(Poisson(μ), y)
+function loglik_obs(::Geometric, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt, n)
+    return wt * logpdf(Geometric(1 / (μ + 1)), y)
+end
+function loglik_obs(::Geometric, ::Type{<:AnalyticWeights}, y, μ, wt, δ, sumwt, n)
+    return wt * logpdf(Geometric(1 / (μ + 1)), y)
+end
+
+# InverseGaussian
+function loglik_obs(::InverseGaussian, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt, n)
+    ϕ = δ / sumwt  # sumwt = nobs for FrequencyWeights/UnitWeights
+    return wt * logpdf(InverseGaussian(μ, inv(ϕ)), y)
+end
+function loglik_obs(::InverseGaussian, ::Type{<:AnalyticWeights}, y, μ, wt, δ, sumwt, n)
+    return -(wt * (1 + log(2π * (δ / sumwt))) + 3 * log(y) * wt) / 2
+end
+
+# Normal
+function loglik_obs(::Normal, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt, n)
+    ϕ = δ / sumwt  # sumwt = nobs for FrequencyWeights/UnitWeights
+    return wt * logpdf(Normal(μ, sqrt(ϕ)), y)
+end
+function loglik_obs(::Normal, ::Type{<:AnalyticWeights}, y, μ, wt, δ, sumwt, n)
+    return ((-log(2π * δ / n) - 1) + log(wt)) / 2
+end
+
+# Poisson
+function loglik_obs(::Poisson, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt, n)
+    return wt * logpdf(Poisson(μ), y)
+end
+function loglik_obs(::Poisson, ::Type{<:AnalyticWeights}, y, μ, wt, δ, sumwt, n)
+    return wt * logpdf(Poisson(μ), y)
+end
+
+# NegativeBinomial
 # We use the following parameterization for the Negative Binomial distribution:
 #    (Γ(θ+y) / (Γ(θ) * y!)) * μ^y * θ^θ / (μ+θ)^{θ+y}
 # The parameterization of NegativeBinomial(r=θ, p) in Distributions.jl is
 #    Γ(θ+y) / (y! * Γ(θ)) * p^θ(1-p)^y
 # Hence, p = θ/(μ+θ)
-function loglik_obs(d::NegativeBinomial, y, μ, wt, ϕ)
+function loglik_obs(d::NegativeBinomial, ::Type{<:FreqLikeWeights}, y, μ, wt, δ, sumwt, n)
     return wt * logpdf(NegativeBinomial(d.r, d.r / (μ + d.r)), y)
 end
-
-## Slight different interface for analytic and probability weights
-## ϕ is the deviance - not the deviance/n nor sum(wt)
-## sumwt is sum(wt)
-## n is the number of observations
-
-function loglik_apweights_obs(::Gamma, y, μ, wt, ϕ, sumwt, n)
-    return wt * logpdf(Gamma(inv(ϕ / sumwt), μ * ϕ / sumwt), y)
-end
-function loglik_apweights_obs(::Geometric, y, μ, wt, ϕ, sumwt, n)
-    return wt * logpdf(Geometric(1 / (μ + 1)), y)
-end
-function loglik_apweights_obs(::InverseGaussian, y, μ, wt, ϕ, sumwt, n)
-    return -(wt * (1 + log(2π * (ϕ / sumwt))) + 3 * log(y) * wt) / 2
-end
-function loglik_apweights_obs(::Normal, y, μ, wt, ϕ, sumwt, n)
-    return ((-log(2π * ϕ / n) - 1) + log(wt)) / 2
-end
-loglik_apweights_obs(::Poisson, y, μ, wt, ϕ, sumwt, n) = wt * logpdf(Poisson(μ), y)
-function loglik_apweights_obs(d::NegativeBinomial, y, μ, wt, ϕ, sumwt, n)
+function loglik_obs(d::NegativeBinomial, ::Type{<:AnalyticWeights}, y, μ, wt, δ, sumwt, n)
     return wt * logpdf(NegativeBinomial(d.r, d.r / (μ + d.r)), y)
 end
