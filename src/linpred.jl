@@ -197,14 +197,14 @@ function cholesky(p::DensePredChol{T}) where {T<:FP}
     return Cholesky(copy(cholfactors(c)), c.uplo, c.info)
 end
 
-function delbeta!(p::DensePredChol{T,<:Cholesky,<:AbstractWeights},
+function delbeta!(p::DensePredChol{T,<:Cholesky},
                   r::Vector{T}) where {T<:BlasReal}
     X = p.wts isa UnitWeights ? p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
     ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
     return p
 end
 
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights},
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted},
                   r::Vector{T}) where {T<:BlasReal}
     ch = p.chol
     X = p.wts isa UnitWeights ? p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
@@ -232,7 +232,7 @@ function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T},
     return p
 end
 
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted,<:AbstractWeights}, r::Vector{T},
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T},
                   wt::Vector{T}) where {T<:BlasReal}
     piv = p.chol.p # inverse vector
     delbeta = p.delbeta

@@ -147,32 +147,17 @@ const FIT_LM_DOC = """
 
 """
     fit(LinearModel, formula::FormulaTerm, data;
-        [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:qr,
+        wts::Union{AbstractWeights}=uweights(0),
+        dropcollinear::Bool=true, method::Symbol=:qr,
         contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
-        wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:qr)
+        wts::Union{AbstractWeights}=uweights(length(y)),
+        dropcollinear::Bool=true, method::Symbol=:qr)
 
 Fit a linear model to data.
 
 $FIT_LM_DOC
 """
-
-function convert_weights(wts::AbstractWeights, n::Integer)
-    # Empty UnitWeights is the internal default for formula-based fit methods,
-    # so we silently expand it to the correct size without warning
-    if wts isa UnitWeights && isempty(wts)
-        return uweights(n)
-    end
-    return wts
-end
-
-function convert_weights(wts::AbstractVector, n::Integer)
-    Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
-                 "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                 "by coercing `wts` to `FrequencyWeights`",
-                 :fit)
-    return fweights(wts)
-end
 
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real};
              wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(length(y)),
@@ -409,4 +394,24 @@ function StatsBase.cooksdistance(obj::LinearModel)
     hii = leverage(obj)
     D = @. u^2 * (hii / (1 - hii)^2) / (k * mse)
     return D
+end
+
+"""
+    Convert weights to appropriate AbstractWeights type
+"""
+function convert_weights(wts::AbstractWeights, n::Integer)
+    # Empty UnitWeights is the internal default for formula-based fit methods,
+    # so we silently expand it to the correct size without warning
+    if wts isa UnitWeights && isempty(wts)
+        return uweights(n)
+    end
+    return wts
+end
+
+function convert_weights(wts::AbstractVector, n::Integer)
+    Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
+                 "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                 "by coercing `wts` to `FrequencyWeights`",
+                 :fit)
+    return fweights(wts)
 end
