@@ -45,9 +45,9 @@ jobs:
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
       - uses: julia-actions/julia-processcoverage@v1
-        if: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' && matrix.arch == 'x64' }}
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' }}
       - uses: codecov/codecov-action@v5
-        if: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' && matrix.arch == 'x64' }}
+        if: ${{ matrix.os == 'ubuntu-latest' && matrix.version == '1' }}
         with:
           file: lcov.info
           token: ${{ secrets.CODECOV_TOKEN }}
