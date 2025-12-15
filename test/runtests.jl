@@ -2238,6 +2238,39 @@ end
           GLM.logpdf(Binomial(Int(wt), μ), 44)
 end
 
+@testset "loglik_obs with AnalyticWeights" begin
+    # Test Normal distribution with AnalyticWeights
+    # loglik_obs formula: ((-log(2π * δ / n) - 1) + log(wt)) / 2
+    y, μ, wt = 1.5, 1.2, 2.5
+    δ, n = 10.0, 100
+    sumwt = 50.0  # not used for Normal with AnalyticWeights
+    expected_normal = ((-log(2π * δ / n) - 1) + log(wt)) / 2
+    @test GLM.loglik_obs(Normal(), AnalyticWeights, y, μ, wt, δ, sumwt, n) ≈ expected_normal
+
+    # Test Poisson distribution with AnalyticWeights
+    # loglik_obs formula: wt * logpdf(Poisson(μ), y)
+    y_int, μ_pois, wt_pois = 3, 2.5, 1.8
+    expected_poisson = wt_pois * GLM.logpdf(Poisson(μ_pois), y_int)
+    @test GLM.loglik_obs(Poisson(), AnalyticWeights, y_int, μ_pois, wt_pois, NaN, NaN, 0) ≈
+          expected_poisson
+end
+
+@testset "loglikelihood for LmResp with AnalyticWeights" begin
+    # Test loglikelihood for LmResp with AnalyticWeights
+    # Formula: (n - N * (log(2π * deviance(r) / N) + 1)) / 2
+    # where n = sum(log, weights(r)) and N = length(r.y)
+    y = [1.0, 2.0, 3.0, 4.0, 5.0]
+    wts = aweights([1.5, 2.0, 1.8, 2.2, 1.9])
+    X = hcat(ones(5), [1.0, 2.0, 3.0, 4.0, 5.0])
+    model = lm(X, y; wts=wts)
+
+    N = length(y)
+    n = sum(log, GLM.weights(model))
+    dev = deviance(model)
+    expected_ll = (n - N * (log(2π * dev / N) + 1)) / 2
+    @test loglikelihood(model) ≈ expected_ll
+end
+
 @testset "GLM with wrong option value in method argument" begin
     @test_throws ArgumentError lm(@formula(OptDen ~ Carb), form; method=:pr)
     @test_throws ArgumentError glm(@formula(OptDen ~ Carb), form, Normal(); method=:pr)
