@@ -452,7 +452,7 @@ devresid(::Poisson, y, μ::Real) = 2 * (xlogy(y, y / μ) - (y - μ))
 
 Does distribution `D` have a separate dispersion parameter, ϕ?
 
-Returns `false` for the `Bernoulli`, `Binomial` and `Poisson` distributions, `true` otherwise.
+Returns `false` for the `Bernoulli`, `Binomial`, and `Poisson` distributions, `true` otherwise.
 
 # Examples
 ```jldoctest; setup = :(using GLM)
