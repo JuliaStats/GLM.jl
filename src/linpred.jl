@@ -501,6 +501,6 @@ function StatsBase.predict(mm::LinPredModel, data;
                upper=view(upper, nonmissinginds))
         predict!(tup, mm, newx;
                  interval=interval, kwargs...)
-        return (prediction=prediction, lower=lower, upper=upper)
+        return Tables.materializer(data)((prediction=prediction, lower=lower, upper=upper))
     end
 end

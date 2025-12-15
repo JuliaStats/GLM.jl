@@ -1203,7 +1203,8 @@ end
     gm11_pred3 = predict(gm11, newX; interval=:confidence, interval_method=:transformation)
     @test gm11_pred1 == gm11_pred2.prediction == gm11_pred3.prediction ≈ newY
     J = newX .* getindex.(GLM.inverselink.(LogitLink(), newX * coef(gm11)), 2)
-    se_pred = sqrt.(diag(J * vcov(gm11) * J'))
+    se_pred = sqrt.(diag(J*vcov(gm11)*J'))
+    @test gm11_pred2 isa NamedTuple
     @test gm11_pred2.lower ≈ gm11_pred2.prediction .- quantile(Normal(), 0.975) .* se_pred ≈
           [0.20478201781547786, 0.2894172253195125, 0.17487705636545708,
            0.024943206131575357, 0.41670326978944977]
@@ -1271,10 +1272,11 @@ end
 
     newd = DataFrame(newX, :auto)
     @test predict(gm13, newd) == predict(gm13, newX)
-    @test predict(gm13, newX; interval=:confidence, interval_method=:delta) ==
-          predict(gm11, newX; interval=:confidence, interval_method=:delta)
+    @test predict(gm13, newd; interval=:confidence, interval_method=:delta) ==
+          DataFrame(predict(gm11, newX; interval=:confidence, interval_method=:delta))
     @test predict(gm13, newd; interval=:confidence, interval_method=:transformation) ==
-          predict(gm11, newX; interval=:confidence, interval_method=:transformation)
+          DataFrame(predict(gm11, newX; interval=:confidence,
+                            interval_method=:transformation))
 
     # Prediction from DataFrames with missing values
     drep = d[[1, 2, 3, 3, 4, 5, 6, 7, 8, 8, 9, 10], :]
@@ -1321,6 +1323,7 @@ end
     pred2 = predict(mm, newX; interval=:confidence)
     se_pred = sqrt.(diag(newX * vcov(mm) * newX'))
 
+    @test pred2 isa NamedTuple
     @test pred1 == pred2.prediction ≈
           [1.1382137814295972, 1.2097057044789292, 1.7983095679661645,
            1.0139576473310072, 0.9738243263215998]
@@ -1339,7 +1342,8 @@ end
     @test ndims(pred2.lower) == 1
     @test ndims(pred2.upper) == 1
 
-    pred3 = predict(mm, newX; interval=:prediction)
+    pred3 = predict(mm, newX, interval=:prediction)
+    @test pred3 isa NamedTuple
     @test pred1 == pred3.prediction ≈
           [1.1382137814295972, 1.2097057044789292, 1.7983095679661645,
            1.0139576473310072, 0.9738243263215998]
@@ -1398,9 +1402,9 @@ end
     newd = DataFrame(newX, :auto)
     @test predict(mmd, newd) == predict(mm, newX)
     @test predict(mmd, newd; interval=:confidence) ==
-          predict(mm, newX; interval=:confidence)
+          DataFrame(predict(mm, newX; interval=:confidence))
     @test predict(mmd, newd; interval=:prediction) ==
-          predict(mm, newX; interval=:prediction)
+          DataFrame(predict(mm, newX; interval=:prediction))
 
     # Prediction from DataFrames with missing values
     drep = d[[1, 2, 3, 3, 4, 5, 6, 7, 8, 8, 9, 10], :]
