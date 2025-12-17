@@ -2,7 +2,7 @@ module GLM
     using Distributions, LinearAlgebra, Printf, Reexport, SparseArrays, Statistics, StatsBase, StatsFuns
     using LinearAlgebra: copytri!, QRCompactWY, Cholesky, CholeskyPivoted, BlasReal
     using Printf: @sprintf
-    using StatsBase: CoefTable, StatisticalModel, RegressionModel
+    using StatsBase: CoefTable, StatisticalModel, RegressionModel, fweights, FrequencyWeights
     using StatsFuns: logit, logistic
     @reexport using StatsModels
     using Distributions: sqrt2, sqrt2π
