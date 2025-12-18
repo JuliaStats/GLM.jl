@@ -143,15 +143,24 @@ end
 @testset "Linear model with weights and $dmethod" for dmethod in (:cholesky, :qr)
     df = dataset("quantreg", "engel")
     N = nrow(df)
-    df.weights = fweights(repeat(1:5, Int(N / 5)))
+    vweights = repeat(1:5, Int(N / 5))
+    df.vweights = vweights
     f = @formula(FoodExp ~ Income)
-    @test GLM.convert_weights(repeat(1:5, Int(N / 5)), N) == df.weights
-    @test_logs (:warn,
+    lm_model = @test_logs((:warn,
                 "Passing weights as vector is deprecated in favor of explicitly using " *
                 "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                "by coercing `wts` to `FrequencyWeights`")
-    lm_model = lm(f, df; wts=df.weights, method=dmethod)
-    glm_model = glm(f, df, Normal(); wts=df.weights, method=dmethod)
+                "by coercing `wts` to `FrequencyWeights`"),
+                lm(f, df; wts=df.vweights, method=dmethod))
+
+    glm_model = @test_logs((:warn,
+                "Passing weights as vector is deprecated in favor of explicitly using " *
+                "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                "by coercing `wts` to `FrequencyWeights`"),
+                glm(f, df, Normal(); wts=df.vweights, method=dmethod))
+
+
+    @test GLM.convert_weights(vweights, N) == fweights(df.vweights)
+
     # Check residuals against expected values (first and last 5)
     expected_resid_first5 = [-101.73752382323588, -105.26761187514256, -104.55155668451636,
                              -60.47017552384705, -21.981021746539113]
@@ -196,7 +205,7 @@ end
     @test GLM.weights(lm_model) == uweights(N)
 
     lm1 = fit(GeneralizedLinearModel, f, df, Normal(), IdentityLink();
-              wts=pweights(df.weights))
+              wts=pweights(df.vweights))
     @test_logs (:warn,
                 "Passing weights as vector is deprecated in favor of explicitly using " *
                 "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
@@ -204,7 +213,7 @@ end
 
     @test_throws ArgumentError loglikelihood(lm1)
     @test_throws ArgumentError nullloglikelihood(lm1)
-    lm1 = fit(LinearModel, f, df; wts=pweights(df.weights))
+    lm1 = fit(LinearModel, f, df; wts=pweights(df.vweights))
     @test_throws ArgumentError loglikelihood(lm1)
     @test_throws ArgumentError nullloglikelihood(lm1)
     @test residuals(lm1) == residuals(lm1.rr)
