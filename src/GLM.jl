@@ -3,7 +3,7 @@ module GLM
 using Distributions, LinearAlgebra, Printf, Reexport, Statistics, StatsBase
 using LinearAlgebra: copytri!, QRCompactWY, Cholesky, CholeskyPivoted, BlasReal
 using Printf: @sprintf
-using StatsBase: CoefTable, StatisticalModel, RegressionModel
+using StatsBase: CoefTable, StatisticalModel, RegressionModel, fweights, pweights, aweights
 using LogExpFunctions: logistic, logit, xlogy
 @reexport using StatsModels
 using Distributions: sqrt2, sqrt2π
@@ -17,8 +17,7 @@ import StatsBase: coef, coeftable, coefnames, confint, deviance, nulldeviance, d
                   leverage, loglikelihood, nullloglikelihood, nobs, stderror, vcov,
                   residuals, predict, predict!,
                   fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
-                  PValue,
-                  fweights, pweights, aweights
+                  PValue                  
 import SpecialFunctions: erfc, erfcinv, digamma, trigamma
 import StatsModels: hasintercept
 using Tables: Tables
