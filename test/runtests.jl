@@ -159,7 +159,9 @@ end
                 glm(f, df, Normal(); wts=df.vweights, method=dmethod))
 
 
-    @test GLM.convert_weights(vweights, N) == fweights(df.vweights)
+    conv_weights = GLM.convert_weights(vweights, N)
+    @test GLM.convert_weights(vweights, N) isa FrequencyWeights
+    @test conv_weights == df.vweights
 
     # Check residuals against expected values (first and last 5)
     expected_resid_first5 = [-101.73752382323588, -105.26761187514256, -104.55155668451636,
