@@ -234,26 +234,26 @@ with the corresponding Julia code
 ```jldoctest
 julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
 50×6 DataFrame
- Row │ Country         SR       Pop15    Pop75    DPI      DDPI
-     │ String15        Float64  Float64  Float64  Float64  Float64
-─────┼─────────────────────────────────────────────────────────────
-   1 │ Australia         11.43    29.35     2.87  2329.68     2.87
-   2 │ Austria           12.07    23.32     4.41  1507.99     3.93
-   3 │ Belgium           13.17    23.8      4.43  2108.47     3.82
-   4 │ Bolivia            5.75    41.89     1.67   189.13     0.22
-   5 │ Brazil            12.88    42.19     0.83   728.47     4.56
-   6 │ Canada             8.79    31.72     2.85  2982.88     2.43
-   7 │ Chile              0.6     39.74     1.34   662.86     2.67
-   8 │ China             11.9     44.75     0.67   289.52     6.51
-  ⋮  │       ⋮            ⋮        ⋮        ⋮        ⋮        ⋮
-  44 │ United States      7.56    29.81     3.43  4001.89     2.45
-  45 │ Venezuela          9.22    46.4      0.9    813.39     0.53
-  46 │ Zambia            18.56    45.25     0.56   138.33     5.14
-  47 │ Jamaica            7.72    41.12     1.73   380.47    10.23
-  48 │ Uruguay            9.24    28.13     2.72   766.54     1.88
-  49 │ Libya              8.89    43.69     2.07   123.58    16.71
-  50 │ Malaysia           4.71    47.2      0.66   242.69     5.08
-                                                    35 rows omitted
+ Row │ Country        SR       Pop15    Pop75    DPI      DDPI
+     │ String15       Float64  Float64  Float64  Float64  Float64
+─────┼────────────────────────────────────────────────────────────
+   1 │ Australia        11.43    29.35     2.87  2329.68     2.87
+   2 │ Austria          12.07    23.32     4.41  1507.99     3.93
+   3 │ Belgium          13.17    23.8      4.43  2108.47     3.82
+   4 │ Bolivia           5.75    41.89     1.67   189.13     0.22
+   5 │ Brazil           12.88    42.19     0.83   728.47     4.56
+   6 │ Canada            8.79    31.72     2.85  2982.88     2.43
+   7 │ Chile             0.6     39.74     1.34   662.86     2.67
+   8 │ China            11.9     44.75     0.67   289.52     6.51
+  ⋮  │       ⋮           ⋮        ⋮        ⋮        ⋮        ⋮
+  44 │ United States     7.56    29.81     3.43  4001.89     2.45
+  45 │ Venezuela         9.22    46.4      0.9    813.39     0.53
+  46 │ Zambia           18.56    45.25     0.56   138.33     5.14
+  47 │ Jamaica           7.72    41.12     1.73   380.47    10.23
+  48 │ Uruguay           9.24    28.13     2.72   766.54     1.88
+  49 │ Libya             8.89    43.69     2.07   123.58    16.71
+  50 │ Malaysia          4.71    47.2      0.66   242.69     5.08
+                                                   35 rows omitted
 
 julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
 StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}, Vector{Int64}}}}, Matrix{Float64}}
