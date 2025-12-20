@@ -22,14 +22,14 @@ Their arguments must be:
   then a valid formula is `@formula(Y ~ X1 + X2)`
 - `data`: a table in the Tables.jl definition, e.g. a data frame;
   rows with `missing` values are ignored
-- `X` a matrix holding values of the independent variable(s) in columns
-- `y` a vector holding values of the dependent variable
+- `X` a matrix holding values of the independent/predictor/feature variable(s) in columns
+- `y` a vector holding values of the dependent/response/target variable
   (including if appropriate the intercept)
 - `family`: chosen from `Bernoulli()`, `Binomial()`, `Gamma()`, `Geometric()`, `Normal()`, `Poisson()`, or `NegativeBinomial(θ)`
 - `link`: chosen from the list below, for example, `LogitLink()` is a valid link for the `Binomial()` family
 
 Typical distributions for use with `glm` and their canonical link
-functions are
+functions in brackets are
 
            Bernoulli (LogitLink)
             Binomial (LogitLink)
@@ -58,7 +58,7 @@ Note that the canonical link for negative binomial regression is `NegativeBinomi
 in practice one typically uses `LogLink`.
 The `NegativeBinomial` distribution belongs to the exponential family only if θ (the shape
 parameter) is fixed, thus θ has to be provided if we use `glm` with `NegativeBinomial` family.
-If one would like to also estimate θ, then `negbin(formula, data, link)` should be
+If one would like to estimate θ simultaneously, then `negbin(formula, data, link)` should be
 used instead.
 
 An intercept is included in any GLM by default.
@@ -72,7 +72,7 @@ named tuple of vectors, etc). Alternatively, you can pass an explicit
 [contrasts](https://juliastats.github.io/StatsModels.jl/stable/contrasts/) argument if you
 would like a different contrast coding system or if you are not using DataFrames.
 
-The response (dependent) variable may not be categorical.
+The response variable may not be categorical.
 
 Using a `CategoricalVector` constructed with `categorical` or `categorical!`:
 
@@ -171,7 +171,7 @@ Many of the methods provided by this package have names similar to those in [R](
 - `predict`: predicted values of the dependent variable from the fitted model
 - `r2`: R² of a linear model (an alias for `r²`)
 - `residuals`: vector of residuals from the fitted model
-- `response`: model response (a.k.a the dependent variable)
+- `response`: response variable
 - `stderror`: standard errors of the coefficients
 - `vcov`: variance-covariance matrix of the coefficient estimates
 
@@ -199,7 +199,7 @@ julia> round(aic(mdl); digits=8)
 ```
 
 The [`predict`](@ref) method returns predicted values of response variable from covariate values in an input `newX`.
-If `newX` is omitted then the fitted response values from the model are returned.
+If `newX` is omitted, then the fitted response values from the model are returned.
 
 ```jldoctest methods
 julia> test_data = DataFrame(X=[4]);
@@ -223,12 +223,12 @@ julia> round.(cooksdistance(mdl); digits=8)
 ## Separation of response object and predictor object
 
 The general approach in this code is to separate functionality related
-to the response from that related to the linear predictor.  This
+to the response variable from that related to the linear predictor.  This
 allows for greater generality by mixing and matching different
 subtypes of the abstract type ```LinPred``` and the abstract type ```ModResp```.
 
 A ```LinPred``` type incorporates the parameter vector and the model
-matrix.  The parameter vector is a dense numeric vector but the model
+matrix.  The parameter vector is a dense numeric vector, but the model
 matrix can be dense or sparse.  A ```LinPred``` type must incorporate
 some form of a decomposition of the weighted model matrix that allows
 for the solution of a system ```X'W * X * delta=X'wres``` where ```W``` is a
