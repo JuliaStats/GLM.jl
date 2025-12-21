@@ -90,19 +90,19 @@ abstract type DensePred <: LinPred end            # linear predictor with dense 
 abstract type LinPredModel <: RegressionModel end # model based on a linear predictor
 
 const COMMON_FIT_KWARGS_DOCS = """
-    - `dropcollinear::Bool`: Controls whether or not a model matrix
+    - `dropcollinear::Bool=false`: Controls whether or not a model matrix
       less-than-full rank is accepted.
       If `true` (the default) the coefficient for redundant linearly dependent columns is
       `0.0` and all associated statistics are set to `NaN`.
       Typically from a set of linearly-dependent columns the last ones are identified as redundant
       (however, the exact selection of columns identified as redundant is not guaranteed).
-    - `method::Symbol`: Controls which decomposition method to use.
+    - `method::Symbol=:qr`: Controls which decomposition method to use.
       If `method=:qr` (the default), then the `QR` decomposition method will be used.
       If `method=:cholesky`, then the `Cholesky` decomposition method will be used.
       The Cholesky decomposition is faster and more computationally efficient than
       QR, but is less numerically stable and thus may fail or produce less accurate
       estimates for some models.
-    - `wts::AbstractWeights`: Weights of observations.
+    - `wts::AbstractWeights=uweights(0)`: Weights of observations.
        The weights can be of type `AnalyticWeights`, `FrequencyWeights`,
        `ProbabilityWeights`, or `UnitWeights`. `AnalyticWeights` describe a non-random
        relative importance (usually between 0 and 1) for each observation. These weights may
@@ -111,7 +111,7 @@ const COMMON_FIT_KWARGS_DOCS = """
        `ProbabilityWeights` represent the inverse of the sampling probability for each observation,
        providing a correction mechanism for under- or over-sampling certain population groups. `UnitWeights`
        (default) describes the case in which all weights are equal to 1 (so no weighting takes place)
-    - `contrasts::AbstractDict{Symbol}`: a `Dict` mapping term names
+    - `contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}()`: a `Dict` mapping term names
       (as `Symbol`s) to term types (e.g., `ContinuousTerm`) or contrasts
       (e.g., `HelmertCoding()`, `SeqDiffCoding(; levels=["a", "b", "c"])`,
       etc.). If contrasts are not provided for a variable, the appropriate
