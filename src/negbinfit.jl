@@ -74,7 +74,7 @@ In both cases, `link` may specify the link function
 function negbin(F,
                 D,
                 args...;
-                wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(0),
+                wts::AbstractVector{<:Real}=uweights(0),
                 initialθ::Real=Inf,
                 dropcollinear::Bool=true,
                 method::Symbol=:qr,

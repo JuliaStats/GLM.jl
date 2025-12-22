@@ -523,7 +523,7 @@ function fit(::Type{M},
              l::Link=canonicallink(d);
              dropcollinear::Bool=true,
              method::Symbol=:qr,
-             wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(length(y)),
+             wts::AbstractVector{<:Real}=uweights(length(y)),
              offset::AbstractVector{<:Real}=similar(y, 0),
              fitargs...) where {M<:AbstractGLM}
     # Check that X and y have the same number of observations
@@ -559,7 +559,7 @@ function fit(::Type{M},
              d::UnivariateDistribution,
              l::Link=canonicallink(d);
              offset::Union{AbstractVector,Nothing}=nothing,
-             wts::Union{AbstractVector,Nothing}=nothing,
+             wts::Union{AbstractVector{<:Real},Nothing}=nothing,
              dropcollinear::Bool=true,
              method::Symbol=:qr,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),

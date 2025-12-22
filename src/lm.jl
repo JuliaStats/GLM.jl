@@ -162,7 +162,7 @@ $FIT_LM_DOC
 """
 
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real};
-             wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(length(y)),
+             wts::AbstractVector{<:Real}=uweights(length(y)),
              dropcollinear::Bool=true, method::Symbol=:qr)
     _wts = convert_weights(wts, length(y))
     if method === :cholesky
@@ -175,7 +175,7 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
 end
 
 function fit(::Type{LinearModel}, f::FormulaTerm, data;
-             wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(0),
+             wts::AbstractVector{<:Real}=uweights(0),
              dropcollinear::Bool=true,
              method::Symbol=:qr,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
@@ -192,10 +192,11 @@ end
 
 """
     lm(formula, data;
-       [wts::AbstractVector], dropcollinear::Bool=true, method::Symbol=:qr,
-       contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
+       wts::AbstractVector{<:Real}=uweights(0), dropcollinear::Bool=true,
+       method::Symbol=:qr, contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
     lm(X::AbstractMatrix, y::AbstractVector;
-       wts::AbstractVector=similar(y, 0), dropcollinear::Bool=true, method::Symbol=:cholesky)
+       wts::AbstractVector{<:Real}=uweights(length(y)), dropcollinear::Bool=true,
+       method::Symbol=:qr)
 
 Fit a linear model to data.
 An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear, method=method)`
