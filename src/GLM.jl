@@ -68,10 +68,7 @@ export
       negbin,         # interface to fitting negative binomial regression
       nobs,           # total number of observations
       predict,        # make predictions
-      ftest,          # compare models with an F test
-      fweights,       # frequency weights
-      pweights,       # probability weights
-      aweights        # analytical weights
+      ftest           # compare models with an F test
 
 const FP = AbstractFloat
 const FPVector{T<:FP} = AbstractArray{T,1}
