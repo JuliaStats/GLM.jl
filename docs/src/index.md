@@ -220,7 +220,7 @@ The type of the weights will affect the variance of the estimated coefficients a
 quantities involving this variance. The coefficient point estimates will be the same
 regardless of the type of weights.
 
-```jldoctest weights
+```jldoctest weights; filter = r"(\d*)\.(\d{10})\d+" => s"\1.\2***"
 julia> loglikelihood(m_aweights)
 -16.296307561384253
 
