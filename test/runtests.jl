@@ -147,17 +147,16 @@ end
     df.vweights = vweights
     f = @formula(FoodExp ~ Income)
     lm_model = @test_logs((:warn,
-                "Passing weights as vector is deprecated in favor of explicitly using " *
-                "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                "by coercing `wts` to `FrequencyWeights`"),
-                lm(f, df; wts=df.vweights, method=dmethod))
+                           "Passing weights as vector is deprecated in favor of explicitly using " *
+                           "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                           "by coercing `wts` to `FrequencyWeights`"),
+                          lm(f, df; wts=df.vweights, method=dmethod))
 
     glm_model = @test_logs((:warn,
-                "Passing weights as vector is deprecated in favor of explicitly using " *
-                "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                "by coercing `wts` to `FrequencyWeights`"),
-                glm(f, df, Normal(); wts=df.vweights, method=dmethod))
-
+                            "Passing weights as vector is deprecated in favor of explicitly using " *
+                            "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
+                            "by coercing `wts` to `FrequencyWeights`"),
+                           glm(f, df, Normal(); wts=df.vweights, method=dmethod))
 
     conv_weights = GLM.convert_weights(vweights, N)
     @test GLM.convert_weights(vweights, N) isa FrequencyWeights

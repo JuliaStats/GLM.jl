@@ -17,7 +17,7 @@ import StatsBase: coef, coeftable, coefnames, confint, deviance, nulldeviance, d
                   leverage, loglikelihood, nullloglikelihood, nobs, stderror, vcov,
                   residuals, predict, predict!,
                   fitted, fit, model_response, response, modelmatrix, r2, r², adjr2, adjr²,
-                  PValue                  
+                  PValue
 import SpecialFunctions: erfc, erfcinv, digamma, trigamma
 import StatsModels: hasintercept
 using Tables: Tables
