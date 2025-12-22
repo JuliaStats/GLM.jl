@@ -150,7 +150,7 @@ Short-hand functions `aweights`, `fweights`, and `pweights` can be used to const
 We illustrate the API with randomly generated data.
 
 ```jldoctest weights
-julia> using StableRNGs, DataFrames, GLM
+julia> using StableRNGs, DataFrames, StatsBase, GLM
 
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = randn(StableRNG(2), 100), weights = repeat([1, 2, 3, 4], 25));
 
