@@ -66,10 +66,10 @@ function ftest(mod::LinearModel)
 
     n = Int(nobs(mod))
     p = dof(mod) - 2 # -2 for intercept and dispersion parameter
-    fstat = ((tss - rss) / rss) * ((n - p - 1) / p)
+    fstat = abs(((tss - rss) / rss) * ((n - p - 1) / p))
     fdist = FDist(p, dof_residual(mod))
 
-    return SingleFTestResult(n, p, promote(fstat, ccdf(fdist, abs(fstat)))...)
+    return SingleFTestResult(n, p, promote(fstat, ccdf(fdist, fstat))...)
 end
 
 """
@@ -80,9 +80,10 @@ the one model fits significantly better than the other. Models must have been fi
 on the same data, and be nested either in forward or backward direction.
 
 A table is returned containing consumed degrees of freedom (DOF),
-difference in DOF from the preceding model, sum of squared residuals (SSR), difference in
-SSR from the preceding model, R², difference in R² from the preceding model, and F-statistic
-and p-value for the comparison between the two models.
+absolute difference in DOF from the preceding model, sum of squared residuals (SSR),
+absolute difference in SSR from the preceding model, R², absolute difference in R²
+from the preceding model, and F-statistic and p-value for the comparison
+between the two models.
 
 !!! note
     This function can be used to perform an ANOVA by testing the relative fit of two models
@@ -113,22 +114,22 @@ julia> bigmodel = lm(@formula(Result ~ 1 + Treatment + Other), dat);
 
 julia> ftest(nullmodel, model)
 F-test: 2 models fitted on 12 observations
-─────────────────────────────────────────────────────────────────
-     DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
-─────────────────────────────────────────────────────────────────
-[1]    2        3.2292           0.0000
-[2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
-─────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────
+     DOF  ΔDOF     SSR    ΔSSR      R²     ΔR²        F*   p(>F)
+────────────────────────────────────────────────────────────────
+[1]    2        3.2292          0.0000
+[2]    3     1  0.1283  3.1008  0.9603  0.9603  241.6234  <1e-07
+────────────────────────────────────────────────────────────────
 
 julia> ftest(nullmodel, model, bigmodel)
 F-test: 3 models fitted on 12 observations
-─────────────────────────────────────────────────────────────────
-     DOF  ΔDOF     SSR     ΔSSR      R²     ΔR²        F*   p(>F)
-─────────────────────────────────────────────────────────────────
-[1]    2        3.2292           0.0000
-[2]    3     1  0.1283  -3.1008  0.9603  0.9603  241.6234  <1e-07
-[3]    5     2  0.1017  -0.0266  0.9685  0.0082    1.0456  0.3950
-─────────────────────────────────────────────────────────────────
+────────────────────────────────────────────────────────────────
+     DOF  ΔDOF     SSR    ΔSSR      R²     ΔR²        F*   p(>F)
+────────────────────────────────────────────────────────────────
+[1]    2        3.2292          0.0000
+[2]    3     1  0.1283  3.1008  0.9603  0.9603  241.6234  <1e-07
+[3]    5     2  0.1017  0.0266  0.9685  0.0082    1.0456  0.3950
+────────────────────────────────────────────────────────────────
 ```
 """
 function ftest(mods::LinearModel...; atol::Real=0.0)
@@ -156,7 +157,7 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
     SSR = deviance.(mods)
 
     df = dof.(mods)
-    Δdf = _diff(df)
+    Δdf = abs.(_diff(df))
     dfr = Int.(dof_residual.(mods))
     MSR1 = _diffn(SSR) ./ Δdf
     MSR2 = (SSR ./ dfr)
@@ -168,8 +169,8 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
         dfr_big = dfr[1:(end - 1)]
     end
 
-    fstat = (NaN, (MSR1 ./ MSR2)...)
-    pval = (NaN, ccdf.(FDist.(abs.(Δdf), dfr_big), abs.(fstat[2:end]))...)
+    fstat = abs.((NaN, (MSR1 ./ MSR2)...))
+    pval = (NaN, ccdf.(FDist.(Δdf, dfr_big), fstat[2:end])...)
 
     return FTestResult(Int(nobs(mods[1])), SSR, df, r2.(mods), fstat, pval)
 end
@@ -182,9 +183,9 @@ function show(io::IO, ftr::SingleFTestResult)
 end
 
 function show(io::IO, ftr::FTestResult{N}) where {N}
-    Δdof = _diff(ftr.dof)
-    Δssr = _diff(ftr.ssr)
-    ΔR² = _diff(ftr.r2)
+    Δdof = abs.(_diff(ftr.dof))
+    Δssr = abs.(_diff(ftr.ssr))
+    ΔR² = abs.(_diff(ftr.r2))
 
     nc = 9
     nr = N
