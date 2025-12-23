@@ -17,6 +17,7 @@ The [RDatasets package](https://github.com/johnmyleswhite/RDatasets.jl) is usefu
 Two methods can be used to fit a Generalized Linear Model (GLM):
 `glm(formula, data, family, link)` and `glm(X, y, family, link)`.
 Their arguments must be:
+
 - `formula`: a [StatsModels.jl `Formula` object](https://juliastats.org/StatsModels.jl/stable/formula/)
   referring to columns in `data`; for example, if column names are `:Y`, `:X1`, and `:X2`,
   then a valid formula is `@formula(Y ~ X1 + X2)`
@@ -123,10 +124,115 @@ x: 4         -0.032673    0.0797865  -0.41    0.6831  -0.191048    0.125702
 ───────────────────────────────────────────────────────────────────────────
 ```
 
+## Weighting
+
+Both `lm` and `glm` allow weighted estimation. The four different
+[types of weights](https://juliastats.org/StatsBase.jl/stable/weights/) defined in
+[StatsBase.jl](https://github.com/JuliaStats/StatsBase.jl) can be used to fit a model:
+
+- `AnalyticWeights` describe a non-random relative importance (usually between 0 and 1) for
+  each observation. These weights may also be referred to as reliability weights, precision
+  weights or inverse variance weights. These are typically used when the observations being
+  weighted are aggregate values (e.g., averages) with differing variances.
+- `FrequencyWeights` describe the number of times (or frequency) each observation was seen.
+  These weights may also be referred to as case weights or repeat weights.
+- `ProbabilityWeights` represent the inverse of the sampling probability for each observation,
+  providing a correction mechanism for under- or over-sampling certain population groups.
+  These weights may also be referred to as sampling weights.
+- `UnitWeights` attribute a weight of 1 to each observation, which corresponds
+  to unweighted regression (the default).
+
+To indicate which kind of weights should be used, the vector of weights must be wrapped in
+one of the three weights types, and then passed to the `weights` keyword argument.
+Short-hand functions `aweights`, `fweights`, and `pweights` can be used to construct
+`AnalyticWeights`, `FrequencyWeights`, and `ProbabilityWeights`, respectively.
+
+We illustrate the API with randomly generated data.
+
+```jldoctest weights
+julia> using StableRNGs, DataFrames, StatsBase, GLM
+
+julia> data = DataFrame(y = rand(StableRNG(1), 100), x = randn(StableRNG(2), 100), weights = repeat([1, 2, 3, 4], 25));
+
+julia> m = lm(@formula(y ~ x), data)
+LinearModel
+
+y ~ 1 + x
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+──────────────────────────────────────────────────────────────────────────
+(Intercept)   0.517369    0.0280232  18.46    <1e-32   0.461758  0.57298
+x            -0.0500249   0.0307201  -1.63    0.1066  -0.110988  0.0109382
+──────────────────────────────────────────────────────────────────────────
+
+julia> m_aweights = lm(@formula(y ~ x), data, wts=aweights(data.weights))
+LinearModel
+
+y ~ 1 + x
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+──────────────────────────────────────────────────────────────────────────
+(Intercept)   0.51673     0.0270707  19.09    <1e-34   0.463009  0.570451
+x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
+──────────────────────────────────────────────────────────────────────────
+
+julia> m_fweights = lm(@formula(y ~ x), data, wts=fweights(data.weights))
+LinearModel
+
+y ~ 1 + x
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(>|t|)   Lower 95%    Upper 95%
+─────────────────────────────────────────────────────────────────────────────
+(Intercept)   0.51673     0.0170172  30.37    <1e-84   0.483213    0.550246
+x            -0.0478667   0.0193863  -2.47    0.0142  -0.0860494  -0.00968394
+─────────────────────────────────────────────────────────────────────────────
+
+julia> m_pweights = lm(@formula(y ~ x), data, wts=pweights(data.weights))
+LinearModel
+
+y ~ 1 + x
+
+Coefficients:
+───────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(>|t|)  Lower 95%   Upper 95%
+───────────────────────────────────────────────────────────────────────────
+(Intercept)   0.51673     0.0287193  17.99    <1e-32   0.459737  0.573722
+x            -0.0478667   0.0265532  -1.80    0.0745  -0.100561  0.00482739
+───────────────────────────────────────────────────────────────────────────
+
+```
+
+!!! warning
+
+In the old API, weights were passed as `AbstractVectors` and were silently treated in
+the internal computation of standard errors and related quantities as `FrequencyWeights`.
+Passing weights as `AbstractVector` is still allowed for backward compatibility, but it
+is deprecated. When weights are passed following the old API, they are now coerced to
+`FrequencyWeights` and a deprecation warning is issued.
+
+The type of the weights will affect the variance of the estimated coefficients and the
+quantities involving this variance. The coefficient point estimates will be the same
+regardless of the type of weights.
+
+```jldoctest weights; filter = r"(\d*)\.(\d{10})\d+" => s"\1.\2***"
+julia> loglikelihood(m_aweights)
+-16.296307561384253
+
+julia> loglikelihood(m_fweights)
+-25.518609617564483
+```
+
 ## Comparing models with F-test
 
 Comparisons between two or more linear models can be performed using the `ftest` function,
 which computes an F-test between each pair of subsequent models and reports fit statistics:
+
 ```jldoctest
 julia> using DataFrames, GLM, StableRNGs
 
@@ -149,6 +255,7 @@ F-test: 2 models fitted on 50 observations
 ## Methods applied to fitted models
 
 Many of the methods provided by this package have names similar to those in [R](http://www.r-project.org).
+
 - `adjr2`: adjusted R² for a linear model (an alias for `adjr²`)
 - `aic`: Akaike's Information Criterion
 - `aicc`: corrected Akaike's Information Criterion for small sample sizes
@@ -175,9 +282,8 @@ Many of the methods provided by this package have names similar to those in [R](
 - `stderror`: standard errors of the coefficients
 - `vcov`: variance-covariance matrix of the coefficient estimates
 
-
-Note that the canonical link for negative binomial regression is `NegativeBinomialLink`, but
-in practice one typically uses `LogLink`.
+Note that the canonical link for negative binomial regression is `NegativeBinomialLink`,
+but in practice one typically uses `LogLink`.
 
 ```jldoctest methods
 julia> using GLM, DataFrames, StatsBase
@@ -209,7 +315,9 @@ julia> round.(predict(mdl, test_data); digits=8)
  9.33333333
 ```
 
-The [`cooksdistance`](@ref) method computes [Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation used to fit a linear model, giving an estimate of the influence of each data point.
+The [`cooksdistance`](@ref) method computes
+[Cook's distance](https://en.wikipedia.org/wiki/Cook%27s_distance) for each observation
+used to fit a linear model, giving an estimate of the influence of each data point.
 Note that it's currently only implemented for linear models without weights.
 
 ```jldoctest methods
@@ -223,45 +331,47 @@ julia> round.(cooksdistance(mdl); digits=8)
 ## Separation of response object and predictor object
 
 The general approach in this code is to separate functionality related
-to the response from that related to the linear predictor.  This
+to the response from that related to the linear predictor. This
 allows for greater generality by mixing and matching different
-subtypes of the abstract type ```LinPred``` and the abstract type ```ModResp```.
+subtypes of the abstract type `LinPred` and the abstract type `ModResp`.
 
-A ```LinPred``` type incorporates the parameter vector and the model
-matrix.  The parameter vector is a dense numeric vector but the model
-matrix can be dense or sparse.  A ```LinPred``` type must incorporate
+A `LinPred` type incorporates the parameter vector and the model
+matrix. The parameter vector is a dense numeric vector but the model
+matrix can be dense or sparse. A `LinPred` type must incorporate
 some form of a decomposition of the weighted model matrix that allows
-for the solution of a system ```X'W * X * delta=X'wres``` where ```W``` is a
+for the solution of a system `X'W * X * delta=X'wres` where `W` is a
 diagonal matrix of "X weights", provided as a vector of the square
-roots of the diagonal elements, and ```wres``` is a weighted residual vector.
+roots of the diagonal elements, and `wres` is a weighted residual vector.
 
-Currently there are two dense predictor types, ```DensePredQR``` and
-```DensePredChol```, and the usual caveats apply.  The Cholesky
+Currently there are two dense predictor types, `DensePredQR` and
+`DensePredChol`, and the usual caveats apply. The Cholesky
 version is faster but somewhat less accurate than that QR version.
 The skeleton of a distributed predictor type is in the code
-but not yet fully fleshed out.  Because Julia by default uses
+but not yet fully fleshed out. Because Julia by default uses
 OpenBLAS, which is already multi-threaded on multicore machines, there
 may not be much advantage in using distributed predictor types.
 
-A ```ModResp``` type must provide methods for the ```wtres``` and
-```sqrtxwts``` generics.  Their values are the arguments to the
-```updatebeta``` methods of the ```LinPred``` types.  The
-```Float64``` value returned by ```updatedelta``` is the value of the
+A `ModResp` type must provide methods for the `wtres` and
+`sqrtxwts` generics. Their values are the arguments to the
+`updatebeta` methods of the `LinPred` types. The
+`Float64` value returned by `updatedelta` is the value of the
 convergence criterion.
 
-Similarly, ```LinPred``` types must provide a method for the
-```linpred``` generic.  In general ```linpred``` takes an instance of
-a ```LinPred``` type and a step factor.  Methods that take only an instance
-of a ```LinPred``` type use a default step factor of 1.  The value of
-```linpred``` is the argument to the ```updatemu``` method for
-```ModResp``` types.  The ```updatemu``` method returns the updated
+Similarly, `LinPred` types must provide a method for the
+`linpred` generic. In general `linpred` takes an instance of
+a `LinPred` type and a step factor. Methods that take only an instance
+of a `LinPred` type use a default step factor of 1. The value of
+`linpred` is the argument to the `updatemu` method for
+`ModResp` types. The `updatemu` method returns the updated
 deviance.
 
 ## Debugging failed fits
+
 In the rare cases when a fit of a generalized linear model fails, it can be useful
 to enable more output from the fitting steps. This can be done through
 the Julia logging mechanism by setting `ENV["JULIA_DEBUG"] = GLM`. Enabling debug output
 will result in ouput like the following
+
 ```julia
 ┌ Debug: Iteration: 1, deviance: 5.129147109764238, diff.dev.:0.05057195315968688
 └ @ GLM ~/.julia/dev/GLM/src/glmfit.jl:418

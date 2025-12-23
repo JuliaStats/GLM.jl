@@ -61,7 +61,7 @@ julia> dof(ols)
 3
 
 julia> dof_residual(ols)
-1.0
+1
 
 julia> round(aic(ols); digits=5)
 5.84252
@@ -214,8 +214,8 @@ sales ^ 2    -6.94594e-9   3.72614e-9   -1.86    0.0725  -1.45667e-8  6.7487e-10
 ```jldoctest
 julia> data = DataFrame(X=[1,2,2], Y=[1,0,1])
 3×2 DataFrame
- Row │ X      Y
-     │ Int64  Int64
+ Row │ X      Y     
+     │ Int64  Int64 
 ─────┼──────────────
    1 │     1      1
    2 │     2      0
@@ -319,8 +319,8 @@ julia> using GLM, RDatasets
 
 julia> form = dataset("datasets", "Formaldehyde")
 6×2 DataFrame
- Row │ Carb     OptDen
-     │ Float64  Float64
+ Row │ Carb     OptDen  
+     │ Float64  Float64 
 ─────┼──────────────────
    1 │     0.1    0.086
    2 │     0.3    0.269
@@ -473,8 +473,8 @@ julia> dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
                           Outcome   = categorical([1,2,3,1,2,3,1,2,3]),
                           Treatment = categorical([1,1,1,2,2,2,3,3,3]))
 9×3 DataFrame
- Row │ Counts   Outcome  Treatment
-     │ Float64  Cat…     Cat…
+ Row │ Counts   Outcome  Treatment 
+     │ Float64  Cat…     Cat…      
 ─────┼─────────────────────────────
    1 │    18.0  1        1
    2 │    17.0  2        1
@@ -513,29 +513,8 @@ In this example, we choose the best model from a set of λs, based on minimum BI
 ```jldoctest; filter = r"(\d*)\.(\d{6})\d+" => s"\1.\2"
 julia> using GLM, RDatasets, StatsBase, DataFrames, Optim
 
-julia> trees = DataFrame(dataset("datasets", "trees"))
-31×3 DataFrame
- Row │ Girth    Height  Volume  
-     │ Float64  Int64   Float64 
-─────┼──────────────────────────
-   1 │     8.3      70     10.3
-   2 │     8.6      65     10.3
-   3 │     8.8      63     10.2
-   4 │    10.5      72     16.4
-   5 │    10.7      81     18.8
-   6 │    10.8      83     19.7
-   7 │    11.0      66     15.6
-   8 │    11.0      75     18.2
-  ⋮  │    ⋮       ⋮        ⋮
-  25 │    16.3      77     42.6
-  26 │    17.3      81     55.4
-  27 │    17.5      82     55.7
-  28 │    17.9      80     58.3
-  29 │    18.0      80     51.5
-  30 │    18.0      80     51.0
-  31 │    20.6      87     77.0
-                 16 rows omitted
-                 
+julia> trees = DataFrame(dataset("datasets", "trees"));
+
 julia> bic_glm(λ) = bic(glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(λ)));
 
 julia> optimal_bic = optimize(bic_glm, -1.0, 1.0);
@@ -554,7 +533,7 @@ Coefficients:
 ────────────────────────────────────────────────────────────────────────────
 (Intercept)  -1.07586    0.352543    -3.05    0.0023  -1.76684    -0.384892
 Height        0.0232172  0.00523331   4.44    <1e-05   0.0129601   0.0334743
-Girth         0.242837   0.00922555  26.32    <1e-99   0.224756    0.260919
+Girth         0.242837   0.00922556  26.32    <1e-99   0.224756    0.260919
 ────────────────────────────────────────────────────────────────────────────
 
 julia> round(optimal_bic.minimum, digits=5)

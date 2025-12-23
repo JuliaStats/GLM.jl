@@ -28,12 +28,12 @@ function StatsModels.isnested(mod1::LinPredModel, mod2::LinPredModel; atol::Real
     rtol = Base.rtoldefault(typeof(pred1[1, 1]))
     nresp = size(pred2, 1)
     return norm(view(qr(pred2).Q'pred1, (npreds2 + 1):nresp, :)) <=
-           max(atol, rtol*norm(pred1))
+           max(atol, rtol * norm(pred1))
 end
 
-_diffn(t::NTuple{N,T}) where {N,T} = ntuple(i->t[i]-t[i+1], N-1)
+_diffn(t::NTuple{N,T}) where {N,T} = ntuple(i -> t[i] - t[i + 1], N - 1)
 
-_diff(t::NTuple{N,T}) where {N,T} = ntuple(i->t[i+1]-t[i], N-1)
+_diff(t::NTuple{N,T}) where {N,T} = ntuple(i -> t[i + 1] - t[i], N - 1)
 
 """
     ftest(mod::LinearModel)
@@ -57,7 +57,10 @@ F-statistic: 241.62 on 12 observations and 1 degrees of freedom, p-value: <1e-07
 function ftest(mod::LinearModel)
     hasintercept(mod) ||
         throw(ArgumentError("ftest only works for models with an intercept"))
-
+    wts = weights(mod)
+    if wts isa ProbabilityWeights
+        throw(ArgumentError("`ftest` for probability weighted models is not currently supported."))
+    end
     rss = deviance(mod)
     tss = nulldeviance(mod)
 
@@ -137,15 +140,15 @@ function ftest(mods::LinearModel...; atol::Real=0.0)
     forward = length(mods) == 1 || dof(mods[1]) <= dof(mods[2])
     if forward
         for i in 2:length(mods)
-            if dof(mods[i-1]) >= dof(mods[i]) ||
-               !StatsModels.isnested(mods[i-1], mods[i]; atol=atol)
+            if dof(mods[i - 1]) >= dof(mods[i]) ||
+               !StatsModels.isnested(mods[i - 1], mods[i]; atol=atol)
                 throw(ArgumentError("F test is only valid for nested models"))
             end
         end
     else
         for i in 2:length(mods)
-            if dof(mods[i]) >= dof(mods[i-1]) ||
-               !StatsModels.isnested(mods[i], mods[i-1]; atol=atol)
+            if dof(mods[i]) >= dof(mods[i - 1]) ||
+               !StatsModels.isnested(mods[i], mods[i - 1]; atol=atol)
                 throw(ArgumentError("F test is only valid for nested models"))
             end
         end
@@ -186,7 +189,7 @@ function show(io::IO, ftr::FTestResult{N}) where {N}
 
     nc = 9
     nr = N
-    outrows = Matrix{String}(undef, nr+1, nc)
+    outrows = Matrix{String}(undef, nr + 1, nc)
 
     outrows[1, :] = ["", "DOF", "ΔDOF", "SSR", "ΔSSR",
                      "R²", "ΔR²", "F*", "p(>F)"]
@@ -201,15 +204,15 @@ function show(io::IO, ftr::FTestResult{N}) where {N}
                      r2vals[1], " ", " ", " "]
 
     for i in 2:nr
-        outrows[i+1, :] = ["[$i]",
-                           @sprintf("%.0d", ftr.dof[i]), @sprintf("%.0d", Δdof[i-1]),
-                           @sprintf("%.4f", ftr.ssr[i]), @sprintf("%.4f", Δssr[i-1]),
-                           r2vals[i], @sprintf("%.4f", ΔR²[i-1]),
-                           @sprintf("%.4f", ftr.fstat[i]), string(PValue(ftr.pval[i]))]
+        outrows[i + 1, :] = ["[$i]",
+                             @sprintf("%.0d", ftr.dof[i]), @sprintf("%.0d", Δdof[i - 1]),
+                             @sprintf("%.4f", ftr.ssr[i]), @sprintf("%.4f", Δssr[i - 1]),
+                             r2vals[i], @sprintf("%.4f", ΔR²[i - 1]),
+                             @sprintf("%.4f", ftr.fstat[i]), string(PValue(ftr.pval[i]))]
     end
     colwidths = length.(outrows)
     max_colwidths = [maximum(view(colwidths, :, i)) for i in 1:nc]
-    totwidth = sum(max_colwidths) + 2*8
+    totwidth = sum(max_colwidths) + 2 * 8
 
     println(io, "F-test: $N models fitted on $(ftr.nobs) observations")
     println(io, '─'^totwidth)
@@ -219,9 +222,9 @@ function show(io::IO, ftr::FTestResult{N}) where {N}
             cur_cell = outrows[r, c]
             cur_cell_len = length(cur_cell)
 
-            padding = " "^(max_colwidths[c]-cur_cell_len)
+            padding = " "^(max_colwidths[c] - cur_cell_len)
             if c > 1
-                padding = "  "*padding
+                padding = "  " * padding
             end
 
             print(io, padding)
@@ -231,4 +234,8 @@ function show(io::IO, ftr::FTestResult{N}) where {N}
         r == 1 && println(io, '─'^totwidth)
     end
     return print(io, '─'^totwidth)
+end
+
+function ftest(r::LinearModel{T,<:ProbabilityWeights}) where {T}
+    throw(ArgumentError("`ftest` for probability weighted models is not currently supported."))
 end

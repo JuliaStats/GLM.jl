@@ -33,29 +33,40 @@ A `LinPred` type with a dense QR decomposition of `X`
 - `qr`: either a `QRCompactWY` or `QRPivoted` object created from `X`, with optional row weights.
 - `scratchm1`: scratch Matrix{T} of the same size as `X`
 """
-mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY,QRPivoted}} <: DensePred
+mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY,QRPivoted},
+                           W<:AbstractWeights} <: DensePred
     X::Matrix{T}                  # model matrix
     beta0::Vector{T}              # base coefficient vector
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
     qr::Q
+    wts::W
     scratchm1::Matrix{T}
 
-    function DensePredQR(X::AbstractMatrix, pivot::Bool=false)
+    function DensePredQR(X::AbstractMatrix, pivot::Bool,
+                         wts::W) where {W<:AbstractWeights}
         n, p = size(X)
         T = typeof(float(zero(eltype(X))))
         Q = pivot ? QRPivoted : QRCompactWY
         fX = float(X)
-        cfX = fX === X ? copy(fX) : fX
+        if wts isa UnitWeights
+            cfX = fX === X ? copy(fX) : fX
+        else
+            cfX = Diagonal(sqrt.(wts)) * fX
+        end
         F = pivot ? qr!(cfX, ColumnNorm()) : qr!(cfX)
-        return new{T,Q}(Matrix{T}(X),
-                        zeros(T, p),
-                        zeros(T, p),
-                        zeros(T, p),
-                        F,
-                        similar(X, T))
+        return new{T,Q,W}(Matrix{T}(X),
+                          zeros(T, p),
+                          zeros(T, p),
+                          zeros(T, p),
+                          F,
+                          wts,
+                          similar(X, T))
     end
 end
+
+DensePredQR(X::AbstractMatrix) = DensePredQR(X, false, uweights(size(X, 1)))
+
 """
     delbeta!(p::LinPred, r::Vector)
 
@@ -64,12 +75,13 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 function delbeta! end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where {T<:BlasReal}
-    p.delbeta = p.qr \ r
+    r̃ = p.wts isa UnitWeights ? r : sqrt.(p.wts) .* r
+    p.delbeta = p.qr \ r̃
     return p
 end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T},
-                  wt::Vector{T}) where {T<:BlasReal}
+                  wt::AbstractVector) where {T<:BlasReal}
     X = p.X
     wtsqrt = sqrt.(wt)
     sqrtW = Diagonal(wtsqrt)
@@ -81,23 +93,23 @@ function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T},
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where {T<:BlasReal}
+    r̃ = p.wts isa UnitWeights ? r : sqrt.(p.wts) .* r
     rnk = linpred_rank(p)
     if rnk == length(p.delbeta)
-        p.delbeta = p.qr \ r
+        p.delbeta = p.qr \ r̃
     else
         R = UpperTriangular(view(parent(p.qr.R), 1:rnk, 1:rnk))
         piv = p.qr.p
         fill!(p.delbeta, 0)
-        p.delbeta[1:rnk] = R \ view(p.qr.Q'r, 1:rnk)
+        p.delbeta[1:rnk] = R \ view(p.qr.Q' * r̃, 1:rnk)
         invpermute!(p.delbeta, piv)
     end
     return p
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T},
-                  wt::Vector{T}) where {T<:BlasReal}
+                  wt::AbstractVector{T}) where {T<:BlasReal}
     X = p.X
-    W = Diagonal(wt)
     wtsqrt = sqrt.(wt)
     sqrtW = Diagonal(wtsqrt)
     mul!(p.scratchm1, sqrtW, X)
@@ -110,7 +122,7 @@ function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T},
     for k in (rnk + 1):length(p.delbeta)
         p.delbeta[k] = zero(T)
     end
-    p.delbeta[1:rnk] = R \ view(p.qr.Q'*r̃, 1:rnk)
+    p.delbeta[1:rnk] = R \ view(p.qr.Q' * r̃, 1:rnk)
     invpermute!(p.delbeta, p.qr.p)
 
     return p
@@ -129,32 +141,52 @@ A `LinPred` type with a dense Cholesky factorization of `X'X`
 - `scratchbeta`: scratch vector of length `p`, used in `linpred!` method
 - `chol`: a `Cholesky` object created from `X'X`, possibly using row weights.
 - `scratchm1`: scratch Matrix{T} of the same size as `X`
-- `scratchm2`: scratch Matrix{T} os the same size as `X'X`
+- `scratchm2`: scratch Matrix{T} of the same size as `X'X`
 """
-mutable struct DensePredChol{T<:BlasReal,C} <: DensePred
+mutable struct DensePredChol{T<:BlasReal,C,W<:AbstractWeights} <: DensePred
     X::Matrix{T}                   # model matrix
     beta0::Vector{T}               # base vector for coefficients
     delbeta::Vector{T}             # coefficient increment
     scratchbeta::Vector{T}
     chol::C
+    wts::W
     scratchm1::Matrix{T}
     scratchm2::Matrix{T}
 end
-function DensePredChol(X::AbstractMatrix, pivot::Bool)
-    F = Hermitian(float(X'X))
-    T = eltype(F)
+
+function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights)
+    if wts isa UnitWeights
+        F = Hermitian(float(X'X))
+        T = eltype(F)
+        scr = similar(X, T)
+    else
+        T = float(promote_type(eltype(wts), eltype(X)))
+        scr = similar(X, T)
+        mul!(scr, Diagonal(wts), X)
+        F = Hermitian(float(scr'X))
+    end
     F = pivot ? cholesky!(F, RowMaximum(); tol=(-one(T)), check=false) : cholesky!(F)
     return DensePredChol(Matrix{T}(X),
                          zeros(T, size(X, 2)),
                          zeros(T, size(X, 2)),
                          zeros(T, size(X, 2)),
                          F,
-                         similar(X, T),
+                         wts,
+                         scr,
                          similar(cholfactors(F)))
 end
 
-cholpred(X::AbstractMatrix, pivot::Bool=false) = DensePredChol(X, pivot)
-qrpred(X::AbstractMatrix, pivot::Bool=false) = DensePredQR(X, pivot)
+function DensePredChol(X::AbstractMatrix, pivot::Bool)
+    return DensePredChol(X, pivot, uweights(size(X, 1)))
+end
+
+function cholpred(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights=uweights(size(X, 1)))
+    return DensePredChol(X, pivot, wts)
+end
+function qrpred(X::AbstractMatrix, pivot::Bool=false,
+                wts::AbstractWeights=uweights(size(X, 1)))
+    return DensePredQR(X, pivot, wts)
+end
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
 cholesky!(p::DensePredChol{T}) where {T<:FP} = p.chol
@@ -165,14 +197,18 @@ function cholesky(p::DensePredChol{T}) where {T<:FP}
     return Cholesky(copy(cholfactors(c)), c.uplo, c.info)
 end
 
-function delbeta!(p::DensePredChol{T,<:Cholesky}, r::Vector{T}) where {T<:BlasReal}
-    ldiv!(p.chol, mul!(p.delbeta, transpose(p.X), r))
+function delbeta!(p::DensePredChol{T,<:Cholesky},
+                  r::Vector{T}) where {T<:BlasReal}
+    X = p.wts isa UnitWeights ? p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
+    ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
     return p
 end
 
-function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T}) where {T<:BlasReal}
+function delbeta!(p::DensePredChol{T,<:CholeskyPivoted},
+                  r::Vector{T}) where {T<:BlasReal}
     ch = p.chol
-    delbeta = mul!(p.delbeta, adjoint(p.X), r)
+    X = p.wts isa UnitWeights ? p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
+    delbeta = mul!(p.delbeta, adjoint(X), r)
     rnk = linpred_rank(p)
     if rnk == length(delbeta)
         ldiv!(ch, delbeta)
@@ -229,32 +265,30 @@ function delbeta!(p::DensePredChol{T,<:CholeskyPivoted}, r::Vector{T},
     return p
 end
 
-function invqr(p::DensePredQR{T,<: QRCompactWY}) where {T}
+function invqr(p::DensePredQR{T,<:QRCompactWY}) where {T}
     Rinv = inv(p.qr.R)
-    return Rinv*Rinv'
+    return Rinv * Rinv'
 end
 
-function invqr(p::DensePredQR{T,<: QRPivoted}) where {T}
+function invqr(p::DensePredQR{T,<:QRPivoted}) where {T}
     rnk = linpred_rank(p)
     k = length(p.delbeta)
+    ipiv = invperm(p.qr.p)
     if rnk == k
         Rinv = inv(p.qr.R)
-        xinv = Rinv*Rinv'
-        ipiv = invperm(p.qr.p)
-        return xinv[ipiv, ipiv]
+        xinv = Rinv * Rinv'
     else
         Rsub = UpperTriangular(view(p.qr.R, 1:rnk, 1:rnk))
         RsubInv = inv(Rsub)
         xinv = fill(convert(T, NaN), (k, k))
-        xinv[1:rnk, 1:rnk] = RsubInv*RsubInv'
-        ipiv = invperm(p.qr.p)
-        return xinv[ipiv, ipiv]
+        xinv[1:rnk, 1:rnk] = RsubInv * RsubInv'
     end
+    return xinv[ipiv, ipiv]
 end
 
 invchol(x::DensePred) = inv(cholesky!(x))
 
-function invchol(x::DensePredChol{T,<: CholeskyPivoted}) where {T}
+function invchol(x::DensePredChol{T,<:CholeskyPivoted}) where {T}
     ch = x.chol
     rnk = linpred_rank(x)
     p = length(x.delbeta)
@@ -272,7 +306,46 @@ end
 inverse(x::DensePred) = invchol(x)
 inverse(x::DensePredQR) = invqr(x)
 
-vcov(x::LinPredModel) = rmul!(inverse(x.pp), dispersion(x, true))
+working_residuals(x::LinPredModel) = working_residuals(x.rr)
+working_weights(x::LinPredModel) = working_weights(x.rr)
+
+function vcov(x::LinPredModel)
+    if weights(x) isa ProbabilityWeights
+        ## n-1 degrees of freedom - This is coherent with the `R` package `survey`,
+        ## `STATA` uses n-k
+        s = nobs(x) / (nobs(x) - 1)
+        mm = momentmatrix(x)
+        A = invloglikhessian(x)
+        if link(x) isa Union{Gamma,InverseGaussian}
+            r = varstruct(x)
+            A ./= sum(working_weights(x)) / sum(abs2, r)
+        end
+        _vcov(x.pp, mm, A) .* s
+    else
+        rmul!(inverse(x.pp), dispersion(x, true))
+    end
+end
+
+link(x::LinPredModel) = link(x.rr)
+
+function _vcov(pp::LinPred, Z::AbstractMatrix, A::AbstractMatrix)
+    if linpred_rank(pp) < size(Z, 2)
+        nancols = [all(isnan, col) for col in eachcol(A)]
+        nnancols = .!nancols
+        idx, nidx = findall(nancols), findall(nnancols)
+        Zv = view(Z, :, nidx)
+        B = Zv'Zv
+        Av = view(A, nidx, nidx)
+        V = similar(A, (size(A)...))
+        V[nidx, nidx] = Av * B * Av
+        V[idx, :] .= NaN
+        V[:, idx] .= NaN
+    else
+        B = Z'Z
+        V = A * B * A
+    end
+    return V
+end
 
 function cor(x::LinPredModel)
     Σ = vcov(x)
@@ -300,38 +373,83 @@ function modelframe(f::FormulaTerm, data, contrasts::AbstractDict, ::Type{M}) wh
     return f, modelcols(f, data)
 end
 
-modelmatrix(obj::LinPredModel) = obj.pp.X
+function modelmatrix(obj::LinPredModel; weighted::Bool=false)
+    return modelmatrix(obj.pp; weighted=weighted)
+end
+
+function modelmatrix(pp::LinPred; weighted::Bool=false)
+    return weighted && isweighted(pp) ? Diagonal(sqrt.(pp.wts)) * pp.X : pp.X
+end
+
+function leverage(x::LinPredModel)
+    h = vec(leverage(x.pp))
+    return working_weights(x) .* h
+end
+
+function leverage(pp::DensePredChol{T,<:CholeskyPivoted}) where {T}
+    X = modelmatrix(pp)
+    rnk = rank(pp.chol)
+    A = inverse(pp)
+    p = pp.chol.p[1:rnk]
+    Xv = @view X[:, p]
+    Av = @view A[p, p]
+    return diag(Xv * Av * Xv')
+end
+
+function leverage(pp::DensePredChol{T,<:Cholesky}) where {T}
+    X = modelmatrix(pp)
+    return sum(x -> x^2, X / pp.chol.U; dims=2)
+end
+
+function leverage(pp::DensePredQR{T,<:QRPivoted}) where {T}
+    X = modelmatrix(pp)
+    rnk = linpred_rank(pp)
+    R = UpperTriangular(view(parent(pp.qr.R), 1:rnk, 1:rnk))
+    return sum(x -> x^2, view(X, :, pp.qr.p[1:rnk]) / R; dims=2)
+end
+
+function leverage(pp::DensePredQR{T,<:QRCompactWY}) where {T}
+    X = modelmatrix(pp)
+    return sum(x -> x^2, X / pp.qr.R; dims=2)
+end
+
 response(obj::LinPredModel) = obj.rr.y
 
 fitted(m::LinPredModel) = m.rr.mu
 predict(mm::LinPredModel) = fitted(mm)
-residuals(obj::LinPredModel) = residuals(obj.rr)
 
 function StatsModels.formula(obj::LinPredModel)
     obj.formula === nothing && throw(ArgumentError("model was fitted without a formula"))
     return obj.formula
 end
 
+function residuals(obj::LinPredModel; weighted::Bool=false)
+    return residuals(obj.rr; weighted=weighted)
+end
+
 """
     nobs(obj::LinearModel)
     nobs(obj::GLM)
 
-For linear and generalized linear models, returns the number of rows, or,
-when prior weights are specified, the sum of weights.
+For linear and generalized linear models, return the number of rows when
+the model is unweighted or uses analytical or probability weights.
+If the model uses frequency weights, return the sum of weights.
 """
-function nobs(obj::LinPredModel)
-    if isempty(obj.rr.wts)
-        oftype(sum(one(eltype(obj.rr.wts))), length(obj.rr.y))
-    else
-        sum(obj.rr.wts)
-    end
+nobs(obj::LinPredModel) = nobs(obj.rr)
+
+weights(m::LinPredModel) = weights(m.rr)
+weights(pp::LinPred) = pp.wts
+
+isweighted(m::LinPredModel) = isweighted(m.pp)
+function isweighted(pp::LinPred)
+    return weights(pp) isa Union{FrequencyWeights,AnalyticWeights,ProbabilityWeights}
 end
 
 coef(x::LinPred) = x.beta0
 coef(obj::LinPredModel) = coef(obj.pp)
 function coefnames(x::LinPredModel)
     return x.formula === nothing ? ["x$i" for i in 1:length(coef(x))] :
-           coefnames(formula(x).rhs)
+           StatsModels.vectorize(coefnames(formula(x).rhs))
 end
 
 dof_residual(obj::LinPredModel) = nobs(obj) - linpred_rank(obj)
