@@ -221,9 +221,9 @@ end
     @test stderror(model) ≈ stderror(model_geom) rtol = 1e-06
 end
 
-@testset "GLM: NegaiveBinomial(2) with SqrtLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod,
-                                                                                                                              drop) in
-                                                                                                                             itr
+@testset "GLM: NegativeBinomial(2) with SqrtLink link - ProbabilityWeights with $dmethod method with dropcollinear=$drop" for (dmethod,
+                                                                                                                               drop) in
+                                                                                                                              itr
 
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn),
                 quine,
