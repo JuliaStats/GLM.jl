@@ -803,18 +803,26 @@ quine = dataset("MASS", "quine")
                NegativeBinomial(2.0), LogLink(); method=dmethod)
     @test !GLM.cancancel(gm18.rr)
     test_show(gm18)
-    @test dof(gm18) == 8
+    @test dof(gm18) == 7
     @test isapprox(deviance(gm18), 239.11105911824325, rtol=1e-7)
     @test isapprox(nulldeviance(gm18), 280.1806722491237, rtol=1e-7)
     @test isapprox(loglikelihood(gm18), -553.2596040803376, rtol=1e-7)
     @test isapprox(nullloglikelihood(gm18), -573.7944106457778, rtol=1e-7)
-    @test isapprox(aic(gm18), 1122.5192081606751)
-    @test isapprox(aicc(gm18), 1123.570303051186)
-    @test isapprox(bic(gm18), 1146.3880611343418)
+    @test isapprox(aic(gm18), 1120.5192081606756)
+    @test isapprox(aicc(gm18), 1121.330802363574)
+    @test isapprox(bic(gm18), 1141.404454512634)
     @test isapprox(coef(gm18)[1:7],
                    [2.886448718885344, -0.5675149923412003, 0.08707706381784373,
                     -0.44507646428307207, 0.09279987988262384, 0.35948527963485755,
                     0.29676767190444386])
+    # Values match summary(gm18, dispersion=1) in R with
+    # gm18 = glm(..., family=negative.binomial(1))
+    # but by default summary.glm estimates the dispersion instead of fixing
+    # it to 1 as it should
+    @test isapprox(stderror(gm18),
+                   [0.18648329590509385, 0.12515938904989946, 0.1305582329467348,
+                    0.19628820457202012, 0.1925244094793113, 0.20244460488508567,
+                    0.15265004762163265])
 end
 
 @testset "NegativeBinomial NegativeBinomialLink Fixed θ" begin
@@ -823,21 +831,25 @@ end
                quine, NegativeBinomial(2.0))
     @test GLM.cancancel(gm19.rr)
     test_show(gm19)
-    @test dof(gm19) == 8
+    @test dof(gm19) == 7
     @test isapprox(deviance(gm19), 239.68562048977307, rtol=1e-7)
     @test isapprox(nulldeviance(gm19), 280.18067224912204, rtol=1e-7)
     @test isapprox(loglikelihood(gm19), -553.5468847661017, rtol=1e-7)
     @test isapprox(nullloglikelihood(gm19), -573.7944106457775, rtol=1e-7)
-    @test isapprox(aic(gm19), 1123.0937695322034)
-    @test isapprox(aicc(gm19), 1124.1448644227144)
-    @test isapprox(bic(gm19), 1146.96262250587)
+    @test isapprox(aic(gm19), 1121.0937695322045)
+    @test isapprox(aicc(gm19), 1121.905363735103)
+    @test isapprox(bic(gm19), 1141.979015884163)
     @test isapprox(coef(gm19)[1:7],
                    [-0.12737182842213654, -0.055871700989224705, 0.01561618806384601,
                     -0.041113722732799125, 0.024042387142113462, 0.04400234618798099,
                     0.035765875508382027])
+    @test isapprox(stderror(gm19),
+                   [0.021670407097346554, 0.014224357509652072, 0.012969922459739549,
+                    0.02449534588211506, 0.019706137549207366, 0.021913060685367882,
+                    0.01688531388998079])
 end
 
-@testset "NegativeBinomial LogLink, θ to be estimated with Cholesky" begin
+@testset "NegativeBinomial LogLink, θ to be estimated" begin
     gm20 = negbin(@formula(Days ~ Eth + Sex + Age + Lrn), quine, LogLink())
     test_show(gm20)
     @test dof(gm20) == 8
@@ -852,6 +864,16 @@ end
                    [2.894527697811509, -0.5693411448715979,
                     0.08238813087070128, -0.4484636623590206,
                     0.08805060372902418, 0.3569553124412582, 0.2921383118842893])
+    @test isapprox(stderror(gm20),
+                   [0.228423847295694, 0.15333329416022237, 0.15991513064415566,
+                    0.23974586068774545, 0.23619293126101976, 0.24832470652625846,
+                    0.1864742157692015])
+
+    for θ in (1.0, 2.0, 1, 2)
+        gm20_initial = negbin(@formula(Days ~ Eth + Sex + Age + Lrn), quine, LogLink(),
+                              initialθ=θ)
+        @test coef(gm20) ≈ coef(gm20_initial)
+    end
 
     @testset "NegativeBinomial Parameter estimation" begin
         # Issue #302
@@ -873,7 +895,8 @@ end
     end
 end
 
-@testset "Weighted NegativeBinomial LogLink, θ to be estimated with Cholesky" begin
+@testset "Weighted NegativeBinomial LogLink, θ to be estimated" begin
+    # FIXME: this is broken, see #622
     halfn = round(Int, 0.5 * size(quine, 1))
     wts = vcat(fill(0.8, halfn), fill(1.2, size(quine, 1) - halfn))
     gm20a = negbin(@formula(Days ~ Eth + Sex + Age + Lrn), quine, LogLink();
@@ -908,6 +931,10 @@ end
                    [2.894527697811509, -0.5693411448715979,
                     0.08238813087070128, -0.4484636623590206,
                     0.08805060372902418, 0.3569553124412582, 0.2921383118842893])
+    @test isapprox(stderror(gm20),
+                   [0.228423847295694, 0.15333329416022237, 0.15991513064415566,
+                    0.23974586068774545, 0.23619293126101976, 0.24832470652625846,
+                    0.1864742157692015])
 end
 
 @testset "NegativeBinomial NegativeBinomialLink, θ to be estimated with $dmethod" for dmethod in
@@ -928,6 +955,10 @@ end
                    [-0.08288628676491684, -0.03697387258037785,
                     0.010284124099280421, -0.027411445371127288,
                     0.01582155341041012, 0.029074956147127032, 0.023628812427424876])
+    @test isapprox(stderror(gm21),
+                   [0.017646448436150697, 0.011606152789775837,
+                    0.010517982755120088, 0.02000343152471629,
+                    0.016012034004025434, 0.017825305056159015, 0.013740455723381841])
 end
 
 @testset "Geometric LogLink with $dmethod" for dmethod in (:cholesky, :qr)
@@ -935,18 +966,22 @@ end
     gm22 = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, Geometric();
                method=dmethod)
     test_show(gm22)
-    @test dof(gm22) == 8
+    @test dof(gm22) == 7
     @test deviance(gm22) ≈ 137.8781581814965
     @test loglikelihood(gm22) ≈ -548.3711276642073
-    @test aic(gm22) ≈ 1112.7422553284146
-    @test aicc(gm22) ≈ 1113.7933502189255
-    @test bic(gm22) ≈ 1136.6111083020812
+    @test aic(gm22) ≈ 1110.742255328415
+    @test aicc(gm22) ≈ 1111.5538495313135
+    @test bic(gm22) ≈ 1131.6275016803734
     @test coef(gm22)[1:7] ≈ [2.8978546663153897, -0.5701067649409168, 0.08040181505082235,
                              -0.4497584898742737, 0.08622664933901254, 0.3558996662512287,
                              0.29016080736927813]
-    @test stderror(gm22) ≈ [0.22754287093719366, 0.15274755092180423, 0.15928431669166637,
-                            0.23853372776980591, 0.2354231414867577, 0.24750780320597515,
-                            0.18553339017028742]
+    # Values match summary(gm22, dispersion=1) in R with
+    # gm22 = glm(..., family=negative.binomial(1))
+    # but by default summary.glm estimates the dispersion instead of fixing
+    # it to 1 as it should
+    @test stderror(gm22) ≈ [0.2556768565484684, 0.17163365085581442, 0.17897863915251788,
+                            0.26802665117909047, 0.2645314640101982, 0.2781103043759507,
+                            0.20847321556654236]
 end
 
 @testset "Geometric is a special case of NegativeBinomial with θ = 1 and $dmethod" for dmethod in

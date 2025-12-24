@@ -334,16 +334,16 @@ end
     @test coef(model) ≈ [3.02411915515531, -0.4641576651688563, 0.0718560942992554,
                          -0.47848540911607984, 0.09677889908013552, 0.3562972562034356,
                          0.3480161821981514] rtol = 1e-07
-    @test stderror(model) ≈ [0.1950707397084349, 0.13200639191036218, 0.1373161597645507,
-                             0.2088476016141468, 0.20252412726336674, 0.21060778935484836,
-                             0.16126722793064027] rtol = 1e-07
-    # Tests below are broken because dof(model)==8 instead of 7.
-    # GLM.jl computes dof = linpred_rank + dispersion_parameter, where dispersion_parameter
-    # is 1 for NegativeBinomial (counting the shape parameter θ). This differs from R's
-    # calculation for weighted models. Needs investigation to determine if the discrepancy
-    # is in GLM.jl's dof calculation or in the expected R values.
-    @test_broken aic(model) ≈ 4023.1878928645556 rtol = 1e-07
-    @test_broken bic(model) ≈ 4044.073139216514 rtol = 1e-07
+    # Values match summary(model, dispersion=1) in R with
+    # model = glm(..., family=negative.binomial(1))
+    # but by default summary.glm estimates the dispersion instead of fixing
+    # it to 1 as it should
+    @test stderror(model) ≈ [0.09794735860165615, 0.06628199301176854, 0.06894809115074668,
+                             0.10486488624060987, 0.10168979390861807, 0.10574869762156038,
+                             0.08097420980935782] rtol = 1e-07
+    @test dof(model) == 7
+    @test aic(model) ≈ 4023.1878928645556 rtol = 1e-07
+    @test bic(model) ≈ 4044.073139216514 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈
           [-3.866780529709063 -0.0 -3.866780529709063 -0.0 -0.0 -0.0 -3.866780529709063
            -4.370085797122667 -0.0 -4.370085797122667 -0.0 -0.0 -0.0 -4.370085797122667
@@ -505,11 +505,17 @@ end
     @test coef(model) ≈ [3.02411915515531, -0.4641576651688563, 0.0718560942992554,
                          -0.47848540911607984, 0.09677889908013552, 0.3562972562034356,
                          0.3480161821981514] rtol = 1e-07
-    @test stderror(model) ≈ [0.1950707397084349, 0.13200639191036218, 0.1373161597645507,
-                             0.2088476016141468, 0.20252412726336674, 0.21060778935484836,
-                             0.16126722793064027] rtol = 1e-07
-    @test_broken aic(model) ≈ 4023.1878928645556 rtol = 1e-07
-    @test_broken bic(model) ≈ 4044.073139216514 rtol = 1e-07
+    @test dof(model) == 7
+    # Values match summary(model, dispersion=1) in R with
+    # model = glm(..., family=negative.binomial(2))
+    # but by default summary.glm estimates the dispersion instead of fixing
+    # it to 1 as it should
+    @test stderror(model) ≈ [0.09794735860165615, 0.06628199301176854,
+                             0.06894809115074668, 0.10486488624060987,
+                             0.10168979390861807, 0.10574869762156038,
+                             0.08097420980935782] rtol = 1e-07
+    @test aic(model) ≈ 4023.1878928645556 rtol = 1e-07
+    @test bic(model) ≈ 4044.073139216514 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈
           [-3.866780529709063 -0.0 -3.866780529709063 -0.0 -0.0 -0.0 -3.866780529709063
            -4.370085797122667 -0.0 -4.370085797122667 -0.0 -0.0 -0.0 -4.370085797122667
@@ -671,11 +677,17 @@ end
     @test coef(model) ≈ [4.733877229152363, -1.007977895471349, 0.02522392818548873,
                          -0.9859743168046422, 0.2132095063819721, 0.7456070470961186,
                          0.5840284357554036] rtol = 1e-07
-    @test stderror(model) ≈ [0.42307979153860564, 0.286636744566765, 0.29612422536777805,
-                             0.42042723748229144, 0.45565954626859695, 0.4766324296069839,
-                             0.3235019638755972] rtol = 1e-06
-    @test_broken aic(model) ≈ 4025.0711662068925 rtol = 1e-07
-    @test_broken bic(model) ≈ 4045.956412558851 rtol = 1e-07
+    @test dof(model) == 7
+    # Values match summary(model, dispersion=1) in R with
+    # model = glm(..., family=negative.binomial(2))
+    # but by default summary.glm estimates the dispersion instead of fixing
+    # it to 1 as it should
+    @test stderror(model) ≈ [0.211629897728351, 0.14337934865016283,
+                             0.14812510732683284, 0.21030305642114705,
+                             0.2279267057995862, 0.23841760903991838,
+                             0.16181980065967336] rtol = 1e-06
+    @test aic(model) ≈ 4025.0711662068925 rtol = 1e-07
+    @test bic(model) ≈ 4045.956412558851 rtol = 1e-07
     @test GLM.momentmatrix(model) ≈
           [-1.4294351675636041 -0.0 -1.4294351675636041 -0.0 -0.0 -0.0 -1.4294351675636041
            -1.5410055711037194 -0.0 -1.5410055711037194 -0.0 -0.0 -0.0 -1.5410055711037194

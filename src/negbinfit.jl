@@ -102,7 +102,11 @@ function negbin(F,
                        wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
                        atol=atol, rtol=rtol, kwargs...)
     else
-        regmodel = glm(F, D, NegativeBinomial(initialθ), args...;
+        initialθf = float(initialθ)
+        nbdist = NegativeBinomial(Estimated(initialθf),
+                                  Estimated(oftype(initialθf, 0.5)); check_args=false)
+        regmodel = glm(F, D, nbdist,
+                       args...;
                        wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
                        atol=atol, rtol=rtol, kwargs...)
     end
@@ -128,7 +132,9 @@ function negbin(F,
             break
         end
         @debug "NegativeBinomial dispersion optimization" iteration = i θ = θ
-        regmodel = glm(F, D, NegativeBinomial(θ), args...;
+        nbdist = NegativeBinomial(Estimated(θ),
+                                  Estimated(oftype(θ, 0.5)); check_args=false)
+        regmodel = glm(F, D, nbdist, args...;
                        dropcollinear=dropcollinear, method=method, maxiter=maxiter,
                        atol=atol, rtol=rtol, kwargs...)
         μ = regmodel.rr.mu
