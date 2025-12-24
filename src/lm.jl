@@ -208,6 +208,13 @@ function lm(f::FormulaTerm, data;
     return fit(LinearModel, f, data; wts, dropcollinear, method, contrasts)
 end
 
+"""
+    dof(model::GeneralizedLinearModel)
+
+For linear models, consumed degrees of freedom correspond
+to the number of estimated coefficients, plus one for the estimated
+dispersion parameter σ.
+"""
 dof(x::LinearModel) = linpred_rank(x.pp) + 1
 
 """
