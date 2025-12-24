@@ -60,6 +60,7 @@ fit
 ```
 
 ## Model methods
+
 ```@docs
 cooksdistance
 StatsBase.deviance
@@ -68,6 +69,9 @@ GLM.ftest
 StatsBase.nobs
 StatsBase.nulldeviance
 StatsBase.predict
+GLM.coef
+GLM.confint
+StatsBase.coeftable
 ```
 
 ## Links and methods applied to them
