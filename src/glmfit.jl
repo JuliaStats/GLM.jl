@@ -378,7 +378,10 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     return ll
 end
 
-dof(obj::GeneralizedLinearModel) = linpred_rank(obj) + dispersion_parameter(obj.rr.d)
+function dof(obj::GeneralizedLinearModel)
+    return linpred_rank(obj) + dispersion_parameter(obj.rr.d) +
+           estimated_parameter(obj.rr.d)
+end
 
 function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
                atol::Real, rtol::Real, start)

@@ -452,18 +452,57 @@ devresid(::Poisson, y, μ::Real) = 2 * (xlogy(y, y / μ) - (y - μ))
 
 Does distribution `D` have a separate dispersion parameter, ϕ?
 
-Returns `false` for the `Bernoulli`, `Binomial`, and `Poisson` distributions, `true` otherwise.
+Returns `true` for `Gamma`, `InverseGaussian` and `Normal` distributions,
+and false for other known distributions.
 
 # Examples
 ```jldoctest; setup = :(using GLM)
-julia> show(GLM.dispersion_parameter(Normal()))
+julia> GLM.dispersion_parameter(Normal())
 true
-julia> show(GLM.dispersion_parameter(Bernoulli()))
+
+julia> GLM.dispersion_parameter(Bernoulli())
 false
 ```
 """
-dispersion_parameter(D) = true
-dispersion_parameter(::Union{Bernoulli,Binomial,Poisson}) = false
+dispersion_parameter(::Union{Gamma,InverseGaussian,Normal}) = true
+dispersion_parameter(::Union{Bernoulli,Binomial,Geometric,NegativeBinomial,Poisson}) = false
+
+"""
+    Estimated{<:Real}
+
+Wrapper type indicating that shape parameter of a `NegativeBinomial`
+distribution was estimated from the data. Used by [`negbin`] to indicate
+that one degree of freedom must be added.
+"""
+struct Estimated{T} <: Real where {T<:Real}
+    x::T
+end
+
+Base.convert(::Type{T}, r::Estimated) where {T<:Real} = convert(T, r.x)
+
+"""
+    GLM.estimated_parameter(D)
+
+Does distribution `D` have a separate estimated parameter?
+
+Returns `true` for `NegativeBinomial{<:Estimated}`, which is used by [`negbin`]
+to indicate that the shape parameter is not fixed a priori so that one degree of
+freedom must be added. Returns `false` for other known distributions.
+
+# Examples
+```jldoctest; setup = :(using GLM)
+julia> GLM.estimated_parameter(NegativeBinomial())
+false
+
+julia> GLM.estimated_parameter(NegativeBinomial(GLM.Estimated(1.0), GLM.Estimated(0.5), check_args=false))
+true
+```
+"""
+estimated_parameter(::Union{NegativeBinomial{Estimated{T}}}) where {T} = true
+function estimated_parameter(::Union{Bernoulli,Binomial,Gamma,Geometric,InverseGaussian,
+                                     NegativeBinomial,Normal,Poisson})
+    return false
+end
 
 """
     _safe_int(x::T)
