@@ -356,9 +356,53 @@ end
 stderror(x::LinPredModel) = sqrt.(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
-    println(io, nameof(typeof(obj)), '\n')
-    obj.formula !== nothing && println(io, obj.formula, '\n')
-    return println(io, "Coefficients:\n", coeftable(obj))
+    print(io, nameof(typeof(obj)))
+    if !(obj isa LinearModel)
+        print(io, " with ", nameof(typeof(obj.rr.d)), " distribution and ",
+              nameof(typeof(obj.rr.link)))
+    end
+    println(io, ":")
+    obj.formula !== nothing && println(io, obj.formula)
+
+    ct = repr(coeftable(obj))
+    width = textwidth(SubString(ct, 1, findfirst('\n', ct)))
+    sep = "  "
+    colwidth = div(width - length(sep), 2)
+
+    println(io)
+    wts = weights(obj)
+    if !(wts isa UnitWeights)
+        print(io, "Weights: ", lpad(nameof(typeof(wts)), colwidth-9), sep)
+        wtssum = eltype(wts) <: Integer ? repr(sum(wts)) : @sprintf("%.2f", sum(wts))
+        println(io, "Sum of weights: ", lpad(wtssum, colwidth-16))
+    end
+    print(io, "Observations: ", lpad(nobs(obj), colwidth-14), sep)
+    println(io, "Degrees of freedom: ", lpad(dof(obj), colwidth-20))
+    if wts isa ProbabilityWeights
+        print(io, "Log-likelihood: ", lpad("not supported", colwidth-16), sep)
+    else
+        print(io, "Log-likelihood: ",
+              lpad(@sprintf("%.2f", loglikelihood(obj)), colwidth-16), sep)
+    end
+    if obj isa LinearModel
+        println(io, "RSS: ", lpad(@sprintf("%.2f", deviance(obj)), colwidth-5))
+        print(io, "RSE: ", lpad(@sprintf("%.2f", dispersion(obj)), colwidth-5), sep)
+        if wts isa ProbabilityWeights
+            println(io, "F-test: ", lpad("not supported", colwidth-8))
+        else
+            pval = hasintercept(obj) && dof(obj) > 2 ? ftest(obj).pval : NaN
+            println(io, "F-test: ", lpad(repr(PValue(pval)), colwidth-8))
+        end
+        print(io, "R²: ", lpad(@sprintf("%.4f", r2(obj)), colwidth-4), sep)
+        println(io, "Adjusted R²: ", lpad(@sprintf("%.4f", adjr2(obj)), colwidth-13))
+    else
+        println(io, "Deviance: ", lpad(@sprintf("%.2f", deviance(obj)), colwidth-10))
+        dispersion_parameter(obj.rr.d) &&
+            println(io, "Dispersion: ",
+                    lpad(@sprintf("%.2f", dispersion(obj)), colwidth-12), sep)
+    end
+    println(io)
+    return print(io, "Coefficients:\n", ct)
 end
 
 function modelframe(f::FormulaTerm, data, contrasts::AbstractDict, ::Type{M}) where {M}

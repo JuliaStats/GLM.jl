@@ -20,9 +20,13 @@ julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
    3 │     3      7
 
 julia> ols = lm(@formula(Y ~ X), data)
-LinearModel
-
+LinearModel:
 Y ~ 1 + X
+
+Observations:                     3  Degrees of freedom:               3
+Log-likelihood:                0.08  RSS:                           0.17
+RSE:                           0.41  F-test:                      0.0732
+R²:                          0.9868  Adjusted R²:                 0.9737
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────────────
@@ -92,9 +96,13 @@ By default, the `lm` method uses the Cholesky factorization which is known as fa
 julia> data = DataFrame(X=[1,2,3], Y=[2,4,7]);
 
 julia> ols = lm(@formula(Y ~ X), data; method=:qr)
-LinearModel
-
+LinearModel:
 Y ~ 1 + X
+
+Observations:                     3  Degrees of freedom:               3
+Log-likelihood:                0.08  RSS:                           0.17
+RSE:                           0.41  F-test:                      0.0732
+R²:                          0.9868  Adjusted R²:                 0.9737
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────────────
@@ -181,9 +189,13 @@ julia> x = [4570.2001953125, 2830, 596.799987792968, 133.600006103515, 42, 390, 
 julia> rdchem = DataFrame(rdintens=y, sales=x);
 
 julia> mdl = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:cholesky)
-LinearModel
-
+LinearModel:
 rdintens ~ 1 + sales + :(sales ^ 2)
+
+Observations:                           32  Degrees of freedom:                      3
+Log-likelihood:                     -75.58  RSS:                                210.96
+RSE:                                  2.65  F-test:                             0.0006
+R²:                                -0.9383  Adjusted R²:                       -1.0030
 
 Coefficients:
 ───────────────────────────────────────────────────────────────────────────────────────
@@ -195,9 +207,13 @@ sales ^ 2    -1.97385e-8     4.56287e-9    -4.33    0.0002   -2.90571e-8    -1.0
 ───────────────────────────────────────────────────────────────────────────────────────
 
 julia> mdl = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:qr)
-LinearModel
-
+LinearModel:
 rdintens ~ 1 + sales + :(sales ^ 2)
+
+Observations:                        32  Degrees of freedom:                   4
+Log-likelihood:                  -62.42  RSS:                              92.68
+RSE:                               1.79  F-test:                          0.0973
+R²:                              0.1484  Adjusted R²:                     0.0897
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────────────────────
@@ -222,9 +238,11 @@ julia> data = DataFrame(X=[1,2,2], Y=[1,0,1])
    3 │     2      1
 
 julia> probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
-GeneralizedLinearModel
-
+GeneralizedLinearModel with Binomial distribution and ProbitLink:
 Y ~ 1 + X
+
+Observations:                     3  Degrees of freedom:               2
+Log-likelihood:               -1.39  Deviance:                      2.77
 
 Coefficients:
 ────────────────────────────────────────────────────────────────────────
@@ -263,9 +281,12 @@ julia> quine = dataset("MASS", "quine")
                      131 rows omitted
 
 julia> nbrmodel = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
-GeneralizedLinearModel
-
+GeneralizedLinearModel with NegativeBinomial distribution and LogLink:
 Days ~ 1 + Eth + Sex + Age + Lrn
+
+Observations:                     146  Degrees of freedom:                 8
+Log-likelihood:               -553.26  Deviance:                      239.11
+Dispersion:                      1.22
 
 Coefficients:
 ────────────────────────────────────────────────────────────────────────────
@@ -281,9 +302,12 @@ Lrn: SL       0.296768     0.185934   1.60    0.1105  -0.0676559   0.661191
 ────────────────────────────────────────────────────────────────────────────
 
 julia> nbrmodel = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink())
-GeneralizedLinearModel
-
+GeneralizedLinearModel with NegativeBinomial distribution and LogLink:
 Days ~ 1 + Eth + Sex + Age + Lrn
+
+Observations:                     146  Degrees of freedom:                 8
+Log-likelihood:               -546.58  Deviance:                      167.95
+Dispersion:                      1.00
 
 Coefficients:
 ────────────────────────────────────────────────────────────────────────────
@@ -330,9 +354,13 @@ julia> form = dataset("datasets", "Formaldehyde")
    6 │     0.9    0.782
 
 julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
-LinearModel
-
+LinearModel:
 OptDen ~ 1 + Carb
+
+Observations:                      6  Degrees of freedom:                3
+Log-likelihood:                21.20  RSS:                            0.00
+RSE:                            0.01  F-test:                       <1e-06
+R²:                           0.9990  Adjusted R²:                  0.9988
 
 Coefficients:
 ───────────────────────────────────────────────────────────────────────────
@@ -379,9 +407,13 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
                                                     35 rows omitted
 
 julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
-LinearModel
-
+LinearModel:
 SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
+
+Observations:                        50  Degrees of freedom:                   6
+Log-likelihood:                 -135.10  RSS:                             650.71
+RSE:                               3.80  F-test:                          0.0008
+R²:                              0.3385  Adjusted R²:                     0.2797
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────────────────────
@@ -487,9 +519,11 @@ julia> dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
    9 │    13.0  3        3
 
 julia> gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
-GeneralizedLinearModel
-
+GeneralizedLinearModel with Poisson distribution and LogLink:
 Counts ~ 1 + Outcome + Treatment
+
+Observations:                       9  Degrees of freedom:                 5
+Log-likelihood:                -23.44  Deviance:                        5.12
 
 Coefficients:
 ────────────────────────────────────────────────────────────────────────────
@@ -501,9 +535,6 @@ Outcome: 3    -0.251314     0.190476  -1.32    0.1870  -0.624641   0.122012
 Treatment: 2   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
 Treatment: 3   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
 ────────────────────────────────────────────────────────────────────────────
-
-julia> round(deviance(gm1), digits=5)
-5.11746
 ```
 
 ## Linear regression with PowerLink
@@ -523,9 +554,12 @@ julia> round(optimal_bic.minimizer, digits = 5) # Optimal λ
 0.40935
 
 julia> glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(optimal_bic.minimizer)) # Best model
-GeneralizedLinearModel
-
+GeneralizedLinearModel with Normal distribution and PowerLink:
 Volume ~ 1 + Height + Girth
+
+Observations:                      31  Degrees of freedom:                 4
+Log-likelihood:                -71.32  Deviance:                      180.80
+Dispersion:                      2.54
 
 Coefficients:
 ────────────────────────────────────────────────────────────────────────────
