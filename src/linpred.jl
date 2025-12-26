@@ -378,7 +378,8 @@ function show(io::IO, obj::LinPredModel)
     end
     print(io, "Observations: ", lpad(nobs(obj), colwidth-14), sep)
     println(io, "Degrees of freedom: ", lpad(dof(obj), colwidth-20))
-    if wts isa ProbabilityWeights
+    if wts isa ProbabilityWeights ||
+        (wts isa AnalyticWeights && obj isa AbstractGLM && obj.rr.d isa Union{Bernoulli, Binomial})
         print(io, "Log-likelihood: ", lpad("not supported", colwidth-16), sep)
     else
         print(io, "Log-likelihood: ",

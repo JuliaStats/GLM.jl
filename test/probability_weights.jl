@@ -43,6 +43,7 @@ end
                 dropcollinear=drop,
                 rtol=1e-09,
                 atol=1e-09)
+    test_show(model)
     @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 47.311214978934785 rtol = 1e-07
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
@@ -64,6 +65,7 @@ end
                 dropcollinear=drop,
                 rtol=1e-09,
                 atol=1e-09)
+    test_show(model)
     @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 47.280413566179 rtol = 1e-07
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
@@ -85,6 +87,7 @@ end
                 dropcollinear=drop,
                 rtol=1e-09,
                 atol=1e-09)
+    test_show(model)
     @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 47.17915872474391 rtol = 1e-07
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
@@ -106,6 +109,7 @@ end
                 dropcollinear=drop,
                 rtol=1e-09,
                 atol=1e-09)
+    test_show(model)
     @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 47.063354817529856 rtol = 1e-07
     @test nulldeviance(model) ≈ 60.82748267747685 rtol = 1e-07
@@ -128,6 +132,7 @@ end
                 rtol=1e-9,
                 atol=1e-9,
                 minstepfac=1e-05)
+    test_show(model)
     @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 0.113412 rtol = 1e-06
     @test nulldeviance(model) ≈ 2.55 rtol = 1e-04
@@ -150,6 +155,7 @@ end
                 atol=1e-09,
                 rtol=1e-09,
                 minstepfac=1e-04)
+    test_show(model)
     @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 178.46174895746665 rtol = 1e-07
     @test nulldeviance(model) ≈ 214.52243528092782 rtol = 1e-07
@@ -195,6 +201,8 @@ end
                      atol=1e-09,
                      rtol=1e-09,
                      minstepfac=1e-04)
+    test_show(model)
+    test_show(model_geom)
     @test_throws ArgumentError loglikelihood(model)
     @test_throws ArgumentError loglikelihood(model_geom)
     @test deviance(model) ≈ 98.45804 rtol = 1e-05
@@ -235,6 +243,7 @@ end
                 rtol=1e-08,
                 atol=1e-08,
                 minstepfac=1e-04)
+    test_show(model)
     @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 178.99970038364276 rtol = 1e-07
     @test nulldeviance(model) ≈ 214.52243528092782 rtol = 1e-07
@@ -267,6 +276,7 @@ end
                 wts=pweights(dobson.pweights),
                 method=dmethod,
                 dropcollinear=drop)
+    test_show(model)
     @test_throws ArgumentError loglikelihood(model)
     @test deviance(model) ≈ 4.837327189925912 rtol = 1e-07
     @test nulldeviance(model) ≈ 12.722836814903907 rtol = 1e-07
@@ -287,6 +297,7 @@ end
     gm8a = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, InverseGaussian();
                wts=pweights(9 * clotting.pweights / sum(clotting.pweights)), method=dmethod,
                rtol=1e-08, atol=1e-08, minstepfac=1e-04,)
+    test_show(gm8a)
     @test dof(gm8a) == 3
     @test deviance(gm8a) ≈ 0.0058836 rtol = 1e-04
     @test nulldeviance(gm8a) ≈ 0.07531257 rtol = 1e-04
