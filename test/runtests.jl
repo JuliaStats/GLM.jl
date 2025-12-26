@@ -2608,3 +2608,44 @@ end
     glm_weighted = glm(X, y_pos, Gamma(), LogLink(); wts=fweights(w))
     @test GLM.isweighted(glm_weighted)
 end
+
+@testset "coeftable with test=:t" begin
+    x = [1, 3, 6, 2, 4, 6]
+    y = [5, 6, 2, 4, 6, 3]
+    df = DataFrame(; x, y)
+    m1 = glm(@formula(x ~ y), df, Normal())
+    @test repr(coeftable(m1, test=:t)) == repr(coeftable(lm(@formula(x ~ y), df)))
+
+    m2 = glm(@formula(x ~ y), df, Gamma())
+    @test repr(coeftable(m2, test=:t)) == """
+        ─────────────────────────────────────────────────────────────────────────
+                         Coef.  Std. Error     t  Pr(>|t|)   Lower 95%  Upper 95%
+        ─────────────────────────────────────────────────────────────────────────
+        (Intercept)  0.0594162   0.141774   0.42    0.6967  -0.334212    0.453044
+        y            0.0552099   0.0384164  1.44    0.2240  -0.0514512   0.161871
+        ─────────────────────────────────────────────────────────────────────────"""
+
+    m3 = glm(@formula(x ~ y), df, InverseGaussian())
+    @test repr(coeftable(m3, test=:t)) == """
+        ───────────────────────────────────────────────────────────────────────────
+                          Coef.  Std. Error      t  Pr(>|t|)   Lower 95%  Upper 95%
+        ───────────────────────────────────────────────────────────────────────────
+        (Intercept)  -0.0321595   0.0716888  -0.45    0.6770  -0.2312     0.166881
+        y             0.0293816   0.0223473   1.31    0.2589  -0.0326643  0.0914276
+        ───────────────────────────────────────────────────────────────────────────"""
+
+    # FIXME: Dependent on #624
+    # for distr in (Geometric,NegativeBinomial,Poisson)
+    #     @show distr
+    #     m4 = glm(@formula(x ~ y), df, distr())
+    #     @test_throws ArgumentError coeftable(m4, test=:t)
+    # end
+
+    x = [1, 0, 1, 0, 1, 1]
+    df = DataFrame(; x, y)
+    for distr in (Bernoulli, Binomial)
+        @show distr
+        m5 = glm(@formula(x ~ y), df, distr())
+        @test_throws ArgumentError coeftable(m5, test=:t)
+    end
+end
