@@ -86,9 +86,13 @@ julia> data = DataFrame(y = rand(rng, 100), x = categorical(repeat([1, 2, 3, 4],
 
 
 julia> lm(@formula(y ~ x), data)
-LinearModel
-
+LinearModel:
 y ~ 1 + x
+
+Observations:                    100  Degrees of freedom:                5
+Log-likelihood:               -13.30  RSS:                            7.64
+RSE:                            0.28  F-test:                       0.3922
+R²:                           0.0306  Adjusted R²:                  0.0003
 
 Coefficients:
 ───────────────────────────────────────────────────────────────────────────
@@ -109,9 +113,13 @@ julia> using StableRNGs
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = repeat([1, 2, 3, 4], 25));
 
 julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
-LinearModel
-
+LinearModel:
 y ~ 1 + x
+
+Observations:                    100  Degrees of freedom:                5
+Log-likelihood:               -13.30  RSS:                            7.64
+RSE:                            0.28  F-test:                       0.3922
+R²:                           0.0306  Adjusted R²:                  0.0003
 
 Coefficients:
 ───────────────────────────────────────────────────────────────────────────
@@ -155,9 +163,13 @@ julia> using StableRNGs, DataFrames, StatsBase, GLM
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = randn(StableRNG(2), 100), weights = repeat([1, 2, 3, 4], 25));
 
 julia> m = lm(@formula(y ~ x), data)
-LinearModel
-
+LinearModel:
 y ~ 1 + x
+
+Observations:                    100  Degrees of freedom:                3
+Log-likelihood:               -13.52  RSS:                            7.67
+RSE:                            0.28  F-test:                       0.1066
+R²:                           0.0263  Adjusted R²:                  0.0164
 
 Coefficients:
 ──────────────────────────────────────────────────────────────────────────
@@ -168,9 +180,14 @@ x            -0.0500249   0.0307201  -1.63    0.1066  -0.110988  0.0109382
 ──────────────────────────────────────────────────────────────────────────
 
 julia> m_aweights = lm(@formula(y ~ x), data, wts=aweights(data.weights))
-LinearModel
-
+LinearModel:
 y ~ 1 + x
+
+Weights:             AnalyticWeights  Sum of weights:                  250
+Observations:                    100  Degrees of freedom:                3
+Log-likelihood:               -16.30  RSS:                           17.95
+RSE:                            0.43  F-test:                       0.1239
+R²:                           0.0240  Adjusted R²:                  0.0140
 
 Coefficients:
 ──────────────────────────────────────────────────────────────────────────
@@ -181,9 +198,14 @@ x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
 ──────────────────────────────────────────────────────────────────────────
 
 julia> m_fweights = lm(@formula(y ~ x), data, wts=fweights(data.weights))
-LinearModel
-
+LinearModel:
 y ~ 1 + x
+
+Weights:             FrequencyWeights  Sum of weights:                   250
+Observations:                     250  Degrees of freedom:                 3
+Log-likelihood:                -25.52  RSS:                            17.95
+RSE:                             0.27  F-test:                        0.0142
+R²:                            0.0240  Adjusted R²:                   0.0201
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────────────────
@@ -194,9 +216,14 @@ x            -0.0478667   0.0193863  -2.47    0.0142  -0.0860494  -0.00968394
 ─────────────────────────────────────────────────────────────────────────────
 
 julia> m_pweights = lm(@formula(y ~ x), data, wts=pweights(data.weights))
-LinearModel
-
+LinearModel:
 y ~ 1 + x
+
+Weights:          ProbabilityWeights  Sum of weights:                  250
+Observations:                    100  Degrees of freedom:                3
+Log-likelihood:        not supported  RSS:                            7.18
+RSE:                            0.27  F-test:                not supported
+R²:                           0.6096  Adjusted R²:                  0.6056
 
 Coefficients:
 ───────────────────────────────────────────────────────────────────────────

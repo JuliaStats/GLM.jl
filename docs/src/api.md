@@ -27,7 +27,12 @@ julia> using RDatasets
 julia> df = RDatasets.dataset("mlmRev", "Oxboys");
 
 julia> fit(LinearModel, hcat(ones(nrow(df)), df.Age), df.Height)
-LinearModel
+LinearModel:
+
+Observations:               234  Degrees of freedom:           3
+Log-likelihood:         -819.96  RSS:                   15148.46
+RSE:                       8.08  F-test:                  <1e-13
+R²:                      0.2154  Adjusted R²:             0.2121
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────
@@ -41,7 +46,12 @@ x2    6.52102    0.816987    7.98    <1e-13    4.91136    8.13068
 This model can also be fit as
 ```jldoctest constructors
 julia> lm(hcat(ones(nrow(df)), df.Age), df.Height)
-LinearModel
+LinearModel:
+
+Observations:               234  Degrees of freedom:           3
+Log-likelihood:         -819.96  RSS:                   15148.46
+RSE:                       8.08  F-test:                  <1e-13
+R²:                      0.2154  Adjusted R²:             0.2121
 
 Coefficients:
 ─────────────────────────────────────────────────────────────────

@@ -107,6 +107,38 @@ end
     end
 end
 
+@testset "LM with only intercept with $dmethod" for dmethod in (:cholesky, :qr)
+    lm1 = fit(LinearModel, @formula(OptDen ~ 1), form; method=dmethod)
+    test_show(lm1)
+    @test coef(lm1) ≈ [mean(form.OptDen)]
+    expected_resid = [-0.006714285714285714, 0.0010285714285714898, 0.0027714285714285913,
+                      0.0071428571428572285, 0.007514285714285696, -0.011742857142857166]
+    @test residuals(lm1) ≈ form.OptDen .- mean(form.OptDen)
+    @test residuals(lm1.rr) ≈ residuals(lm1)
+    @test vcov(lm1) ≈ [0.01046162777777778]
+    @test cor(lm1) ≈ [1.0]
+    @test dof(lm1) == 2
+    @test deviance(lm1) ≈ nulldeviance(lm1) ≈ 0.31384883333333335
+    @test loglikelihood(lm1) ≈ nullloglikelihood(lm1) ≈ 0.33817870295676444
+    @test r²(lm1) == r2(lm1)
+    @test adjr²(lm1) == adjr2(lm1)
+    @test r²(lm1) ≈ adjr²(lm1) ≈ 0.0
+    @test aic(lm1) ≈ 3.323642594086471
+    @test aicc(lm1) ≈ 7.323642594086471
+    @test bic(lm1) ≈ 2.907161532542581
+    @test GLM.working_residuals(lm1) ≈ residuals(lm1)
+    lm2 = fit(LinearModel, hcat(ones(6)), form.OptDen; method=dmethod)
+    if dmethod == :cholesky
+        @test isa(lm2.pp.chol, CholeskyPivoted)
+        piv = lm2.pp.chol.piv
+    elseif dmethod == :qr
+        @test isa(lm2.pp.qr, QRPivoted)
+        piv = lm2.pp.qr.p
+    end
+    @test piv == [1]
+    @test coef(lm1) ≈ coef(lm2)
+end
+
 @testset "Cook's Distance in Linear Model with $dmethod" for dmethod in (:cholesky, :qr)
     st_df = DataFrame(; Y=[6.4, 7.4, 10.4, 15.1, 12.3, 11.4],
                       XA=[1.5, 6.5, 11.5, 19.9, 17.0, 15.5],
@@ -373,6 +405,7 @@ end
         data = DataFrame(; x=60:70, y=130:140)
 
         mdl = lm(@formula(y ~ 0 + x), data; method=:cholesky)
+        test_show(mdl)
         @test coef(mdl) ≈ [2.07438016528926]
         @test stderror(mdl) ≈ [0.165289256198347E-01]
         @test GLM.dispersion(mdl) ≈ 3.56753034006338
@@ -397,6 +430,7 @@ end
         data = DataFrame(; x=[4, 5, 6], y=[3, 4, 4])
 
         mdl = lm(@formula(y ~ 0 + x), data; method=:cholesky)
+        test_show(mdl)
         @test coef(mdl) ≈ [0.727272727272727]
         @test stderror(mdl) ≈ [0.420827318078432E-01]
         @test GLM.dispersion(mdl) ≈ 0.369274472937998
