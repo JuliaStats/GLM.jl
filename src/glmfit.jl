@@ -262,16 +262,36 @@ function GeneralizedLinearModel(rr::GlmResp, pp::LinPred,
     return GeneralizedLinearModel(rr, pp, f, fit, 0, NaN, NaN, NaN)
 end
 
-function coeftable(mm::AbstractGLM; level::Real=0.95)
+"""
+    coeftable(model::AbstractGLM; level::Real=0.95, test::Symbol=:z)
+
+For generalized linear models, additional keyword argument `test` allows choosing
+the distribution used for Wald tests of coefficients being different from zero:
+`z` for Normal (the default), `t` for Student.
+"""
+function coeftable(mm::AbstractGLM; level::Real=0.95, test::Symbol=:z)
     cc = coef(mm)
     se = stderror(mm)
     zz = cc ./ se
-    p = 2 * ccdf.(Ref(Normal()), abs.(zz))
-    ci = se * quantile(Normal(), (1 - level) / 2)
+    if test === :z
+        distr = Normal()
+        tstr, pstr = "z", "Pr(>|z|)"
+    elseif test === :t
+        dispersion_parameter(mm.rr.d) ||
+            throw(ArgumentError("`test=:t` is not appropriate for models with " *
+                                "$(nameof(typeof(mm.rr.d))) distribution as " *
+                                "dispersion parameter is not estimated"))
+        distr = TDist(dof_residual(mm))
+        tstr, pstr = "t", "Pr(>|t|)"
+    else
+        throw(ArgumentError("`test` must be either `:z` or `:t"))
+    end
+    p = 2 * ccdf.(Ref(distr), abs.(zz))
+    ci = se * quantile(distr, (1 - level) / 2)
     levstr = isinteger(level * 100) ? string(Integer(level * 100)) : string(level * 100)
     cn = coefnames(mm)
     return CoefTable(hcat(cc, se, zz, p, cc + ci, cc - ci),
-                     ["Coef.", "Std. Error", "z", "Pr(>|z|)", "Lower $levstr%",
+                     ["Coef.", "Std. Error", tstr, pstr, "Lower $levstr%",
                       "Upper $levstr%"],
                      cn, 4, 3)
 end
