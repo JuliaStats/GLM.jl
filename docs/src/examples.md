@@ -210,6 +210,62 @@ sales ^ 2    -6.94594e-9   3.72614e-9   -1.86    0.0725  -1.45667e-8  6.7487e-10
 ```
 
 
+### Without data as a DataFrame
+Because a named tuple follows common table-interface defined in `Tables.jl` 
+(which is the one followed by a DataFrame), the problem can also be specified 
+with data in a named tuple as opposed to a `DataFrame`:
+```jldoctetst
+julia> using GLM
+
+julia> X=[1,2,3]
+3-element Vector{Int64}:
+ 1
+ 2
+ 3
+
+julia> Y=[2,4,7]
+3-element Vector{Int64}:
+ 2
+ 4
+ 7
+
+julia> data = (;X, Y)  # Equivalent to (X=X, Y=Y)
+(X = [1, 2, 3], Y = [2, 4, 7])
+
+julia> lm(@formula(Y~X), data)
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
+
+Y ~ 1 + X
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────
+                 Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+─────────────────────────────────────────────────────────────────────────
+(Intercept)  -0.666667    0.62361   -1.07    0.4788   -8.59038    7.25704
+X             2.5         0.288675   8.66    0.0732   -1.16797    6.16797
+─────────────────────────────────────────────────────────────────────────
+```
+
+### Without intercept
+To make a fit without an intercept (Going through `(0, 0)`), one can specify the fomula as follows:
+```jldoctest
+julia> X=[1,2,3]; Y=[2,4,7]; data = (;X, Y)
+(X = [1, 2, 3], Y = [2, 4, 7])
+
+julia> lm(@formula(Y~0+X), data)
+StatsModels.TableRegressionModel{LinearModel{GLM.LmResp{Vector{Float64}}, GLM.DensePredChol{Float64, LinearAlgebra.CholeskyPivoted{Float64, Matrix{Float64}}}}, Matrix{Float64}}
+
+Y ~ 0 + X
+
+Coefficients:
+─────────────────────────────────────────────────────────────
+     Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+─────────────────────────────────────────────────────────────
+X  2.21429    0.112938  19.61    0.0026    1.72835    2.70022
+─────────────────────────────────────────────────────────────
+```
+To read more about the `@formula` syntax, check out [the documentation for `@formula`](https://juliastats.org/StatsModels.jl/stable/formula/#The-@formula-language)
+
 ## Probit regression
 ```jldoctest
 julia> data = DataFrame(X=[1,2,2], Y=[1,0,1])
