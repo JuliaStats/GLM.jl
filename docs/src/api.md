@@ -26,30 +26,34 @@ julia> using RDatasets
 
 julia> df = RDatasets.dataset("mlmRev", "Oxboys");
 
-julia> fit(LinearModel, hcat(ones(nrow(df)), df.Age), df.Height)
+julia> fit(LinearModel, @formula(Height ~ Age), df)
 LinearModel
 
+Formula: Height ~ 1 + Age
+
 Coefficients:
-─────────────────────────────────────────────────────────────────
-        Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
-─────────────────────────────────────────────────────────────────
-x1  149.372      0.528565  282.60    <1e-99  148.33     150.413
-x2    6.52102    0.816987    7.98    <1e-13    4.91136    8.13068
-─────────────────────────────────────────────────────────────────
+(Intercept)    Age
+      149.4  6.521
+
+Number of observations:                     234
+Residual degrees of freedom:                232
+Residual deviance:                      15148.5
 ```
 
 This model can also be fit as
 ```jldoctest constructors
-julia> lm(hcat(ones(nrow(df)), df.Age), df.Height)
+julia> lm(@formula(Height ~ Age), df)
 LinearModel
 
+Formula: Height ~ 1 + Age
+
 Coefficients:
-─────────────────────────────────────────────────────────────────
-        Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
-─────────────────────────────────────────────────────────────────
-x1  149.372      0.528565  282.60    <1e-99  148.33     150.413
-x2    6.52102    0.816987    7.98    <1e-13    4.91136    8.13068
-─────────────────────────────────────────────────────────────────
+(Intercept)    Age
+      149.4  6.521
+
+Number of observations:                     234
+Residual degrees of freedom:                232
+Residual deviance:                      15148.5
 ```
 
 ```@docs

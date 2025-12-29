@@ -5,8 +5,6 @@ using LogExpFunctions: logistic
 using Distributions: TDist
 using Downloads
 
-test_show(x) = show(IOBuffer(), x)
-
 const glm_datadir = joinpath(dirname(@__FILE__), "..", "data")
 
 ## Formaldehyde data from the R Datasets package
@@ -58,7 +56,18 @@ end
          -9.464489795918525e-05 1.831836734693908e-04]
 
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form; method=dmethod)
-    test_show(lm1)
+    @test sprint(show, "text/plain", lm1) == """
+        LinearModel
+
+        Formula: OptDen ~ 1 + Carb
+
+        Coefficients:
+        (Intercept)    Carb
+           0.005086  0.8763
+
+        Number of observations:                       6
+        Residual degrees of freedom:                  4
+        Residual deviance:                    0.0002992"""
     @test isapprox(coef(lm1), linreg(form.Carb, form.OptDen))
     expected_resid = [-0.006714285714285714, 0.0010285714285714898, 0.0027714285714285913,
                       0.0071428571428572285, 0.007514285714285696, -0.011742857142857166]
@@ -454,7 +463,6 @@ dobson = DataFrame(; Counts=[18.0, 17, 15, 20, 10, 20, 25, 13, 12],
     gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ 1 + Outcome + Treatment),
               dobson, Poisson(); method=dmethod)
     @test GLM.cancancel(gm1.rr)
-    test_show(gm1)
     @test dof(gm1) == 5
     @test isapprox(deviance(gm1), 5.12914107700115, rtol=1e-7)
     @test isapprox(nulldeviance(gm1), 10.581445863750867, rtol=1e-7)
@@ -482,7 +490,21 @@ admit.rank = categorical(admit.rank)
                   distr();
                   method=dmethod)
         @test GLM.cancancel(gm2.rr)
-        test_show(gm2)
+        @test sprint(show, "text/plain", gm2) == """
+            GeneralizedLinearModel
+
+            Formula: admit ~ 1 + gre + gpa + rank
+
+            Family: $(distr)
+            Link: LogitLink
+
+            Coefficients:
+            (Intercept)       gre    gpa  rank: 2  rank: 3  rank: 4
+                  -3.99  0.002264  0.804  -0.6754    -1.34   -1.551
+
+            Number of observations:                     400
+            Residual degrees of freedom:                394
+            Residual deviance:                      458.517"""
         @test dof(gm2) == 6
         @test deviance(gm2) ≈ 458.5174924758994
         @test nulldeviance(gm2) ≈ 499.9765175549154
@@ -500,7 +522,21 @@ end
 @testset "Bernoulli ProbitLink with $dmethod" for dmethod in (:cholesky, :qr)
     gm3 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + gre + gpa + rank), admit,
               Binomial(), ProbitLink(); method=dmethod)
-    test_show(gm3)
+    @test sprint(show, "text/plain", gm3) == """
+        GeneralizedLinearModel
+
+        Formula: admit ~ 1 + gre + gpa + rank
+
+        Family: Binomial
+        Link: ProbitLink
+
+        Coefficients:
+        (Intercept)       gre     gpa  rank: 2  rank: 3  rank: 4
+             -2.387  0.001376  0.4777  -0.4154  -0.8121  -0.9359
+
+        Number of observations:                     400
+        Residual degrees of freedom:                394
+        Residual deviance:                      458.413"""
     @test !GLM.cancancel(gm3.rr)
     @test dof(gm3) == 6
     @test isapprox(deviance(gm3), 458.4131713833386)
@@ -519,7 +555,21 @@ end
     gm4 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
               Binomial(), CauchitLink(); method=dmethod)
     @test !GLM.cancancel(gm4.rr)
-    test_show(gm4)
+    @test sprint(show, "text/plain", gm4) == """
+        GeneralizedLinearModel
+
+        Formula: admit ~ 1 + gre + gpa + rank
+
+        Family: Binomial
+        Link: CauchitLink
+
+        Coefficients:
+        (Intercept)       gre    gpa  rank: 2  rank: 3  rank: 4
+             -3.954  0.002166  0.811  -0.6086   -1.301   -1.591
+
+        Number of observations:                     400
+        Residual degrees of freedom:                394
+        Residual deviance:                       459.34"""
     @test dof(gm4) == 6
     @test isapprox(deviance(gm4), 459.3401112751141)
     @test isapprox(nulldeviance(gm4), 499.9765175549311)
@@ -534,7 +584,21 @@ end
     gm5 = fit(GeneralizedLinearModel, @formula(admit ~ gre + gpa + rank), admit,
               Binomial(), CloglogLink(); method=dmethod)
     @test !GLM.cancancel(gm5.rr)
-    test_show(gm5)
+    @test sprint(show, "text/plain", gm5) == """
+        GeneralizedLinearModel
+
+        Formula: admit ~ 1 + gre + gpa + rank
+
+        Family: Binomial
+        Link: CloglogLink
+
+        Coefficients:
+        (Intercept)      gre     gpa  rank: 2  rank: 3  rank: 4
+             -3.535  0.00172  0.6409   -0.494   -1.045    -1.24
+
+        Number of observations:                     400
+        Residual degrees of freedom:                394
+        Residual deviance:                      458.894"""
     @test dof(gm5) == 6
     @test isapprox(deviance(gm5), 458.89439629612616)
     @test isapprox(nulldeviance(gm5), 499.97651755491677)
@@ -566,7 +630,21 @@ anorexia = CSV.read(joinpath(glm_datadir, "anorexia.csv"), DataFrame)
               Normal(), IdentityLink(); method=dmethod,
               offset=Array{Float64}(anorexia.Prewt))
     @test GLM.cancancel(gm6.rr)
-    test_show(gm6)
+    @test sprint(show, "text/plain", gm6) == """
+        GeneralizedLinearModel
+
+        Formula: Postwt ~ 1 + Prewt + Treat
+
+        Family: Normal
+        Link: IdentityLink
+
+        Coefficients:
+        (Intercept)    Prewt  Treat: Cont  Treat: FT
+              49.77  -0.5655       -4.097      4.563
+
+        Number of observations:                      72
+        Residual degrees of freedom:                 68
+        Residual deviance:                      3311.26"""
     @test dof(gm6) == 5
     @test isapprox(deviance(gm6), 3311.262619919613)
     @test isapprox(nulldeviance(gm6), 4525.386111111112)
@@ -586,7 +664,21 @@ end
     gm7 = fit(GeneralizedLinearModel, @formula(Postwt ~ 1 + Prewt + Treat), anorexia,
               Normal(), LogLink(); method=dmethod, offset=anorexia.Prewt, rtol=1e-8)
     @test !GLM.cancancel(gm7.rr)
-    test_show(gm7)
+    @test sprint(show, "text/plain", gm7) == """
+        GeneralizedLinearModel
+
+        Formula: Postwt ~ 1 + Prewt + Treat
+
+        Family: Normal
+        Link: LogLink
+
+        Coefficients:
+        (Intercept)    Prewt  Treat: Cont  Treat: FT
+              3.992  -0.9945      -0.0507    0.05149
+
+        Number of observations:                      72
+        Residual degrees of freedom:                 68
+        Residual deviance:                      3265.21"""
     @test isapprox(deviance(gm7), 3265.207242977156)
     @test isapprox(nulldeviance(gm7), 507625.1718547432)
     @test isapprox(loglikelihood(gm7), -239.48242060326643)
@@ -605,7 +697,21 @@ end
                Poisson(), LogLink(); method=dmethod, offset=log.(anorexia.Prewt), rtol=1e-8)
 
     @test GLM.cancancel(gm7p.rr)
-    test_show(gm7p)
+    @test sprint(show, "text/plain", gm7p) == """
+        GeneralizedLinearModel
+
+        Formula: :(round(Postwt)) ~ 1 + Prewt + Treat
+
+        Family: Poisson
+        Link: LogLink
+
+        Coefficients:
+        (Intercept)      Prewt  Treat: Cont  Treat: FT
+             0.6159  -0.007005     -0.04852    0.05331
+
+        Number of observations:                      72
+        Residual degrees of freedom:                 68
+        Residual deviance:                      39.6861"""
     @test deviance(gm7p) ≈ 39.686114742427705
     @test nulldeviance(gm7p) ≈ 54.749010639715294
     @test loglikelihood(gm7p) ≈ -245.92639857546905
@@ -623,7 +729,21 @@ end
                 wts=fweights(repeat(1:4; outer=18)), rtol=1e-8)
 
     @test GLM.cancancel(gm7pw.rr)
-    test_show(gm7pw)
+    @test sprint(show, "text/plain", gm7pw) == """
+        GeneralizedLinearModel
+
+        Formula: :(round(Postwt)) ~ 1 + Prewt + Treat
+
+        Family: Poisson
+        Link: LogLink
+
+        Coefficients:
+        (Intercept)      Prewt  Treat: Cont  Treat: FT
+             0.6038  -0.007008     -0.03839    0.08934
+
+        Number of observations:                     180
+        Residual degrees of freedom:                176
+        Residual deviance:                      90.1705"""
     @test deviance(gm7pw) ≈ 90.17048668870225
     @test nulldeviance(gm7pw) ≈ 139.63782826574652
     @test loglikelihood(gm7pw) ≈ -610.3058020030296
@@ -643,7 +763,21 @@ clotting = DataFrame(; u=log.([5, 10, 15, 20, 30, 40, 60, 80, 100]),
               method=dmethod)
     @test !GLM.cancancel(gm8.rr)
     @test isa(GLM.Link(gm8), InverseLink)
-    test_show(gm8)
+    @test sprint(show, "text/plain", gm8) == """
+        GeneralizedLinearModel
+
+        Formula: lot1 ~ 1 + u
+
+        Family: Gamma
+        Link: InverseLink
+
+        Coefficients:
+        (Intercept)        u
+           -0.01655  0.01534
+
+        Number of observations:                       9
+        Residual degrees of freedom:                  7
+        Residual deviance:                    0.0167297"""
     @test dof(gm8) == 3
     @test isapprox(deviance(gm8), 0.016729715178484157)
     @test isapprox(nulldeviance(gm8), 3.5128262638285594)
@@ -662,7 +796,21 @@ end
                method=dmethod)
     @test !GLM.cancancel(gm8a.rr)
     @test isa(GLM.Link(gm8a), InverseSquareLink)
-    test_show(gm8a)
+    @test sprint(show, "text/plain", gm8a) == """
+        GeneralizedLinearModel
+
+        Formula: lot1 ~ 1 + u
+
+        Family: InverseGaussian
+        Link: InverseSquareLink
+
+        Coefficients:
+        (Intercept)          u
+          -0.001108  0.0007219
+
+        Number of observations:                       9
+        Residual degrees of freedom:                  7
+        Residual deviance:                   0.00693113"""
     @test dof(gm8a) == 3
     @test isapprox(deviance(gm8a), 0.006931128347234519)
     @test isapprox(nulldeviance(gm8a), 0.08779963125372384)
@@ -680,7 +828,21 @@ end
     gm9 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink();
               method=dmethod, rtol=1e-8, atol=0.0)
     @test !GLM.cancancel(gm9.rr)
-    test_show(gm9)
+    @test sprint(show, "text/plain", gm9) == """
+        GeneralizedLinearModel
+
+        Formula: lot1 ~ 1 + u
+
+        Family: Gamma
+        Link: LogLink
+
+        Coefficients:
+        (Intercept)        u
+              5.503  -0.6019
+
+        Number of observations:                       9
+        Residual degrees of freedom:                  7
+        Residual deviance:                     0.162608"""
     @test dof(gm9) == 3
     @test deviance(gm9) ≈ 0.16260829451739
     @test nulldeviance(gm9) ≈ 3.512826263828517
@@ -699,7 +861,21 @@ end
                IdentityLink();
                method=dmethod, rtol=1e-8, atol=0.0)
     @test !GLM.cancancel(gm10.rr)
-    test_show(gm10)
+    @test sprint(show, "text/plain", gm10) == """
+        GeneralizedLinearModel
+
+        Formula: lot1 ~ 1 + u
+
+        Family: Gamma
+        Link: IdentityLink
+
+        Coefficients:
+        (Intercept)       u
+              99.25  -18.37
+
+        Number of observations:                       9
+        Residual degrees of freedom:                  7
+        Residual deviance:                     0.608454"""
     @test dof(gm10) == 3
     @test isapprox(deviance(gm10), 0.60845414895344)
     @test isapprox(nulldeviance(gm10), 3.512826263828517)
@@ -746,7 +922,6 @@ admit_agr2.p = admit_agr2.admit ./ admit_agr2.count
 @testset "Binomial LogitLink aggregated with $dmethod" for dmethod in (:cholesky, :qr)
     gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial();
                wts=fweights(admit_agr2.count))
-    test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
     @test deviance(gm15) ≈ -2.4424906541753456e-15 atol = 1e-13
@@ -764,7 +939,21 @@ end
 @testset "Gamma InverseLink Weights with $dmethod" for dmethod in (:cholesky, :qr)
     gm16 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma();
                wts=fweights([1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7]))
-    test_show(gm16)
+    @test sprint(show, "text/plain", gm16) == """
+        GeneralizedLinearModel
+
+        Formula: lot1 ~ 1 + u
+
+        Family: Gamma
+        Link: InverseLink
+
+        Coefficients:
+        (Intercept)        u
+           -0.01722  0.01565
+
+        Number of observations:                      33
+        Residual degrees of freedom:                 31
+        Residual deviance:                    0.0393339"""
     @test dof(gm16) == 3
     @test nobs(gm16) == 32.7
     @test isapprox(deviance(gm16), 0.03933389380881689)
@@ -782,7 +971,21 @@ end
     gm17 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson,
                Poisson();
                wts=fweights([1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7]))
-    test_show(gm17)
+    @test sprint(show, "text/plain", gm17) == """
+        GeneralizedLinearModel
+
+        Formula: Counts ~ 1 + Outcome + Treatment
+
+        Family: Poisson
+        Link: LogLink
+
+        Coefficients:
+        (Intercept)  Outcome: B  Outcome: C  Treatment: b  Treatment: c
+              3.122      -0.527      -0.403      -0.01785      -0.03508
+
+        Number of observations:                      33
+        Residual degrees of freedom:                 28
+        Residual deviance:                      17.6999"""
     @test dof(gm17) == 5
     @test isapprox(deviance(gm17), 17.699857821414266)
     @test isapprox(nulldeviance(gm17), 47.37955120289139)
@@ -802,7 +1005,21 @@ quine = dataset("MASS", "quine")
     gm18 = fit(GeneralizedLinearModel, @formula(Days ~ Eth + Sex + Age + Lrn), quine,
                NegativeBinomial(2.0), LogLink(); method=dmethod)
     @test !GLM.cancancel(gm18.rr)
-    test_show(gm18)
+    @test sprint(show, "text/plain", gm18) == """
+        GeneralizedLinearModel
+
+        Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+        Family: NegativeBinomial
+        Link: LogLink
+
+        Coefficients:
+        (Intercept)   Eth: N   Sex: M  Age: F1  Age: F2  Age: F3  Lrn: SL
+              2.886  -0.5675  0.08708  -0.4451   0.0928   0.3595   0.2968
+
+        Number of observations:                     146
+        Residual degrees of freedom:                139
+        Residual deviance:                      239.111"""
     @test dof(gm18) == 8
     @test isapprox(deviance(gm18), 239.11105911824325, rtol=1e-7)
     @test isapprox(nulldeviance(gm18), 280.1806722491237, rtol=1e-7)
@@ -822,7 +1039,21 @@ end
     gm19 = fit(GeneralizedLinearModel, @formula(Days ~ Eth + Sex + Age + Lrn),
                quine, NegativeBinomial(2.0))
     @test GLM.cancancel(gm19.rr)
-    test_show(gm19)
+    @test sprint(show, "text/plain", gm19) == """
+        GeneralizedLinearModel
+
+        Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+        Family: NegativeBinomial
+        Link: NegativeBinomialLink
+
+        Coefficients:
+        (Intercept)    Eth: N   Sex: M   Age: F1  Age: F2  Age: F3  Lrn: SL
+            -0.1274  -0.05587  0.01562  -0.04111  0.02404    0.044  0.03577
+
+        Number of observations:                     146
+        Residual degrees of freedom:                139
+        Residual deviance:                      239.686"""
     @test dof(gm19) == 8
     @test isapprox(deviance(gm19), 239.68562048977307, rtol=1e-7)
     @test isapprox(nulldeviance(gm19), 280.18067224912204, rtol=1e-7)
@@ -839,7 +1070,21 @@ end
 
 @testset "NegativeBinomial LogLink, θ to be estimated with Cholesky" begin
     gm20 = negbin(@formula(Days ~ Eth + Sex + Age + Lrn), quine, LogLink())
-    test_show(gm20)
+    @test sprint(show, "text/plain", gm20) == """
+        GeneralizedLinearModel
+
+        Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+        Family: NegativeBinomial
+        Link: LogLink
+
+        Coefficients:
+        (Intercept)   Eth: N   Sex: M  Age: F1  Age: F2  Age: F3  Lrn: SL
+              2.895  -0.5693  0.08239  -0.4485  0.08805    0.357   0.2921
+
+        Number of observations:                     146
+        Residual degrees of freedom:                139
+        Residual deviance:                      167.952"""
     @test dof(gm20) == 8
     @test isapprox(deviance(gm20), 167.9518430624193, rtol=1e-7)
     @test isapprox(nulldeviance(gm20), 195.28668602703388, rtol=1e-7)
@@ -874,7 +1119,21 @@ end
     @testset "negbin with contrasts" begin
         gm20b = negbin(@formula(Days ~ Eth + Sex + Age + Lrn), quine, LogLink(),
                        contrasts=Dict(:Sex => EffectsCoding()))
-        test_show(gm20b)
+        @test sprint(show, "text/plain", gm20b) == """
+            GeneralizedLinearModel
+
+            Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+            Family: NegativeBinomial
+            Link: LogLink
+
+            Coefficients:
+            (Intercept)   Eth: N   Sex: M  Age: F1  Age: F2  Age: F3  Lrn: SL
+                  2.936  -0.5693  0.04119  -0.4485  0.08805    0.357   0.2921
+
+            Number of observations:                     146
+            Residual degrees of freedom:                139
+            Residual deviance:                      167.952"""
         @test dof(gm20b) == 8
         @test isapprox(deviance(gm20b), 167.9518430624193, rtol=1e-7)
         @test isapprox(nulldeviance(gm20b), 195.28668602703388, rtol=1e-7)
@@ -895,7 +1154,21 @@ end
     wts = vcat(fill(0.8, halfn), fill(1.2, size(quine, 1) - halfn))
     gm20a = negbin(@formula(Days ~ Eth + Sex + Age + Lrn), quine, LogLink();
                    wts=fweights(wts))
-    test_show(gm20a)
+    @test sprint(show, "text/plain", gm20a) == """
+        GeneralizedLinearModel
+
+        Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+        Family: NegativeBinomial
+        Link: LogLink
+
+        Coefficients:
+        (Intercept)   Eth: N   Sex: M  Age: F1  Age: F2  Age: F3  Lrn: SL
+              2.953  -0.5991  0.09609  -0.4882  0.01025    0.362   0.2447
+
+        Number of observations:                     146
+        Residual degrees of freedom:                139
+        Residual deviance:                      168.404"""
     @test dof(gm20a) == 8
     @test isapprox(deviance(gm20a), 168.40402933035944, rtol=1e-7)
     @test isapprox(nulldeviance(gm20a), 196.50242701899307, rtol=1e-7)
@@ -912,7 +1185,21 @@ end
 
 @testset "NegativeBinomial LogLink, θ to be estimated with QR" begin
     gm20 = negbin(@formula(Days ~ Eth + Sex + Age + Lrn), quine, LogLink(); method=:qr)
-    test_show(gm20)
+    @test sprint(show, "text/plain", gm20) == """
+        GeneralizedLinearModel
+
+        Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+        Family: NegativeBinomial
+        Link: LogLink
+
+        Coefficients:
+        (Intercept)   Eth: N   Sex: M  Age: F1  Age: F2  Age: F3  Lrn: SL
+              2.895  -0.5693  0.08239  -0.4485  0.08805    0.357   0.2921
+
+        Number of observations:                     146
+        Residual degrees of freedom:                139
+        Residual deviance:                      167.952"""
     @test dof(gm20) == 8
     @test isapprox(deviance(gm20), 167.9518430624193, rtol=1e-7)
     @test isapprox(nulldeviance(gm20), 195.28668602703388, rtol=1e-7)
@@ -932,7 +1219,21 @@ end
                                                                                        :qr)
     # the default/canonical link is NegativeBinomialLink
     gm21 = negbin(@formula(Days ~ Eth + Sex + Age + Lrn), quine; method=dmethod)
-    test_show(gm21)
+    @test sprint(show, "text/plain", gm21) == """
+        GeneralizedLinearModel
+
+        Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+        Family: NegativeBinomial
+        Link: NegativeBinomialLink
+
+        Coefficients:
+        (Intercept)    Eth: N   Sex: M   Age: F1  Age: F2  Age: F3  Lrn: SL
+           -0.08289  -0.03697  0.01028  -0.02741  0.01582  0.02907  0.02363
+
+        Number of observations:                     146
+        Residual degrees of freedom:                139
+        Residual deviance:                      168.047"""
     @test dof(gm21) == 8
     @test isapprox(deviance(gm21), 168.0465485656672, rtol=1e-7)
     @test isapprox(nulldeviance(gm21), 194.85525025005109, rtol=1e-7)
@@ -951,7 +1252,21 @@ end
     # the default/canonical link is LogLink
     gm22 = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, Geometric();
                method=dmethod)
-    test_show(gm22)
+    @test sprint(show, "text/plain", gm22) == """
+        GeneralizedLinearModel
+
+        Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+        Family: Geometric
+        Link: LogLink
+
+        Coefficients:
+        (Intercept)   Eth: N  Sex: M  Age: F1  Age: F2  Age: F3  Lrn: SL
+              2.898  -0.5701  0.0804  -0.4498  0.08623   0.3559   0.2902
+
+        Number of observations:                     146
+        Residual degrees of freedom:                139
+        Residual deviance:                      137.878"""
     @test dof(gm22) == 8
     @test deviance(gm22) ≈ 137.8781581814965
     @test loglikelihood(gm22) ≈ -548.3711276642073
@@ -991,7 +1306,21 @@ end
     @test !hasintercept(nointglm1)
     @test !GLM.cancancel(nointglm1.rr)
     @test isa(GLM.Link(nointglm1), InverseLink)
-    test_show(nointglm1)
+    @test sprint(show, "text/plain", nointglm1) == """
+        GeneralizedLinearModel
+
+        Formula: lot1 ~ 0 + u
+
+        Family: Gamma
+        Link: InverseLink
+
+        Coefficients:
+             u
+        0.0092
+
+        Number of observations:                       9
+        Residual degrees of freedom:                  8
+        Residual deviance:                      0.66299"""
     @test dof(nointglm1) == 2
     @test deviance(nointglm1) ≈ 0.6629903395245351
     @test isnan(nulldeviance(nointglm1))
@@ -1009,7 +1338,21 @@ end
                     Bernoulli())
     @test !hasintercept(nointglm2)
     @test GLM.cancancel(nointglm2.rr)
-    test_show(nointglm2)
+    @test sprint(show, "text/plain", nointglm2) == """
+        GeneralizedLinearModel
+
+        Formula: admit ~ 0 + gre + gpa
+
+        Family: Bernoulli
+        Link: LogitLink
+
+        Coefficients:
+             gre      gpa
+        0.001562  -0.4823
+
+        Number of observations:                     400
+        Residual degrees of freedom:                398
+        Residual deviance:                      503.558"""
     @test dof(nointglm2) == 2
     @test deviance(nointglm2) ≈ 503.5584368354113
     @test nulldeviance(nointglm2) ≈ 554.5177444479574
@@ -1028,7 +1371,21 @@ end
                     wts=fweights(repeat(1:4; outer=18)), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3)
     @test GLM.cancancel(nointglm3.rr)
-    test_show(nointglm3)
+    @test sprint(show, "text/plain", nointglm3) == """
+        GeneralizedLinearModel
+
+        Formula: :(round(Postwt)) ~ 0 + Prewt + Treat
+
+        Family: Poisson
+        Link: LogLink
+
+        Coefficients:
+            Prewt  Treat: CBT  Treat: Cont  Treat: FT
+        -0.007008      0.6038       0.5654     0.6932
+
+        Number of observations:                     180
+        Residual degrees of freedom:                176
+        Residual deviance:                      90.1705"""
     @test deviance(nointglm3) ≈ 90.17048668870225
     @test nulldeviance(nointglm3) ≈ 159.32999067102548
     @test loglikelihood(nointglm3) ≈ -610.3058020030296
@@ -1050,7 +1407,21 @@ end
     @test !hasintercept(nointglm1)
     @test !GLM.cancancel(nointglm1.rr)
     @test isa(GLM.Link(nointglm1), InverseLink)
-    test_show(nointglm1)
+    @test sprint(show, "text/plain", nointglm1) == """
+        GeneralizedLinearModel
+
+        Formula: lot1 ~ 0 + u
+
+        Family: Gamma
+        Link: InverseLink
+
+        Coefficients:
+             u
+        0.0092
+
+        Number of observations:                       9
+        Residual degrees of freedom:                  8
+        Residual deviance:                      0.66299"""
     @test dof(nointglm1) == 2
     @test deviance(nointglm1) ≈ 0.6629903395245351
     @test isnan(nulldeviance(nointglm1))
@@ -1067,7 +1438,21 @@ end
     nointglm2 = glm(@formula(admit ~ 0 + gre + gpa), admit, Bernoulli(); method=dmethod)
     @test !hasintercept(nointglm2)
     @test GLM.cancancel(nointglm2.rr)
-    test_show(nointglm2)
+    @test sprint(show, "text/plain", nointglm2) == """
+        GeneralizedLinearModel
+
+        Formula: admit ~ 0 + gre + gpa
+
+        Family: Bernoulli
+        Link: LogitLink
+
+        Coefficients:
+             gre      gpa
+        0.001562  -0.4823
+
+        Number of observations:                     400
+        Residual degrees of freedom:                398
+        Residual deviance:                      503.558"""
     @test dof(nointglm2) == 2
     @test deviance(nointglm2) ≈ 503.5584368354113
     @test nulldeviance(nointglm2) ≈ 554.5177444479574
@@ -1086,7 +1471,21 @@ end
                     wts=fweights(repeat(1:4; outer=18)), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3)
     @test GLM.cancancel(nointglm3.rr)
-    test_show(nointglm3)
+    @test sprint(show, "text/plain", nointglm3) == """
+        GeneralizedLinearModel
+
+        Formula: :(round(Postwt)) ~ 0 + Prewt + Treat
+
+        Family: Poisson
+        Link: LogLink
+
+        Coefficients:
+            Prewt  Treat: CBT  Treat: Cont  Treat: FT
+        -0.007008      0.6038       0.5654     0.6932
+
+        Number of observations:                     180
+        Residual degrees of freedom:                176
+        Residual deviance:                      90.1705"""
     @test deviance(nointglm3) ≈ 90.17048668870225
     @test nulldeviance(nointglm3) ≈ 159.32999067102548
     @test loglikelihood(nointglm3) ≈ -610.3058020030296
