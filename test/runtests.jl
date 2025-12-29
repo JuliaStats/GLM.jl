@@ -871,6 +871,23 @@ end
             end
         end
     end
+    @testset "negbin with contrasts" begin
+        gm20b = negbin(@formula(Days ~ Eth + Sex + Age + Lrn), quine, LogLink(),
+                       contrasts=Dict(:Sex => EffectsCoding()))
+        test_show(gm20b)
+        @test dof(gm20b) == 8
+        @test isapprox(deviance(gm20b), 167.9518430624193, rtol=1e-7)
+        @test isapprox(nulldeviance(gm20b), 195.28668602703388, rtol=1e-7)
+        @test isapprox(loglikelihood(gm20b), -546.57550938017, rtol=1e-7)
+        @test isapprox(nullloglikelihood(gm20b), -560.2429308624774, rtol=1e-7)
+        @test isapprox(aic(gm20b), 1109.15101876034)
+        @test isapprox(aicc(gm20b), 1110.202113650851)
+        @test isapprox(bic(gm20b), 1133.0198717340068)
+        @test isapprox(coef(gm20b)[1:7],
+                       [2.9357217632468595, -0.5693411448715979,
+                        0.041194065435350515, -0.4484636623590206,
+                        0.08805060372902418, 0.3569553124412582, 0.2921383118842893])
+    end
 end
 
 @testset "Weighted NegativeBinomial LogLink, θ to be estimated with Cholesky" begin
@@ -880,17 +897,17 @@ end
                    wts=fweights(wts))
     test_show(gm20a)
     @test dof(gm20a) == 8
-    @test isapprox(deviance(gm20a), 164.45910399188858, rtol=1e-7)
-    @test isapprox(nulldeviance(gm20a), 191.14269166948384, rtol=1e-7)
-    @test isapprox(loglikelihood(gm20a), -546.596822900127, rtol=1e-7)
-    @test isapprox(nullloglikelihood(gm20a), -559.9386167389254, rtol=1e-7)
-    @test isapprox(aic(gm20a), 1109.193645800254)
-    @test isapprox(aicc(gm20a), 1110.244740690765)
-    @test isapprox(bic(gm20a), 1133.0624987739207)
+    @test isapprox(deviance(gm20a), 168.40402933035944, rtol=1e-7)
+    @test isapprox(nulldeviance(gm20a), 196.50242701899307, rtol=1e-7)
+    @test isapprox(loglikelihood(gm20a), -537.7760823254398, rtol=1e-7)
+    @test isapprox(nullloglikelihood(gm20a), -551.8252811697569, rtol=1e-7)
+    @test isapprox(aic(gm20a), 1091.5521646508796)
+    @test isapprox(aicc(gm20a), 1092.6032595413906)
+    @test isapprox(bic(gm20a), 1115.4210176245463)
     @test isapprox(coef(gm20a)[1:7],
-                   [2.894916710026395, -0.5694300339439156,
-                    0.08215779733345588, -0.44861865904551734,
-                    0.08783288494046998, 0.3568327292046044, 0.29190920267019166])
+                   [2.9531960459074083, -0.5991180517700114,
+                    0.09609289230162256, -0.48822247493829657,
+                    0.010246721844156351, 0.362004855234784, 0.24470519461989926])
 end
 
 @testset "NegativeBinomial LogLink, θ to be estimated with QR" begin

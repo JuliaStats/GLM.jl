@@ -44,14 +44,13 @@ function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractWeights;
 end
 
 """
-    negbin(formula, data, [link::Link];
+    negbin(formula::FormulaTerm, data, link::Union{Link,Nothing}=nothing;
            <keyword arguments>)
-    negbin(X::AbstractMatrix, y::AbstractVector, [link::Link];
+    negbin(X::AbstractMatrix, y::AbstractVector, link::Union{Link,Nothing}=nothing;
            <keyword arguments>)
 
 Fit a negative binomial generalized linear model to data, while simultaneously
-estimating the shape parameter θ. Extra arguments and keyword arguments will be
-passed to [`glm`](@ref).
+estimating the shape parameter θ. Arguments are the same as for [`glm`](@ref) except `initialθ`.
 
 In the first method, `formula` must be a
 [StatsModels.jl `Formula` object](https://juliastats.org/StatsModels.jl/stable/formula/)
@@ -59,30 +58,74 @@ and `data` a table (in the [Tables.jl](https://tables.juliadata.org/stable/) def
 In the second method, `X` must be a matrix holding values of the independent variable(s)
 in columns (including if appropriate the intercept), and `y` must be a vector holding
 values of the dependent variable.
-In both cases, `link` may specify the link function
-(if omitted, it is taken to be `NegativeBinomial(θ)`).
+
+In both cases, `link` may specify the link function. If omitted, it is taken to be
+`NegativeBinomialLink(θ)`.
 
 # Keyword Arguments
 - `initialθ::Real=Inf`: Starting value for shape parameter θ. If it is `Inf`
   then the initial value will be estimated by fitting a Poisson distribution.
-- `dropcollinear::Bool=true`: See `dropcollinear` for [`glm`](@ref)
-- `method::Symbol=:qr`: See `method` for [`glm`](@ref)
-- `maxiter::Integer=30`: See `maxiter` for [`glm`](@ref)
-- `atol::Real=1.0e-6`: See `atol` for [`glm`](@ref)
-- `rtol::Real=1.0e-6`: See `rtol` for [`glm`](@ref)
+$COMMON_FIT_KWARGS_DOCS
+- `offset::Union{AbstractVector{<:Real},Nothing}=nothing,`: offset added to `Xβ`
+  to form `eta`.  Can be of length 0.
+- `maxiter::Integer=30`: Maximum number of iterations allowed to achieve convergence
+- `atol::Real=1e-6`: Convergence is achieved when the relative change in
+  deviance is less than `max(rtol*dev, atol)`.
+- `rtol::Real=1e-6`: Convergence is achieved when the relative change in
+  deviance is less than `max(rtol*dev, atol)`.
+- `minstepfac::Real=0.001`: Minimum line step fraction. Must be between 0 and 1.
+- `start::Union{AbstractVector,Nothing}=nothing`: Starting values for beta. Should have the
+  same length as the number of columns in the model matrix.
 """
-function negbin(F,
-                D,
-                args...;
-                wts::AbstractVector{<:Real}=uweights(0),
+function negbin(X::AbstractMatrix, y::AbstractVector, l::Union{Link,Nothing}=nothing;
                 initialθ::Real=Inf,
+                offset::Union{AbstractVector{<:Real},Nothing}=nothing,
+                wts::AbstractVector{<:Real}=uweights(length(y)),
                 dropcollinear::Bool=true,
                 method::Symbol=:qr,
                 maxiter::Integer=30,
-                minstepfac::Real=0.001,
                 atol::Real=1e-6,
-                rtol::Real=1.e-6,
+                rtol::Real=1e-6,
+                minstepfac::Real=0.001,
+                start::Union{AbstractVector,Nothing}=nothing,
                 kwargs...)
+    return _negbin(X, y, l;
+                   initialθ, offset, wts, dropcollinear, method, contrasts=nothing,
+                   maxiter, atol, rtol, minstepfac, start, kwargs...)
+end
+function negbin(formula::FormulaTerm, data, l::Union{Link,Nothing}=nothing;
+                initialθ::Real=Inf,
+                offset::Union{AbstractVector{<:Real},Nothing}=nothing,
+                wts::AbstractVector{<:Real}=uweights(0),
+                dropcollinear::Bool=true,
+                method::Symbol=:qr,
+                contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
+                maxiter::Integer=30,
+                atol::Real=1e-6,
+                rtol::Real=1e-6,
+                minstepfac::Real=0.001,
+                start::Union{AbstractVector,Nothing}=nothing,
+                kwargs...)
+    return _negbin(formula, data, l;
+                   initialθ, offset, wts, dropcollinear, method, contrasts,
+                   maxiter, atol, rtol, minstepfac, start, kwargs...)
+end
+
+function _negbin(F,
+                 D,
+                 l::Union{Link,Nothing};
+                 initialθ::Real,
+                 offset::Union{AbstractVector{<:Real},Nothing},
+                 wts::AbstractVector{<:Real},
+                 dropcollinear::Bool,
+                 method::Symbol,
+                 contrasts::Union{AbstractDict{Symbol},Nothing},
+                 maxiter::Integer,
+                 atol::Real,
+                 rtol::Real,
+                 minstepfac::Real,
+                 start::Union{AbstractVector,Nothing},
+                 kwargs...)
     if haskey(kwargs, :verbose)
         Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""",
                      :negbin)
@@ -96,20 +139,18 @@ function negbin(F,
     rtol > 0 || throw(ArgumentError("rtol must be positive"))
     initialθ > 0 || throw(ArgumentError("initialθ must be positive"))
 
+    contrasts_kwarg = isnothing(contrasts) ? () : (contrasts=contrasts,)
+
     # fit a Poisson regression model if the user does not specify an initial θ
-    if isinf(initialθ)
-        regmodel = glm(F, D, Poisson(), args...;
-                       wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
-                       atol=atol, rtol=rtol, kwargs...)
-    else
-        regmodel = glm(F, D, NegativeBinomial(initialθ), args...;
-                       wts=wts, dropcollinear=dropcollinear, method=method, maxiter=maxiter,
-                       atol=atol, rtol=rtol, kwargs...)
-    end
+    distr = isinf(initialθ) ? Poisson() : NegativeBinomial(initialθ)
+    regmodel = glm(F, D, distr, something(l, canonicallink(distr));
+                   offset, wts, dropcollinear, method, contrasts,
+                   maxiter, atol, rtol, minstepfac, start, contrasts_kwarg...)
 
     μ = regmodel.rr.mu
     y = regmodel.rr.y
     wts = regmodel.rr.wts
+
     lw, ly = length(wts), length(y)
     if lw != ly
         throw(ArgumentError("length of `wts` must be $ly but was $lw"))
@@ -128,9 +169,9 @@ function negbin(F,
             break
         end
         @debug "NegativeBinomial dispersion optimization" iteration = i θ = θ
-        regmodel = glm(F, D, NegativeBinomial(θ), args...;
-                       dropcollinear=dropcollinear, method=method, maxiter=maxiter,
-                       atol=atol, rtol=rtol, kwargs...)
+        regmodel = glm(F, D, NegativeBinomial(θ), something(l, NegativeBinomialLink(θ));
+                       offset, wts, dropcollinear, method, contrasts,
+                       maxiter, atol, rtol, minstepfac, start, contrasts_kwarg...)
         μ = regmodel.rr.mu
         prevθ = θ
         θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)

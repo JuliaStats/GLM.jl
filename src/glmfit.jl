@@ -381,7 +381,7 @@ end
 dof(obj::GeneralizedLinearModel) = linpred_rank(obj) + dispersion_parameter(obj.rr.d)
 
 function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
-               atol::Real, rtol::Real, start)
+               atol::Real, rtol::Real, start::Union{AbstractVector,Nothing})
     # Return early if model has the fit flag set
     m.fit && return m
 
@@ -463,7 +463,7 @@ function StatsBase.fit!(m::AbstractGLM;
                         minstepfac::Real=0.001,
                         atol::Real=1e-6,
                         rtol::Real=1e-6,
-                        start=nothing,
+                        start::Union{AbstractVector,Nothing}=nothing,
                         kwargs...)
     if haskey(kwargs, :verbose)
         Base.depwarn("""`verbose` argument is deprecated, use `ENV["JULIA_DEBUG"]=GLM` instead.""",
@@ -483,7 +483,7 @@ end
 
 const FIT_GLM_DOC = """
     In the first method, `formula` must be a
-    [StatsModels.jl `Formula` object](https://juliastats.org/StatsModels.jl/stable/formula/)
+    [StatsModels.jl `FormulaTerm` object](https://juliastats.org/StatsModels.jl/stable/formula/)
     and `data` a table (in the [Tables.jl](https://tables.juliadata.org/stable/) definition, e.g., a data frame).
     In the second method, `X` must be a matrix holding values of the independent variable(s)
     in columns (including if appropriate the intercept), and `y` must be a vector holding
@@ -494,20 +494,20 @@ const FIT_GLM_DOC = """
 
     # Keyword Arguments
     $COMMON_FIT_KWARGS_DOCS
-    - `offset::Vector=similar(y,0)`: offset added to `Xβ` to form `eta`.  Can be of
-      length 0
+    - `offset::Union{AbstractVector{<:Real},Nothing}=nothing`: offset added to `Xβ` to form `eta`.
+      Can be of length 0.
     - `maxiter::Integer=30`: Maximum number of iterations allowed to achieve convergence
     - `atol::Real=1e-6`: Convergence is achieved when the relative change in
       deviance is less than `max(rtol*dev, atol)`.
     - `rtol::Real=1e-6`: Convergence is achieved when the relative change in
       deviance is less than `max(rtol*dev, atol)`.
     - `minstepfac::Real=0.001`: Minimum line step fraction. Must be between 0 and 1.
-    - `start::AbstractVector=nothing`: Starting values for beta. Should have the
+    - `start::Union{AbstractVector,Nothing}=nothing`: Starting values for beta. Should have the
       same length as the number of columns in the model matrix.
     """
 
 """
-    fit(GeneralizedLinearModel, formula, data,
+    fit(GeneralizedLinearModel, formula::FormulaTerm, data,
         distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
     fit(GeneralizedLinearModel, X::AbstractMatrix, y::AbstractVector,
         distr::UnivariateDistribution, link::Link = canonicallink(d); <keyword arguments>)
@@ -524,15 +524,22 @@ function fit(::Type{M},
              dropcollinear::Bool=true,
              method::Symbol=:qr,
              wts::AbstractVector{<:Real}=uweights(length(y)),
-             offset::AbstractVector{<:Real}=similar(y, 0),
-             fitargs...) where {M<:AbstractGLM}
+             offset::Union{AbstractVector{<:Real},Nothing}=nothing,
+             maxiter::Integer=30,
+             atol::Real=1e-6,
+             rtol::Real=1e-6,
+             minstepfac::Real=0.001,
+             start::Union{AbstractVector,Nothing}=nothing) where {M<:AbstractGLM}
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
         throw(DimensionMismatch("number of rows in X and y must match"))
     end
 
     _wts = convert_weights(wts, length(y))
-    rr = GlmResp(y, d, l, offset, _wts)
+
+    off = offset === nothing ? similar(y, 0) : offset
+
+    rr = GlmResp(y, d, l, off, _wts)
 
     if method === :cholesky
         res = M(rr, cholpred(X, dropcollinear, _wts), nothing, false)
@@ -542,15 +549,26 @@ function fit(::Type{M},
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
     end
 
-    return fit!(res; fitargs...)
+    return fit!(res; maxiter, atol, rtol, minstepfac, start)
 end
 
 function fit(::Type{M},
              X::AbstractMatrix,
              y::AbstractVector,
              d::UnivariateDistribution,
-             l::Link=canonicallink(d); kwargs...) where {M<:AbstractGLM}
-    return fit(M, float(X), float(y), d, l; kwargs...)
+             l::Link=canonicallink(d);
+             wts::AbstractVector{<:Real}=uweights(length(y)),
+             offset::Union{AbstractVector{<:Real},Nothing}=nothing,
+             dropcollinear::Bool=true,
+             method::Symbol=:qr,
+             maxiter::Integer=30,
+             atol::Real=1e-6,
+             rtol::Real=1e-6,
+             minstepfac::Real=0.001,
+             start::Union{AbstractVector,Nothing}=nothing) where {M<:AbstractGLM}
+    return fit(M, float(X), float(y), d, l;
+               offset, wts, dropcollinear, method,
+               maxiter, atol, rtol, minstepfac, start)
 end
 
 function fit(::Type{M},
@@ -559,13 +577,16 @@ function fit(::Type{M},
              d::UnivariateDistribution,
              l::Link=canonicallink(d);
              offset::Union{AbstractVector,Nothing}=nothing,
-             wts::Union{AbstractVector{<:Real},Nothing}=nothing,
+             wts::AbstractVector{<:Real}=uweights(0),
              dropcollinear::Bool=true,
              method::Symbol=:qr,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
-             fitargs...) where {M<:AbstractGLM}
+             maxiter::Integer=30,
+             atol::Real=1e-6,
+             rtol::Real=1e-6,
+             minstepfac::Real=0.001,
+             start::Union{AbstractVector,Nothing}=nothing) where {M<:AbstractGLM}
     f, (y, X) = modelframe(f, data, contrasts, M)
-    wts = wts === nothing ? uweights(0) : wts
     _wts = convert_weights(wts, length(y))
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
@@ -584,11 +605,11 @@ function fit(::Type{M},
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
     end
 
-    return fit!(res; fitargs...)
+    return fit!(res; maxiter, atol, rtol, minstepfac, start)
 end
 
 """
-    glm(formula, data,
+    glm(formula::FormulaTerm, data,
         distr::UnivariateDistribution, link::Link = canonicallink(distr); <keyword arguments>)
     glm(X::AbstractMatrix, y::AbstractVector,
         distr::UnivariateDistribution, link::Link = canonicallink(distr); <keyword arguments>)
@@ -597,7 +618,38 @@ Fit a generalized linear model to data. Alias for `fit(GeneralizedLinearModel, .
 
 $FIT_GLM_DOC
 """
-glm(X, y, args...; kwargs...) = fit(GeneralizedLinearModel, X, y, args...; kwargs...)
+function glm(X::AbstractMatrix, y::AbstractVector,
+             d::UnivariateDistribution, l::Link=canonicallink(d);
+             offset::Union{AbstractVector{<:Real},Nothing}=nothing,
+             wts::AbstractVector{<:Real}=uweights(length(y)),
+             dropcollinear::Bool=true,
+             method::Symbol=:qr,
+             maxiter::Integer=30,
+             atol::Real=1e-6,
+             rtol::Real=1e-6,
+             minstepfac::Real=0.001,
+             start::Union{AbstractVector,Nothing}=nothing)
+    return fit(GeneralizedLinearModel, X, y, d, l;
+               offset, wts, dropcollinear, method,
+               maxiter, atol, rtol, minstepfac, start)
+end
+
+function glm(formula::FormulaTerm, data, d::UnivariateDistribution,
+             l::Link=canonicallink(d);
+             offset::Union{AbstractVector{<:Real},Nothing}=nothing,
+             wts::AbstractVector{<:Real}=uweights(0),
+             dropcollinear::Bool=true,
+             method::Symbol=:qr,
+             contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
+             maxiter::Integer=30,
+             atol::Real=1e-6,
+             rtol::Real=1e-6,
+             minstepfac::Real=0.001,
+             start::Union{AbstractVector,Nothing}=nothing)
+    return fit(GeneralizedLinearModel, formula, data, d, l;
+               offset, wts, dropcollinear, method, contrasts,
+               maxiter, atol, rtol, minstepfac, start)
+end
 
 GLM.Link(r::GlmResp) = r.link
 GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
