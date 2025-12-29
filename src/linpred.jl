@@ -355,10 +355,30 @@ end
 
 stderror(x::LinPredModel) = sqrt.(diag(vcov(x)))
 
-function show(io::IO, obj::LinPredModel)
+function show(io::IO, ::MIME"text/plain", obj::LinPredModel)
     println(io, nameof(typeof(obj)), '\n')
-    obj.formula !== nothing && println(io, obj.formula, '\n')
-    return println(io, "Coefficients:\n", coeftable(obj))
+    obj.formula !== nothing && println(io, "Formula: ", obj.formula)
+
+    if obj isa GeneralizedLinearModel
+        println(io, "\nFamily: ", typeof(obj.rr.d).name.name)
+        println(io, "Link: ", typeof(obj.rr.link))
+    end
+
+    println(io, "\nCoefficients:")
+    _names = coefnames(obj)
+    _coef = [@sprintf("%.4g", c) for c in coef(obj)]
+    _max_length = [max(length(n), length(c)) for (n, c) in zip(_names, _coef)]
+    for (i, (n, l)) in enumerate(zip(_names, _max_length))
+        print(io, lpad(n, l + 2 * (i > 1)))
+    end
+    println(io)
+    for (i, (c, l)) in enumerate(zip(_coef, _max_length))
+        print(io, lpad(c, l + 2 * (i > 1)))
+    end
+
+    @printf(io, "\n\nNumber of observations: %23i", nobs(obj))
+    @printf(io, "\nResidual degrees of freedom: %18i", dof_residual(obj))
+    @printf(io, "\nResidual deviance: %28.6g", deviance(obj))
 end
 
 function modelframe(f::FormulaTerm, data, contrasts::AbstractDict, ::Type{M}) where {M}
