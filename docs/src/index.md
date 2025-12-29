@@ -268,8 +268,6 @@ Many of the methods provided by this package have names similar to those in [R](
 - `dof`: number of degrees of freedom consumed in the model
 - `dof_residual`: degrees of freedom for residuals, when meaningful
 - `fitted`: fitted values of the model
-- `glm`: fit a generalized linear model (an alias for `fit(GeneralizedLinearModel, ...)`)
-- `lm`: fit a linear model (an alias for `fit(LinearModel, ...)`)
 - `loglikelihood`: log-likelihood of the model
 - `modelmatrix`: design matrix
 - `nobs`: number of rows, or sum of the weights when prior weights are specified
