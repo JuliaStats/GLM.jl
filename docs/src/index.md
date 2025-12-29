@@ -85,12 +85,20 @@ julia> rng = StableRNG(1); # Ensure example can be reproduced
 julia> data = DataFrame(y = rand(rng, 100), x = categorical(repeat([1, 2, 3, 4], 25)));
 
 
-julia> lm(@formula(y ~ x), data)
+julia> ft = lm(@formula(y ~ x), data)
 LinearModel
 
-y ~ 1 + x
+Formula: y ~ 1 + x
 
 Coefficients:
+(Intercept)     x: 2     x: 3      x: 4
+      0.491  0.05277  0.09554  -0.03267
+
+Number of observations:                     100
+Residual degrees of freedom:                 96
+Residual deviance:                      7.63906
+
+julia> coeftable(ft)
 ───────────────────────────────────────────────────────────────────────────
                   Coef.  Std. Error      t  Pr(>|t|)   Lower 95%  Upper 95%
 ───────────────────────────────────────────────────────────────────────────
@@ -108,12 +116,20 @@ julia> using StableRNGs
 
 julia> data = DataFrame(y = rand(StableRNG(1), 100), x = repeat([1, 2, 3, 4], 25));
 
-julia> lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
+julia> ft = lm(@formula(y ~ x), data, contrasts = Dict(:x => DummyCoding()))
 LinearModel
 
-y ~ 1 + x
+Formula: y ~ 1 + x
 
 Coefficients:
+(Intercept)     x: 2     x: 3      x: 4
+      0.491  0.05277  0.09554  -0.03267
+
+Number of observations:                     100
+Residual degrees of freedom:                 96
+Residual deviance:                      7.63906
+
+julia> coeftable(ft)
 ───────────────────────────────────────────────────────────────────────────
                   Coef.  Std. Error      t  Pr(>|t|)   Lower 95%  Upper 95%
 ───────────────────────────────────────────────────────────────────────────
@@ -157,9 +173,17 @@ julia> data = DataFrame(y = rand(StableRNG(1), 100), x = randn(StableRNG(2), 100
 julia> m = lm(@formula(y ~ x), data)
 LinearModel
 
-y ~ 1 + x
+Formula: y ~ 1 + x
 
 Coefficients:
+(Intercept)         x
+     0.5174  -0.05002
+
+Number of observations:                     100
+Residual degrees of freedom:                 98
+Residual deviance:                      7.67239
+
+julia> coeftable(m)
 ──────────────────────────────────────────────────────────────────────────
                   Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
 ──────────────────────────────────────────────────────────────────────────
@@ -170,9 +194,17 @@ x            -0.0500249   0.0307201  -1.63    0.1066  -0.110988  0.0109382
 julia> m_aweights = lm(@formula(y ~ x), data, wts=aweights(data.weights))
 LinearModel
 
-y ~ 1 + x
+Formula: y ~ 1 + x
 
 Coefficients:
+(Intercept)         x
+     0.5167  -0.04787
+
+Number of observations:                     100
+Residual degrees of freedom:                 98
+Residual deviance:                      17.9526
+
+julia> coeftable(m_aweights)
 ──────────────────────────────────────────────────────────────────────────
                   Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
 ──────────────────────────────────────────────────────────────────────────
@@ -183,9 +215,17 @@ x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
 julia> m_fweights = lm(@formula(y ~ x), data, wts=fweights(data.weights))
 LinearModel
 
-y ~ 1 + x
+Formula: y ~ 1 + x
 
 Coefficients:
+(Intercept)         x
+     0.5167  -0.04787
+
+Number of observations:                     250
+Residual degrees of freedom:                248
+Residual deviance:                      17.9526
+
+julia> coeftable(m_fweights)
 ─────────────────────────────────────────────────────────────────────────────
                   Coef.  Std. Error      t  Pr(>|t|)   Lower 95%    Upper 95%
 ─────────────────────────────────────────────────────────────────────────────
@@ -196,16 +236,23 @@ x            -0.0478667   0.0193863  -2.47    0.0142  -0.0860494  -0.00968394
 julia> m_pweights = lm(@formula(y ~ x), data, wts=pweights(data.weights))
 LinearModel
 
-y ~ 1 + x
+Formula: y ~ 1 + x
 
 Coefficients:
+(Intercept)         x
+     0.5167  -0.04787
+
+Number of observations:                     100
+Residual degrees of freedom:                 98
+Residual deviance:                      7.18102
+
+julia> coeftable(m_pweights)
 ───────────────────────────────────────────────────────────────────────────
                   Coef.  Std. Error      t  Pr(>|t|)  Lower 95%   Upper 95%
 ───────────────────────────────────────────────────────────────────────────
 (Intercept)   0.51673     0.0287193  17.99    <1e-32   0.459737  0.573722
 x            -0.0478667   0.0265532  -1.80    0.0745  -0.100561  0.00482739
 ───────────────────────────────────────────────────────────────────────────
-
 ```
 
 !!! warning

@@ -22,9 +22,17 @@ julia> data = DataFrame(X=[1,2,3], Y=[2,4,7])
 julia> ols = lm(@formula(Y ~ X), data)
 LinearModel
 
-Y ~ 1 + X
+Formula: Y ~ 1 + X
 
 Coefficients:
+(Intercept)    X
+    -0.6667  2.5
+
+Number of observations:                       3
+Residual degrees of freedom:                  1
+Residual deviance:                     0.166667
+
+julia> coeftable(ols)
 ─────────────────────────────────────────────────────────────────────────
                  Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
 ─────────────────────────────────────────────────────────────────────────
@@ -94,9 +102,17 @@ julia> data = DataFrame(X=[1,2,3], Y=[2,4,7]);
 julia> ols = lm(@formula(Y ~ X), data; method=:qr)
 LinearModel
 
-Y ~ 1 + X
+Formula: Y ~ 1 + X
 
 Coefficients:
+(Intercept)    X
+    -0.6667  2.5
+
+Number of observations:                       3
+Residual degrees of freedom:                  1
+Residual deviance:                     0.166667
+
+julia> coeftable(ols)
 ─────────────────────────────────────────────────────────────────────────
                  Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
 ─────────────────────────────────────────────────────────────────────────
@@ -133,24 +149,26 @@ julia> y = [4.362866166172215,
 julia> modelqr = lm(X, y; method=:qr)
 LinearModel
 
+
 Coefficients:
-────────────────────────────────────────────────────────────────
-       Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
-────────────────────────────────────────────────────────────────
-x1   5.00389   0.0560164   89.33    <1e-12    4.87472    5.13307
-x2  10.0025    0.035284   283.48    <1e-16    9.92109   10.0838
-────────────────────────────────────────────────────────────────
+   x1  x2
+5.004  10
+
+Number of observations:                      10
+Residual degrees of freedom:                  8
+Residual deviance:                   9.9597e-17
 
 julia> modelchol = lm(X, y; method=:cholesky)
 LinearModel
 
+
 Coefficients:
-────────────────────────────────────────────────────────────────
-       Coef.  Std. Error       t  Pr(>|t|)  Lower 95%  Upper 95%
-────────────────────────────────────────────────────────────────
-x1   5.17647   0.0849184   60.96    <1e-11    4.98065    5.37229
-x2  10.1112    0.053489   189.03    <1e-15    9.98781   10.2345
-────────────────────────────────────────────────────────────────
+   x1     x2
+5.176  10.11
+
+Number of observations:                      10
+Residual degrees of freedom:                  8
+Residual deviance:                  2.17763e-16
 
 julia> loglikelihood(modelqr) > loglikelihood(modelchol)
 true
@@ -180,33 +198,31 @@ julia> x = [4570.2001953125, 2830, 596.799987792968, 133.600006103515, 42, 390, 
 
 julia> rdchem = DataFrame(rdintens=y, sales=x);
 
-julia> mdl = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:cholesky)
+julia> ft_cholesky = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:cholesky)
 LinearModel
 
-rdintens ~ 1 + sales + :(sales ^ 2)
+Formula: rdintens ~ 1 + sales + :(sales ^ 2)
 
 Coefficients:
-───────────────────────────────────────────────────────────────────────────────────────
-                    Coef.     Std. Error       t  Pr(>|t|)      Lower 95%     Upper 95%
-───────────────────────────────────────────────────────────────────────────────────────
-(Intercept)   0.0          NaN            NaN       NaN     NaN            NaN
-sales         0.000852509    0.000156784    5.44    <1e-05    0.000532313    0.00117271
-sales ^ 2    -1.97385e-8     4.56287e-9    -4.33    0.0002   -2.90571e-8    -1.04199e-8
-───────────────────────────────────────────────────────────────────────────────────────
+(Intercept)      sales   sales ^ 2
+          0  0.0008525  -1.974e-08
 
-julia> mdl = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:qr)
+Number of observations:                      32
+Residual degrees of freedom:                 30
+Residual deviance:                      210.956
+
+julia> ft_qr = lm(@formula(rdintens ~ sales + sales^2), rdchem; method=:qr)
 LinearModel
 
-rdintens ~ 1 + sales + :(sales ^ 2)
+Formula: rdintens ~ 1 + sales + :(sales ^ 2)
 
 Coefficients:
-─────────────────────────────────────────────────────────────────────────────────
-                    Coef.   Std. Error      t  Pr(>|t|)    Lower 95%    Upper 95%
-─────────────────────────────────────────────────────────────────────────────────
-(Intercept)   2.61251      0.429442      6.08    <1e-05   1.73421     3.49082
-sales         0.000300571  0.000139295   2.16    0.0394   1.56805e-5  0.000585462
-sales ^ 2    -6.94594e-9   3.72614e-9   -1.86    0.0725  -1.45667e-8  6.7487e-10
-─────────────────────────────────────────────────────────────────────────────────
+(Intercept)      sales   sales ^ 2
+      2.613  0.0003006  -6.946e-09
+
+Number of observations:                      32
+Residual degrees of freedom:                 29
+Residual deviance:                      92.6802
 ```
 
 
@@ -224,15 +240,18 @@ julia> data = DataFrame(X=[1,2,2], Y=[1,0,1])
 julia> probit = glm(@formula(Y ~ X), data, Binomial(), ProbitLink())
 GeneralizedLinearModel
 
-Y ~ 1 + X
+Formula: Y ~ 1 + X
+
+Family: Binomial
+Link: ProbitLink
 
 Coefficients:
-────────────────────────────────────────────────────────────────────────
-                Coef.  Std. Error      z  Pr(>|z|)  Lower 95%  Upper 95%
-────────────────────────────────────────────────────────────────────────
-(Intercept)   9.63839     293.909   0.03    0.9738   -566.414    585.69
-X            -4.81919     146.957  -0.03    0.9738   -292.849    283.211
-────────────────────────────────────────────────────────────────────────
+(Intercept)       X
+      9.638  -4.819
+
+Number of observations:                       3
+Residual degrees of freedom:                  1
+Residual deviance:                      2.77259
 ```
 
 ## Negative binomial regression
@@ -265,38 +284,34 @@ julia> quine = dataset("MASS", "quine")
 julia> nbrmodel = glm(@formula(Days ~ Eth+Sex+Age+Lrn), quine, NegativeBinomial(2.0), LogLink())
 GeneralizedLinearModel
 
-Days ~ 1 + Eth + Sex + Age + Lrn
+Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+Family: NegativeBinomial
+Link: LogLink
 
 Coefficients:
-────────────────────────────────────────────────────────────────────────────
-                  Coef.  Std. Error      z  Pr(>|z|)   Lower 95%   Upper 95%
-────────────────────────────────────────────────────────────────────────────
-(Intercept)   2.88645      0.227144  12.71    <1e-36   2.44125     3.33164
-Eth: N       -0.567515     0.152449  -3.72    0.0002  -0.86631    -0.26872
-Sex: M        0.0870771    0.159025   0.55    0.5840  -0.224606    0.398761
-Age: F1      -0.445076     0.239087  -1.86    0.0627  -0.913678    0.0235251
-Age: F2       0.0927999    0.234502   0.40    0.6923  -0.366816    0.552416
-Age: F3       0.359485     0.246586   1.46    0.1449  -0.123814    0.842784
-Lrn: SL       0.296768     0.185934   1.60    0.1105  -0.0676559   0.661191
-────────────────────────────────────────────────────────────────────────────
+(Intercept)   Eth: N   Sex: M  Age: F1  Age: F2  Age: F3  Lrn: SL
+      2.886  -0.5675  0.08708  -0.4451   0.0928   0.3595   0.2968
+
+Number of observations:                     146
+Residual degrees of freedom:                139
+Residual deviance:                      239.111
 
 julia> nbrmodel = negbin(@formula(Days ~ Eth+Sex+Age+Lrn), quine, LogLink())
 GeneralizedLinearModel
 
-Days ~ 1 + Eth + Sex + Age + Lrn
+Formula: Days ~ 1 + Eth + Sex + Age + Lrn
+
+Family: NegativeBinomial
+Link: LogLink
 
 Coefficients:
-────────────────────────────────────────────────────────────────────────────
-                  Coef.  Std. Error      z  Pr(>|z|)   Lower 95%   Upper 95%
-────────────────────────────────────────────────────────────────────────────
-(Intercept)   2.89453      0.227415  12.73    <1e-36   2.4488      3.34025
-Eth: N       -0.569341     0.152656  -3.73    0.0002  -0.868541   -0.270141
-Sex: M        0.0823881    0.159209   0.52    0.6048  -0.229655    0.394431
-Age: F1      -0.448464     0.238687  -1.88    0.0603  -0.916281    0.0193536
-Age: F2       0.0880506    0.235149   0.37    0.7081  -0.372834    0.548935
-Age: F3       0.356955     0.247228   1.44    0.1488  -0.127602    0.841513
-Lrn: SL       0.292138     0.18565    1.57    0.1156  -0.0717297   0.656006
-────────────────────────────────────────────────────────────────────────────
+(Intercept)   Eth: N   Sex: M  Age: F1  Age: F2  Age: F3  Lrn: SL
+      2.895  -0.5693  0.08239  -0.4485  0.08805    0.357   0.2921
+
+Number of observations:                     146
+Residual degrees of freedom:                139
+Residual deviance:                      167.952
 
 julia> println("Estimated theta = ", round(nbrmodel.rr.d.r, digits=5))
 Estimated theta = 1.27489
@@ -329,12 +344,7 @@ julia> form = dataset("datasets", "Formaldehyde")
    5 │     0.7    0.626
    6 │     0.9    0.782
 
-julia> lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
-LinearModel
-
-OptDen ~ 1 + Carb
-
-Coefficients:
+julia> coeftable(fit(LinearModel, @formula(OptDen ~ Carb), form))
 ───────────────────────────────────────────────────────────────────────────
                   Coef.  Std. Error      t  Pr(>|t|)   Lower 95%  Upper 95%
 ───────────────────────────────────────────────────────────────────────────
@@ -378,12 +388,7 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
   50 │ Malaysia           4.71    47.2      0.66   242.69     5.08
                                                     35 rows omitted
 
-julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
-LinearModel
-
-SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
-
-Coefficients:
+julia> coeftable(fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings))
 ─────────────────────────────────────────────────────────────────────────────────
                     Coef.   Std. Error      t  Pr(>|t|)    Lower 95%    Upper 95%
 ─────────────────────────────────────────────────────────────────────────────────
@@ -469,12 +474,12 @@ In Julia this becomes
 ```jldoctest
 julia> using DataFrames, CategoricalArrays, GLM
 
-julia> dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
+julia> dobson = DataFrame(Counts    = [18.0,17,15,20,10,21,25,13,13],
                           Outcome   = categorical([1,2,3,1,2,3,1,2,3]),
                           Treatment = categorical([1,1,1,2,2,2,3,3,3]))
 9×3 DataFrame
- Row │ Counts   Outcome  Treatment 
-     │ Float64  Cat…     Cat…      
+ Row │ Counts   Outcome  Treatment
+     │ Float64  Cat…     Cat…
 ─────┼─────────────────────────────
    1 │    18.0  1        1
    2 │    17.0  2        1
@@ -489,9 +494,20 @@ julia> dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
 julia> gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
 GeneralizedLinearModel
 
-Counts ~ 1 + Outcome + Treatment
+Formula: Counts ~ 1 + Outcome + Treatment
+
+Family: Poisson
+Link: LogLink
 
 Coefficients:
+(Intercept)  Outcome: 2  Outcome: 3  Treatment: 2  Treatment: 3
+      3.031     -0.4543     -0.2513        0.0198        0.0198
+
+Number of observations:                       9
+Residual degrees of freedom:                  4
+Residual deviance:                      5.11746
+
+julia> coeftable(gm1)
 ────────────────────────────────────────────────────────────────────────────
                    Coef.  Std. Error      z  Pr(>|z|)  Lower 95%   Upper 95%
 ────────────────────────────────────────────────────────────────────────────
@@ -501,9 +517,6 @@ Outcome: 3    -0.251314     0.190476  -1.32    0.1870  -0.624641   0.122012
 Treatment: 2   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
 Treatment: 3   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
 ────────────────────────────────────────────────────────────────────────────
-
-julia> round(deviance(gm1), digits=5)
-5.11746
 ```
 
 ## Linear regression with PowerLink
@@ -525,16 +538,18 @@ julia> round(optimal_bic.minimizer, digits = 5) # Optimal λ
 julia> glm(@formula(Volume ~ Height + Girth), trees, Normal(), PowerLink(optimal_bic.minimizer)) # Best model
 GeneralizedLinearModel
 
-Volume ~ 1 + Height + Girth
+Formula: Volume ~ 1 + Height + Girth
+
+Family: Normal
+Link: PowerLink
 
 Coefficients:
-────────────────────────────────────────────────────────────────────────────
-                  Coef.  Std. Error      z  Pr(>|z|)   Lower 95%   Upper 95%
-────────────────────────────────────────────────────────────────────────────
-(Intercept)  -1.07586    0.352543    -3.05    0.0023  -1.76684    -0.384892
-Height        0.0232172  0.00523331   4.44    <1e-05   0.0129601   0.0334743
-Girth         0.242837   0.00922556  26.32    <1e-99   0.224756    0.260919
-────────────────────────────────────────────────────────────────────────────
+(Intercept)   Height   Girth
+     -1.076  0.02322  0.2428
+
+Number of observations:                      31
+Residual degrees of freedom:                 28
+Residual deviance:                      180.804
 
 julia> round(optimal_bic.minimum, digits=5)
 156.37638
