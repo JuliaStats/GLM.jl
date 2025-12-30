@@ -277,10 +277,6 @@ function coeftable(mm::AbstractGLM; level::Real=0.95, test::Symbol=:z)
         distr = Normal()
         tstr, pstr = "z", "Pr(>|z|)"
     elseif test === :t
-        dispersion_parameter(mm.rr.d) ||
-            throw(ArgumentError("`test=:t` is not appropriate for models with " *
-                                "$(nameof(typeof(mm.rr.d))) distribution as " *
-                                "dispersion parameter is not estimated"))
         distr = TDist(dof_residual(mm))
         tstr, pstr = "t", "Pr(>|t|)"
     else
