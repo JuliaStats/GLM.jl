@@ -123,9 +123,9 @@ const FIT_LM_DOC = """
 
 """
     fit(LinearModel, formula, data, allowrankdeficient=false;
-       [wts::FrequencyWeights], dropcollinear::Bool=true)
+       [weights::FrequencyWeights], dropcollinear::Bool=true)
     fit(LinearModel, X::AbstractMatrix, y::AbstractVector;
-        wts::FrequencyWeights=fweights(similar(y, 0)), dropcollinear::Bool=true)
+        weights::FrequencyWeights=fweights(similar(y, 0)), dropcollinear::Bool=true)
 
 Fit a linear model to data.
 
@@ -133,7 +133,8 @@ $FIT_LM_DOC
 """
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real},
              allowrankdeficient_dep::Union{Bool,Nothing}=nothing;
-             wts::AbstractVector{<:Real}=fweights(similar(y, 0)),
+             weights::AbstractVector{<:Real}=fweights(similar(y, 0)),
+             wts::Union{AbstractVector{<:Real},Nothing}=nothing,
              dropcollinear::Bool=true)
     if allowrankdeficient_dep !== nothing
         @warn "Positional argument `allowrankdeficient` is deprecated, use keyword " *
@@ -141,23 +142,29 @@ function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<
         dropcollinear = allowrankdeficient_dep
     end
 
-    wts isa FrequencyWeights ||
+    if wts !== nothing
+        Base.depwarn("`wts` keyword argument is deprecated, use `weights` instead",
+                     :fit)
+        weights = wts
+    end
+
+    weights isa FrequencyWeights ||
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
                      "`FrequencyWeights` from StatsBase. " *
-                     "Proceeding by coercing `wts` to `FrequencyWeights`.",
+                     "Proceeding by coercing weights vector to `FrequencyWeights`.",
                      :fit)
 
-    fit!(LinearModel(LmResp(y, wts), cholpred(X, dropcollinear)))
+    fit!(LinearModel(LmResp(y, weights), cholpred(X, dropcollinear)))
 end
 
 """
     lm(formula, data, allowrankdeficient=false;
-       [wts::FrequencyWeights], dropcollinear::Bool=true)
+       [weights::FrequencyWeights], dropcollinear::Bool=true)
     lm(X::AbstractMatrix, y::AbstractVector;
-       wts::FrequencyWeights=fweights(Float64[]), dropcollinear::Bool=true)
+       weights::FrequencyWeights=fweights(Float64[]), dropcollinear::Bool=true)
 
 Fit a linear model to data.
-An alias for `fit(LinearModel, X, y; wts=wts, dropcollinear=dropcollinear)`
+An alias for `fit(LinearModel, X, y; weights=weights, dropcollinear=dropcollinear)`
 
 $FIT_LM_DOC
 """

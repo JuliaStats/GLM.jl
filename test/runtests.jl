@@ -87,8 +87,8 @@ end
     N = nrow(df)
     df.weights = repeat(1:5, Int(N/5))
     f = @formula(FoodExp ~ Income)
-    lm_model = lm(f, df, wts = fweights(df.weights))
-    glm_model = glm(f, df, Normal(), wts = fweights(df.weights))
+    lm_model = lm(f, df, weights = fweights(df.weights))
+    glm_model = glm(f, df, Normal(), weights = fweights(df.weights))
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
@@ -105,11 +105,28 @@ end
     @test_logs (:warn,
         "Passing weights as vector is deprecated in favor of explicitly using " *
         "`FrequencyWeights` from StatsBase. " *
-        "Proceeding by coercing `wts` to `FrequencyWeights`.") lm_model = lm(f, df, wts = df.weights)
+        "Proceeding by coercing weights vector to `FrequencyWeights`.") lm_model = lm(f, df, weights = df.weights)
     @test_logs (:warn,
         "Passing weights as vector is deprecated in favor of explicitly using " *
         "`FrequencyWeights` from StatsBase. " *
-        "Proceeding by coercing `wts` to `FrequencyWeights`.") glm_model = glm(f, df, Normal(), wts = df.weights)
+        "Proceeding by coercing weights vector to `FrequencyWeights`.") glm_model = glm(f, df, Normal(), weights = df.weights)
+    @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
+    @test isapprox(r2(lm_model), 0.8330258148644486)
+    @test isapprox(adjr2(lm_model), 0.832788298242634)
+    @test isapprox(vcov(lm_model), [88.02760245551447 -0.06772589439264813;
+                                    -0.06772589439264813 6.670664781664879e-5])
+    @test isapprox(first(predict(lm_model)), 357.57694841780994)
+    @test isapprox(loglikelihood(lm_model), -4353.946729075838)
+    @test isapprox(loglikelihood(glm_model), -4353.946729075838)
+    @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
+    @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
+
+    @test_logs (:warn,
+        "`wts` keyword argument is deprecated, use `weights` instead") lm_model = lm(f, df, wts = df.weights)
+    @test_logs (:warn,
+        "`wts` keyword argument is deprecated, use `weights` instead") glm_model = glm(f, df, Normal(), wts = df.weights)
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
@@ -126,12 +143,32 @@ end
     lm_model = @test_logs((:warn,
         "Passing weights as vector is deprecated in favor of explicitly using " *
         "`FrequencyWeights` from StatsBase. " *
-        "Proceeding by coercing `wts` to `FrequencyWeights`."),
-        fit(LinearModel, f, df, wts = df.weights))
+        "Proceeding by coercing weights vector to `FrequencyWeights`."),
+        fit(LinearModel, f, df, weights = df.weights))
     glm_model = @test_logs((:warn,
         "Passing weights as vector is deprecated in favor of explicitly using " *
         "`FrequencyWeights` from StatsBase. " *
-        "Proceeding by coercing `wts` to `FrequencyWeights`."),
+        "Proceeding by coercing weights vector to `FrequencyWeights`."),
+        fit(GeneralizedLinearModel, f, df, Normal(), weights = df.weights))
+    @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
+    @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
+    @test isapprox(r2(lm_model), 0.8330258148644486)
+    @test isapprox(adjr2(lm_model), 0.832788298242634)
+    @test isapprox(vcov(lm_model), [88.02760245551447 -0.06772589439264813;
+                                    -0.06772589439264813 6.670664781664879e-5])
+    @test isapprox(first(predict(lm_model)), 357.57694841780994)
+    @test isapprox(loglikelihood(lm_model), -4353.946729075838)
+    @test isapprox(loglikelihood(glm_model), -4353.946729075838)
+    @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
+    @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
+
+
+    lm_model = @test_logs((:warn,
+        "`wts` keyword argument is deprecated, use `weights` instead"),
+        fit(LinearModel, f, df, wts = df.weights))
+    glm_model = @test_logs((:warn,
+        "`wts` keyword argument is deprecated, use `weights` instead"),
         fit(GeneralizedLinearModel, f, df, Normal(), wts = df.weights))
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
@@ -481,7 +518,7 @@ end
 @testset "Poisson LogLink offset with weights" begin
     gm7pw = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat), anorexia,
                 Poisson(), LogLink(), offset=log.(anorexia.Prewt),
-                wts=fweights(repeat(1:4, outer=18)), rtol=1e-8)
+                weights=fweights(repeat(1:4, outer=18)), rtol=1e-8)
 
     @test GLM.cancancel(gm7pw.model.rr)
     test_show(gm7pw)
@@ -579,7 +616,7 @@ admit_agr = DataFrame(count = [28., 97, 93, 55, 33, 54, 28, 12],
 @testset "Aggregated Binomial LogitLink" begin
     for distr in (Binomial, Bernoulli)
         gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
-                   wts=fweights(admit_agr.count))
+                   weights=fweights(admit_agr.count))
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
         @test isapprox(deviance(gm14), 474.9667184280627)
@@ -602,7 +639,7 @@ admit_agr2.p = admit_agr2.admit ./ admit_agr2.count
 ## The model matrix here is singular so tests like the deviance are just round off error
 @testset "Binomial LogitLink aggregated" begin
     gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial(),
-               wts=fweights(admit_agr2.count))
+               weights=fweights(admit_agr2.count))
     test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
@@ -619,7 +656,7 @@ end
 # Weighted Gamma example (weights are totally made up)
 @testset "Gamma InverseLink Weights" begin
     gm16 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma(),
-               wts=fweights([1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7]))
+               weights=fweights([1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7]))
     test_show(gm16)
     @test dof(gm16) == 3
     @test nobs(gm16) == 32.7
@@ -636,7 +673,7 @@ end
 # Weighted Poisson example (weights are totally made up)
 @testset "Poisson LogLink Weights" begin
     gm17 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson(),
-        wts = fweights([1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7]))
+        weights = fweights([1.5,2.0,1.1,4.5,2.4,3.5,5.6,5.4,6.7]))
     test_show(gm17)
     @test dof(gm17) == 5
     @test isapprox(deviance(gm17), 17.699857821414266)
@@ -811,7 +848,7 @@ end
     # Poisson with categorical predictors, weights and offset
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat), anorexia,
                     Poisson(), LogLink(); offset=log.(anorexia.Prewt),
-                    wts=fweights(repeat(1:4, outer=18)), rtol=1e-8, dropcollinear=false)
+                    weights=fweights(repeat(1:4, outer=18)), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3.model)
     @test GLM.cancancel(nointglm3.model.rr)
     test_show(nointglm3)
@@ -1358,14 +1395,14 @@ end
         lm4 = lm(view(x, :, :), view(y, :))
         @test coef(lm1) == coef(lm2) == coef(lm3) == coef(lm4)
 
-        lm5 = lm(x, y, wts=fweights(w))
-        lm6 = lm(x, view(y, :), wts=fweights(w))
-        lm7 = lm(view(x, :, :), y, wts=fweights(w))
-        lm8 = lm(view(x, :, :), view(y, :), wts=fweights(w))
-        lm9 = lm(x, y, wts=fweights(view(w, :)))
-        lm10 = lm(x, view(y, :), wts=fweights(view(w, :)))
-        lm11 = lm(view(x, :, :), y, wts=fweights(view(w, :)))
-        lm12 = lm(view(x, :, :), view(y, :), wts=fweights(view(w, :)))
+        lm5 = lm(x, y, weights=fweights(w))
+        lm6 = lm(x, view(y, :), weights=fweights(w))
+        lm7 = lm(view(x, :, :), y, weights=fweights(w))
+        lm8 = lm(view(x, :, :), view(y, :), weights=fweights(w))
+        lm9 = lm(x, y, weights=fweights(view(w, :)))
+        lm10 = lm(x, view(y, :), weights=fweights(view(w, :)))
+        lm11 = lm(view(x, :, :), y, weights=fweights(view(w, :)))
+        lm12 = lm(view(x, :, :), view(y, :), weights=fweights(view(w, :)))
         @test coef(lm5) == coef(lm6) == coef(lm7) == coef(lm8) == coef(lm9) == coef(lm10) ==
             coef(lm11) == coef(lm12)
 
@@ -1376,14 +1413,14 @@ end
         glm4 = glm(view(x, :, :), view(y, :), Binomial())
         @test coef(glm1) == coef(glm2) == coef(glm3) == coef(glm4)
 
-        glm5 = glm(x, y, Binomial(), wts=fweights(w))
-        glm6 = glm(x, view(y, :), Binomial(), wts=fweights(w))
-        glm7 = glm(view(x, :, :), y, Binomial(), wts=fweights(w))
-        glm8 = glm(view(x, :, :), view(y, :), Binomial(), wts=fweights(w))
-        glm9 = glm(x, y, Binomial(), wts=fweights(view(w, :)))
-        glm10 = glm(x, view(y, :), Binomial(), wts=fweights(view(w, :)))
-        glm11 = glm(view(x, :, :), y, Binomial(), wts=fweights(view(w, :)))
-        glm12 = glm(view(x, :, :), view(y, :), Binomial(), wts=fweights(view(w, :)))
+        glm5 = glm(x, y, Binomial(), weights=fweights(w))
+        glm6 = glm(x, view(y, :), Binomial(), weights=fweights(w))
+        glm7 = glm(view(x, :, :), y, Binomial(), weights=fweights(w))
+        glm8 = glm(view(x, :, :), view(y, :), Binomial(), weights=fweights(w))
+        glm9 = glm(x, y, Binomial(), weights=fweights(view(w, :)))
+        glm10 = glm(x, view(y, :), Binomial(), weights=fweights(view(w, :)))
+        glm11 = glm(view(x, :, :), y, Binomial(), weights=fweights(view(w, :)))
+        glm12 = glm(view(x, :, :), view(y, :), Binomial(), weights=fweights(view(w, :)))
         @test coef(glm5) == coef(glm6) == coef(glm7) == coef(glm8) == coef(glm9) == coef(glm10) ==
             coef(glm11) == coef(glm12)
     end

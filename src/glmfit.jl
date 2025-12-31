@@ -282,7 +282,7 @@ function nulldeviance(m::GeneralizedLinearModel)
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, r.link; wts=wts, offset=offset,
+                    X, y, d, r.link; weights=wts, offset=offset,
                     dropcollinear=isa(m.pp.chol, CholeskyPivoted),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
@@ -337,7 +337,7 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, r.link; wts=wts, offset=offset,
+                    X, y, d, r.link; weights=wts, offset=offset,
                     dropcollinear=isa(m.pp.chol, CholeskyPivoted),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
                     atol=m.atol, rtol=m.rtol)
@@ -533,7 +533,8 @@ const FIT_GLM_DOC = """
       Typically from a set of linearly-dependent columns the last ones are identified as redundant
       (however, the exact selection of columns identified as redundant is not guaranteed).
     - `dofit::Bool=true`: Determines whether model will be fit
-    - `wts::FrequencyWeights=fweights(similar(y, 0))`: Prior frequency (a.k.a. case) weights of observations.
+    - `weights::FrequencyWeights=fweights(similar(y, 0))`: Prior frequency (a.k.a. case) weights
+      of observations.
       Such weights are equivalent to repeating each observation a number of times equal
       to its weight. Do note that this interpretation gives equal point estimates but
       different standard errors from analytical (a.k.a. inverse variance) weights and
@@ -570,7 +571,8 @@ function fit(::Type{M},
     l::Link = canonicallink(d);
     dropcollinear::Bool = true,
     dofit::Bool = true,
-    wts::AbstractVector{<:Real} = fweights(similar(y, 0)),
+    weights::AbstractVector{<:Real} = fweights(similar(y, 0)),
+    wts::Union{AbstractVector{<:Real},Nothing} = nothing,
     offset::AbstractVector{<:Real}   = similar(y, 0),
     fitargs...) where {M<:AbstractGLM}
 
@@ -579,13 +581,19 @@ function fit(::Type{M},
         throw(DimensionMismatch("number of rows in X and y must match"))
     end
 
-    wts isa FrequencyWeights ||
+    if wts !== nothing
+        Base.depwarn("`wts` keyword argument is deprecated, use `weights` instead",
+                     :fit)
+        weights = wts
+    end
+
+    weights isa FrequencyWeights ||
         Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
                     "`FrequencyWeights` from StatsBase. " *
-                    "Proceeding by coercing `wts` to `FrequencyWeights`.",
+                    "Proceeding by coercing weights vector to `FrequencyWeights`.",
                     :fit)
 
-    rr = GlmResp(y, d, l, offset, wts)
+    rr = GlmResp(y, d, l, offset, weights)
     res = M(rr, cholpred(X, dropcollinear), false)
     return dofit ? fit!(res; fitargs...) : res
 end
