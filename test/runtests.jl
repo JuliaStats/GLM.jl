@@ -123,10 +123,12 @@ end
     @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
     @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
 
-    @test_logs (:warn,
-        "`wts` keyword argument is deprecated, use `weights` instead") lm_model = lm(f, df, wts = df.weights)
-    @test_logs (:warn,
-        "`wts` keyword argument is deprecated, use `weights` instead") glm_model = glm(f, df, Normal(), wts = df.weights)
+    @test_logs((:warn,
+        "`wts` keyword argument is deprecated, use `weights` instead"),
+        lm_model = lm(f, df, wts = fweights(df.weights)))
+    @test_logs((:warn,
+        "`wts` keyword argument is deprecated, use `weights` instead"),
+        glm_model = glm(f, df, Normal(), wts = fweights(df.weights)))
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
@@ -166,10 +168,10 @@ end
 
     lm_model = @test_logs((:warn,
         "`wts` keyword argument is deprecated, use `weights` instead"),
-        fit(LinearModel, f, df, wts = df.weights))
+        fit(LinearModel, f, df, wts = fweights(df.weights)))
     glm_model = @test_logs((:warn,
         "`wts` keyword argument is deprecated, use `weights` instead"),
-        fit(GeneralizedLinearModel, f, df, Normal(), wts = df.weights))
+        fit(GeneralizedLinearModel, f, df, Normal(), wts = fweights(df.weights)))
     @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
     @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
