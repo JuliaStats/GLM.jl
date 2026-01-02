@@ -80,7 +80,7 @@ $COMMON_FIT_KWARGS_DOCS
 function negbin(X::AbstractMatrix, y::AbstractVector, l::Union{Link,Nothing}=nothing;
                 initialθ::Real=Inf,
                 offset::Union{AbstractVector{<:Real},Nothing}=nothing,
-                wts::AbstractVector{<:Real}=uweights(length(y)),
+                weights::AbstractVector{<:Real}=uweights(length(y)),
                 dropcollinear::Bool=true,
                 method::Symbol=:qr,
                 maxiter::Integer=30,
@@ -90,13 +90,13 @@ function negbin(X::AbstractMatrix, y::AbstractVector, l::Union{Link,Nothing}=not
                 start::Union{AbstractVector,Nothing}=nothing,
                 kwargs...)
     return _negbin(X, y, l;
-                   initialθ, offset, wts, dropcollinear, method, contrasts=nothing,
+                   initialθ, offset, weights, dropcollinear, method, contrasts=nothing,
                    maxiter, atol, rtol, minstepfac, start, kwargs...)
 end
 function negbin(formula::FormulaTerm, data, l::Union{Link,Nothing}=nothing;
                 initialθ::Real=Inf,
                 offset::Union{AbstractVector{<:Real},Nothing}=nothing,
-                wts::AbstractVector{<:Real}=uweights(0),
+                weights::Union{AbstractVector{<:Real},Symbol,AbstractString}=uweights(0),
                 dropcollinear::Bool=true,
                 method::Symbol=:qr,
                 contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
@@ -107,7 +107,7 @@ function negbin(formula::FormulaTerm, data, l::Union{Link,Nothing}=nothing;
                 start::Union{AbstractVector,Nothing}=nothing,
                 kwargs...)
     return _negbin(formula, data, l;
-                   initialθ, offset, wts, dropcollinear, method, contrasts,
+                   initialθ, offset, weights, dropcollinear, method, contrasts,
                    maxiter, atol, rtol, minstepfac, start, kwargs...)
 end
 
@@ -116,7 +116,7 @@ function _negbin(F,
                  l::Union{Link,Nothing};
                  initialθ::Real,
                  offset::Union{AbstractVector{<:Real},Nothing},
-                 wts::AbstractVector{<:Real},
+                 weights::Union{AbstractVector{<:Real},Symbol,AbstractString},
                  dropcollinear::Bool,
                  method::Symbol,
                  contrasts::Union{AbstractDict{Symbol},Nothing},
@@ -144,19 +144,14 @@ function _negbin(F,
     # fit a Poisson regression model if the user does not specify an initial θ
     distr = isinf(initialθ) ? Poisson() : NegativeBinomial(initialθ)
     regmodel = glm(F, D, distr, something(l, canonicallink(distr));
-                   offset, wts, dropcollinear, method, contrasts,
+                   offset, weights, dropcollinear, method,
                    maxiter, atol, rtol, minstepfac, start, contrasts_kwarg...)
 
     μ = regmodel.rr.mu
     y = regmodel.rr.y
-    wts = regmodel.rr.wts
+    weightsvec = regmodel.rr.weights
 
-    lw, ly = length(wts), length(y)
-    if lw != ly
-        throw(ArgumentError("length of `wts` must be $ly but was $lw"))
-    end
-
-    θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)
+    θ = mle_for_θ(y, μ, weightsvec; maxiter=maxiter, tol=rtol)
     d = sqrt(2 * max(1, deviance(regmodel)))
     δ = one(θ)
     ll = loglikelihood(regmodel)
@@ -170,11 +165,11 @@ function _negbin(F,
         end
         @debug "NegativeBinomial dispersion optimization" iteration = i θ = θ
         regmodel = glm(F, D, NegativeBinomial(θ), something(l, NegativeBinomialLink(θ));
-                       offset, wts, dropcollinear, method, contrasts,
+                       offset, weights, dropcollinear, method,
                        maxiter, atol, rtol, minstepfac, start, contrasts_kwarg...)
         μ = regmodel.rr.mu
         prevθ = θ
-        θ = mle_for_θ(y, μ, wts; maxiter=maxiter, tol=rtol)
+        θ = mle_for_θ(y, μ, weightsvec; maxiter=maxiter, tol=rtol)
         δ = prevθ - θ
         ll0 = ll
         ll = loglikelihood(regmodel)

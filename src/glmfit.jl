@@ -17,8 +17,8 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link,W<:AbstractWeights}
     mu::V
     "`offset:` offset added to `Xβ` to form `eta`.  Can be of length 0"
     offset::V
-    "`wts`: prior case weights"
-    wts::W
+    "`weights`: prior case weights"
+    weights::W
     "`wrkwt`: working case weights for the Iteratively Reweighted Least Squares (IRLS) algorithm"
     wrkwt::V
     "`wrkresid`: working residuals for IRLS"
@@ -27,19 +27,19 @@ end
 
 link(rr::GlmResp) = rr.d
 
-function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVector,D,L,W}
+function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, weights::W) where {V<:FPVector,D,L,W}
     n = length(y)
     nη = length(η)
     nμ = length(μ)
-    lw = length(wts)
+    lw = length(weights)
     lo = length(off)
 
     # Check y values
     checky(y, d)
 
     ## We don't support custom types of weights that a user may define
-    if !(wts isa Union{FrequencyWeights,AnalyticWeights,ProbabilityWeights,UnitWeights})
-        throw(ArgumentError("The type of `wts` was $W. The supported weights types are " *
+    if !(weights isa Union{FrequencyWeights,AnalyticWeights,ProbabilityWeights,UnitWeights})
+        throw(ArgumentError("The type of `weights` was $W. The supported weights types are " *
                             "`FrequencyWeights`, `AnalyticWeights`, `ProbabilityWeights` and `UnitWeights`."))
     end
 
@@ -48,32 +48,33 @@ function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVec
         throw(DimensionMismatch("lengths of η, μ, and y ($nη, $nμ, $n) are not equal"))
     end
 
-    # Lengths of wts and off can be either n or 0
     if lw != n
-        throw(DimensionMismatch("wts must have length $n but was $lw"))
+        throw(DimensionMismatch("weights must have length $n but was $lw"))
     end
+    # Length of off can be either n or 0
     if lo != 0 && lo != n
         throw(DimensionMismatch("offset must have length $n or length 0 but was $lo"))
     end
 
-    return GlmResp{V,D,L,W}(y, d, l, similar(y), η, μ, off, wts, similar(y), similar(y))
+    return GlmResp{V,D,L,W}(y, d, l, similar(y), η, μ, off, weights, similar(y), similar(y))
 end
 
-function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector, wts::AbstractWeights)
+function GlmResp(y::FPVector, d::Distribution, l::Link, off::FPVector,
+                 weights::AbstractWeights)
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
     _y = convert(Vector{float(eltype(y))}, y)
     _off = convert(Vector{float(eltype(off))}, off)
     η = similar(_y)
     μ = similar(_y)
-    r = GlmResp(_y, d, l, η, μ, _off, wts)
-    initialeta!(r.eta, d, l, _y, wts, _off)
+    r = GlmResp(_y, d, l, η, μ, _off, weights)
+    initialeta!(r.eta, d, l, _y, weights, _off)
     updateμ!(r, r.eta)
     return r
 end
 
 function GlmResp(y::AbstractVector{<:Real}, d::D, l::L, off::AbstractVector{<:Real},
-                 wts::AbstractWeights) where {D,L}
-    return GlmResp(float(y), d, l, float(off), wts)
+                 weights::AbstractWeights) where {D,L}
+    return GlmResp(float(y), d, l, float(off), weights)
 end
 
 function deviance(r::GlmResp)
@@ -82,7 +83,7 @@ function deviance(r::GlmResp)
     return wts isa ProbabilityWeights ? d * nobs(r) / sum(wts) : d
 end
 
-weights(r::GlmResp) = r.wts
+weights(r::GlmResp) = r.weights
 function isweighted(r::GlmResp)
     return weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
 end
@@ -116,8 +117,8 @@ function updateμ!(r::GlmResp{T}, linPr::T) where {T<:FPVector}
     isempty(r.offset) ? copyto!(r.eta, linPr) : broadcast!(+, r.eta, linPr, r.offset)
     updateμ!(r)
     if isweighted(r)
-        map!(*, r.wrkwt, r.wrkwt, r.wts)
-        map!(*, r.devresid, r.devresid, r.wts)
+        map!(*, r.wrkwt, r.wrkwt, r.weights)
+        map!(*, r.devresid, r.devresid, r.weights)
     end
     return r
 end
@@ -311,7 +312,7 @@ function nulldeviance(m::GeneralizedLinearModel)
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, r.link; wts=wts, offset=offset,
+                    X, y, d, r.link; weights=wts, offset=offset,
                     dropcollinear=ispivoted(m.pp),
                     method=decomposition_method(m.pp),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
@@ -368,7 +369,7 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
         nullm = fit(GeneralizedLinearModel,
-                    X, y, d, r.link; wts=wts, offset=offset,
+                    X, y, d, r.link; weights=wts, offset=offset,
                     dropcollinear=ispivoted(m.pp),
                     method=decomposition_method(m.pp),
                     maxiter=m.maxiter, minstepfac=m.minstepfac,
@@ -523,7 +524,7 @@ function fit(::Type{M},
              l::Link=canonicallink(d);
              dropcollinear::Bool=true,
              method::Symbol=:qr,
-             wts::AbstractVector{<:Real}=uweights(length(y)),
+             weights::AbstractVector{<:Real}=uweights(length(y)),
              offset::Union{AbstractVector{<:Real},Nothing}=nothing,
              maxiter::Integer=30,
              atol::Real=1e-6,
@@ -535,16 +536,16 @@ function fit(::Type{M},
         throw(DimensionMismatch("number of rows in X and y must match"))
     end
 
-    _wts = convert_weights(wts, length(y))
+    check_weights(weights)
 
     off = offset === nothing ? similar(y, 0) : offset
 
-    rr = GlmResp(y, d, l, off, _wts)
+    rr = GlmResp(y, d, l, off, weights)
 
     if method === :cholesky
-        res = M(rr, cholpred(X, dropcollinear, _wts), nothing, false)
+        res = M(rr, cholpred(X, dropcollinear, weights), nothing, false)
     elseif method === :qr
-        res = M(rr, qrpred(X, dropcollinear, _wts), nothing, false)
+        res = M(rr, qrpred(X, dropcollinear, weights), nothing, false)
     else
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
     end
@@ -557,7 +558,7 @@ function fit(::Type{M},
              y::AbstractVector,
              d::UnivariateDistribution,
              l::Link=canonicallink(d);
-             wts::AbstractVector{<:Real}=uweights(length(y)),
+             weights::AbstractVector{<:Real}=uweights(length(y)),
              offset::Union{AbstractVector{<:Real},Nothing}=nothing,
              dropcollinear::Bool=true,
              method::Symbol=:qr,
@@ -567,7 +568,7 @@ function fit(::Type{M},
              minstepfac::Real=0.001,
              start::Union{AbstractVector,Nothing}=nothing) where {M<:AbstractGLM}
     return fit(M, float(X), float(y), d, l;
-               offset, wts, dropcollinear, method,
+               offset, weights, dropcollinear, method,
                maxiter, atol, rtol, minstepfac, start)
 end
 
@@ -577,7 +578,7 @@ function fit(::Type{M},
              d::UnivariateDistribution,
              l::Link=canonicallink(d);
              offset::Union{AbstractVector,Nothing}=nothing,
-             wts::AbstractVector{<:Real}=uweights(0),
+             weights::Union{AbstractVector{<:Real},Symbol,AbstractString}=uweights(0),
              dropcollinear::Bool=true,
              method::Symbol=:qr,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
@@ -586,8 +587,8 @@ function fit(::Type{M},
              rtol::Real=1e-6,
              minstepfac::Real=0.001,
              start::Union{AbstractVector,Nothing}=nothing) where {M<:AbstractGLM}
-    f, (y, X) = modelframe(f, data, contrasts, M)
-    _wts = convert_weights(wts, length(y))
+    f, y, X, weightsvec = modelframe(f, data, weights, contrasts, M)
+    check_weights(weightsvec)
     # Check that X and y have the same number of observations
     if size(X, 1) != size(y, 1)
         throw(DimensionMismatch("number of rows in X and y must match"))
@@ -595,12 +596,12 @@ function fit(::Type{M},
 
     off = offset === nothing ? similar(y, 0) : offset
 
-    rr = GlmResp(y, d, l, off, _wts)
+    rr = GlmResp(y, d, l, off, weightsvec)
 
     if method === :cholesky
-        res = M(rr, cholpred(X, dropcollinear, _wts), f, false)
+        res = M(rr, cholpred(X, dropcollinear, weightsvec), f, false)
     elseif method === :qr
-        res = M(rr, qrpred(X, dropcollinear, _wts), f, false)
+        res = M(rr, qrpred(X, dropcollinear, weightsvec), f, false)
     else
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
     end
@@ -621,7 +622,7 @@ $FIT_GLM_DOC
 function glm(X::AbstractMatrix, y::AbstractVector,
              d::UnivariateDistribution, l::Link=canonicallink(d);
              offset::Union{AbstractVector{<:Real},Nothing}=nothing,
-             wts::AbstractVector{<:Real}=uweights(length(y)),
+             weights::Union{AbstractVector{<:Real},Symbol,AbstractString}=uweights(length(y)),
              dropcollinear::Bool=true,
              method::Symbol=:qr,
              maxiter::Integer=30,
@@ -630,14 +631,14 @@ function glm(X::AbstractMatrix, y::AbstractVector,
              minstepfac::Real=0.001,
              start::Union{AbstractVector,Nothing}=nothing)
     return fit(GeneralizedLinearModel, X, y, d, l;
-               offset, wts, dropcollinear, method,
+               offset, weights, dropcollinear, method,
                maxiter, atol, rtol, minstepfac, start)
 end
 
 function glm(formula::FormulaTerm, data, d::UnivariateDistribution,
              l::Link=canonicallink(d);
              offset::Union{AbstractVector{<:Real},Nothing}=nothing,
-             wts::AbstractVector{<:Real}=uweights(0),
+             weights::Union{AbstractVector{<:Real},Symbol,AbstractString}=uweights(0),
              dropcollinear::Bool=true,
              method::Symbol=:qr,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}(),
@@ -647,7 +648,7 @@ function glm(formula::FormulaTerm, data, d::UnivariateDistribution,
              minstepfac::Real=0.001,
              start::Union{AbstractVector,Nothing}=nothing)
     return fit(GeneralizedLinearModel, formula, data, d, l;
-               offset, wts, dropcollinear, method, contrasts,
+               offset, weights, dropcollinear, method, contrasts,
                maxiter, atol, rtol, minstepfac, start)
 end
 
@@ -793,12 +794,12 @@ function initialeta!(eta::AbstractVector,
                      dist::UnivariateDistribution,
                      link::Link,
                      y::AbstractVector,
-                     wts::AbstractWeights,
+                     weights::AbstractWeights,
                      off::AbstractVector)
     n = length(y)
     lo = length(off)
 
-    _initialeta!(eta, dist, link, y, wts)
+    _initialeta!(eta, dist, link, y, weights)
 
     if lo == n
         @inbounds @simd for i in eachindex(eta, off)
@@ -815,15 +816,15 @@ function _initialeta!(eta::AbstractVector,
                       dist::UnivariateDistribution,
                       link::Link,
                       y::AbstractVector,
-                      wts::AbstractWeights)
-    if wts isa UnitWeights
+                      weights::AbstractWeights)
+    if weights isa UnitWeights
         @inbounds @simd for i in eachindex(y, eta)
             μ = mustart(dist, y[i], 1)
             eta[i] = linkfun(link, μ)
         end
     else
-        @inbounds @simd for i in eachindex(y, eta, wts)
-            μ = mustart(dist, y[i], wts[i])
+        @inbounds @simd for i in eachindex(y, eta, weights)
+            μ = mustart(dist, y[i], weights[i])
             eta[i] = linkfun(link, μ)
         end
     end
@@ -846,7 +847,7 @@ end
 function nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:AbstractWeights}
     return oftype(sum(one(eltype(weights(r)))), length(r.y))
 end
-nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = sum(r.wts)
+nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = sum(r.weights)
 
 function residuals(r::GlmResp; weighted::Bool=false)
     y, η, μ = r.y, r.eta, r.mu

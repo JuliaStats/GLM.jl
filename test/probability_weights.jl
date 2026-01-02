@@ -21,9 +21,9 @@ itr = Iterators.product((:qr, :cholesky), (true, false))
                                                                                               drop) in
                                                                                              itr
 
-    model_1 = lm(@formula(y ~ x1 + x2), df; wts=pweights(df.pweights), method=dmethod)
+    model_1 = lm(@formula(y ~ x1 + x2), df; weights=pweights(df.pweights), method=dmethod)
     X = hcat(ones(length(df.y)), df.x1, df.x2)
-    model_2 = lm(X, y; wts=pweights(df.pweights))
+    model_2 = lm(X, y; weights=pweights(df.pweights))
     @test_throws ArgumentError ftest(model_1)
     @test_throws ArgumentError ftest(model_2)
     @test_throws ArgumentError loglikelihood(model_1)
@@ -38,7 +38,7 @@ end
                 df,
                 Binomial(),
                 LogitLink();
-                wts=pweights(df.pweights),
+                weights=pweights(df.pweights),
                 method=dmethod,
                 dropcollinear=drop,
                 rtol=1e-09,
@@ -59,7 +59,7 @@ end
                 df,
                 Binomial(),
                 ProbitLink();
-                wts=pweights(df.pweights),
+                weights=pweights(df.pweights),
                 method=dmethod,
                 dropcollinear=drop,
                 rtol=1e-09,
@@ -80,7 +80,7 @@ end
                 df,
                 Binomial(),
                 CauchitLink();
-                wts=pweights(df.pweights),
+                weights=pweights(df.pweights),
                 method=dmethod,
                 dropcollinear=drop,
                 rtol=1e-09,
@@ -101,7 +101,7 @@ end
                 df,
                 Binomial(),
                 CloglogLink();
-                wts=pweights(df.pweights),
+                weights=pweights(df.pweights),
                 method=dmethod,
                 dropcollinear=drop,
                 rtol=1e-09,
@@ -122,7 +122,7 @@ end
                 clotting,
                 Gamma(),
                 LogLink();
-                wts=pweights(clotting.pweights),
+                weights=pweights(clotting.pweights),
                 method=dmethod,
                 dropcollinear=drop,
                 rtol=1e-9,
@@ -144,7 +144,7 @@ end
                 quine,
                 NegativeBinomial(2),
                 LogLink();
-                wts=pweights(quine.pweights),
+                weights=pweights(quine.pweights),
                 method=dmethod,
                 dropcollinear=drop,
                 atol=1e-09,
@@ -178,7 +178,7 @@ end
                 quine,
                 NegativeBinomial(1),
                 LogLink();
-                wts=pweights(quine.pweights),
+                weights=pweights(quine.pweights),
                 method=dmethod,
                 dropcollinear=drop,
                 atol=1e-09,
@@ -189,7 +189,7 @@ end
                      quine,
                      Geometric(),
                      LogLink();
-                     wts=pweights(quine.pweights),
+                     weights=pweights(quine.pweights),
                      method=dmethod,
                      dropcollinear=drop,
                      atol=1e-09,
@@ -229,7 +229,7 @@ end
                 quine,
                 NegativeBinomial(2),
                 SqrtLink();
-                wts=pweights(quine.pweights),
+                weights=pweights(quine.pweights),
                 method=dmethod,
                 dropcollinear=drop,
                 rtol=1e-08,
@@ -264,7 +264,7 @@ end
                 dobson,
                 Poisson(),
                 LogLink();
-                wts=pweights(dobson.pweights),
+                weights=pweights(dobson.pweights),
                 method=dmethod,
                 dropcollinear=drop)
     @test_throws ArgumentError loglikelihood(model)
@@ -285,7 +285,8 @@ end
 
 @testset "InverseGaussian ProbabilityWeights with $dmethod" for dmethod in (:cholesky, :qr)
     gm8a = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, InverseGaussian();
-               wts=pweights(9 * clotting.pweights / sum(clotting.pweights)), method=dmethod,
+               weights=pweights(9 * clotting.pweights / sum(clotting.pweights)),
+               method=dmethod,
                rtol=1e-08, atol=1e-08, minstepfac=1e-04,)
     @test dof(gm8a) == 3
     @test deviance(gm8a) ≈ 0.0058836 rtol = 1e-04
@@ -301,8 +302,8 @@ end
     β = rand(rng, 10)
     y = X * β .+ randn(20)
     wts = rand(20)
-    model_sparse = lm(X, y; wts=pweights(wts), method=dmethod)
-    model_dense = lm(Matrix(X), y; wts=pweights(wts), method=dmethod)
+    model_sparse = lm(X, y; weights=pweights(wts), method=dmethod)
+    model_dense = lm(Matrix(X), y; weights=pweights(wts), method=dmethod)
     @test deviance(model_sparse) ≈ deviance(model_dense) rtol = 1e-07
     @test nulldeviance(model_sparse) ≈ nulldeviance(model_dense) rtol = 1e-07
     @test coef(model_sparse) ≈ coef(model_dense) rtol = 1e-07
@@ -319,8 +320,8 @@ end
     y = X * β .+ randn(20)
     X = hcat(X[:, 1:7], X[:, 1:2], X[:, 8:9], X[:, 6], X[:, 10]) # make it rank deficient
     wts = rand(20)
-    model_sparse = lm(X, y; wts=pweights(wts), method=:qr)
-    model_dense = lm(Matrix(X), y; wts=pweights(wts), method=:qr)
+    model_sparse = lm(X, y; weights=pweights(wts), method=:qr)
+    model_dense = lm(Matrix(X), y; weights=pweights(wts), method=:qr)
     @test deviance(model_sparse) ≈ deviance(model_dense) rtol = 1e-07
     @test nulldeviance(model_sparse) ≈ nulldeviance(model_dense) rtol = 1e-07
     se_sparse = stderror(model_sparse)

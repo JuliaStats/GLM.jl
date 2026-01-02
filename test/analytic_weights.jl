@@ -24,12 +24,12 @@ itr = Iterators.product((:qr, :cholesky), (true, false))
                                                                                  drop) in
                                                                                 itr
 
-    model_0 = lm(@formula(y ~ x1), df; wts=aweights(df.w), method=dmethod,
+    model_0 = lm(@formula(y ~ x1), df; weights=aweights(df.w), method=dmethod,
                  dropcollinear=drop)
-    model_1 = lm(@formula(y ~ x1 + x2), df; wts=aweights(df.w),
+    model_1 = lm(@formula(y ~ x1 + x2), df; weights=aweights(df.w),
                  method=dmethod, dropcollinear=drop)
     X = hcat(ones(length(df.y)), df.x1, df.x2)
-    model_2 = lm(X, y; wts=aweights(df.w), method=dmethod, dropcollinear=drop)
+    model_2 = lm(X, y; weights=aweights(df.w), method=dmethod, dropcollinear=drop)
     @test ftest(model_1).fstat ≈ 1.551275 rtol = 1e-05
     @test ftest(model_2) === ftest(model_1)
     @test ftest(model_0, model_1).fstat[2] ≈ 1.7860438 rtol = 1e-05
@@ -40,7 +40,8 @@ end
                                                                                          drop) in
                                                                                         itr
 
-    model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), LogitLink(), wts=aweights(df.w),
+    model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), LogitLink(),
+                weights=aweights(df.w),
                 method=dmethod, dropcollinear=drop, atol=1e-08, rtol=1e-08)
     @test deviance(model) ≈ 39.58120350785813 rtol = 1e-06
     @test coef(model) ≈ [0.6333582770515337, 1.8861277804531265, 18.61281712203539] rtol = 1e-06
@@ -87,7 +88,8 @@ end
                                                                                          itr
 
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), ProbitLink(),
-                wts=aweights(df.w), method=dmethod, dropcollinear=drop, rtol=1e-09)
+                weights=aweights(df.w), method=dmethod, dropcollinear=drop,
+                rtol=1e-09)
     @test deviance(model) ≈ 39.595360462143866 rtol = 1e-06
     @test coef(model) ≈ [0.42120722997197313, 1.0416447141541567, 4.916910225354065] rtol = 1e-07
     @test stderror(model) ≈ [0.5216506352923727, 1.1455457218079563, 325.2782732702344] rtol = 1e-07
@@ -127,7 +129,7 @@ end
                                                                                        itr
 
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), CauchitLink(),
-                wts=aweights(df.w),
+                weights=aweights(df.w),
                 method=dmethod, dropcollinear=drop, rtol=1e-08, atol=1e-08)
     @test deviance(model) ≈ 39.627559015619845 rtol = 1e-07
     @test_throws ArgumentError loglikelihood(model)
@@ -166,7 +168,7 @@ end
                                                                                           itr
 
     model = glm(@formula(y ~ 1 + x1 + x2), df, Binomial(), CloglogLink(),
-                wts=aweights(df.w),
+                weights=aweights(df.w),
                 method=dmethod, dropcollinear=drop, rtol=5e-10, atol=1e-10)
     @test deviance(model) ≈ 39.61484762863061 rtol = 1e-07
     @test coef(model) ≈ [0.12095167614339054, 0.8666201161364425, 2.71457411130009] rtol = 1e-07
@@ -207,7 +209,8 @@ end
                                                                                        itr
 
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), InverseLink(),
-                wts=aweights(clotting.w), method=dmethod, dropcollinear=drop, atol=1e-07,
+                weights=aweights(clotting.w),
+                method=dmethod, dropcollinear=drop, atol=1e-07,
                 rtol=1e-08)
     @test deviance(model) ≈ 0.03933389380881642 rtol = 1e-07
     @test loglikelihood(model) ≈ -43.359078787690514 rtol = 1e-07
@@ -231,7 +234,7 @@ end
                                                                                         itr
 
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), IdentityLink(),
-                wts=aweights(clotting.w), method=dmethod, dropcollinear=drop,
+                weights=aweights(clotting.w), method=dmethod, dropcollinear=drop,
                 rtol=1e-10, atol=1e-10, minstepfac=0.00001)
     @test deviance(model) ≈ 1.3435348802929383 rtol = 1e-07
     @test loglikelihood(model) ≈ -101.19916126647321 rtol = 1e-07
@@ -255,7 +258,8 @@ end
                                                                                    itr
 
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), LogLink(),
-                wts=aweights(clotting.w), method=dmethod, dropcollinear=drop, atol=1e-09,
+                weights=aweights(clotting.w), method=dmethod, dropcollinear=drop,
+                atol=1e-09,
                 rtol=1e-09)
     @test deviance(model) ≈ 0.41206342934199663 rtol = 1e-07
     @test loglikelihood(model) ≈ -81.79777246247532 rtol = 1e-07
@@ -279,7 +283,8 @@ end
                                                                                        itr
 
     model = glm(@formula(lot1 ~ 1 + u), clotting, Gamma(), InverseLink(),
-                wts=aweights(clotting.w), method=dmethod, dropcollinear=drop, atol=1e-09,
+                weights=aweights(clotting.w), method=dmethod, dropcollinear=drop,
+                atol=1e-09,
                 rtol=1e-09)
     @test deviance(model) ≈ 0.03933389380881642 rtol = 1e-07
     @test loglikelihood(model) ≈ -43.359078787690514 rtol = 1e-07
@@ -303,7 +308,8 @@ end
                                                                                                        itr
 
     model = glm(@formula(lot1 ~ 1 + u), clotting, InverseGaussian(), InverseSquareLink(),
-                wts=aweights(clotting.w), method=dmethod, dropcollinear=drop, atol=1e-09,
+                weights=aweights(clotting.w), method=dmethod, dropcollinear=drop,
+                atol=1e-09,
                 rtol=1e-09)
     @test deviance(model) ≈ 0.021377370485120707 rtol = 1e-07
     @test loglikelihood(model) ≈ -86.82546665077861 rtol = 1e-07
@@ -327,7 +333,7 @@ end
                                                                                             itr
 
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(2),
-                LogLink(), wts=aweights(quine.aweights), method=dmethod,
+                LogLink(), weights=aweights(quine.aweights), method=dmethod,
                 dropcollinear=drop, atol=1e-08, rtol=1e-08)
     @test deviance(model) ≈ 624.7631999565588 rtol = 1e-07
     @test loglikelihood(model) ≈ -2004.5939464322778 rtol = 1e-07
@@ -498,7 +504,7 @@ end
                                                                                                itr
 
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine,
-                NegativeBinomial(2), LogLink(), wts=aweights(quine.aweights),
+                NegativeBinomial(2), LogLink(), weights=aweights(quine.aweights),
                 method=dmethod, dropcollinear=drop, rtol=1e-08, atol=1e-08)
     @test deviance(model) ≈ 624.7631999565588 rtol = 1e-07
     @test loglikelihood(model) ≈ -2004.5939464322778 rtol = 1e-07
@@ -664,7 +670,7 @@ end
                                                                                                 itr
 
     model = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(2),
-                SqrtLink(), wts=aweights(quine.aweights),
+                SqrtLink(), weights=aweights(quine.aweights),
                 method=dmethod, dropcollinear=drop, rtol=1e-08, atol=1e-09)
     @test deviance(model) ≈ 626.6464732988984 rtol = 1e-07
     @test loglikelihood(model) ≈ -2005.5355831034462 rtol = 1e-07
@@ -832,7 +838,7 @@ admit_agr = DataFrame(; count=[28.0, 97, 93, 55, 33, 54, 28, 12],
 @testset "Aggregated Binomial LogitLink (AnalyticWeights)" begin
     for distr in (Binomial, Bernoulli)
         gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr(),
-                   wts=aweights(admit_agr.count))
+                   weights=aweights(admit_agr.count))
         @test dof(gm14) == 4
         @test nobs(gm14) == 8
         @test isapprox(deviance(gm14), 474.9667184280627)

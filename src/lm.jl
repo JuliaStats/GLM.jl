@@ -7,38 +7,37 @@ Encapsulates the response for a linear model
 
 - `mu`: current value of the mean response vector or fitted value
 - `offset`: optional offset added to the linear predictor to form `mu`
-- `wts`: optional weights for observations (as `AbstractWeights`)
+  (may be of length 0)
+- `weights`: weights for observations (as `AbstractWeights`)
 - `y`: observed response vector
-
-Either or both `offset` and `wts` may be of length 0
 """
 mutable struct LmResp{V<:FPVector,W<:AbstractWeights} <: ModResp  # response in a linear model
     mu::V                                  # mean response
     offset::V                              # offset added to linear predictor (may have length 0)
-    wts::W                                 # prior weights
+    weights::W                             # prior weights
     y::V                                   # response
-    function LmResp{V,W}(mu::V, off::V, wts::W, y::V) where {V,W}
+    function LmResp{V,W}(mu::V, off::V, weights::W, y::V) where {V,W}
         n = length(y)
         nμ = length(mu)
-        lw = length(wts)
+        lw = length(weights)
         lo = length(off)
         if nμ != n
             throw(DimensionMismatch("lengths of `mu` and `y` ($nμ, $n) are not equal"))
         end
         if lw != n
-            throw(DimensionMismatch("`wts` must have length $n but was $lw"))
+            throw(DimensionMismatch("weights must have length $n but was $lw"))
         end
         if lo != 0 && lo != n
             throw(DimensionMismatch("offset must have length $n but was $lo"))
         end
-        return new{V,W}(mu, off, wts, y)
+        return new{V,W}(mu, off, weights, y)
     end
 end
 
-function LmResp(y::AbstractVector{<:Real}, wts::AbstractWeights)
+function LmResp(y::AbstractVector{<:Real}, weights::AbstractWeights)
     # Instead of convert(Vector{Float64}, y) to be more ForwardDiff friendly
     _y = convert(Vector{float(eltype(y))}, y)
-    return LmResp{typeof(_y),typeof(wts)}(zero(_y), zero(_y), wts, _y)
+    return LmResp{typeof(_y),typeof(weights)}(zero(_y), zero(_y), weights, _y)
 end
 
 LmResp(y::AbstractVector{<:Real}) = LmResp(y, uweights(length(y)))
@@ -55,32 +54,32 @@ updateμ!(r::LmResp{V}, linPr) where {V<:FPVector} = updateμ!(r, convert(V, vec
 function deviance(r::LmResp)
     y = r.y
     mu = r.mu
-    wts = r.wts
-    if wts isa UnitWeights
+    weights = r.weights
+    if weights isa UnitWeights
         v = zero(eltype(y)) + zero(eltype(y))
         @inbounds @simd for i in eachindex(y, mu)
             v += abs2(y[i] - mu[i])
         end
     else
-        v = zero(eltype(y)) + zero(eltype(y)) * zero(eltype(wts))
-        @inbounds @simd for i in eachindex(y, mu, wts)
-            v += abs2(y[i] - mu[i]) * wts[i]
+        v = zero(eltype(y)) + zero(eltype(y)) * zero(eltype(weights))
+        @inbounds @simd for i in eachindex(y, mu, weights)
+            v += abs2(y[i] - mu[i]) * weights[i]
         end
     end
-    return wts isa ProbabilityWeights ? v ./ (sum(wts) / length(y)) : v
+    return weights isa ProbabilityWeights ? v ./ (sum(weights) / length(y)) : v
 end
 
-weights(r::LmResp) = r.wts
+weights(r::LmResp) = r.weights
 function isweighted(r::LmResp)
     return weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
 end
 
-nobs(r::LmResp{<:Any,<:FrequencyWeights}) = sum(r.wts)
+nobs(r::LmResp{<:Any,<:FrequencyWeights}) = sum(r.weights)
 function nobs(r::LmResp{<:Any,<:AbstractWeights})
-    return oftype(sum(one(eltype(r.wts))), length(r.y))
+    return oftype(sum(one(eltype(r.weights))), length(r.y))
 end
 
-working_weights(r::LmResp) = r.wts
+working_weights(r::LmResp) = r.weights
 
 function loglikelihood(r::LmResp{<:Any,<:Union{UnitWeights,FrequencyWeights}})
     n = nobs(r)
@@ -156,29 +155,29 @@ Fit a linear model to data.
 $FIT_LM_DOC
 """
 function fit(::Type{LinearModel}, X::AbstractMatrix{<:Real}, y::AbstractVector{<:Real};
-             wts::AbstractVector{<:Real}=uweights(length(y)),
+             weights::AbstractVector{<:Real}=uweights(length(y)),
              dropcollinear::Bool=true, method::Symbol=:qr)
-    _wts = convert_weights(wts, length(y))
+    check_weights(weights)
     if method === :cholesky
-        fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), nothing))
+        fit!(LinearModel(LmResp(y, weights), cholpred(X, dropcollinear, weights), nothing))
     elseif method === :qr
-        fit!(LinearModel(LmResp(y, _wts), qrpred(X, dropcollinear, _wts), nothing))
+        fit!(LinearModel(LmResp(y, weights), qrpred(X, dropcollinear, weights), nothing))
     else
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
     end
 end
 
 function fit(::Type{LinearModel}, f::FormulaTerm, data;
-             wts::AbstractVector{<:Real}=uweights(0),
+             weights::Union{AbstractVector{<:Real},Symbol,AbstractString}=uweights(0),
              dropcollinear::Bool=true,
              method::Symbol=:qr,
              contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
-    f, (y, X) = modelframe(f, data, contrasts, LinearModel)
-    _wts = convert_weights(wts, length(y))
+    f, y, X, weightsvec = modelframe(f, data, weights, contrasts, LinearModel)
+    check_weights(weightsvec)
     if method === :cholesky
-        fit!(LinearModel(LmResp(y, _wts), cholpred(X, dropcollinear, _wts), f))
+        fit!(LinearModel(LmResp(y, weightsvec), cholpred(X, dropcollinear, weightsvec), f))
     elseif method === :qr
-        fit!(LinearModel(LmResp(y, _wts), qrpred(X, dropcollinear, _wts), f))
+        fit!(LinearModel(LmResp(y, weightsvec), qrpred(X, dropcollinear, weightsvec), f))
     else
         throw(ArgumentError("The only supported values for keyword argument `method` are `:cholesky` and `:qr`."))
     end
@@ -194,18 +193,18 @@ An alias for `fit(LinearModel, ...)`.
 $FIT_LM_DOC
 """
 function lm(X::AbstractMatrix, y::AbstractVector;
-            wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(length(y)),
+            weights::Union{AbstractVector{<:Real},Symbol,AbstractString}=uweights(length(y)),
             dropcollinear::Bool=true,
             method::Symbol=:qr)
-    return fit(LinearModel, X, y; wts, dropcollinear, method)
+    return fit(LinearModel, X, y; weights, dropcollinear, method)
 end
 
 function lm(f::FormulaTerm, data;
-            wts::Union{AbstractWeights,AbstractVector{<:Real}}=uweights(0),
+            weights::Union{AbstractVector{<:Real},Symbol,AbstractString}=uweights(0),
             dropcollinear::Bool=true,
             method::Symbol=:qr,
             contrasts::AbstractDict{Symbol}=Dict{Symbol,Any}())
-    return fit(LinearModel, f, data; wts, dropcollinear, method, contrasts)
+    return fit(LinearModel, f, data; weights, dropcollinear, method, contrasts)
 end
 
 dof(x::LinearModel) = linpred_rank(x.pp) + 1
@@ -224,21 +223,21 @@ For linear models, the deviance of the null model is equal to the total sum of s
 """
 function nulldeviance(obj::LinearModel)
     y = obj.rr.y
-    wts = obj.pp.wts
+    weights = obj.pp.weights
     if hasintercept(obj)
-        m = mean(y, wts)
+        m = mean(y, weights)
     else
         m = zero(eltype(y))
     end
 
-    v = zero(eltype(y)) * zero(eltype(wts))
-    if wts isa UnitWeights
+    v = zero(eltype(y)) * zero(eltype(weights))
+    if weights isa UnitWeights
         @inbounds @simd for i in eachindex(y)
             v += abs2(y[i] - m)
         end
     else
-        @inbounds @simd for i in eachindex(y, wts)
-            v += abs2(y[i] - m) * wts[i]
+        @inbounds @simd for i in eachindex(y, weights)
+            v += abs2(y[i] - m) * weights[i]
         end
     end
     return v
@@ -398,24 +397,4 @@ function StatsBase.cooksdistance(obj::LinearModel)
     hii = leverage(obj)
     D = @. u^2 * (hii / (1 - hii)^2) / (k * mse)
     return D
-end
-
-"""
-    Convert weights to appropriate AbstractWeights type
-"""
-function convert_weights(wts::AbstractWeights, n::Integer)
-    # Empty UnitWeights is the internal default for formula-based fit methods,
-    # so we silently expand it to the correct size without warning
-    if wts isa UnitWeights && isempty(wts)
-        return uweights(n)
-    end
-    return wts
-end
-
-function convert_weights(wts::AbstractVector, n::Integer)
-    Base.depwarn("Passing weights as vector is deprecated in favor of explicitly using " *
-                 "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                 "by coercing `wts` to `FrequencyWeights`",
-                 :fit)
-    return fweights(wts)
 end
