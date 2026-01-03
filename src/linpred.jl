@@ -309,6 +309,20 @@ inverse(x::DensePredQR) = invqr(x)
 working_residuals(x::LinPredModel) = working_residuals(x.rr)
 working_weights(x::LinPredModel) = working_weights(x.rr)
 
+"""
+    vcov(model::AbstractGLM)
+    vcov(model::LinearModel)
+
+For linear models and generalized linear models without weighting or with weights
+other than `ProbabilityWeights`, the variance-covariance matrix is the inverse
+of the Fisher information matrix, scaled when applicable by the dispersion.
+
+When the model is weighted with `ProbabilityWeights`, the sandwich estimator is used,
+scaling by `nobs(x)/(nobs(x) - 1)` degrees of freedom.
+
+When a variable has been dropped because it is linearly dependent (`dropcollinear=true`
+when fitting model), the corresponding row and column are filled with `NaN`.
+"""
 function vcov(x::LinPredModel)
     if weights(x) isa ProbabilityWeights
         ## n-1 degrees of freedom - This is coherent with the `R` package `survey`,
@@ -353,6 +367,14 @@ function cor(x::LinPredModel)
     return lmul!(Diagonal(invstd), rmul!(Σ, Diagonal(invstd)))
 end
 
+"""
+    stderror(model::AbstractGLM)
+    stderror(model::LinearModel)
+
+For linear models and generalized linear models, return the square root
+of the diagonal of the variance-covariance matrix.
+See [`vcov`](@ref vcov(::LinPredModel)) for details.
+"""
 stderror(x::LinPredModel) = sqrt.(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
