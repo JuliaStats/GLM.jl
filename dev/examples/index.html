@@ -313,7 +313,7 @@ ddpi         0.4096949279 0.1961971276  2.0881801 0.0424711387</code></pre><p>wi
   50 │ Malaysia           4.71    47.2      0.66   242.69     5.08
                                                     35 rows omitted
 
-julia&gt; fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
+julia&gt; fm2 = lm(@formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
 LinearModel
 
 SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
@@ -408,7 +408,7 @@ julia&gt; dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
    8 │    13.0  2        3
    9 │    13.0  3        3
 
-julia&gt; gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
+julia&gt; gm1 = glm(@formula(Counts ~ Outcome + Treatment), dobson, Poisson())
 GeneralizedLinearModel
 
 Counts ~ 1 + Outcome + Treatment
@@ -425,7 +425,33 @@ Treatment: 3   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
 ────────────────────────────────────────────────────────────────────────────
 
 julia&gt; round(deviance(gm1), digits=5)
-5.11746</code></pre><h2 id="Linear-regression-with-PowerLink"><a class="docs-heading-anchor" href="#Linear-regression-with-PowerLink">Linear regression with PowerLink</a><a id="Linear-regression-with-PowerLink-1"></a><a class="docs-heading-anchor-permalink" href="#Linear-regression-with-PowerLink" title="Permalink"></a></h2><p>In this example, we choose the best model from a set of λs, based on minimum BIC.</p><pre><code class="language-julia-repl hljs">julia&gt; using GLM, RDatasets, StatsBase, DataFrames, Optim
+5.11746</code></pre><p>Note that for Wald tests GLM.jl uses the Normal distribution (z-statistics) by default while R uses the Student distribution (t-statistics) for models where the dispersion parameter is estimated (i.e. those with a Normal, inverse Gaussian or Gamma distribution). The <code>test</code> argument to <code>coeftable</code> allows choosing between these two options. This can be illustrated using the linear regression model from above:</p><pre><code class="language-julia hljs">julia&gt; fm2glm = glm(@formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings,
+                    Normal(), IdentityLink())
+GeneralizedLinearModel
+
+SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────────────
+                    Coef.   Std. Error      z  Pr(&gt;|z|)    Lower 95%    Upper 95%
+─────────────────────────────────────────────────────────────────────────────────
+(Intercept)  28.5661       7.35452       3.88    0.0001  14.1515      42.9807
+Pop15        -0.461193     0.144642     -3.19    0.0014  -0.744687    -0.1777
+Pop75        -1.6915       1.0836       -1.56    0.1185  -3.81531      0.432317
+DPI          -0.000336902  0.000931107  -0.36    0.7175  -0.00216184   0.00148803
+DDPI          0.409695     0.196197      2.09    0.0368   0.0251556    0.794234
+─────────────────────────────────────────────────────────────────────────────────
+
+julia&gt; coeftable(fm2glm, test=:t)
+─────────────────────────────────────────────────────────────────────────────────
+                    Coef.   Std. Error      t  Pr(&gt;|t|)    Lower 95%    Upper 95%
+─────────────────────────────────────────────────────────────────────────────────
+(Intercept)  28.5661       7.35452       3.88    0.0003  13.7533      43.3788
+Pop15        -0.461193     0.144642     -3.19    0.0026  -0.752518    -0.169869
+Pop75        -1.6915       1.0836       -1.56    0.1255  -3.87398      0.490983
+DPI          -0.000336902  0.000931107  -0.36    0.7192  -0.00221225   0.00153844
+DDPI          0.409695     0.196197      2.09    0.0425   0.0145336    0.804856
+─────────────────────────────────────────────────────────────────────────────────</code></pre><h2 id="Linear-regression-with-PowerLink"><a class="docs-heading-anchor" href="#Linear-regression-with-PowerLink">Linear regression with PowerLink</a><a id="Linear-regression-with-PowerLink-1"></a><a class="docs-heading-anchor-permalink" href="#Linear-regression-with-PowerLink" title="Permalink"></a></h2><p>In this example, we choose the best model from a set of λs, based on minimum BIC.</p><pre><code class="language-julia-repl hljs">julia&gt; using GLM, RDatasets, StatsBase, DataFrames, Optim
 
 julia&gt; trees = DataFrame(dataset(&quot;datasets&quot;, &quot;trees&quot;));
 
@@ -451,4 +477,4 @@ Girth         0.242837   0.00922556  26.32    &lt;1e-99   0.224756    0.260919
 ────────────────────────────────────────────────────────────────────────────
 
 julia&gt; round(optimal_bic.minimum, digits=5)
-156.37638</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Monday 29 December 2025 10:48">Monday 29 December 2025</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+156.37638</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../">« Home</a><a class="docs-footer-nextpage" href="../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Saturday 3 January 2026 20:55">Saturday 3 January 2026</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
