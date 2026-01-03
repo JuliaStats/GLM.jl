@@ -40,19 +40,19 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY,QRPivoted},
     delbeta::Vector{T}            # coefficient increment
     scratchbeta::Vector{T}
     qr::Q
-    wts::W
+    weights::W
     scratchm1::Matrix{T}
 
     function DensePredQR(X::AbstractMatrix, pivot::Bool,
-                         wts::W) where {W<:AbstractWeights}
+                         weights::W) where {W<:AbstractWeights}
         n, p = size(X)
         T = typeof(float(zero(eltype(X))))
         Q = pivot ? QRPivoted : QRCompactWY
         fX = float(X)
-        if wts isa UnitWeights
+        if weights isa UnitWeights
             cfX = fX === X ? copy(fX) : fX
         else
-            cfX = Diagonal(sqrt.(wts)) * fX
+            cfX = Diagonal(sqrt.(weights)) * fX
         end
         F = pivot ? qr!(cfX, ColumnNorm()) : qr!(cfX)
         return new{T,Q,W}(Matrix{T}(X),
@@ -60,7 +60,7 @@ mutable struct DensePredQR{T<:BlasReal,Q<:Union{QRCompactWY,QRPivoted},
                           zeros(T, p),
                           zeros(T, p),
                           F,
-                          wts,
+                          weights,
                           similar(X, T))
     end
 end
@@ -75,15 +75,15 @@ Evaluate and return `p.delbeta` the increment to the coefficient vector from res
 function delbeta! end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T}) where {T<:BlasReal}
-    r̃ = p.wts isa UnitWeights ? r : sqrt.(p.wts) .* r
+    r̃ = p.weights isa UnitWeights ? r : sqrt.(p.weights) .* r
     p.delbeta = p.qr \ r̃
     return p
 end
 
 function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T},
-                  wt::AbstractVector) where {T<:BlasReal}
+                  weights::AbstractVector) where {T<:BlasReal}
     X = p.X
-    wtsqrt = sqrt.(wt)
+    wtsqrt = sqrt.(weights)
     sqrtW = Diagonal(wtsqrt)
     mul!(p.scratchm1, sqrtW, X)
     ỹ = (wtsqrt .*= r) # to reuse wtsqrt's memory
@@ -93,7 +93,7 @@ function delbeta!(p::DensePredQR{T,<:QRCompactWY}, r::Vector{T},
 end
 
 function delbeta!(p::DensePredQR{T,<:QRPivoted}, r::Vector{T}) where {T<:BlasReal}
-    r̃ = p.wts isa UnitWeights ? r : sqrt.(p.wts) .* r
+    r̃ = p.weights isa UnitWeights ? r : sqrt.(p.weights) .* r
     rnk = linpred_rank(p)
     if rnk == length(p.delbeta)
         p.delbeta = p.qr \ r̃
@@ -149,20 +149,20 @@ mutable struct DensePredChol{T<:BlasReal,C,W<:AbstractWeights} <: DensePred
     delbeta::Vector{T}             # coefficient increment
     scratchbeta::Vector{T}
     chol::C
-    wts::W
+    weights::W
     scratchm1::Matrix{T}
     scratchm2::Matrix{T}
 end
 
-function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights)
-    if wts isa UnitWeights
+function DensePredChol(X::AbstractMatrix, pivot::Bool, weights::AbstractWeights)
+    if weights isa UnitWeights
         F = Hermitian(float(X'X))
         T = eltype(F)
         scr = similar(X, T)
     else
-        T = float(promote_type(eltype(wts), eltype(X)))
+        T = float(promote_type(eltype(weights), eltype(X)))
         scr = similar(X, T)
-        mul!(scr, Diagonal(wts), X)
+        mul!(scr, Diagonal(weights), X)
         F = Hermitian(float(scr'X))
     end
     F = pivot ? cholesky!(F, RowMaximum(); tol=(-one(T)), check=false) : cholesky!(F)
@@ -171,7 +171,7 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights)
                          zeros(T, size(X, 2)),
                          zeros(T, size(X, 2)),
                          F,
-                         wts,
+                         weights,
                          scr,
                          similar(cholfactors(F)))
 end
@@ -180,12 +180,13 @@ function DensePredChol(X::AbstractMatrix, pivot::Bool)
     return DensePredChol(X, pivot, uweights(size(X, 1)))
 end
 
-function cholpred(X::AbstractMatrix, pivot::Bool, wts::AbstractWeights=uweights(size(X, 1)))
-    return DensePredChol(X, pivot, wts)
+function cholpred(X::AbstractMatrix, pivot::Bool,
+                  weights::AbstractWeights=uweights(size(X, 1)))
+    return DensePredChol(X, pivot, weights)
 end
 function qrpred(X::AbstractMatrix, pivot::Bool=false,
-                wts::AbstractWeights=uweights(size(X, 1)))
-    return DensePredQR(X, pivot, wts)
+                weights::AbstractWeights=uweights(size(X, 1)))
+    return DensePredQR(X, pivot, weights)
 end
 
 cholfactors(c::Union{Cholesky,CholeskyPivoted}) = c.factors
@@ -199,7 +200,7 @@ end
 
 function delbeta!(p::DensePredChol{T,<:Cholesky},
                   r::Vector{T}) where {T<:BlasReal}
-    X = p.wts isa UnitWeights ? p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
+    X = p.weights isa UnitWeights ? p.X : mul!(p.scratchm1, Diagonal(p.weights), p.X)
     ldiv!(p.chol, mul!(p.delbeta, transpose(X), r))
     return p
 end
@@ -207,7 +208,7 @@ end
 function delbeta!(p::DensePredChol{T,<:CholeskyPivoted},
                   r::Vector{T}) where {T<:BlasReal}
     ch = p.chol
-    X = p.wts isa UnitWeights ? p.X : mul!(p.scratchm1, Diagonal(p.wts), p.X)
+    X = p.weights isa UnitWeights ? p.X : mul!(p.scratchm1, Diagonal(p.weights), p.X)
     delbeta = mul!(p.delbeta, adjoint(X), r)
     rnk = linpred_rank(p)
     if rnk == length(delbeta)
@@ -361,16 +362,29 @@ function show(io::IO, obj::LinPredModel)
     return println(io, "Coefficients:\n", coeftable(obj))
 end
 
-function modelframe(f::FormulaTerm, data, contrasts::AbstractDict, ::Type{M}) where {M}
+function modelframe(f::FormulaTerm, data,
+                    weights::Union{AbstractVector,Symbol,AbstractString},
+                    contrasts::AbstractDict, ::Type{M}) where {M}
     Tables.istable(data) ||
         throw(ArgumentError("expected data in a Table, got $(typeof(data))"))
-    t = Tables.columntable(data)
+    nms = StatsModels.termvars(f)
+    t = NamedTuple{tuple(nms...)}(Tables.columntable(data))
     msg = StatsModels.checknamesexist(f, t)
     msg != "" && throw(ArgumentError(msg))
-    data, _ = StatsModels.missing_omit(t, f)
-    sch = schema(f, data, contrasts)
+    nmt, nonmissings = StatsModels.missing_omit(t, f)
+    sch = schema(f, nmt, contrasts)
     f = apply_schema(f, sch, M)
-    return f, modelcols(f, data)
+    y, X = modelcols(f, nmt)
+    weightscol = if weights isa UnitWeights && length(weights) == 0
+        uweights(length(y))
+    elseif weights isa Union{Symbol,AbstractString}
+        Tables.getcolumn(data, Symbol(weights))[nonmissings]
+    else
+        length(weights) == length(nonmissings) ||
+            throw(DimensionMismatch("weights must have length $(length(nonmissings)) but was $(length(weights))"))
+        weights[nonmissings]
+    end
+    return f, y, X, weightscol
 end
 
 function modelmatrix(obj::LinPredModel; weighted::Bool=false)
@@ -378,7 +392,7 @@ function modelmatrix(obj::LinPredModel; weighted::Bool=false)
 end
 
 function modelmatrix(pp::LinPred; weighted::Bool=false)
-    return weighted && isweighted(pp) ? Diagonal(sqrt.(pp.wts)) * pp.X : pp.X
+    return weighted && isweighted(pp) ? Diagonal(sqrt.(pp.weights)) * pp.X : pp.X
 end
 
 function leverage(x::LinPredModel)
@@ -438,11 +452,19 @@ If the model uses frequency weights, return the sum of weights.
 nobs(obj::LinPredModel) = nobs(obj.rr)
 
 weights(m::LinPredModel) = weights(m.rr)
-weights(pp::LinPred) = pp.wts
+weights(pp::LinPred) = pp.weights
 
 isweighted(m::LinPredModel) = isweighted(m.pp)
 function isweighted(pp::LinPred)
     return weights(pp) isa Union{FrequencyWeights,AnalyticWeights,ProbabilityWeights}
+end
+
+check_weights(weights::AbstractWeights) = nothing
+
+function check_weights(weights::AbstractVector)
+    throw(ArgumentError("Weights as standard vectors are no longer supported: use " *
+                        "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights` " *
+                        "from StatsBase instead."))
 end
 
 coef(x::LinPred) = x.beta0

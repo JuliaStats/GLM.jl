@@ -140,38 +140,140 @@ end
     @test isapprox(cooksdistance(t_lm_colli), cooksdistance(t_lm_colli_b))
 end
 
-@testset "Linear model with weights and $dmethod" for dmethod in (:cholesky, :qr)
+@testset "Basic handling of weights with $dmethod" for dmethod in (:cholesky, :qr)
     df = dataset("quantreg", "engel")
-    N = nrow(df)
-    vweights = repeat(1:5, Int(N / 5))
+    df.FoodExp = round.(df.FoodExp)
+    df.IncomeM = allowmissing(df.Income)
+    df.IncomeM[[3, 25, 145, 233]] .= missing
+    vweights = repeat(1:5, Int(nrow(df) / 5))
     df.vweights = vweights
-    f = @formula(FoodExp ~ Income)
-    lm_model = @test_logs((:warn,
-                           "Passing weights as vector is deprecated in favor of explicitly using " *
-                           "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                           "by coercing `wts` to `FrequencyWeights`"),
-                          lm(f, df; wts=df.vweights, method=dmethod))
+    f = @formula(FoodExp ~ IncomeM)
+    dfnm = dropmissing(df)
+    X = [fill(1, nrow(dfnm)) dfnm.IncomeM]
 
-    glm_model = @test_logs((:warn,
-                            "Passing weights as vector is deprecated in favor of explicitly using " *
-                            "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                            "by coercing `wts` to `FrequencyWeights`"),
-                           glm(f, df, Normal(); wts=df.vweights, method=dmethod))
+    msg = "Weights as standard vectors are no longer supported: " *
+          "use `AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights` " *
+          "from StatsBase instead."
+    @test_throws ArgumentError(msg) lm(f, df; weights=:vweights, method=dmethod)
+    @test_throws ArgumentError(msg) lm(X, dfnm.FoodExp;
+                                       weights=dfnm.vweights, method=dmethod)
+    @test_throws ArgumentError(msg) fit(LinearModel, f, df; weights=:vweights,
+                                        method=dmethod)
+    @test_throws ArgumentError(msg) fit(LinearModel, X, dfnm.FoodExp;
+                                        weights=dfnm.vweights, method=dmethod)
 
-    conv_weights = GLM.convert_weights(vweights, N)
-    @test GLM.convert_weights(vweights, N) isa FrequencyWeights
-    @test conv_weights == df.vweights
+    @test_throws ArgumentError(msg) glm(f, df, Normal(); weights=:vweights,
+                                        method=dmethod)
+    @test_throws ArgumentError(msg) glm(X, dfnm.FoodExp, Normal();
+                                        weights=dfnm.vweights, method=dmethod)
+    @test_throws ArgumentError(msg) fit(GeneralizedLinearModel, f, df, Normal();
+                                        weights=:vweights, method=dmethod)
+    @test_throws ArgumentError(msg) fit(GeneralizedLinearModel, X,
+                                        dfnm.FoodExp, Normal();
+                                        weights=dfnm.vweights, method=dmethod)
+
+    @test_throws ArgumentError(msg) negbin(f, df, LogLink(); weights=:vweights,
+                                           method=dmethod)
+    @test_throws ArgumentError(msg) negbin(X, dfnm.FoodExp, LogLink();
+                                           weights=dfnm.vweights, method=dmethod)
+
+    @test_throws DimensionMismatch("weights must have length 231 but was 1") lm(X,
+                                                                                dfnm.FoodExp;
+                                                                                weights=fweights([1]))
+    @test_throws DimensionMismatch("weights must have length 231 but was 1") glm(X,
+                                                                                 dfnm.FoodExp,
+                                                                                 Normal();
+                                                                                 weights=fweights([1]))
+    @test_throws DimensionMismatch("weights must have length 235 but was 1") lm(f, df;
+                                                                                weights=fweights([1]))
+    @test_throws DimensionMismatch("weights must have length 235 but was 1") glm(f, df,
+                                                                                 Normal();
+                                                                                 weights=fweights([1]))
+    # Empty UnitWeights are accepted only with formula methods
+    @test_throws DimensionMismatch("weights must have length 231 but was 0") lm(X,
+                                                                                dfnm.FoodExp;
+                                                                                weights=uweights(0))
+    @test_throws DimensionMismatch("weights must have length 231 but was 0") glm(X,
+                                                                                 dfnm.FoodExp,
+                                                                                 Normal();
+                                                                                 weights=uweights(0))
+
+    @test_throws(ArgumentError("column name :xx not found in the data frame"),
+                 lm(f, df; weights=:xx, method=dmethod))
+    @test_throws(ArgumentError("column name :xx not found in the data frame"),
+                 fit(LinearModel, f, df; weights=:xx, method=dmethod))
+    @test_throws(ArgumentError("column name :xx not found in the data frame"),
+                 glm(f, df, Normal(); weights=:xx, method=dmethod))
+    @test_throws(ArgumentError("column name :xx not found in the data frame"),
+                 fit(GeneralizedLinearModel, f, df, Normal(); weights=:xx, method=dmethod))
+    @test_throws(ArgumentError("column name :xx not found in the data frame"),
+                 negbin(f, df; weights=:xx, method=dmethod))
+
+    df.vweights = fweights(df.vweights)
+
+    for weights in (df.vweights, :vweights, "vweights")
+        lm_model = lm(f, df; weights=weights, method=dmethod)
+        glm_model = glm(f, df, Normal(); weights=weights, method=dmethod)
+        negbin_model = negbin(f, df, LogLink(); weights=weights, method=dmethod)
+
+        # Check residuals against expected values (first and last 5)
+        expected_resid_first5 = [-102.0697435459665, -105.72479782080222,
+                                 -60.97066036541014,
+                                 -22.05020324221482, 21.658202654193815]
+        expected_resid_last5 = [-50.78800384518928, -60.918516026396446,
+                                -117.62267642761117,
+                                8.722152280201385, 83.53879827642595]
+        @test residuals(lm_model)[1:5] ≈ expected_resid_first5
+        @test residuals(lm_model)[(end - 4):end] ≈ expected_resid_last5
+        @test residuals(lm_model) ≈ response(lm_model) .- predict(lm_model)
+        @test residuals(lm_model; weighted=true) ≈
+              sqrt.(GLM.weights(lm_model)) .* (response(lm_model) .- predict(lm_model))
+        @test residuals(glm_model; weighted=true) ≈ residuals(lm_model; weighted=true)
+        @test residuals(glm_model; weighted=false) ≈ residuals(lm_model; weighted=false)
+        @test residuals(glm_model.rr; weighted=false) ≈ residuals(lm_model; weighted=false)
+        @test residuals(glm_model.rr; weighted=true) ≈ residuals(lm_model; weighted=true)
+
+        @test GLM.varstruct(lm_model) ==
+              (GLM.working_weights(lm_model) .* GLM.working_residuals(lm_model), 1.0)
+        @test residuals(lm_model.rr) ≈ residuals(lm_model)
+        @test coef(lm_model) ≈ [154.82400767399676, 0.48373684369124464]
+        @test coef(glm_model) ≈ coef(lm_model)
+        @test stderror(lm_model) ≈ [9.512977764030682, 0.00823836182563728]
+        @test r2(lm_model) ≈ 0.8338475386476053
+        @test adjr2(lm_model) ≈ 0.8336056864476746
+        @test vcov(lm_model) ≈
+              [90.49674593894218 -0.06917867268441888;
+               -0.06917867268441888 6.787060557011761e-5]
+        @test first(predict(lm_model)) ≈ 358.0697435459665
+        @test loglikelihood(lm_model) ≈ -4259.8055897223
+        @test loglikelihood(lm_model.rr) == loglikelihood(lm_model)
+        @test loglikelihood(glm_model) ≈ loglikelihood(lm_model)
+        @test nullloglikelihood(lm_model) ≈ nullloglikelihood(glm_model)
+        @test mean(residuals(lm_model)) ≈ -5.583548844479725
+        @test GLM.working_residuals(lm_model) ≈ residuals(lm_model)
+
+        # For `negbin`, simply check that weights have been taken into account
+        # (other checks are common with `glm`)
+        @test coef(negbin_model) ≈ [5.714551114729789, 0.0006810829290333412]
+        @test stderror(negbin_model) ≈ [0.01426542523908689, 1.2263102633335218e-5]
+    end
+
+    dfnm.vweights = fweights(dfnm.vweights)
+
+    lm_model = lm(X, dfnm.FoodExp; weights=dfnm.vweights, method=dmethod)
+    glm_model = glm(X, dfnm.FoodExp, Normal(); weights=dfnm.vweights, method=dmethod)
+    negbin_model = negbin(X, dfnm.FoodExp, LogLink(); weights=dfnm.vweights, method=dmethod)
 
     # Check residuals against expected values (first and last 5)
-    expected_resid_first5 = [-101.73752382323588, -105.26761187514256, -104.55155668451636,
-                             -60.47017552384705, -21.981021746539113]
-    expected_resid_last5 = [-60.90568125081245, -116.924839538909, 32.45199541112112,
-                            8.832096603368427, 84.38185070415943]
+    expected_resid_first5 = [-102.0697435459665, -105.72479782080222, -60.97066036541014,
+                             -22.05020324221482, 21.658202654193815]
+    expected_resid_last5 = [-50.78800384518928, -60.918516026396446, -117.62267642761117,
+                            8.722152280201385, 83.53879827642595]
     @test residuals(lm_model)[1:5] ≈ expected_resid_first5
     @test residuals(lm_model)[(end - 4):end] ≈ expected_resid_last5
-    @test residuals(lm_model) ≈ df.FoodExp .- predict(lm_model)
+    @test residuals(lm_model) ≈ response(lm_model) .- predict(lm_model)
     @test residuals(lm_model; weighted=true) ≈
-          sqrt.(GLM.weights(lm_model)) .* (df.FoodExp .- predict(lm_model))
+          sqrt.(GLM.weights(lm_model)) .* (response(lm_model) .- predict(lm_model))
     @test residuals(glm_model; weighted=true) ≈ residuals(lm_model; weighted=true)
     @test residuals(glm_model; weighted=false) ≈ residuals(lm_model; weighted=false)
     @test residuals(glm_model.rr; weighted=false) ≈ residuals(lm_model; weighted=false)
@@ -180,41 +282,42 @@ end
     @test GLM.varstruct(lm_model) ==
           (GLM.working_weights(lm_model) .* GLM.working_residuals(lm_model), 1.0)
     @test residuals(lm_model.rr) ≈ residuals(lm_model)
-    @test isapprox(coef(lm_model), [154.35104595140706, 0.4836896390157505])
-    @test isapprox(coef(glm_model), [154.35104595140706, 0.4836896390157505])
-    @test isapprox(stderror(lm_model), [9.382302620120193, 0.00816741377772968])
-    @test isapprox(r2(lm_model), 0.8330258148644486)
-    @test isapprox(adjr2(lm_model), 0.832788298242634)
-    @test isapprox(vcov(lm_model),
-                   [88.02760245551447 -0.06772589439264813;
-                    -0.06772589439264813 6.670664781664879e-5])
-    @test isapprox(first(predict(lm_model)), 357.57694841780994)
-    @test isapprox(loglikelihood(lm_model), -4353.946729075838)
-    @test isapprox(loglikelihood(lm_model.rr), -4353.946729075838)
-    @test isapprox(loglikelihood(glm_model), -4353.946729075838)
-    @test isapprox(nullloglikelihood(lm_model), -4984.892139711452)
-    @test isapprox(mean(residuals(lm_model)), -5.412966629787718)
+    @test coef(lm_model) ≈ [154.82400767399676, 0.48373684369124464]
+    @test coef(glm_model) ≈ coef(lm_model)
+    @test stderror(lm_model) ≈ [9.512977764030682, 0.00823836182563728]
+    @test r2(lm_model) ≈ 0.8338475386476053
+    @test adjr2(lm_model) ≈ 0.8336056864476746
+    @test vcov(lm_model) ≈
+          [90.49674593894218 -0.06917867268441888;
+           -0.06917867268441888 6.787060557011761e-5]
+    @test first(predict(lm_model)) ≈ 358.0697435459665
+    @test loglikelihood(lm_model) ≈ -4259.8055897223
+    @test loglikelihood(lm_model.rr) == loglikelihood(lm_model)
+    @test loglikelihood(glm_model) ≈ loglikelihood(lm_model)
+    @test nullloglikelihood(lm_model) ≈ nullloglikelihood(glm_model)
+    @test mean(residuals(lm_model)) ≈ -5.583548844479725
     @test GLM.working_residuals(lm_model) ≈ residuals(lm_model)
-    @test r2(lm_model) ≈ 0.8330258148644486
-    @test adjr2(lm_model) ≈ 0.832788298242634
 
-    lm_model = fit(LinearModel, f, df; wts=uweights(0))
-    @test_logs (:warn,
-                "Using `wts` of zero length for unweighted regression is deprecated in favor of " *
-                "explicitly using `UnitWeights(length(y))`." *
-                " Proceeding by coercing `wts` to UnitWeights of size $(N).")
-    @test GLM.weights(lm_model) == uweights(N)
+    # For `negbin`, simply check that weights have been taken into account
+    # (other checks are common with `glm`)
+    @test coef(negbin_model) ≈ [5.714551114729789, 0.0006810829290333412]
+    @test stderror(negbin_model) ≈ [0.01426542523908689, 1.2263102633335218e-5]
+
+    lm_model = lm(f, df; weights=uweights(0))
+    @test GLM.weights(lm_model) == uweights(length(response(lm_model)))
+
+    glm_model = glm(f, df, Normal(); weights=uweights(0))
+    @test GLM.weights(glm_model) == uweights(length(response(glm_model)))
+
+    negbin_model = negbin(f, df, LogLink(); weights=uweights(0))
+    @test GLM.weights(negbin_model) == uweights(length(response(negbin_model)))
 
     lm1 = fit(GeneralizedLinearModel, f, df, Normal(), IdentityLink();
-              wts=pweights(df.vweights))
-    @test_logs (:warn,
-                "Passing weights as vector is deprecated in favor of explicitly using " *
-                "`AnalyticWeights`, `ProbabilityWeights`, or `FrequencyWeights`. Proceeding " *
-                "by coercing `wts` to `FrequencyWeights`")
-
+              weights=pweights(df.vweights))
     @test_throws ArgumentError loglikelihood(lm1)
     @test_throws ArgumentError nullloglikelihood(lm1)
-    lm1 = fit(LinearModel, f, df; wts=pweights(df.vweights))
+
+    lm1 = fit(LinearModel, f, df; weights=pweights(df.vweights))
     @test_throws ArgumentError loglikelihood(lm1)
     @test_throws ArgumentError nullloglikelihood(lm1)
     @test residuals(lm1) == residuals(lm1.rr)
@@ -620,7 +723,7 @@ end
     gm7pw = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 1 + Prewt + Treat),
                 anorexia,
                 Poisson(), LogLink(); method=dmethod, offset=log.(anorexia.Prewt),
-                wts=fweights(repeat(1:4; outer=18)), rtol=1e-8)
+                weights=fweights(repeat(1:4; outer=18)), rtol=1e-8)
 
     @test GLM.cancancel(gm7pw.rr)
     test_show(gm7pw)
@@ -721,7 +824,7 @@ admit_agr = DataFrame(; count=[28.0, 97, 93, 55, 33, 54, 28, 12],
 @testset "Aggregated Binomial LogitLink" begin
     for distr in (Binomial, Bernoulli)
         gm14 = fit(GeneralizedLinearModel, @formula(admit ~ 1 + rank), admit_agr, distr();
-                   wts=fweights(Array(admit_agr.count)))
+                   weights=fweights(Array(admit_agr.count)))
         @test dof(gm14) == 4
         @test nobs(gm14) == 400
         @test isapprox(deviance(gm14), 474.9667184280627)
@@ -745,7 +848,7 @@ admit_agr2.p = admit_agr2.admit ./ admit_agr2.count
 ## The model matrix here is singular so tests like the deviance are just round off error
 @testset "Binomial LogitLink aggregated with $dmethod" for dmethod in (:cholesky, :qr)
     gm15 = fit(GeneralizedLinearModel, @formula(p ~ rank), admit_agr2, Binomial();
-               wts=fweights(admit_agr2.count))
+               weights=fweights(admit_agr2.count))
     test_show(gm15)
     @test dof(gm15) == 4
     @test nobs(gm15) == 400
@@ -763,7 +866,7 @@ end
 # Weighted Gamma example (weights are totally made up)
 @testset "Gamma InverseLink Weights with $dmethod" for dmethod in (:cholesky, :qr)
     gm16 = fit(GeneralizedLinearModel, @formula(lot1 ~ 1 + u), clotting, Gamma();
-               wts=fweights([1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7]))
+               weights=fweights([1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7]))
     test_show(gm16)
     @test dof(gm16) == 3
     @test nobs(gm16) == 32.7
@@ -781,7 +884,7 @@ end
 @testset "Poisson LogLink Weights" begin
     gm17 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson,
                Poisson();
-               wts=fweights([1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7]))
+               weights=fweights([1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7]))
     test_show(gm17)
     @test dof(gm17) == 5
     @test isapprox(deviance(gm17), 17.699857821414266)
@@ -894,7 +997,7 @@ end
     halfn = round(Int, 0.5 * size(quine, 1))
     wts = vcat(fill(0.8, halfn), fill(1.2, size(quine, 1) - halfn))
     gm20a = negbin(@formula(Days ~ Eth + Sex + Age + Lrn), quine, LogLink();
-                   wts=fweights(wts))
+                   weights=fweights(wts))
     test_show(gm20a)
     @test dof(gm20a) == 8
     @test isapprox(deviance(gm20a), 168.40402933035944, rtol=1e-7)
@@ -1025,7 +1128,7 @@ end
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat),
                     anorexia,
                     Poisson(), LogLink(); offset=log.(anorexia.Prewt),
-                    wts=fweights(repeat(1:4; outer=18)), rtol=1e-8, dropcollinear=false)
+                    weights=fweights(repeat(1:4; outer=18)), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3)
     @test GLM.cancancel(nointglm3.rr)
     test_show(nointglm3)
@@ -1083,7 +1186,7 @@ end
     nointglm3 = fit(GeneralizedLinearModel, @formula(round(Postwt) ~ 0 + Prewt + Treat),
                     anorexia,
                     Poisson(), LogLink(); method=dmethod, offset=log.(anorexia.Prewt),
-                    wts=fweights(repeat(1:4; outer=18)), rtol=1e-8, dropcollinear=false)
+                    weights=fweights(repeat(1:4; outer=18)), rtol=1e-8, dropcollinear=false)
     @test !hasintercept(nointglm3)
     @test GLM.cancancel(nointglm3.rr)
     test_show(nointglm3)
@@ -1147,8 +1250,8 @@ end
     X = [X[:, 1:8] X[:, 1:2] X[:, 9:10]]
     y = Bool[rand(rng) < logistic(x) for x in X * β]
     w = rand(rng, 1000)
-    gmsparse = fit(LinearModel, X, y; wts=aweights(w), method=:qr)
-    gmdense = fit(LinearModel, Matrix(X), y; wts=aweights(w), method=:qr)
+    gmsparse = fit(LinearModel, X, y; weights=aweights(w), method=:qr)
+    gmdense = fit(LinearModel, Matrix(X), y; weights=aweights(w), method=:qr)
     isnans = isnan.(stderror(gmsparse))
     isnand = isnan.(stderror(gmdense))
 
@@ -1187,27 +1290,27 @@ end
     X = sprand(rng, 1000, 10, 0.01)
     β = randn(rng, 10)
     y = Bool[rand(rng) < logistic(x) for x in X * β]
-    ft_sparse_w = fit(LinearModel, X, y; wts=aweights(wts), method=dmethod)
-    ft_dense_w = fit(LinearModel, Matrix(X), y; wts=aweights(wts), method=dmethod)
+    ft_sparse_w = fit(LinearModel, X, y; weights=aweights(wts), method=dmethod)
+    ft_dense_w = fit(LinearModel, Matrix(X), y; weights=aweights(wts), method=dmethod)
     @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
     @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
 
     gmsparse = fit(GeneralizedLinearModel, X, y, Binomial(); method=dmethod,
-                   wts=aweights(wts))
+                   weights=aweights(wts))
     gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial(); method=dmethod,
-                  wts=aweights(wts))
+                  weights=aweights(wts))
     @test isapprox(deviance(gmsparse), deviance(gmdense))
     @test isapprox(coef(gmsparse), coef(gmdense))
     @test isapprox(vcov(gmsparse), vcov(gmdense))
-    ft_sparse_w = fit(LinearModel, X, y; wts=pweights(wts), method=dmethod)
-    ft_dense_w = fit(LinearModel, Matrix(X), y; wts=pweights(wts), method=dmethod)
+    ft_sparse_w = fit(LinearModel, X, y; weights=pweights(wts), method=dmethod)
+    ft_dense_w = fit(LinearModel, Matrix(X), y; weights=pweights(wts), method=dmethod)
     @test coef(ft_sparse_w) ≈ coef(ft_dense_w)
     @test vcov(ft_sparse_w) ≈ vcov(ft_dense_w)
 
     gmsparse = fit(GeneralizedLinearModel, X, y, Binomial(); method=dmethod,
-                   wts=pweights(wts))
+                   weights=pweights(wts))
     gmdense = fit(GeneralizedLinearModel, Matrix(X), y, Binomial(); method=dmethod,
-                  wts=pweights(wts))
+                  weights=pweights(wts))
     @test isapprox(deviance(gmsparse), deviance(gmdense))
     @test isapprox(coef(gmsparse), coef(gmdense))
     @test isapprox(vcov(gmsparse), vcov(gmdense))
@@ -1831,14 +1934,14 @@ end
         lm4 = lm(view(x, :, :), view(y, :); method=dmethod)
         @test coef(lm1) == coef(lm2) == coef(lm3) == coef(lm4)
 
-        lm5 = lm(x, y; wts=fweights(w), method=dmethod)
-        lm6 = lm(x, view(y, :); method=dmethod, wts=fweights(w))
-        lm7 = lm(view(x, :, :), y; method=dmethod, wts=fweights(w))
-        lm8 = lm(view(x, :, :), view(y, :); method=dmethod, wts=fweights(w))
-        lm9 = lm(x, y; method=dmethod, wts=fweights(view(w, :)))
-        lm10 = lm(x, view(y, :); method=dmethod, wts=fweights(view(w, :)))
-        lm11 = lm(view(x, :, :), y; method=dmethod, wts=fweights(view(w, :)))
-        lm12 = lm(view(x, :, :), view(y, :); method=dmethod, wts=fweights(view(w, :)))
+        lm5 = lm(x, y; weights=fweights(w), method=dmethod)
+        lm6 = lm(x, view(y, :); method=dmethod, weights=fweights(w))
+        lm7 = lm(view(x, :, :), y; method=dmethod, weights=fweights(w))
+        lm8 = lm(view(x, :, :), view(y, :); method=dmethod, weights=fweights(w))
+        lm9 = lm(x, y; method=dmethod, weights=fweights(view(w, :)))
+        lm10 = lm(x, view(y, :); method=dmethod, weights=fweights(view(w, :)))
+        lm11 = lm(view(x, :, :), y; method=dmethod, weights=fweights(view(w, :)))
+        lm12 = lm(view(x, :, :), view(y, :); method=dmethod, weights=fweights(view(w, :)))
         @test coef(lm5) == coef(lm6) == coef(lm7) == coef(lm8) == coef(lm9) == coef(lm10) ==
               coef(lm11) == coef(lm12)
 
@@ -1849,14 +1952,14 @@ end
         glm4 = glm(view(x, :, :), view(y, :), Binomial(); method=dmethod)
         @test coef(glm1) == coef(glm2) == coef(glm3) == coef(glm4)
 
-        glm5 = glm(x, y, Binomial(); wts=fweights(w))
-        glm6 = glm(x, view(y, :), Binomial(); wts=fweights(w))
-        glm7 = glm(view(x, :, :), y, Binomial(); wts=fweights(w))
-        glm8 = glm(view(x, :, :), view(y, :), Binomial(); wts=fweights(w))
-        glm9 = glm(x, y, Binomial(); wts=fweights(view(w, :)))
-        glm10 = glm(x, view(y, :), Binomial(); wts=fweights(view(w, :)))
-        glm11 = glm(view(x, :, :), y, Binomial(); wts=fweights(view(w, :)))
-        glm12 = glm(view(x, :, :), view(y, :), Binomial(); wts=fweights(view(w, :)))
+        glm5 = glm(x, y, Binomial(); weights=fweights(w))
+        glm6 = glm(x, view(y, :), Binomial(); weights=fweights(w))
+        glm7 = glm(view(x, :, :), y, Binomial(); weights=fweights(w))
+        glm8 = glm(view(x, :, :), view(y, :), Binomial(); weights=fweights(w))
+        glm9 = glm(x, y, Binomial(); weights=fweights(view(w, :)))
+        glm10 = glm(x, view(y, :), Binomial(); weights=fweights(view(w, :)))
+        glm11 = glm(view(x, :, :), y, Binomial(); weights=fweights(view(w, :)))
+        glm12 = glm(view(x, :, :), view(y, :), Binomial(); weights=fweights(view(w, :)))
         @test coef(glm5) == coef(glm6) == coef(glm7) == coef(glm8) == coef(glm9) ==
               coef(glm10) ==
               coef(glm11) == coef(glm12)
@@ -1987,7 +2090,7 @@ end
                     -3.6666667654825043 -0.0 -3.6666667654825043 -0.0 -3.6666667654825043]
 
         gm_poisw = fit(GeneralizedLinearModel, f, dobson, Poisson();
-                       wts=fweights(dobson.Weights))
+                       weights=fweights(dobson.Weights))
 
         mm0_poisw = [-0.9624647521850039 -0.0 -0.0 -0.0 -0.0;
                      0.6901050904949885 0.6901050904949885 0.0 0.0 0.0;
@@ -2005,7 +2108,7 @@ end
         f = @formula(admit ~ 1 + rank)
         gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(); rtol=1e-8)
         gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial();
-                      wts=fweights(admit_agr.count), rtol=1e-08)
+                      weights=fweights(admit_agr.count), rtol=1e-08)
 
         mm0_bin = [-0.5 -0.0 -0.0 -0.0
                    -0.5 -0.5 -0.0 -0.0
@@ -2033,7 +2136,7 @@ end
         f = @formula(admit ~ 1 + rank)
         gm_bin = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink())
         gm_binw = fit(GeneralizedLinearModel, f, admit_agr, Binomial(), ProbitLink();
-                      wts=fweights(admit_agr.count), rtol=1e-8)
+                      weights=fweights(admit_agr.count), rtol=1e-8)
 
         mm0_bin = [-0.7978846 0.0000000 0.0000000 0.0000000
                    -0.7978846 -0.7978846 0.0000000 0.0000000
@@ -2293,7 +2396,7 @@ end
     y = [1.0, 2.0, 3.0, 4.0, 5.0]
     wts = aweights([1.5, 2.0, 1.8, 2.2, 1.9])
     X = hcat(ones(5), [1.0, 2.0, 3.0, 4.0, 5.0])
-    model = lm(X, y; wts=wts)
+    model = lm(X, y; weights=wts)
 
     N = length(y)
     n = sum(log, GLM.weights(model))
@@ -2368,7 +2471,7 @@ end
 
     # Weights
     f2 = lm(X, filip_data_df.y; dropcollinear=false,
-            method=:qr, wts=uweights(length(filip_data_df.y)))
+            method=:qr, weights=uweights(length(filip_data_df.y)))
     @test coef(f2) ≈ filip_estimates_df.estimate rtol = 1e-7
     @test stderror(f2) ≈ filip_estimates_df.se rtol = 1e-7
 end
@@ -2390,24 +2493,24 @@ end
     form.CarbC = form.Carb
     form.awts = [0.6, 0.3, 0.6, 0.3, 0.6, 0.3]
     form.fwts = [6, 3, 6, 3, 6, 3]
-    lm0 = fit(LinearModel, @formula(OptDen ~ Carb), form; wts=aweights(form.awts),
+    lm0 = fit(LinearModel, @formula(OptDen ~ Carb), form; weights=aweights(form.awts),
               method=:qr)
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb + CarbC),
-              form; wts=aweights(form.awts), method=:qr)
+              form; weights=aweights(form.awts), method=:qr)
     @test coef(lm0) ≈ coef(lm1)[1:2]
     @test stderror(lm0) ≈ stderror(lm1)[1:2]
     @test isnan(stderror(lm1)[3])
-    lm0 = fit(LinearModel, @formula(OptDen ~ Carb), form; wts=pweights(form.awts),
+    lm0 = fit(LinearModel, @formula(OptDen ~ Carb), form; weights=pweights(form.awts),
               method=:qr)
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb + CarbC),
-              form; wts=pweights(form.awts), method=:qr)
+              form; weights=pweights(form.awts), method=:qr)
     @test coef(lm0) ≈ coef(lm1)[1:2]
     @test stderror(lm0) ≈ stderror(lm1)[1:2]
     @test isnan(stderror(lm1)[3])
-    lm0 = fit(LinearModel, @formula(OptDen ~ Carb), form; wts=fweights(form.fwts),
+    lm0 = fit(LinearModel, @formula(OptDen ~ Carb), form; weights=fweights(form.fwts),
               method=:qr)
     lm1 = fit(LinearModel, @formula(OptDen ~ Carb + CarbC),
-              form; wts=fweights(form.fwts), method=:qr)
+              form; weights=fweights(form.fwts), method=:qr)
     @test coef(lm0) ≈ coef(lm1)[1:2]
     @test stderror(lm0) ≈ stderror(lm1)[1:2]
     @test isnan(stderror(lm1)[3])
@@ -2449,8 +2552,8 @@ frmp1 = @formula(d ~ x_1 + xx_2 + +x_2 + xx_1)
 end
 
 @testset "Leverage weighted" for method in (:qr, :cholesky)
-    lm0 = fit(LinearModel, frm0, df; method=method, wts=fweights(df.w))
-    lm1 = fit(LinearModel, frm1, df; method=method, wts=fweights(df.w))
+    lm0 = fit(LinearModel, frm0, df; method=method, weights=fweights(df.w))
+    lm1 = fit(LinearModel, frm1, df; method=method, weights=fweights(df.w))
 
     lev0 = [0.4546669409864052, 0.39220506613766826, 0.31067464842874659,
             0.16105201633463462, 0.45458434896240396, 0.43751245519667181,
@@ -2465,11 +2568,12 @@ end
     @test leverage(lm0) ≈ leverage(lm1)
     @test lev0 ≈ leverage(lm1)
     glm1 = fit(GeneralizedLinearModel, frm1, df, Normal(),
-               IdentityLink(); method=method, wts=fweights(df.w))
+               IdentityLink(); method=method, weights=fweights(df.w))
     @test lev0 ≈ leverage(glm1)
-    probit0 = glm(frmp0, df, Binomial(), ProbitLink(); method=method, wts=aweights(df.w),
+    probit0 = glm(frmp0, df, Binomial(), ProbitLink(); method=method,
+                  weights=aweights(df.w),
                   atol=1e-10, rtol=1e-10, minstepfac=1e-10)
-    probit = glm(frmp1, df, Binomial(), ProbitLink(); method=method, wts=aweights(df.w),
+    probit = glm(frmp1, df, Binomial(), ProbitLink(); method=method, weights=aweights(df.w),
                  atol=1e-10, rtol=1e-10, minstepfac=1e-10)
     @test leverage(probit) ≈ leverage(probit0)
     @test cooksdistance(probit0) ≈ [9.548585e-04; 3.483554e-13; 2.982745e-01; 4.166364e-01;
@@ -2481,62 +2585,29 @@ end
 # Tests requested in PR #487 review
 @testset "Weight types produce consistent results" begin
     # Test that different weight types with same underlying weights produce same results
-    # when appropriate (fweights vs raw vector)
+    # when appropriate
     rng = StableRNG(42)
     n = 50
     X = [ones(n) randn(rng, n)]
     y = X * [1.0, 2.0] + randn(rng, n) * 0.5
     w = rand(rng, 1:10, n)
 
-    # FrequencyWeights should match raw vector (after deprecation warning)
-    lm_fweights = lm(X, y; wts=fweights(w))
-    lm_raw = @test_logs (:warn, r"Passing weights as vector is deprecated") lm(X, y; wts=w)
-    @test coef(lm_fweights) ≈ coef(lm_raw)
-    @test stderror(lm_fweights) ≈ stderror(lm_raw)
-
     # Compare weight types for linear model - coefficients should match (weighted least squares)
-    lm_aweights = lm(X, y; wts=aweights(Float64.(w)))
-    lm_pweights = lm(X, y; wts=pweights(Float64.(w)))
+    lm_fweights = lm(X, y; weights=fweights(w))
+    lm_aweights = lm(X, y; weights=aweights(Float64.(w)))
+    lm_pweights = lm(X, y; weights=pweights(Float64.(w)))
     @test coef(lm_fweights) ≈ coef(lm_aweights)
     @test coef(lm_fweights) ≈ coef(lm_pweights)
 
     # Test GLM with different weight types
     y_bin = ifelse.(y .> median(y), 1.0, 0.0)
-    glm_fweights = glm(X, y_bin, Binomial(); wts=fweights(w))
-    glm_aweights = glm(X, y_bin, Binomial(); wts=aweights(Float64.(w)))
+    glm_fweights = glm(X, y_bin, Binomial(); weights=fweights(w))
+    glm_aweights = glm(X, y_bin, Binomial(); weights=aweights(Float64.(w)))
+    glm_pweights = glm(X, y_bin, Binomial(); weights=aweights(Float64.(w)))
 
     # Coefficients should match for frequency and analytic weights
     @test coef(glm_fweights) ≈ coef(glm_aweights)
-end
-
-@testset "Weight conversion and deprecation" begin
-    X = [ones(10) randn(10)]
-    y = randn(10)
-
-    # Empty UnitWeights should silently expand to correct size (no warning)
-    # This is the internal default for formula-based fit methods
-    model = lm(X, y; wts=uweights(0))
-    @test GLM.weights(model) == uweights(10)
-
-    # Plain Vector weights should trigger deprecation warning and convert to FrequencyWeights
-    w = ones(10)
-    @test_logs (:warn, r"Passing weights as vector is deprecated") begin
-        model = lm(X, y; wts=w)
-        @test GLM.weights(model) isa FrequencyWeights
-    end
-
-    # Test whether the same deprecation warnings occur for GLM
-    y_count = rand(0:10, 10)
-
-    # Empty UnitWeights should silently expand to correct size (no warning) for GLM
-    glm_model = glm(X, y_count, Poisson(); wts=uweights(0))
-    @test GLM.weights(glm_model) == uweights(10)
-
-    # Plain Vector weights should trigger deprecation warning and convert to FrequencyWeights for GLM
-    @test_logs (:warn, r"Passing weights as vector is deprecated") begin
-        glm_model = glm(X, y_count, Poisson(); wts=w)
-        @test GLM.weights(glm_model) isa FrequencyWeights
-    end
+    @test coef(glm_fweights) ≈ coef(glm_pweights)
 end
 
 @testset "loglikelihood with analytic weights" begin
@@ -2549,7 +2620,7 @@ end
                          w=[1.5, 2.0, 1.1, 4.5, 2.4, 3.5, 5.6, 5.4, 6.7])
 
     gm_gamma = glm(@formula(lot1 ~ u), clotting, Gamma(), InverseLink();
-                   wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
+                   weights=aweights(clotting.w), atol=1e-09, rtol=1e-09)
     # Should compute without error and return valid loglikelihood
     @test isfinite(loglikelihood(gm_gamma))
     @test loglikelihood(gm_gamma) ≈ -43.359078787690514 rtol = 1e-06
@@ -2559,47 +2630,17 @@ end
     quine.w = log.(3 .+ 3 .* quine.Days)
 
     gm_geom = glm(@formula(Days ~ Eth + Sex), quine, Geometric(), LogLink();
-                  wts=aweights(quine.w), atol=1e-08, rtol=1e-08)
+                  weights=aweights(quine.w), atol=1e-08, rtol=1e-08)
     @test isfinite(loglikelihood(gm_geom))
     # Value verified against R: glm(..., family=negative.binomial(theta=1, link="log"), weights=w)
     @test loglikelihood(gm_geom) ≈ -2055.246 rtol = 1e-05
 
     # Test InverseGaussian with analytic weights
     gm_ig = glm(@formula(lot1 ~ u), clotting, InverseGaussian(), InverseSquareLink();
-                wts=aweights(clotting.w), atol=1e-09, rtol=1e-09)
+                weights=aweights(clotting.w), atol=1e-09, rtol=1e-09)
     @test isfinite(loglikelihood(gm_ig))
     # Value verified against R: glm(..., family=inverse.gaussian(link="1/mu^2"), weights=w)
     @test loglikelihood(gm_ig) ≈ -86.82547 rtol = 1e-05
-end
-
-@testset "Weight conversion function" begin
-    # Test convert_weights helper function
-    w = [1.0, 2.0, 3.0, 4.0, 5.0]
-    n = length(w)
-
-    # Vector should be converted to FrequencyWeights (with deprecation warning)
-    # Note: Base.depwarn is used internally, which behaves differently from @warn
-    converted = GLM.convert_weights(w, n)
-    @test converted isa FrequencyWeights
-    @test convert(Vector, converted) == w
-
-    # AbstractWeights should pass through unchanged
-    aw = aweights(w)
-    @test GLM.convert_weights(aw, n) === aw
-
-    fw = fweights(w)
-    @test GLM.convert_weights(fw, n) === fw
-
-    pw = pweights(w)
-    @test GLM.convert_weights(pw, n) === pw
-
-    uw = uweights(n)
-    @test GLM.convert_weights(uw, n) === uw
-
-    # Empty weights should be converted to UnitWeights of size n
-    empty_wts = GLM.convert_weights(uweights(0), n)
-    @test empty_wts isa UnitWeights
-    @test length(empty_wts) == n
 end
 
 @testset "isweighted function" begin
@@ -2613,7 +2654,7 @@ end
 
     # Weighted model
     w = rand(10)
-    lm_weighted = lm(X, y; wts=fweights(w))
+    lm_weighted = lm(X, y; weights=fweights(w))
     @test GLM.isweighted(lm_weighted)
     @test GLM.isweighted(lm_weighted.rr)
 
@@ -2622,6 +2663,6 @@ end
     glm_unweighted = glm(X, y_pos, Gamma(), LogLink())
     @test !GLM.isweighted(glm_unweighted)
 
-    glm_weighted = glm(X, y_pos, Gamma(), LogLink(); wts=fweights(w))
+    glm_weighted = glm(X, y_pos, Gamma(), LogLink(); weights=fweights(w))
     @test GLM.isweighted(glm_weighted)
 end
