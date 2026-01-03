@@ -2653,3 +2653,60 @@ end
         x            -0.502451    0.675377  -0.74    0.4982   -2.3776      1.3727
         ─────────────────────────────────────────────────────────────────────────"""
 end
+
+berds1 = CSV.read(joinpath(glm_datadir, "rds1.csv"), DataFrame)
+berds1.Period = categorical(berds1.Period)
+berds1.Subject = categorical(berds1.Subject)
+
+@testset "Tests of Between-Subjects Effects" begin
+    # This is not BE model - no subject 
+    # Against SPSS 28
+    #=
+    GLM Var BY Sequence Period Formulation 
+  /METHOD=SSTYPE(3) 
+  /INTERCEPT=INCLUDE 
+  /PRINT PARAMETER 
+  /CRITERIA=ALPHA(.05) 
+  /DESIGN=Sequence Period Formulation.
+    =#
+    # Intercept not included in test
+    
+    # Basic model
+    ols  = lm(@formula(Var ~ Sequence+Period+Formulation), berds1)
+    tbl = GLM.typeiii(ols)
+    @test tbl.cols[2][2] ≈ 1.011001 atol = 1.0E-6
+    @test tbl.cols[2][3] ≈ 0.328551 atol = 1.0E-6
+    @test tbl.cols[2][4] ≈ 0.106973 atol = 1.0E-6
+    @test tbl.cols[3][2] ≈ 0.322206 atol = 1.0E-6
+    @test tbl.cols[3][3] ≈ 0.570520 atol = 1.0E-6
+    @test tbl.cols[3][4] ≈ 0.745747 atol = 1.0E-6
+    #=
+    GLM Var BY Sequence Period Formulation 
+  /METHOD=SSTYPE(3) 
+  /INTERCEPT=EXCLUDE 
+  /PRINT PARAMETER 
+  /CRITERIA=ALPHA(.05) 
+  /DESIGN=Sequence Period Formulation.
+    =#
+
+    # Zero intercep
+    ols  = lm(@formula(Var ~ 0+Sequence+Period+Formulation), berds1)
+    tbl = GLM.typeiii(ols)
+    @test tbl.cols[2][1] ≈ 1.011001 atol = 1.0E-6
+    @test tbl.cols[2][2] ≈ 0.328551 atol = 1.0E-6
+    @test tbl.cols[2][3] ≈ 0.106973 atol = 1.0E-6
+    @test tbl.cols[3][1] ≈ 0.322206 atol = 1.0E-6
+    @test tbl.cols[3][2] ≈ 0.570520 atol = 1.0E-6
+    @test tbl.cols[3][3] ≈ 0.745747 atol = 1.0E-6
+
+    # Crossed factors
+    ols  = lm(@formula(Var ~ 1+Sequence&Period), berds1)
+    tbl = GLM.typeiii(ols)
+    @test tbl.cols[2][2] ≈ 0.482175 atol = 1.0E-6
+    @test tbl.cols[3][2] ≈ 0.696996 atol = 1.0E-6
+
+    # Crossed factors (zero - intercept)
+    ols  = lm(@formula(Var ~ 0+Sequence&Period), berds1)
+    tbl = GLM.typeiii(ols)
+    @test tbl.cols[2][1] ≈ 87.103976 atol = 1.0E-6
+end

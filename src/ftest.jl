@@ -239,3 +239,189 @@ end
 function ftest(r::LinearModel{T,<:ProbabilityWeights}) where {T}
     throw(ArgumentError("`ftest` for probability weighted models is not currently supported."))
 end
+
+
+##############################################
+# Tests of Between-Subjects Effects
+# Baset on F-statistics
+# L: The s×p full row rank matrix. The rows are estimable functions. s≥1 where p number of coefs
+"""
+θ + A * B * A'
+
+Change θ (only upper triangle). B is symmetric.
+"""
+function mulαβαtinc!(θ::AbstractMatrix, A::AbstractMatrix, B::AbstractMatrix)
+    axb  = axes(B, 1)
+    sa   = size(A, 1)
+    for j ∈ axb
+        for i ∈ axb
+            @inbounds Bij = B[i, j]
+            for n ∈ 1:sa
+                @inbounds Anj = A[n, j]
+                BijAnj = Bij * Anj
+                @simd for m ∈ 1:n
+                    @inbounds θ[m, n] +=  A[m, i] * BijAnj
+                end
+            end
+        end
+    end
+    θ
+end
+
+# See SPSS (GLM/UNIANOVA) and SAS (PROC GLM) documentation 
+# https://www.ibm.com/docs/en/spss-statistics/29.0.0?topic=effects-tests-between-subjects
+# L is a s×p matrix corresponding to plan-matrix of Factor
+# p - number of columns - coefs number
+# s - number of levels for this factor in the model
+# For Example
+# If you have model matrix with Intercept and two factors A and B with 3 and 4 levels
+# with Dummy coding you will have:
+# 
+# I A2 A3 B2 B3 B4
+# 1 1  0  1  0  0
+# 1 1  0  1  0  0
+# 1 1  0  1  0  0
+# 1 1  0  1  0  0
+# 1 0  1  1  0  0
+# 1 0  1  0  1  0
+# 1 0  1  0  1  0
+# 1 0  1  0  1  0
+# 1 0  1  0  1  0
+# 1 0  0  0  0  1
+# 1 0  0  0  0  1
+# 1 0  0  0  0  1
+# 1 0  0  0  0  0
+# 1 0  0  0  0  0
+#
+# Then you wil have L matrix for intercept:
+#
+# 1 0  0  0  0  0 
+#
+# For A:
+#
+# 0 1  0  0  0  0
+# 0 0  1  0  0  0
+#
+# For B:
+#
+# 0 0  0  1  0  0
+# 0 0  0  0  1  0
+# 0 0  0  0  0  1
+#
+"""
+    lcontrast(obj, i::Int)
+
+L-contrast matrix for `i` fixed effect.
+"""
+function lcontrast(obj, i::Int)
+    n = length(obj.formula.rhs.terms)
+    cn = length(coef(obj))
+    if i > n || n < 1 error("Factor number out of range 1-$(n)") end
+    term = obj.formula.rhs.terms[i]
+    prev = 0
+    if i > 1
+        for j = 1:i-1
+            prev += width(obj.formula.rhs.terms[j])
+        end
+    end
+    #=
+    if isa(term, CategoricalTerm)
+        cm = term.contrasts.matrix
+        mx = zeros(Float64, size(cm, 1), cn)
+        view(mx, :, prev+1:prev+width(term)) .= cm
+    elseif isa(term, InteractionTerm)
+        m = width(term)
+        mx = zeros(Float64, m, cn)
+        for j = 1:m 
+            mx[j, j+prev] = 1
+        end
+    else
+        mx = zeros(Float64, 1, cn)
+        mx[1, prev+1] = 1
+    end
+    mx
+    =#
+    
+    p    = length(coef(obj)) # number of coefs
+    inds = prev+1:prev+width(term)
+    if typeof(term) <: CategoricalTerm
+        mxc   = zeros(size(term.contrasts.matrix, 1), p)
+        mxcv  = view(mxc, :, inds)
+        mxcv .= term.contrasts.matrix
+        mx    = zeros(size(term.contrasts.matrix, 1) - 1, p)
+        for i = 2:size(term.contrasts.matrix, 1) # correct for zero-intercept model
+            mx[i-1, :] .= mxc[i, :] - mxc[1, :]
+        end
+    else
+        mx = zeros(length(inds), p) # unknown correctness for zero-intercept model
+        for j = 1:length(inds)
+            mx[j, inds[j]] = 1
+        end
+    end
+    mx
+    
+end
+
+tname(t::AbstractTerm) = "$(t.sym)"
+tname(t::InteractionTerm) = join(tname.(t.terms), " & ")
+tname(t::InterceptTerm) = "(Intercept)"
+
+"""
+    typeiii(obj)
+
+Calculate F-statistics for Tests of Between-Subjects Effects. 
+Sum of squares and MS not calculated.
+
+"""
+function typeiii(obj)
+    V           = vcov(obj) 
+    replace!(V, NaN => 0) # Some values can be NaN - replace it to zero
+    B           = coef(obj)   
+    c           = length(obj.formula.rhs.terms)
+    d           = Vector{Int}(undef, 0)
+    fac         = Vector{String}(undef, c)
+    F           = Vector{Float64}(undef,c)
+    df          = Vector{Tuple{Float64, Float64}}(undef, c)
+    pval        = Vector{Float64}(undef, c)
+    for i = 1:c
+        # Make L matrix
+        L       = lcontrast(obj, i)
+        if typeof(obj.formula.rhs.terms[i]) <: InterceptTerm{false} # If zero intercept (drop)
+            push!(d, i)
+            fac[i] = ""
+            continue
+        else
+            fac[i] = tname(obj.formula.rhs.terms[i])
+        end
+        # For case when cofs is zero (or NaN) we reduce rank of L-matrix
+        for c = 1:length(B)
+            if isnan(B[c]) || iszero(B[c])
+                L[:, c] .= 0
+            end
+        end
+        RL = rank(L) # Rank of L matrix
+        # F-statistics computed:
+        # F[i]    = (L'*B' * pinv(L * V * L') * L * B) / rank(L)
+        # As V is symmetric we can calc only upper triangle
+        # θ = L * V * L'
+        θ = zeros(size(L, 1), size(L, 1))
+        mulαβαtinc!(θ, L, V)
+        LB = L * B
+        # Then F can be computed:
+        # F[i]    = (LB' * pinv(Symmetric(θ)) * LB)/rank(L)
+        F[i]    = dot(LB, pinv(Symmetric(θ)), LB) / RL
+        df[i]   = (RL, dof_residual(obj))
+        if iszero(df[i][1])
+            pval[i] = NaN
+        else
+            pval[i] = ccdf(FDist(df[i][1], df[i][2]), F[i])
+        end
+    end
+    if length(d) > 0
+        deleteat!(fac, d)
+        deleteat!(F, d)
+        deleteat!(df, d)
+        deleteat!(pval, d)
+    end
+    CoefTable([df, F, pval], ["DF/DDF", "F", "Pr(>F)"], fac, 3, 2)
+end
