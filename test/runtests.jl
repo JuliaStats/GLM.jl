@@ -2399,7 +2399,7 @@ end
     model = lm(X, y; weights=wts)
 
     N = length(y)
-    n = sum(log, weights(model))
+    n = sum(log, GLM.weights(model))
     dev = deviance(model)
     expected_ll = (n - N * (log(2π * dev / N) + 1)) / 2
     @test loglikelihood(model) ≈ expected_ll
