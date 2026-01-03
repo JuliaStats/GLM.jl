@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>API · GLM</title><link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css" rel="stylesheet" type="text/css"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link href="../assets/documenter.css" rel="stylesheet" type="text/css"/></head><body><nav class="toc"><h1>GLM</h1><select id="version-selector" onChange="window.location.href=this.value" style="visibility: hidden"></select><form class="search" id="search-form" action="../search/"><input id="search-query" name="q" type="text" placeholder="Search docs"/></form><ul><li><a class="toctext" href="../">Home</a></li><li><a class="toctext" href="../manual/">Manual</a></li><li><a class="toctext" href="../examples/">Examples</a></li><li class="current"><a class="toctext" href>API</a><ul class="internal"><li><a class="toctext" href="#Types-defined-in-the-package-1">Types defined in the package</a></li><li><a class="toctext" href="#Constructors-for-models-1">Constructors for models</a></li><li><a class="toctext" href="#Model-methods-1">Model methods</a></li><li><a class="toctext" href="#Links-and-methods-applied-to-them-1">Links and methods applied to them</a></li></ul></li></ul></nav><article id="docs"><header><nav><ul><li><a href>API</a></li></ul><a class="edit-page" href="https://github.com/JuliaStats/GLM.jl/blob/master/docs/src/api.md"><span class="fa"></span> Edit on GitHub</a></nav><hr/><div id="topbar"><span>API</span><a class="fa fa-bars" href="#"></a></div></header><h1><a class="nav-anchor" id="API-1" href="#API-1">API</a></h1><h2><a class="nav-anchor" id="Types-defined-in-the-package-1" href="#Types-defined-in-the-package-1">Types defined in the package</a></h2><pre><code class="language-none">DensePredChol
+DensePredQR
+GlmResp
+LinearModel
+LmResp
+LinPred
+GLM.ModResp</code></pre><h2><a class="nav-anchor" id="Constructors-for-models-1" href="#Constructors-for-models-1">Constructors for models</a></h2><p>The most general approach to fitting a model is with the <code>fit</code> function, as in</p><pre><code class="language-julia-repl">julia&gt; using Random;
+
+julia&gt; fit(LinearModel, hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
+LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
+
+Coefficients:
+      Estimate Std.Error  t value Pr(&gt;|t|)
+x1    0.717436  0.775175 0.925515   0.3818
+x2   -0.152062  0.124931 -1.21717   0.2582</code></pre><p>This model can also be fit as</p><pre><code class="language-julia-repl">julia&gt; using Random;
+
+julia&gt; lm(hcat(ones(10), 1:10), randn(MersenneTwister(12321), 10))
+LinearModel{LmResp{Array{Float64,1}},DensePredChol{Float64,LinearAlgebra.Cholesky{Float64,Array{Float64,2}}}}:
+
+Coefficients:
+      Estimate Std.Error  t value Pr(&gt;|t|)
+x1    0.717436  0.775175 0.925515   0.3818
+x2   -0.152062  0.124931 -1.21717   0.2582</code></pre><section class="docstring"><div class="docstring-header"><a class="docstring-binding" id="GLM.glm" href="#GLM.glm"><code>GLM.glm</code></a> — <span class="docstring-category">Function</span>.</div><div><div><pre><code class="language-none">glm(F, D, args...; kwargs...)</code></pre><p>Fit a generalized linear model to data. Alias for <code>fit(GeneralizedLinearModel, ...)</code>. See <a href="#StatsBase.fit"><code>fit</code></a> for documentation.</p></div></div><a class="source-link" target="_blank" href="https://github.com/JuliaStats/GLM.jl/blob/03220f7c0a72ca6f82d0e08bc8aa27fe4f7f1a15/src/glmfit.jl#L468-L473">source</a></section><section class="docstring"><div class="docstring-header"><a class="docstring-binding" id="StatsBase.fit" href="#StatsBase.fit"><code>StatsBase.fit</code></a> — <span class="docstring-category">Function</span>.</div><div><div><pre><code class="language-none">fit(GeneralizedLinearModel, X, y, d, [l = canonicallink(d)]; &lt;keyword arguments&gt;)</code></pre><p>Fit a generalized linear model to data. <code>X</code> and <code>y</code> can either be a matrix and a vector, respectively, or a formula and a data frame. <code>d</code> must be a <code>UnivariateDistribution</code>, and <code>l</code> must be a <a href="@ref"><code>Link</code></a>, if supplied.</p><p><strong>Keyword Arguments</strong></p><ul><li><code>dofit::Bool=true</code>: Determines whether model will be fit</li><li><code>wts::Vector=similar(y,0)</code>: prior case weights. Can be length 0.</li><li><code>offset::Vector=similar(y,0)</code>: offset added to <code>Xβ</code> to form <code>eta</code>.  Can be of</li></ul><p>length 0</p><ul><li><code>verbose::Bool=false</code>: Display convergence information for each iteration</li><li><code>maxiter::Integer=30</code>: Maximum number of iterations allowed to achieve convergence</li><li><code>atol::Real=1e-6</code>: Convergence is achieved when the relative change in</li></ul><p>deviance is less than <code>max(rtol*dev, atol)</code>.</p><ul><li><code>rtol::Real=1e-6</code>: Convergence is achieved when the relative change in</li></ul><p>deviance is less than <code>max(rtol*dev, atol)</code>.</p><ul><li><code>minstepfac::Real=0.001</code>: Minimum line step fraction. Must be between 0 and 1.</li><li><code>start::AbstractVector=nothing</code>: Starting values for beta. Should have the</li></ul><p>same length as the number of columns in the model matrix.</p></div></div><a class="source-link" target="_blank" href="https://github.com/JuliaStats/GLM.jl/blob/03220f7c0a72ca6f82d0e08bc8aa27fe4f7f1a15/src/glmfit.jl#L419-L440">source</a></section><section class="docstring"><div class="docstring-header"><a class="docstring-binding" id="GLM.lm" href="#GLM.lm"><code>GLM.lm</code></a> — <span class="docstring-category">Function</span>.</div><div><div><pre><code class="language-none">lm(X, y, allowrankdeficient::Bool=false)</code></pre><p>An alias for <code>fit(LinearModel, X, y, allowrankdeficient)</code></p><p>The arguments <code>X</code> and <code>y</code> can be a <code>Matrix</code> and a <code>Vector</code> or a <code>Formula</code> and a <code>DataFrame</code>.</p></div></div><a class="source-link" target="_blank" href="https://github.com/JuliaStats/GLM.jl/blob/03220f7c0a72ca6f82d0e08bc8aa27fe4f7f1a15/src/lm.jl#L139-L145">source</a></section><h2><a class="nav-anchor" id="Model-methods-1" href="#Model-methods-1">Model methods</a></h2><pre><code class="language-none">GLM.cancancel
+delbeta!
+StatsBase.deviance
+GLM.dispersion
+GLM.installbeta!
+GLM.issubmodel
+linpred!
+linpred
+StatsBase.nobs
+StatsBase.nulldeviance
+StatsBase.predict
+updateμ!
+wrkresp
+GLM.wrkresp!</code></pre><h2><a class="nav-anchor" id="Links-and-methods-applied-to-them-1" href="#Links-and-methods-applied-to-them-1">Links and methods applied to them</a></h2><pre><code class="language-none">Link
+GLM.Link01
+CauchitLink
+CloglogLink
+IdentityLink
+InverseLink
+InverseSquareLink
+LogitLink
+LogLink
+NegativeBinomialLink
+ProbitLink
+SqrtLink
+linkfun
+linkinv
+mueta
+inverselink
+canonicallink
+glmvar
+mustart
+devresid
+GLM.dispersion_parameter
+GLM.loglik_obs</code></pre><footer><hr/><a class="previous" href="../examples/"><span class="direction">Previous</span><span class="title">Examples</span></a></footer></article></body></html>
