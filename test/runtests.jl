@@ -2625,3 +2625,31 @@ end
     glm_weighted = glm(X, y_pos, Gamma(), LogLink(); wts=fweights(w))
     @test GLM.isweighted(glm_weighted)
 end
+
+@testset "coeftable with test=:t" begin
+    x = [5, 6, 2, 4, 6, 3]
+    y = [1, 3, 6, 2, 4, 6]
+    df = DataFrame(; x, y)
+    m1 = glm(@formula(y ~ x), df, Normal())
+    @test repr(coeftable(m1, test=:t)) == repr(coeftable(lm(@formula(y ~ x), df)))
+    @test_throws ArgumentError coeftable(m1, test=:xx)
+
+    m2 = glm(@formula(y ~ x), df, Gamma())
+    @test repr(coeftable(m2, test=:t)) == """
+        ─────────────────────────────────────────────────────────────────────────
+                         Coef.  Std. Error     t  Pr(>|t|)   Lower 95%  Upper 95%
+        ─────────────────────────────────────────────────────────────────────────
+        (Intercept)  0.0594162   0.141774   0.42    0.6967  -0.334212    0.453044
+        x            0.0552099   0.0384164  1.44    0.2240  -0.0514512   0.161871
+        ─────────────────────────────────────────────────────────────────────────"""
+
+    df.y = [1, 0, 1, 0, 1, 1]
+    m3 = glm(@formula(y ~ x), df, Bernoulli())
+    @test repr(coeftable(m3, test=:t)) == """
+        ─────────────────────────────────────────────────────────────────────────
+                         Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+        ─────────────────────────────────────────────────────────────────────────
+        (Intercept)   2.96807     3.31891    0.89    0.4217   -6.24669    12.1828
+        x            -0.502451    0.675377  -0.74    0.4982   -2.3776      1.3727
+        ─────────────────────────────────────────────────────────────────────────"""
+end

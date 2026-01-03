@@ -378,7 +378,7 @@ julia> LifeCycleSavings = dataset("datasets", "LifeCycleSavings")
   50 │ Malaysia           4.71    47.2      0.66   242.69     5.08
                                                     35 rows omitted
 
-julia> fm2 = fit(LinearModel, @formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
+julia> fm2 = lm(@formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
 LinearModel
 
 SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
@@ -486,7 +486,7 @@ julia> dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
    8 │    13.0  2        3
    9 │    13.0  3        3
 
-julia> gm1 = fit(GeneralizedLinearModel, @formula(Counts ~ Outcome + Treatment), dobson, Poisson())
+julia> gm1 = glm(@formula(Counts ~ Outcome + Treatment), dobson, Poisson())
 GeneralizedLinearModel
 
 Counts ~ 1 + Outcome + Treatment
@@ -504,6 +504,42 @@ Treatment: 3   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
 
 julia> round(deviance(gm1), digits=5)
 5.11746
+```
+
+Note that for Wald tests GLM.jl uses the Normal distribution (z-statistics)
+by default while R uses the Student distribution (t-statistics) for models
+where the dispersion parameter is estimated (i.e. those with a Normal,
+inverse Gaussian or Gamma distribution).
+The `test` argument to `coeftable` allows choosing between these two options.
+This can be illustrated using the linear regression model from above:
+```julia
+julia> fm2glm = glm(@formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings,
+                    Normal(), IdentityLink())
+GeneralizedLinearModel
+
+SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────────────
+                    Coef.   Std. Error      z  Pr(>|z|)    Lower 95%    Upper 95%
+─────────────────────────────────────────────────────────────────────────────────
+(Intercept)  28.5661       7.35452       3.88    0.0001  14.1515      42.9807
+Pop15        -0.461193     0.144642     -3.19    0.0014  -0.744687    -0.1777
+Pop75        -1.6915       1.0836       -1.56    0.1185  -3.81531      0.432317
+DPI          -0.000336902  0.000931107  -0.36    0.7175  -0.00216184   0.00148803
+DDPI          0.409695     0.196197      2.09    0.0368   0.0251556    0.794234
+─────────────────────────────────────────────────────────────────────────────────
+
+julia> coeftable(fm2glm, test=:t)
+─────────────────────────────────────────────────────────────────────────────────
+                    Coef.   Std. Error      t  Pr(>|t|)    Lower 95%    Upper 95%
+─────────────────────────────────────────────────────────────────────────────────
+(Intercept)  28.5661       7.35452       3.88    0.0003  13.7533      43.3788
+Pop15        -0.461193     0.144642     -3.19    0.0026  -0.752518    -0.169869
+Pop75        -1.6915       1.0836       -1.56    0.1255  -3.87398      0.490983
+DPI          -0.000336902  0.000931107  -0.36    0.7192  -0.00221225   0.00153844
+DDPI          0.409695     0.196197      2.09    0.0425   0.0145336    0.804856
+─────────────────────────────────────────────────────────────────────────────────
 ```
 
 ## Linear regression with PowerLink
