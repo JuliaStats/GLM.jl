@@ -55,6 +55,7 @@ export
 # Model types
       GeneralizedLinearModel,
       LinearModel,
+      NegativeBinomialModel,
 
 # functions
       canonicallink,  # canonical link function for a distribution
