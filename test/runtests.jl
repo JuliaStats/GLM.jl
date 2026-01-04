@@ -914,7 +914,6 @@ end
 end
 
 @testset "Weighted NegativeBinomial LogLink, θ to be estimated" begin
-    # FIXME: this is broken, see #622
     halfn = round(Int, 0.5 * size(quine, 1))
     wts = vcat(fill(0.8, halfn), fill(1.2, size(quine, 1) - halfn))
     gm20a = negbin(@formula(Days ~ Eth + Sex + Age + Lrn), quine, LogLink();
@@ -1011,15 +1010,14 @@ end
     gm24 = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(1),
                InverseLink(); method=dmethod)
     @test coef(gm23) ≈ coef(gm24)
-    # This is broken as dispersion_parameter(::NegativeBinomial) should be false (#624)
-    @test_broken stderror(gm23) ≈ stderror(gm24)
-    @test_broken confint(gm23) ≈ confint(gm24)
-    @test_broken dof(gm23) ≈ dof(gm24)
+    @test stderror(gm23) ≈ stderror(gm24)
+    @test confint(gm23) ≈ confint(gm24)
+    @test dof(gm23) ≈ dof(gm24)
     @test deviance(gm23) ≈ deviance(gm24)
     @test loglikelihood(gm23) ≈ loglikelihood(gm24)
-    @test_broken aic(gm23) ≈ aic(gm24)
-    @test_broken aicc(gm23) ≈ aicc(gm24)
-    @test_broken bic(gm23) ≈ bic(gm24)
+    @test aic(gm23) ≈ aic(gm24)
+    @test aicc(gm23) ≈ aicc(gm24)
+    @test bic(gm23) ≈ bic(gm24)
     @test predict(gm23) ≈ predict(gm24)
 end
 
