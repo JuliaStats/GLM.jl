@@ -853,7 +853,7 @@ function checky(y::AbstractVector, d::Distribution)
             left = insupport(d, minsupport) ? '[' : '('
             right = insupport(d, maxsupport) ? ']' : ')'
             discrete = d isa DiscreteUnivariateDistribution && eltype(d) !== Bool ?
-                "discrete over " : ""
+                       "discrete over " : ""
             throw(ArgumentError("value $yy in response is not in the support of the " *
                                 "$(nameof(typeof(d))) distribution, which is $(discrete)" *
                                 "$left$minsupport, $maxsupport$right"))
@@ -863,11 +863,11 @@ function checky(y::AbstractVector, d::Distribution)
 end
 # we allow proportions but Distributions.jl takes only the number of successes
 function checky(y::AbstractVector, d::Binomial)
-     for yy in y
+    for yy in y
         0 ≤ yy ≤ 1 ||
             throw(ArgumentError("value $yy in response is not in the support of " *
                                 "the Binomial distribution, which is [0, 1]"))
-     end
+    end
     return nothing
 end
 

@@ -2656,23 +2656,23 @@ end
     @test GLM.checky([0.0, -0.0, 1.0, -1.0, Inf, -Inf], Normal()) === nothing
     @test_throws(ArgumentError("value NaN in response is not in the support of " *
                                "the Normal distribution, which is [-Inf, Inf]"),
-                                GLM.checky([NaN], Normal()))
+                 GLM.checky([NaN], Normal()))
 
     @test GLM.checky([0.0, -0.0, 1.0], Poisson()) === nothing
     @test_throws(ArgumentError("value 0.5 in response is not in the support of " *
                                "the Poisson distribution, which is discrete over [0, Inf)"),
-                                GLM.checky([0.5], Poisson()))
+                 GLM.checky([0.5], Poisson()))
     @test_throws(ArgumentError("value Inf in response is not in the support of " *
                                "the Poisson distribution, which is discrete over [0, Inf)"),
-                                GLM.checky([Inf], Poisson()))
+                 GLM.checky([Inf], Poisson()))
 
     @test GLM.checky([0.0, -0.0, 1.0, 0.5], Binomial()) === nothing
     @test_throws(ArgumentError("value 2.0 in response is not in the support of " *
                                "the Binomial distribution, which is [0, 1]"),
-                                GLM.checky([2.0], Binomial()))
+                 GLM.checky([2.0], Binomial()))
 
     @test GLM.checky([0.0, -0.0, 1.0], Bernoulli()) === nothing
     @test_throws(ArgumentError("value 0.5 in response is not in the support of " *
                                "the Bernoulli distribution, which is [false, true]"),
-                                GLM.checky([0.5], Bernoulli()))
+                 GLM.checky([0.5], Bernoulli()))
 end
