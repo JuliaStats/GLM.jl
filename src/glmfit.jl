@@ -846,16 +846,28 @@ function _initialeta!(eta::AbstractVector,
 end
 
 # Helper function to check that the values of y are in the allowed domain
-function checky(y, d::Distribution)
-    if any(x -> !insupport(d, x), y)
-        throw(ArgumentError("y must be in the support of D"))
+function checky(y::AbstractVector, d::Distribution)
+    for yy in y
+        if !insupport(d, yy)
+            minsupport, maxsupport = extrema(d)
+            left = insupport(d, minsupport) ? '[' : '('
+            right = insupport(d, maxsupport) ? ']' : ')'
+            discrete = d isa DiscreteUnivariateDistribution && eltype(d) !== Bool ?
+                "discrete over " : ""
+            throw(ArgumentError("value $yy in response is not in the support of the " *
+                                "$(nameof(typeof(d))) distribution, which is $(discrete)" *
+                                "$left$minsupport, $maxsupport$right"))
+        end
     end
     return nothing
 end
-function checky(y, d::Binomial)
-    for yy in y
-        0 ≤ yy ≤ 1 || throw(ArgumentError("$yy in y is not in [0,1]"))
-    end
+# we allow proportions but Distributions.jl takes only the number of successes
+function checky(y::AbstractVector, d::Binomial)
+     for yy in y
+        0 ≤ yy ≤ 1 ||
+            throw(ArgumentError("value $yy in response is not in the support of " *
+                                "the Binomial distribution, which is [0, 1]"))
+     end
     return nothing
 end
 
