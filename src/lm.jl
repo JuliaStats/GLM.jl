@@ -108,7 +108,7 @@ const FIT_LM_DOC = """
     in columns (including if appropriate the intercept), and `y` must be a vector holding
     values of the dependent variable.
 
-    The keyword argument `wts` can be a `FrequencyWeights` specifying frequency weights for observations.
+    The keyword argument `weights` can be a `FrequencyWeights` specifying frequency weights for observations.
     Such weights are equivalent to repeating each observation a number of times equal
     to its weight. Do note that this interpretation gives equal point estimates but
     different standard errors from analytical (a.k.a. inverse variance) weights and
