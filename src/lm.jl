@@ -67,7 +67,7 @@ function deviance(r::LmResp)
             v += abs2(y[i] - mu[i]) * wts[i]
         end
     end
-    return wts isa ProbabilityWeights ? v ./ (sum(wts) / sum(!iszero, wts)) : v
+    return wts isa ProbabilityWeights ? v ./ (sum(wts) / nobs(r)) : v
 end
 
 weights(r::LmResp) = r.wts
@@ -78,7 +78,7 @@ end
 working_weights(r::LmResp) = r.wts
 
 function loglikelihood(r::LmResp{<:Any,<:Union{UnitWeights,FrequencyWeights}})
-    n = sum(weights(r))
+    n = nobs(r)
     return -n / 2 * (log(2π * deviance(r) / n) + 1)
 end
 

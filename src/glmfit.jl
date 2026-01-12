@@ -79,7 +79,7 @@ end
 function deviance(r::GlmResp)
     wts = weights(r)
     d = sum(r.devresid)
-    return wts isa ProbabilityWeights ? d * sum(!iszero, wts) / sum(wts) : d
+    return wts isa ProbabilityWeights ? d * nobs(r) / sum(wts) : d
 end
 
 weights(r::GlmResp) = r.wts
@@ -858,12 +858,6 @@ function checky(y, d::Binomial)
     end
     return nothing
 end
-
-function nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:AbstractWeights}
-    n = W<:ProbabilityWeights ? sum(!iszero, weights(r)) : length(r.y)
-    return oftype(sum(one(eltype(weights(r)))), n)
-end
-nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = sum(r.wts)
 
 function residuals(r::GlmResp; weighted::Bool=false)
     y, η, μ = r.y, r.eta, r.mu

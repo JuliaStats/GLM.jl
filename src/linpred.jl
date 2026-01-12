@@ -436,14 +436,16 @@ the model is unweighted or uses analytical or probability weights.
 If the model uses frequency weights, return the sum of weights.
 Rows with zero weights are not counted.
 """
-function nobs(m::LinPredModel)
-    wts = weights(m)
+nobs(obj::LinPredModel) = nobs(obj.rr)
+
+function nobs(rr::ModResp)
+    wts = weights(rr)
     n = if wts isa UnitWeights
         length(wts)
     elseif wts isa FrequencyWeights
         sum(wts)
     elseif wts isa Union{ProbabilityWeights,AnalyticWeights}
-        sum(!iszero, wts)
+        count(!iszero, wts)
     end
     return oftype(sum(one(eltype(wts))), n)
 end

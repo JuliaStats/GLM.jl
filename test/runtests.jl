@@ -2691,16 +2691,16 @@ end
 
     lmod = lm(X, y, wts=aweights(wts))
     glmod = glm(X, y, Normal(), wts=aweights(wts))
-    @test nobs(lmod) == nobs(glmod) == sum(!iszero, wts)
-    @test dof_residual(lmod) == dof_residual(glmod) == sum(!iszero, wts) - 2
+    @test nobs(lmod) == nobs(glmod) == count(!iszero, wts)
+    @test dof_residual(lmod) == dof_residual(glmod) == count(!iszero, wts) - 2
     @test deviance(lmod) ≈ deviance(glmod) ≈ 91.87804878048782
     @test coef(lmod) ≈ coef(glmod) ≈ [3.6707317073170724, 0.20731707317073195]
     @test stderror(lmod) ≈ stderror(glmod) ≈ [2.060504744176091, 0.2870314608599428]
 
     lmod = lm(X, y, wts=pweights(wts))
     glmod = glm(X, y, Normal(), wts=pweights(wts))
-    @test nobs(lmod) == nobs(glmod) == sum(!iszero, wts)
-    @test dof_residual(lmod) == dof_residual(glmod) == sum(!iszero, wts) - 2
+    @test nobs(lmod) == nobs(glmod) == count(!iszero, wts)
+    @test dof_residual(lmod) == dof_residual(glmod) == count(!iszero, wts) - 2
     @test deviance(lmod) ≈ deviance(glmod) ≈ 24.500813008130084
     @test coef(lmod) ≈ coef(glmod) ≈ [3.6707317073170724, 0.20731707317073195]
     @test stderror(lmod) ≈ stderror(glmod) ≈ [1.7617126628715203, 0.23455696986842048]
