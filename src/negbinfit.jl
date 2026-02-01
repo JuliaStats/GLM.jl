@@ -144,7 +144,7 @@ function _negbin(F,
     # fit a Poisson regression model if the user does not specify an initial θ
     distr = isinf(initialθ) ? Poisson() : NegativeBinomial(initialθ)
     regmodel = glm(F, D, distr, something(l, canonicallink(distr));
-                   offset, wts, dropcollinear, method, contrasts,
+                   offset, wts, dropcollinear, method,
                    maxiter, atol, rtol, minstepfac, start, contrasts_kwarg...)
 
     μ = regmodel.rr.mu
@@ -170,7 +170,7 @@ function _negbin(F,
         end
         @debug "NegativeBinomial dispersion optimization" iteration = i θ = θ
         regmodel = glm(F, D, NegativeBinomial(θ), something(l, NegativeBinomialLink(θ));
-                       offset, wts, dropcollinear, method, contrasts,
+                       offset, wts, dropcollinear, method,
                        maxiter, atol, rtol, minstepfac, start, contrasts_kwarg...)
         μ = regmodel.rr.mu
         prevθ = θ
