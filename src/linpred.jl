@@ -358,7 +358,9 @@ stderror(x::LinPredModel) = sqrt.(diag(vcov(x)))
 function show(io::IO, obj::LinPredModel)
     println(io, nameof(typeof(obj)), '\n')
     obj.formula !== nothing && println(io, obj.formula, '\n')
-    return println(io, "Coefficients:\n", coeftable(obj))
+    println(io, "Coefficients:")
+    show(io, MIME("text/plain"), coeftable(obj))
+    return nothing
 end
 
 function modelframe(f::FormulaTerm, data, contrasts::AbstractDict, ::Type{M}) where {M}
