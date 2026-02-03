@@ -2638,7 +2638,7 @@ end
     df = DataFrame(; x, y)
     m1 = glm(@formula(y ~ x), df, Normal())
     @test repr("text/plain", coeftable(m1, test=:t)) ==
-        repr("text/plain", coeftable(lm(@formula(y ~ x), df)))
+          repr("text/plain", coeftable(lm(@formula(y ~ x), df)))
     @test_throws ArgumentError coeftable(m1, test=:xx)
 
     m2 = glm(@formula(y ~ x), df, Gamma())
