@@ -5,7 +5,7 @@ using LogExpFunctions: logistic
 using Distributions: TDist
 using Downloads
 
-test_show(x) = show(IOBuffer(), x)
+test_show(x) = show(IOBuffer(), MIME("text/plain"), x)
 
 const glm_datadir = joinpath(dirname(@__FILE__), "..", "data")
 
@@ -2637,11 +2637,12 @@ end
     y = [1, 3, 6, 2, 4, 6]
     df = DataFrame(; x, y)
     m1 = glm(@formula(y ~ x), df, Normal())
-    @test repr(coeftable(m1, test=:t)) == repr(coeftable(lm(@formula(y ~ x), df)))
+    @test repr("text/plain", coeftable(m1, test=:t)) ==
+          repr("text/plain", coeftable(lm(@formula(y ~ x), df)))
     @test_throws ArgumentError coeftable(m1, test=:xx)
 
     m2 = glm(@formula(y ~ x), df, Gamma())
-    @test repr(coeftable(m2, test=:t)) == """
+    @test repr("text/plain", coeftable(m2, test=:t)) == """
         ─────────────────────────────────────────────────────────────────────────
                          Coef.  Std. Error     t  Pr(>|t|)   Lower 95%  Upper 95%
         ─────────────────────────────────────────────────────────────────────────
@@ -2651,7 +2652,7 @@ end
 
     df.y = [1, 0, 1, 0, 1, 1]
     m3 = glm(@formula(y ~ x), df, Bernoulli())
-    @test repr(coeftable(m3, test=:t)) == """
+    @test repr("text/plain", coeftable(m3, test=:t)) == """
         ─────────────────────────────────────────────────────────────────────────
                          Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
         ─────────────────────────────────────────────────────────────────────────
