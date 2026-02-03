@@ -355,7 +355,7 @@ end
 
 stderror(x::LinPredModel) = sqrt.(diag(vcov(x)))
 
-function show(io::IO, obj::LinPredModel)
+function show(io::IO, ::MIME"text/plain", obj::LinPredModel)
     println(io, nameof(typeof(obj)), '\n')
     obj.formula !== nothing && println(io, obj.formula, '\n')
     println(io, "Coefficients:")
