@@ -5,7 +5,7 @@ using LogExpFunctions: logistic
 using Distributions: TDist
 using Downloads
 
-test_show(x) = show(IOBuffer(), x)
+test_show(x) = show(IOBuffer(), MIME("text/plain"), x)
 
 const glm_datadir = joinpath(dirname(@__FILE__), "..", "data")
 
