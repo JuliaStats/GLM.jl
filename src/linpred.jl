@@ -254,7 +254,10 @@ end
 stderror(x::LinPredModel) = sqrt.(diag(vcov(x)))
 
 function show(io::IO, obj::LinPredModel)
-    println(io, "$(typeof(obj)):\n\nCoefficients:\n", coeftable(obj))
+    println(io, "$(typeof(obj)):\n\nCoefficients:")
+    show(io, MIME("text/plain"), coeftable(obj))
+    println(io)
+    return nothing
 end
 
 modelframe(obj::LinPredModel) = obj.fr
