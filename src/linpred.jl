@@ -316,7 +316,7 @@ function vcov(x::LinPredModel)
         s = nobs(x) / (nobs(x) - 1)
         mm = momentmatrix(x)
         A = invloglikhessian(x)
-        if link(x) isa Union{Gamma,InverseGaussian}
+        if distr(x) isa Union{Gamma,InverseGaussian}
             r = varstruct(x)
             A ./= sum(working_weights(x)) / sum(abs2, r)
         end
@@ -326,7 +326,7 @@ function vcov(x::LinPredModel)
     end
 end
 
-link(x::LinPredModel) = link(x.rr)
+distr(x::LinPredModel) = distr(x.rr)
 
 function _vcov(pp::LinPred, Z::AbstractMatrix, A::AbstractMatrix)
     if linpred_rank(pp) < size(Z, 2)
@@ -436,8 +436,21 @@ end
 For linear and generalized linear models, return the number of rows when
 the model is unweighted or uses analytical or probability weights.
 If the model uses frequency weights, return the sum of weights.
+Rows with zero weights are not counted.
 """
 nobs(obj::LinPredModel) = nobs(obj.rr)
+
+function nobs(rr::ModResp)
+    wts = weights(rr)
+    n = if wts isa UnitWeights
+        length(wts)
+    elseif wts isa FrequencyWeights
+        sum(wts)
+    elseif wts isa Union{ProbabilityWeights,AnalyticWeights}
+        count(!iszero, wts)
+    end
+    return oftype(sum(one(eltype(wts))), n)
+end
 
 weights(m::LinPredModel) = weights(m.rr)
 weights(pp::LinPred) = pp.wts
