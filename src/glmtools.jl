@@ -178,23 +178,24 @@ function mueta end
 """
     GLM.inverselink(L::Link, η::Real)
 
-Return a 3-tuple of the inverse link, the derivative of the inverse link, and when appropriate, the variance function `μ*(1 - μ)`.
-
-The variance function is returned as NaN unless the range of μ is (0, 1)
+Return a 3-tuple of:
+1. the inverse link,
+2. the derivative of the inverse link, and
+3. `(1 - μ)` to construct the variance function when `typeof(L) <: Link01`, or `NaN` otherwise
 
 # Examples
 ```jldoctest; setup = :(using GLM)
 julia> GLM.inverselink(LogitLink(), 0.0)
-(0.5, 0.5, 0.25)
+(0.5, 0.25, 0.5)
 
-julia> μ, oneminusμ, variance = GLM.inverselink(CloglogLink(), 0.0);
+julia> μ, deriv, oneminusμ = GLM.inverselink(CloglogLink(), 0.0);
 
 
 
 julia> μ + oneminusμ ≈ 1
 true
 
-julia> μ*(1 - μ) ≈ variance
+julia> μ*(1 - μ) ≈ deriv
 false
 
 julia> isnan(last(GLM.inverselink(LogLink(), 2.0)))
@@ -223,7 +224,7 @@ function inverselink(::CauchitLink, η::Real)
     # atan decays so slowly that we don't need to be careful when evaluating μ
     μ = atan(η) / π
     μ += one(μ)/2
-    return μ, 1 - μ, inv(π * (1 + abs2(η)))
+    return μ, inv(π * (1 + abs2(η))), 1 - μ
 end
 
 linkfun(::CloglogLink, μ::Real) = log(-log1p(-μ))
@@ -233,7 +234,7 @@ function inverselink(::CloglogLink, η::Real)
     expη = exp(η)
     μ = -expm1(-expη)
     omμ = exp(-expη)   # the complement, 1 - μ
-    return μ, omμ, expη * omμ
+    return μ, expη * omμ, omμ
 end
 
 linkfun(::IdentityLink, μ::Real) = μ
@@ -273,7 +274,7 @@ function inverselink(::LogitLink, η::Real)
     else
         μ, omμ = 1 / opexpabs, expabs / opexpabs
     end
-    return μ, omμ, deriv
+    return μ, deriv, omμ
 end
 
 linkfun(::LogLink, μ::Real) = log(μ)
@@ -319,7 +320,7 @@ mueta(::ProbitLink, η::Real) = exp(-abs2(η) / 2) / sqrt2π
 function inverselink(::ProbitLink, η::Real)
     μ   =  cdf(Normal(), η)
     omμ = ccdf(Normal(), η)
-    return μ, omμ, pdf(Normal(), η)
+    return μ, pdf(Normal(), η), omμ
 end
 
 linkfun(::SqrtLink, μ::Real) = sqrt(μ)
