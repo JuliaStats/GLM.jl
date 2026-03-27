@@ -167,7 +167,7 @@ Coefficients:
 x            -0.0500249   0.0307201  -1.63    0.1066  -0.110988  0.0109382
 ──────────────────────────────────────────────────────────────────────────
 
-julia> m_aweights = lm(@formula(y ~ x), data, wts=aweights(data.weights))
+julia> m_aweights = lm(@formula(y ~ x), data, weights=aweights(data.weights))
 LinearModel
 
 y ~ 1 + x
@@ -180,7 +180,7 @@ Coefficients:
 x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
 ──────────────────────────────────────────────────────────────────────────
 
-julia> m_fweights = lm(@formula(y ~ x), data, wts=fweights(data.weights))
+julia> m_fweights = lm(@formula(y ~ x), data, weights=fweights(data.weights))
 LinearModel
 
 y ~ 1 + x
@@ -193,7 +193,7 @@ Coefficients:
 x            -0.0478667   0.0193863  -2.47    0.0142  -0.0860494  -0.00968394
 ─────────────────────────────────────────────────────────────────────────────
 
-julia> m_pweights = lm(@formula(y ~ x), data, wts=pweights(data.weights))
+julia> m_pweights = lm(@formula(y ~ x), data, weights=pweights(data.weights))
 LinearModel
 
 y ~ 1 + x
