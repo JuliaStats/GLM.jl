@@ -68,6 +68,8 @@ GLM.ftest
 StatsBase.nobs
 StatsBase.nulldeviance
 StatsBase.predict
+StatsBase.stderror
+StatsBase.vcov
 ```
 
 ## Links and methods applied to them
