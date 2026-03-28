@@ -55,8 +55,9 @@ export
 # Model types
       GeneralizedLinearModel,
       LinearModel,
+      NegativeBinomialModel,
 
-# functions
+# Functions
       canonicallink,  # canonical link function for a distribution
       deviance,       # deviance of fitted and observed responses
       devresid,       # vector of squared deviance residuals

@@ -299,7 +299,7 @@ end
 
 deviance(m::AbstractGLM) = deviance(m.rr)
 
-function nulldeviance(m::GeneralizedLinearModel)
+function nulldeviance(m::AbstractGLM)
     r = m.rr
     wts = weights(r)
     y = r.y
@@ -359,7 +359,7 @@ function loglikelihood(m::AbstractGLM)
     return ll
 end
 
-function nullloglikelihood(m::GeneralizedLinearModel)
+function nullloglikelihood(m::AbstractGLM)
     r = m.rr
     wts = weights(m)
     sumwt = sum(wts)
@@ -394,7 +394,15 @@ function nullloglikelihood(m::GeneralizedLinearModel)
     return ll
 end
 
-dof(obj::GeneralizedLinearModel) = linpred_rank(obj) + dispersion_parameter(obj.rr.d)
+"""
+    dof(model::AbstractGLM)
+
+For generalized linear models, consumed degrees of freedom correspond
+to the number of estimated coefficients, plus one for the estimated
+dispersion parameter if the distribution is `Gamma`, `InverseGaussian` or `Normal`
+(see [GLM.dispersion_parameter](@ref)).
+"""
+dof(obj::AbstractGLM) = linpred_rank(obj) + dispersion_parameter(obj.rr.d)
 
 function _fit!(m::AbstractGLM, maxiter::Integer, minstepfac::Real,
                atol::Real, rtol::Real, start::Union{AbstractVector,Nothing})
@@ -668,14 +676,20 @@ function glm(formula::FormulaTerm, data, d::UnivariateDistribution,
 end
 
 GLM.Link(r::GlmResp) = r.link
-GLM.Link(m::GeneralizedLinearModel) = Link(m.rr)
+GLM.Link(m::AbstractGLM) = Link(m.rr)
 
 """
+    dispersion(m::LinearModel, sqr::Bool=false)
     dispersion(m::AbstractGLM, sqr::Bool=false)
 
 Return the estimated dispersion (or scale) parameter for a model's distribution,
 generally written σ for linear models and ϕ for generalized linear models.
-It is, by definition, equal to 1 for the Bernoulli, Binomial, and Poisson families.
+
+It is, by definition, equal to 1 for the Bernoulli, Binomial, Geometric, Negative
+Binomial and Poisson families (see [`GLM.dispersion_parameter`](@ref)).
+For other distributions, it is estimated as the square root of the sum of Pearson
+residuals (i.e. for a linear model, the residual residual sum of squares)
+divided by the residual degrees of freedom.
 
 If `sqr` is `true`, the squared dispersion parameter is returned.
 """
@@ -881,7 +895,7 @@ function residuals(r::GlmResp; weighted::Bool=false)
     return dres
 end
 
-function momentmatrix(m::GeneralizedLinearModel)
+function momentmatrix(m::AbstractGLM)
     X = modelmatrix(m; weighted=false)
     r = varstruct(m)
     if link(m) isa Union{Gamma,InverseGaussian}
@@ -890,7 +904,7 @@ function momentmatrix(m::GeneralizedLinearModel)
     return Diagonal(r) * X
 end
 
-function varstruct(x::GeneralizedLinearModel)
+function varstruct(x::AbstractGLM)
     wrkwts = working_weights(x)
     wts = weights(x)
     wrkres = working_residuals(x)
@@ -901,20 +915,20 @@ function varstruct(x::GeneralizedLinearModel)
     end
 end
 
-function invloglikhessian(m::GeneralizedLinearModel)
+function invloglikhessian(m::AbstractGLM)
     r = varstruct(m)
     wts = weights(m)
     return inverse(m.pp) * sum(wts) / nobs(m)
 end
 
-function StatsBase.cooksdistance(m::GeneralizedLinearModel)
+function StatsBase.cooksdistance(m::AbstractGLM)
     h = leverage(m)
     hh = h ./ (1 .- h) .^ 2
     Rp = pearson_residuals(m)
     return (Rp .^ 2) .* hh ./ (dispersion(m)^2 * dof(m))
 end
 
-function pearson_residuals(m::GeneralizedLinearModel)
+function pearson_residuals(m::AbstractGLM)
     y = m.rr.y
     μ = predict(m)
     v = glmvar.(m.rr.d, μ)

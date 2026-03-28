@@ -452,8 +452,8 @@ devresid(::Poisson, y, μ::Real) = 2 * (xlogy(y, y / μ) - (y - μ))
 
 Does distribution `D` have a separate dispersion parameter, ϕ?
 
-Returns `true` for `Gamma`, `InverseGaussian`, `NegativeBinomial`
-and `Normal` distributions, and false for other known distributions.
+Returns `true` for `Gamma`, `InverseGaussian` and `Normal` distributions,
+and false for other known distributions.
 
 # Examples
 ```jldoctest; setup = :(using GLM)
@@ -464,8 +464,8 @@ julia> GLM.dispersion_parameter(Bernoulli())
 false
 ```
 """
-dispersion_parameter(::Union{Gamma,InverseGaussian,NegativeBinomial,Normal}) = true
-dispersion_parameter(::Union{Bernoulli,Binomial,Geometric,Poisson}) = false
+dispersion_parameter(::Union{Gamma,InverseGaussian,Normal}) = true
+dispersion_parameter(::Union{Bernoulli,Binomial,Geometric,NegativeBinomial,Poisson}) = false
 
 """
     _safe_int(x::T)
