@@ -25,7 +25,7 @@ struct GlmResp{V<:FPVector,D<:UnivariateDistribution,L<:Link,W<:AbstractWeights}
     wrkresid::V
 end
 
-link(rr::GlmResp) = rr.d
+distr(rr::GlmResp) = rr.d
 
 function GlmResp(y::V, d::D, l::L, η::V, μ::V, off::V, wts::W) where {V<:FPVector,D,L,W}
     n = length(y)
@@ -342,7 +342,7 @@ function loglikelihood(m::AbstractGLM)
     y = r.y
     mu = r.mu
     wts = weights(r)
-    d = link(r)
+    d = distr(r)
     ll = zero(eltype(mu))
     N = length(y)
     δ = deviance(r)
@@ -859,11 +859,6 @@ function checky(y, d::Binomial)
     return nothing
 end
 
-function nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:AbstractWeights}
-    return oftype(sum(one(eltype(weights(r)))), length(r.y))
-end
-nobs(r::GlmResp{V,D,L,W}) where {V,D,L,W<:FrequencyWeights} = sum(r.wts)
-
 function residuals(r::GlmResp; weighted::Bool=false)
     y, η, μ = r.y, r.eta, r.mu
     dres = similar(μ)
@@ -884,7 +879,7 @@ end
 function momentmatrix(m::GeneralizedLinearModel)
     X = modelmatrix(m; weighted=false)
     r = varstruct(m)
-    if link(m) isa Union{Gamma,InverseGaussian}
+    if distr(m) isa Union{Gamma,InverseGaussian}
         r .*= sum(working_weights(m)) / sum(abs2, r)
     end
     return Diagonal(r) * X
