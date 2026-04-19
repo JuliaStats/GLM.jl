@@ -5,7 +5,7 @@ using LogExpFunctions: logistic
 using Distributions: TDist
 using Downloads
 
-test_show(x) = show(IOBuffer(), x)
+test_show(x) = show(IOBuffer(), MIME("text/plain"), x)
 
 const glm_datadir = joinpath(dirname(@__FILE__), "..", "data")
 
@@ -1055,18 +1055,23 @@ end
     gm22 = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, Geometric();
                method=dmethod)
     test_show(gm22)
-    @test dof(gm22) == 8
+    @test dof(gm22) == 7
     @test deviance(gm22) ≈ 137.8781581814965
     @test loglikelihood(gm22) ≈ -548.3711276642073
-    @test aic(gm22) ≈ 1112.7422553284146
-    @test aicc(gm22) ≈ 1113.7933502189255
-    @test bic(gm22) ≈ 1136.6111083020812
+    @test aic(gm22) ≈ 1110.742255328415
+    @test aicc(gm22) ≈ 1111.5538495313135
+    @test bic(gm22) ≈ 1131.6275016803734
     @test coef(gm22)[1:7] ≈ [2.8978546663153897, -0.5701067649409168, 0.08040181505082235,
                              -0.4497584898742737, 0.08622664933901254, 0.3558996662512287,
                              0.29016080736927813]
-    @test stderror(gm22) ≈ [0.22754287093719366, 0.15274755092180423, 0.15928431669166637,
-                            0.23853372776980591, 0.2354231414867577, 0.24750780320597515,
-                            0.18553339017028742]
+    # Values match R with
+    # summary(glm(cbind(1, Days) ~ Eth + Sex + Age + Lrn, data=quine, family=binomial))
+    # or summary(glm(..., family=negative.binomial(1)), dispersion=1)
+    # (as by default summary.glm estimates the dispersion instead of fixing
+    # it to 1 as it should)
+    @test stderror(gm22) ≈ [0.2556768565484684, 0.17163365085581442, 0.17897863915251788,
+                            0.26802665117909047, 0.2645314640101982, 0.2781103043759507,
+                            0.20847321556654236]
 end
 
 @testset "Geometric is a special case of NegativeBinomial with θ = 1 and $dmethod" for dmethod in
@@ -1077,14 +1082,15 @@ end
     gm24 = glm(@formula(Days ~ Eth + Sex + Age + Lrn), quine, NegativeBinomial(1),
                InverseLink(); method=dmethod)
     @test coef(gm23) ≈ coef(gm24)
-    @test stderror(gm23) ≈ stderror(gm24)
-    @test confint(gm23) ≈ confint(gm24)
-    @test dof(gm23) ≈ dof(gm24)
+    # This is broken as dispersion_parameter(::NegativeBinomial) should be false (#624)
+    @test_broken stderror(gm23) ≈ stderror(gm24)
+    @test_broken confint(gm23) ≈ confint(gm24)
+    @test_broken dof(gm23) ≈ dof(gm24)
     @test deviance(gm23) ≈ deviance(gm24)
     @test loglikelihood(gm23) ≈ loglikelihood(gm24)
-    @test aic(gm23) ≈ aic(gm24)
-    @test aicc(gm23) ≈ aicc(gm24)
-    @test bic(gm23) ≈ bic(gm24)
+    @test_broken aic(gm23) ≈ aic(gm24)
+    @test_broken aicc(gm23) ≈ aicc(gm24)
+    @test_broken bic(gm23) ≈ bic(gm24)
     @test predict(gm23) ≈ predict(gm24)
 end
 
@@ -2665,4 +2671,33 @@ end
 
     glm_weighted = glm(X, y_pos, Gamma(), LogLink(); weights=fweights(w))
     @test GLM.isweighted(glm_weighted)
+end
+
+@testset "coeftable with test=:t" begin
+    x = [5, 6, 2, 4, 6, 3]
+    y = [1, 3, 6, 2, 4, 6]
+    df = DataFrame(; x, y)
+    m1 = glm(@formula(y ~ x), df, Normal())
+    @test repr("text/plain", coeftable(m1, test=:t)) ==
+          repr("text/plain", coeftable(lm(@formula(y ~ x), df)))
+    @test_throws ArgumentError coeftable(m1, test=:xx)
+
+    m2 = glm(@formula(y ~ x), df, Gamma())
+    @test repr("text/plain", coeftable(m2, test=:t)) == """
+        ─────────────────────────────────────────────────────────────────────────
+                         Coef.  Std. Error     t  Pr(>|t|)   Lower 95%  Upper 95%
+        ─────────────────────────────────────────────────────────────────────────
+        (Intercept)  0.0594162   0.141774   0.42    0.6967  -0.334212    0.453044
+        x            0.0552099   0.0384164  1.44    0.2240  -0.0514512   0.161871
+        ─────────────────────────────────────────────────────────────────────────"""
+
+    df.y = [1, 0, 1, 0, 1, 1]
+    m3 = glm(@formula(y ~ x), df, Bernoulli())
+    @test repr("text/plain", coeftable(m3, test=:t)) == """
+        ─────────────────────────────────────────────────────────────────────────
+                         Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+        ─────────────────────────────────────────────────────────────────────────
+        (Intercept)   2.96807     3.31891    0.89    0.4217   -6.24669    12.1828
+        x            -0.502451    0.675377  -0.74    0.4982   -2.3776      1.3727
+        ─────────────────────────────────────────────────────────────────────────"""
 end
