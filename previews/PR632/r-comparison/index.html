@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Comparison with R · GLM</title><meta name="title" content="Comparison with R · GLM"/><meta property="og:title" content="Comparison with R · GLM"/><meta property="twitter:title" content="Comparison with R · GLM"/><meta name="description" content="Documentation for GLM."/><meta property="og:description" content="Documentation for GLM."/><meta property="twitter:description" content="Documentation for GLM."/><script data-outdated-warner src="../assets/warner.js"></script><link href="https://cdnjs.cloudflare.com/ajax/libs/lato-font/3.0.0/css/lato-font.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/juliamono/0.050/juliamono.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.8/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../assets/documenter.js"></script><script src="../search_index.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-mocha.css" data-theme-name="catppuccin-mocha"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-macchiato.css" data-theme-name="catppuccin-macchiato"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-frappe.css" data-theme-name="catppuccin-frappe"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/catppuccin-latte.css" data-theme-name="catppuccin-latte"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-dark.css" data-theme-name="documenter-dark" data-theme-primary-dark/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><div class="docs-package-name"><span class="docs-autofit"><a href="../">GLM</a></span></div><button class="docs-search-query input is-rounded is-small is-clickable my-2 mx-auto py-1 px-2" id="documenter-search-query">Search docs (Ctrl + /)</button><ul class="docs-menu"><li><a class="tocitem" href="../">Home</a></li><li><a class="tocitem" href="../examples/">Examples</a></li><li class="is-active"><a class="tocitem" href>Comparison with R</a><ul class="internal"><li><a class="tocitem" href="#Linear-models"><span>Linear models</span></a></li><li class="toplevel"><a class="tocitem" href="#Generalized-linear-models"><span>Generalized linear models</span></a></li><li class="toplevel"><a class="tocitem" href="#Analytic-weights"><span>Analytic weights</span></a></li><li class="toplevel"><a class="tocitem" href="#Frequency-weights"><span>Frequency weights</span></a></li><li class="toplevel"><a class="tocitem" href="#Probability-weights"><span>Probability weights</span></a></li></ul></li><li><a class="tocitem" href="../api/">API</a></li><li><a class="tocitem" href="../implementation/">Implementation</a></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><a class="docs-sidebar-button docs-navbar-link fa-solid fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Comparison with R</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Comparison with R</a></li></ul></nav><div class="docs-right"><a class="docs-navbar-link" href="https://github.com/JuliaStats/GLM.jl" title="View the repository on GitHub"><span class="docs-icon fa-brands"></span><span class="docs-label is-hidden-touch">GitHub</span></a><a class="docs-navbar-link" href="https://github.com/JuliaStats/GLM.jl/blob/master/docs/src/r-comparison.md" title="Edit source on GitHub"><span class="docs-icon fa-solid"></span></a><a class="docs-settings-button docs-navbar-link fa-solid fa-gear" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-article-toggle-button fa-solid fa-chevron-up" id="documenter-article-toggle-button" href="javascript:;" title="Collapse all docstrings"></a></div></header><article class="content" id="documenter-page"><h1 id="Comparison-with-R"><a class="docs-heading-anchor" href="#Comparison-with-R">Comparison with R</a><a id="Comparison-with-R-1"></a><a class="docs-heading-anchor-permalink" href="#Comparison-with-R" title="Permalink"></a></h1><p>GLM.jl is very similar to <code>lm</code> and <code>glm</code> commands in R and results generally match. There are some exceptions however, which are documented below.</p><p>First let us load packages necessary to run examples:</p><pre><code class="language-julia-repl hljs">julia&gt; using CategoricalArrays, CSV, DataFrames, Distributions, GLM, RDatasets, StatsBase</code></pre><h2 id="Linear-models"><a class="docs-heading-anchor" href="#Linear-models">Linear models</a><a id="Linear-models-1"></a><a class="docs-heading-anchor-permalink" href="#Linear-models" title="Permalink"></a></h2><p>An example of a simple linear model in R is</p><pre><code class="language-r hljs">&gt; coef(summary(lm(optden ~ carb, Formaldehyde)))
+               Estimate  Std. Error    t value     Pr(&gt;|t|)
+(Intercept) 0.005085714 0.007833679  0.6492115 5.515953e-01
+carb        0.876285714 0.013534536 64.7444207 3.409192e-07</code></pre><p>The corresponding model with the <code>GLM</code> package is</p><pre><code class="language-julia-repl hljs">julia&gt; form = dataset(&quot;datasets&quot;, &quot;Formaldehyde&quot;)
+6×2 DataFrame
+ Row │ Carb     OptDen  
+     │ Float64  Float64 
+─────┼──────────────────
+   1 │     0.1    0.086
+   2 │     0.3    0.269
+   3 │     0.5    0.446
+   4 │     0.6    0.538
+   5 │     0.7    0.626
+   6 │     0.9    0.782
+
+julia&gt; lm1 = fit(LinearModel, @formula(OptDen ~ Carb), form)
+LinearModel
+
+OptDen ~ 1 + Carb
+
+Coefficients:
+───────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(&gt;|t|)   Lower 95%  Upper 95%
+───────────────────────────────────────────────────────────────────────────
+(Intercept)  0.00508571  0.00783368   0.65    0.5516  -0.0166641  0.0268355
+Carb         0.876286    0.0135345   64.74    &lt;1e-06   0.838708   0.913864
+───────────────────────────────────────────────────────────────────────────</code></pre><p>A more complex example in R is</p><pre><code class="language-r hljs">&gt; coef(summary(lm(sr ~ pop15 + pop75 + dpi + ddpi, LifeCycleSavings)))
+                 Estimate   Std. Error    t value     Pr(&gt;|t|)
+(Intercept) 28.5660865407 7.3545161062  3.8841558 0.0003338249
+pop15       -0.4611931471 0.1446422248 -3.1885098 0.0026030189
+pop75       -1.6914976767 1.0835989307 -1.5609998 0.1255297940
+dpi         -0.0003369019 0.0009311072 -0.3618293 0.7191731554
+ddpi         0.4096949279 0.1961971276  2.0881801 0.0424711387</code></pre><p>with the corresponding Julia code</p><pre><code class="language-julia-repl hljs">julia&gt; LifeCycleSavings = dataset(&quot;datasets&quot;, &quot;LifeCycleSavings&quot;);
+
+julia&gt; fm2 = lm(@formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings)
+LinearModel
+
+SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────────────
+                    Coef.   Std. Error      t  Pr(&gt;|t|)    Lower 95%    Upper 95%
+─────────────────────────────────────────────────────────────────────────────────
+(Intercept)  28.5661       7.35452       3.88    0.0003  13.7533      43.3788
+Pop15        -0.461193     0.144642     -3.19    0.0026  -0.752518    -0.169869
+Pop75        -1.6915       1.0836       -1.56    0.1255  -3.87398      0.490983
+DPI          -0.000336902  0.000931107  -0.36    0.7192  -0.00221225   0.00153844
+DDPI          0.409695     0.196197      2.09    0.0425   0.0145336    0.804856
+─────────────────────────────────────────────────────────────────────────────────</code></pre><h1 id="Generalized-linear-models"><a class="docs-heading-anchor" href="#Generalized-linear-models">Generalized linear models</a><a id="Generalized-linear-models-1"></a><a class="docs-heading-anchor-permalink" href="#Generalized-linear-models" title="Permalink"></a></h1><p>The <code>glm</code> function (or equivalently, <code>fit(GeneralizedLinearModel, ...)</code>) works similarly to the R <code>glm</code> function except that the <code>family</code> argument is replaced by a <code>Distribution</code> type and, optionally, a <code>Link</code> type. The first example from <code>?glm</code> in R is</p><pre><code class="language-r hljs">glm&gt; ## Dobson (1990) Page 93: Randomized Controlled Trial : (slightly modified)
+glm&gt; counts &lt;- c(18,17,15,20,10,21,25,13,13)
+
+glm&gt; outcome &lt;- gl(3,1,9)
+
+glm&gt; treatment &lt;- gl(3,3)
+
+glm&gt; print(d.AD &lt;- data.frame(treatment, outcome, counts))
+  treatment outcome counts
+1         1       1     18
+2         1       2     17
+3         1       3     15
+4         2       1     20
+5         2       2     10
+6         2       3     21
+7         3       1     25
+8         3       2     13
+9         3       3     13
+
+glm&gt; glm.D93 &lt;- glm(counts ~ outcome + treatment, family=poisson())
+
+glm&gt; anova(glm.D93)
+Analysis of Deviance Table
+
+Model: poisson, link: log
+
+Response: counts
+
+Terms added sequentially (first to last)
+
+
+          Df Deviance Resid. Df Resid. Dev
+NULL                          8    10.3928
+outcome    2   5.2622         6     5.1307
+treatment  2   0.0132         4     5.1175
+
+glm&gt; ## No test:
+glm&gt; summary(glm.D93)
+
+Call:
+glm(formula = counts ~ outcome + treatment, family = poisson())
+
+Deviance Residuals:
+      1        2        3        4        5        6        7        8        9
+-0.6122   1.0131  -0.2819  -0.2498  -0.9784   1.0777   0.8162  -0.1155  -0.8811
+
+Coefficients:
+            Estimate Std. Error z value Pr(&gt;|z|)
+(Intercept)   3.0313     0.1712  17.711   &lt;2e-16 ***
+outcome2     -0.4543     0.2022  -2.247   0.0246 *
+outcome3     -0.2513     0.1905  -1.319   0.1870
+treatment2    0.0198     0.1990   0.100   0.9207
+treatment3    0.0198     0.1990   0.100   0.9207
+---
+Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+
+(Dispersion parameter for poisson family taken to be 1)
+
+    Null deviance: 10.3928  on 8  degrees of freedom
+Residual deviance:  5.1175  on 4  degrees of freedom
+AIC: 56.877
+
+Number of Fisher Scoring iterations: 4</code></pre><p>In Julia this becomes</p><pre><code class="language-julia-repl hljs">julia&gt; dobson = DataFrame(Counts    = [18.,17,15,20,10,21,25,13,13],
+                          Outcome   = categorical([1,2,3,1,2,3,1,2,3]),
+                          Treatment = categorical([1,1,1,2,2,2,3,3,3]))
+9×3 DataFrame
+ Row │ Counts   Outcome  Treatment 
+     │ Float64  Cat…     Cat…      
+─────┼─────────────────────────────
+   1 │    18.0  1        1
+   2 │    17.0  2        1
+   3 │    15.0  3        1
+   4 │    20.0  1        2
+   5 │    10.0  2        2
+   6 │    21.0  3        2
+   7 │    25.0  1        3
+   8 │    13.0  2        3
+   9 │    13.0  3        3
+
+julia&gt; gm1 = glm(@formula(Counts ~ Outcome + Treatment), dobson, Poisson())
+GeneralizedLinearModel
+
+Counts ~ 1 + Outcome + Treatment
+
+Coefficients:
+────────────────────────────────────────────────────────────────────────────
+                   Coef.  Std. Error      z  Pr(&gt;|z|)  Lower 95%   Upper 95%
+────────────────────────────────────────────────────────────────────────────
+(Intercept)    3.03128      0.171155  17.71    &lt;1e-69   2.69582    3.36674
+Outcome: 2    -0.454255     0.202171  -2.25    0.0246  -0.850503  -0.0580079
+Outcome: 3    -0.251314     0.190476  -1.32    0.1870  -0.624641   0.122012
+Treatment: 2   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
+Treatment: 3   0.0198026    0.199017   0.10    0.9207  -0.370264   0.409869
+────────────────────────────────────────────────────────────────────────────
+
+julia&gt; round(deviance(gm1), digits=5)
+5.11746</code></pre><p>Note that for generalized linear models, Wald tests in GLM.jl use the Normal distribution (z-statistics) by default, while R uses the Student distribution (t-statistics) for distributions where the dispersion parameter is estimated (i.e. Normal, inverse Gaussian or Gamma distributions). The <code>test</code> argument to <code>coeftable</code> allows choosing between these two options. This allows obtaining the same p-values using <code>glm</code> as those obtained above with <code>lm</code>:</p><pre><code class="language-julia-repl hljs">julia&gt; LifeCycleSavings = dataset(&quot;datasets&quot;, &quot;LifeCycleSavings&quot;);
+
+julia&gt; fm2glm = glm(@formula(SR ~ Pop15 + Pop75 + DPI + DDPI), LifeCycleSavings,
+                    Normal(), IdentityLink())
+GeneralizedLinearModel
+
+SR ~ 1 + Pop15 + Pop75 + DPI + DDPI
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────────────
+                    Coef.   Std. Error      z  Pr(&gt;|z|)    Lower 95%    Upper 95%
+─────────────────────────────────────────────────────────────────────────────────
+(Intercept)  28.5661       7.35452       3.88    0.0001  14.1515      42.9807
+Pop15        -0.461193     0.144642     -3.19    0.0014  -0.744687    -0.1777
+Pop75        -1.6915       1.0836       -1.56    0.1185  -3.81531      0.432317
+DPI          -0.000336902  0.000931107  -0.36    0.7175  -0.00216184   0.00148803
+DDPI          0.409695     0.196197      2.09    0.0368   0.0251556    0.794234
+─────────────────────────────────────────────────────────────────────────────────
+
+julia&gt; coeftable(fm2glm, test=:t)
+─────────────────────────────────────────────────────────────────────────────────
+                    Coef.   Std. Error      t  Pr(&gt;|t|)    Lower 95%    Upper 95%
+─────────────────────────────────────────────────────────────────────────────────
+(Intercept)  28.5661       7.35452       3.88    0.0003  13.7533      43.3788
+Pop15        -0.461193     0.144642     -3.19    0.0026  -0.752518    -0.169869
+Pop75        -1.6915       1.0836       -1.56    0.1255  -3.87398      0.490983
+DPI          -0.000336902  0.000931107  -0.36    0.7192  -0.00221225   0.00153844
+DDPI          0.409695     0.196197      2.09    0.0425   0.0145336    0.804856
+─────────────────────────────────────────────────────────────────────────────────</code></pre><h1 id="Analytic-weights"><a class="docs-heading-anchor" href="#Analytic-weights">Analytic weights</a><a id="Analytic-weights-1"></a><a class="docs-heading-anchor-permalink" href="#Analytic-weights" title="Permalink"></a></h1><p>In R, the <code>weights</code> argument to <code>lm</code> and <code>glm</code> takes analytic weights (a.k.a. inverse-variance weights). For example with a linear regression:</p><pre><code class="language-R hljs">&gt; summary(lm(mpg ~ wt + hp, data = mtcars, weights = 1/wt))
+
+Call:
+lm(formula = mpg ~ wt + hp, data = mtcars, weights = 1/wt)
+
+Weighted Residuals:
+    Min      1Q  Median      3Q     Max 
+-2.2271 -1.0538 -0.3894  0.6397  3.7627 
+
+Coefficients:
+             Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept) 39.002317   1.541462  25.302  &lt; 2e-16 ***
+wt          -4.443823   0.688300  -6.456 4.59e-07 ***
+hp          -0.031460   0.009776  -3.218  0.00317 ** 
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+Residual standard error: 1.554 on 29 degrees of freedom
+Multiple R-squared:  0.8389,	Adjusted R-squared:  0.8278 
+F-statistic: 75.49 on 2 and 29 DF,  p-value: 3.189e-12
+</code></pre><p>In GLM.jl this can be reproduced by passing an <code>AnalyticWeights</code> vector to the <code>wts</code> argument, which can be constructed using <code>aweights</code> :</p><pre><code class="language-julia-repl hljs">julia&gt; mtcars = dataset(&quot;datasets&quot;, &quot;mtcars&quot;);
+
+julia&gt; lm(@formula(MPG ~ WT + HP), mtcars, wts=aweights(1 ./ mtcars.WT))
+LinearModel
+
+MPG ~ 1 + WT + HP
+
+Coefficients:
+────────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(&gt;|t|)   Lower 95%   Upper 95%
+────────────────────────────────────────────────────────────────────────────
+(Intercept)  39.0023     1.54146     25.30    &lt;1e-20  35.8497     42.155
+WT           -4.44382    0.6883      -6.46    &lt;1e-06  -5.85155    -3.03609
+HP           -0.0314601  0.00977604  -3.22    0.0032  -0.0514543  -0.0114658
+────────────────────────────────────────────────────────────────────────────</code></pre><p>In R, weights can also be used to fit logistic regressions on aggregate counts:</p><pre><code class="language-R hljs">&gt; data(UCBAdmissions)
+&gt; summary(glm(Admit == &quot;Admitted&quot; ~ Gender + Dept, family=binomial,
+              data=as.data.frame(UCBAdmissions), weight=Freq))
+
+Call:
+glm(formula = Admit == &quot;Admitted&quot; ~ Gender + Dept, family = binomial, 
+    data = as.data.frame(UCBAdmissions), weights = Freq)
+
+Coefficients:
+             Estimate Std. Error z value Pr(&gt;|z|)    
+(Intercept)   0.58205    0.06899   8.436   &lt;2e-16 ***
+GenderFemale  0.09987    0.08085   1.235    0.217    
+DeptB        -0.04340    0.10984  -0.395    0.693    
+DeptC        -1.26260    0.10663 -11.841   &lt;2e-16 ***
+DeptD        -1.29461    0.10582 -12.234   &lt;2e-16 ***
+DeptE        -1.73931    0.12611 -13.792   &lt;2e-16 ***
+DeptF        -3.30648    0.16998 -19.452   &lt;2e-16 ***
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for binomial family taken to be 1)
+
+    Null deviance: 6044.3  on 23  degrees of freedom
+Residual deviance: 5187.5  on 17  degrees of freedom
+AIC: 5201.5
+
+Number of Fisher Scoring iterations: 6
+</code></pre><p>In GLM.jl, such a logistic regression can be fitted using either analytic weights or frequency weights (see next section):</p><pre><code class="language-julia-repl hljs">julia&gt; ucb = dataset(&quot;datasets&quot;, &quot;UCBAdmissions&quot;);
+
+julia&gt; ucb.AdmitBin = ucb.Admit .== &quot;Admitted&quot;;
+
+julia&gt; glm(@formula(AdmitBin ~ Gender + Dept), ucb, Binomial(), wts=aweights(ucb.Freq))
+GeneralizedLinearModel
+
+AdmitBin ~ 1 + Gender + Dept
+
+Coefficients:
+─────────────────────────────────────────────────────────────────────────────
+                   Coef.  Std. Error       z  Pr(&gt;|z|)  Lower 95%   Upper 95%
+─────────────────────────────────────────────────────────────────────────────
+(Intercept)    0.681921    0.0991106    6.88    &lt;1e-11   0.487668   0.876175
+Gender: Male  -0.0998701   0.0808432   -1.24    0.2167  -0.25832    0.0585798
+Dept: B       -0.0433979   0.109839    -0.40    0.6928  -0.258678   0.171882
+Dept: C       -1.2626      0.106632   -11.84    &lt;1e-31  -1.47159   -1.0536
+Dept: D       -1.29461     0.105823   -12.23    &lt;1e-33  -1.50202   -1.0872
+Dept: E       -1.73931     0.126113   -13.79    &lt;1e-42  -1.98648   -1.49213
+Dept: F       -3.30648     0.169904   -19.46    &lt;1e-83  -3.63949   -2.97347
+─────────────────────────────────────────────────────────────────────────────
+</code></pre><h1 id="Frequency-weights"><a class="docs-heading-anchor" href="#Frequency-weights">Frequency weights</a><a id="Frequency-weights-1"></a><a class="docs-heading-anchor-permalink" href="#Frequency-weights" title="Permalink"></a></h1><p>Models estimated using <code>FrequencyWeights</code> (which can be created using <code>fweights</code>, also known as case weights) in GLM.jl are equivalent to fitting models on a dataset in which each is repeated a number of times equal to its weight in R.</p><h1 id="Probability-weights"><a class="docs-heading-anchor" href="#Probability-weights">Probability weights</a><a id="Probability-weights-1"></a><a class="docs-heading-anchor-permalink" href="#Probability-weights" title="Permalink"></a></h1><p>Models estimated using <code>ProbabilityWeights</code> (which can be created using <code>pweights</code>, also known as sampling weights) generally give the same results as those obtained using the <code>survey</code> R package with a simple design without strata nor clustering. A few exceptions are mentioned in this section.</p><p>A simplified version of the first example from <code>?svyglm</code> in R ignoring strata is:</p><pre><code class="language-R hljs">&gt; library(survey)
+&gt; data(api)
+&gt; dapi &lt;- svydesign(id=~1, weights=~pw, data=apisrs)
+&gt; summary(svyglm(api00 ~ ell + meals + mobility, design=dapi))
+
+Call:
+svyglm(formula = api00 ~ ell + meals + mobility, design = dapi)
+
+Survey design:
+svydesign(id = ~1, weights = ~pw, data = apisrs)
+
+Coefficients:
+            Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept) 848.0293    18.3336  46.256  &lt; 2e-16 ***
+ell          -1.6018     0.6324  -2.533   0.0121 *  
+meals        -2.5799     0.4560  -5.658 5.38e-08 ***
+mobility     -1.3922     1.2483  -1.115   0.2661    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for gaussian family taken to be 6189.033)
+
+Number of Fisher Scoring iterations: 2</code></pre><p>The same results are obtained with GLM.jl using:</p><pre><code class="language-julia-repl hljs">julia&gt; apistrat = dataset(&quot;survey&quot;, &quot;apisrs&quot;);
+
+julia&gt; apistrat.pw = pweights(apistrat.pw);
+
+julia&gt; lm(@formula(api00 ~ ell + meals + mobility), apistrat, wts=apistrat.pw)
+LinearModel
+
+api00 ~ 1 + ell + meals + mobility
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────────
+                 Coef.  Std. Error      t  Pr(&gt;|t|)  Lower 95%   Upper 95%
+──────────────────────────────────────────────────────────────────────────
+(Intercept)  848.029     18.3336    46.26    &lt;1e-99  811.873    884.186
+ell           -1.60183    0.632381  -2.53    0.0121   -2.84897   -0.354684
+meals         -2.57991    0.456003  -5.66    &lt;1e-07   -3.47921   -1.68061
+mobility      -1.39217    1.24835   -1.12    0.2661   -3.85409    1.06974
+──────────────────────────────────────────────────────────────────────────</code></pre><p>A logistic regression model with R&#39;s <code>survey</code> uses the <code>quasibinomial</code> distribution as the <code>binomial</code> prints warnings with non-integer values:</p><pre><code class="language-R hljs">&gt; summary(svyglm(sch.wide~ell+meals+mobility, design=dapi,
+                 family=quasibinomial))
+
+Call:
+svyglm(formula = sch.wide ~ ell + meals + mobility, design = dapi, 
+    family = quasibinomial)
+
+Survey design:
+svydesign(id = ~1, weights = ~pw, data = apisrs)
+
+Coefficients:
+             Estimate Std. Error t value Pr(&gt;|t|)    
+(Intercept)  1.743801   0.463606   3.761 0.000223 ***
+ell         -0.021591   0.011493  -1.879 0.061775 .  
+meals        0.010966   0.009316   1.177 0.240541    
+mobility    -0.014805   0.021964  -0.674 0.501072    
+---
+Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05 ‘.’ 0.1 ‘ ’ 1
+
+(Dispersion parameter for quasibinomial family taken to be 1.022665)
+
+Number of Fisher Scoring iterations: 4</code></pre><p>With GLM.jl this model can be estimated simply using the standard <code>Binomial</code> distribution:</p><pre><code class="language-julia-repl hljs">julia&gt; apistrat.sch_wide_bin = apistrat.sch_wide .== &quot;Yes&quot;;
+
+julia&gt; logis = glm(@formula(sch_wide_bin ~ ell + meals + mobility), apistrat,
+                   Binomial(), wts=apistrat.pw)
+GeneralizedLinearModel
+
+sch_wide_bin ~ 1 + ell + meals + mobility
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      z  Pr(&gt;|z|)    Lower 95%    Upper 95%
+──────────────────────────────────────────────────────────────────────────────
+(Intercept)   1.7438     0.463406     3.76    0.0002   0.835542    2.65206
+ell          -0.0215908  0.0114877   -1.88    0.0602  -0.0441063   0.000924616
+meals         0.0109663  0.00931115   1.18    0.2389  -0.00728325  0.0292158
+mobility     -0.0148048  0.0219597   -0.67    0.5002  -0.057845    0.0282353
+──────────────────────────────────────────────────────────────────────────────
+
+julia&gt; coeftable(logis, test=:t)
+────────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(&gt;|t|)    Lower 95%  Upper 95%
+────────────────────────────────────────────────────────────────────────────
+(Intercept)   1.7438     0.463406     3.76    0.0002   0.829899    2.6577
+ell          -0.0215908  0.0114877   -1.88    0.0617  -0.0442462   0.0010645
+meals         0.0109663  0.00931115   1.18    0.2403  -0.00739664  0.0293292
+mobility     -0.0148048  0.0219597   -0.67    0.5010  -0.0581124   0.0285027
+────────────────────────────────────────────────────────────────────────────</code></pre></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../examples/">« Examples</a><a class="docs-footer-nextpage" href="../api/">API »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Saturday 3 January 2026 21:43">Saturday 3 January 2026</span>. Using Julia version 1.12.3.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
