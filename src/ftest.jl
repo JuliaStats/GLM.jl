@@ -78,8 +78,8 @@ For each sequential pair of linear models in `mod...`, perform an F-test to dete
 the one model fits significantly better than the other. Models must have been fitted
 on the same data, and be nested either in forward or backward direction.
 
-A table is returned containing residual degrees of freedom (dof),
-absolute difference in dof from the preceding model, sum of squared residuals (SSR),
+A table is returned containing residual degrees of freedom (df),
+absolute difference in df from the preceding model, sum of squared residuals (SSR),
 absolute difference in SSR from the preceding model, and F-statistic and p-value for the comparison
 between the two models.
 
@@ -112,22 +112,22 @@ julia> bigmodel = lm(@formula(Result ~ 1 + Treatment + Other), dat);
 
 julia> ftest(nullmodel, model)
 F-test: 2 models fitted on 12 observations
-───────────────────────────────────────────
-   SSR  dof    ΔSSR  Δdof        F*   p(>F)
-───────────────────────────────────────────
-3.2292   11
-0.1283   10  3.1008     1  241.6234  <1e-07
-───────────────────────────────────────────
+──────────────────────────────────────────────
+      SSR    df   ΔSSR   Δdf     F*     p(>F)
+──────────────────────────────────────────────
+[1]  3.2292  11
+[2]  0.1283  10  3.1008    1  241.6234  <1e-07
+──────────────────────────────────────────────
 
 julia> ftest(nullmodel, model, bigmodel)
 F-test: 3 models fitted on 12 observations
-───────────────────────────────────────────
-   SSR  dof    ΔSSR  Δdof        F*   p(>F)
-───────────────────────────────────────────
-3.2292   11
-0.1283   10  3.1008     1  241.6234  <1e-07
-0.1017    8  0.0266     2    1.0456  0.3950
-───────────────────────────────────────────
+──────────────────────────────────────────────
+      SSR    df   ΔSSR   Δdf     F*     p(>F)
+──────────────────────────────────────────────
+[1]  3.2292  11
+[2]  0.1283  10  3.1008    1  241.6234  <1e-07
+[3]  0.1017   8  0.0266    2    1.0456  0.3950
+──────────────────────────────────────────────
 ```
 """
 function ftest(mods::LinearModel...; atol::Real=0.0)
@@ -183,13 +183,14 @@ function show(io::IO, ::MIME"text/plain", ftr::FTestResult{N}) where {N}
     Δdof = abs.(_diff(ftr.dof))
     Δssr = abs.(_diff(ftr.ssr))
 
-    nc = 6
+    nc = 7
     nr = N
     outrows = Matrix{String}(undef, nr + 1, nc)
 
-    outrows[1, :] = ["SSR", "dof", "ΔSSR", "Δdof", "F*", "p(>F)"]
+    outrows[1, :] = ["", "SSR", "df", "ΔSSR", "Δdf", "F*", "p(>F)"]
 
-    outrows[2, :] = [@sprintf("%.4f", ftr.ssr[1]),
+    outrows[2, :] = ["[1]",
+                     @sprintf("%.4f", ftr.ssr[1]),
                      @sprintf("%.0d", ftr.dof[1]),
                      " ",
                      " ",
@@ -197,7 +198,8 @@ function show(io::IO, ::MIME"text/plain", ftr::FTestResult{N}) where {N}
                      " "]
 
     for i in 2:nr
-        outrows[i + 1, :] = [@sprintf("%.4f", ftr.ssr[i]),
+        outrows[i + 1, :] = ["[$i]",
+                             @sprintf("%.4f", ftr.ssr[i]),
                              @sprintf("%.0d", ftr.dof[i]),
                              @sprintf("%.4f", Δssr[i - 1]),
                              @sprintf("%.0d", Δdof[i - 1]),
@@ -215,14 +217,18 @@ function show(io::IO, ::MIME"text/plain", ftr::FTestResult{N}) where {N}
         for c in 1:nc
             cur_cell = outrows[r, c]
             cur_cell_len = length(cur_cell)
+            total_pad = max_colwidths[c] - cur_cell_len
 
-            padding = " "^(max_colwidths[c] - cur_cell_len)
             if c > 1
-                padding = "  " * padding
+                print(io, "  ")
             end
-
-            print(io, padding)
-            print(io, cur_cell)
+            if r == 1
+                left_pad = total_pad ÷ 2
+                right_pad = total_pad - left_pad
+                print(io, " "^left_pad, cur_cell, " "^right_pad)
+            else
+                print(io, " "^total_pad, cur_cell)
+            end
         end
         print(io, "\n")
         r == 1 && println(io, '─'^totwidth)
