@@ -1,3 +1,25 @@
+mutable struct NegativeBinomialModel{G<:GlmResp,L<:LinPred} <: AbstractGLM
+    rr::G
+    pp::L
+    formula::Union{FormulaTerm,Nothing}
+    fit::Bool
+    maxiter::Int
+    minstepfac::Float64
+    atol::Float64
+    rtol::Float64
+end
+
+"""
+    dof(model::NegativeBinomialModel)
+
+For negative binomial models (fitted with [`negbin`](@ref)), consumed degrees
+of freedom correspond to the number of estimated coefficients plus one for the
+estimated shape parameter θ.
+"""
+function dof(obj::NegativeBinomialModel)
+    return linpred_rank(obj) + 1
+end
+
 function mle_for_θ(y::AbstractVector, μ::AbstractVector, wts::AbstractWeights;
                    maxiter=30, tol=1.e-6)
     function first_derivative(θ::Real)
@@ -175,5 +197,8 @@ function _negbin(F,
         ll = loglikelihood(regmodel)
     end
     converged || throw(ConvergenceException(maxiter))
-    return regmodel
+
+    return NegativeBinomialModel(regmodel.rr, regmodel.pp, regmodel.formula, regmodel.fit,
+                                 regmodel.maxiter, regmodel.minstepfac, regmodel.atol,
+                                 regmodel.rtol)
 end
