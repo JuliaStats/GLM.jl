@@ -1811,8 +1811,6 @@ end
           [coef(lm1), stderror(lm1), coef(lm1) ./ stderror(lm1)]
     @test t.cols[4] ≈ [0.5515952883836446, 3.409192065429258e-7]
     @test hcat(t.cols[5:6]...) == confint(lm1)
-    # TODO: call coeftable(gm1, ...) directly once DataFrameRegressionModel
-    # supports keyword arguments
     t = coeftable(lm1; level=0.99)
     @test hcat(t.cols[5:6]...) == confint(lm1; level=0.99)
 
@@ -2700,4 +2698,29 @@ end
         (Intercept)   2.96807     3.31891    0.89    0.4217   -6.24669    12.1828
         x            -0.502451    0.675377  -0.74    0.4982   -2.3776      1.3727
         ─────────────────────────────────────────────────────────────────────────"""
+end
+
+@testset "response in support" begin
+    @test GLM.checky([0.0, -0.0, 1.0, -1.0, Inf, -Inf], Normal()) === nothing
+    @test_throws(ArgumentError("value NaN in response is not in the support of " *
+                               "the Normal distribution, which is [-Inf, Inf]"),
+                 GLM.checky([NaN], Normal()))
+
+    @test GLM.checky([0.0, -0.0, 1.0], Poisson()) === nothing
+    @test_throws(ArgumentError("value 0.5 in response is not in the support of " *
+                               "the Poisson distribution, which is discrete over [0, Inf)"),
+                 GLM.checky([0.5], Poisson()))
+    @test_throws(ArgumentError("value Inf in response is not in the support of " *
+                               "the Poisson distribution, which is discrete over [0, Inf)"),
+                 GLM.checky([Inf], Poisson()))
+
+    @test GLM.checky([0.0, -0.0, 1.0, 0.5], Binomial()) === nothing
+    @test_throws(ArgumentError("value 2.0 in response is not in the support of " *
+                               "the Binomial distribution, which is [0, 1]"),
+                 GLM.checky([2.0], Binomial()))
+
+    @test GLM.checky([0.0, -0.0, 1.0], Bernoulli()) === nothing
+    @test_throws(ArgumentError("value 0.5 in response is not in the support of " *
+                               "the Bernoulli distribution, which is [false, true]"),
+                 GLM.checky([0.5], Bernoulli()))
 end
