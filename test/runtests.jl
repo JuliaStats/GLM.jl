@@ -991,6 +991,23 @@ end
                         0.041194065435350515, -0.4484636623590206,
                         0.08805060372902418, 0.3569553124412582, 0.2921383118842893])
     end
+
+    @testset "negbin with arrays" begin
+        gm20c = negbin(gm20.pp.X, gm20.rr.y, LogLink())
+        test_show(gm20c)
+        @test dof(gm20c) == 8
+        @test isapprox(deviance(gm20c), 167.9518430624193, rtol=1e-7)
+        @test isapprox(nulldeviance(gm20c), 195.28668602703388, rtol=1e-7)
+        @test isapprox(loglikelihood(gm20c), -546.57550938017, rtol=1e-7)
+        @test isapprox(nullloglikelihood(gm20c), -560.2429308624774, rtol=1e-7)
+        @test isapprox(aic(gm20c), 1109.15101876034)
+        @test isapprox(aicc(gm20c), 1110.202113650851)
+        @test isapprox(bic(gm20c), 1133.0198717340068)
+        @test isapprox(coef(gm20c)[1:7],
+                       [2.894527697811509, -0.5693411448715979,
+                        0.08238813087070128, -0.4484636623590206,
+                        0.08805060372902418, 0.3569553124412582, 0.2921383118842893])
+    end
 end
 
 @testset "Weighted NegativeBinomial LogLink, θ to be estimated with Cholesky" begin
