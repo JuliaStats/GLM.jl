@@ -70,7 +70,7 @@ Coefficients:
 x            -0.0500249   0.0307201  -1.63    0.1066  -0.110988  0.0109382
 ──────────────────────────────────────────────────────────────────────────
 
-julia&gt; m_aweights = lm(@formula(y ~ x), data, wts=aweights(data.weights))
+julia&gt; m_aweights = lm(@formula(y ~ x), data, weights=aweights(data.weights))
 LinearModel
 
 y ~ 1 + x
@@ -83,7 +83,7 @@ Coefficients:
 x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
 ──────────────────────────────────────────────────────────────────────────
 
-julia&gt; m_fweights = lm(@formula(y ~ x), data, wts=fweights(data.weights))
+julia&gt; m_fweights = lm(@formula(y ~ x), data, weights=fweights(data.weights))
 LinearModel
 
 y ~ 1 + x
@@ -96,7 +96,7 @@ Coefficients:
 x            -0.0478667   0.0193863  -2.47    0.0142  -0.0860494  -0.00968394
 ─────────────────────────────────────────────────────────────────────────────
 
-julia&gt; m_pweights = lm(@formula(y ~ x), data, wts=pweights(data.weights))
+julia&gt; m_pweights = lm(@formula(y ~ x), data, weights=pweights(data.weights))
 LinearModel
 
 y ~ 1 + x
@@ -108,11 +108,24 @@ Coefficients:
 (Intercept)   0.51673     0.0287193  17.99    &lt;1e-32   0.459737  0.573722
 x            -0.0478667   0.0265532  -1.80    0.0745  -0.100561  0.00482739
 ───────────────────────────────────────────────────────────────────────────
-</code></pre><div class="admonition is-warning" id="Warning-a26a7e3b5bf922bd"><header class="admonition-header">Warning<a class="admonition-anchor" href="#Warning-a26a7e3b5bf922bd" title="Permalink"></a></header><div class="admonition-body"></div></div><p>In the old API, weights were passed as <code>AbstractVectors</code> and were silently treated in the internal computation of standard errors and related quantities as <code>FrequencyWeights</code>. Passing weights as <code>AbstractVector</code> is still allowed for backward compatibility, but it is deprecated. When weights are passed following the old API, they are now coerced to <code>FrequencyWeights</code> and a deprecation warning is issued.</p><p>The type of the weights will affect the variance of the estimated coefficients and the quantities involving this variance. The coefficient point estimates will be the same regardless of the type of weights.</p><pre><code class="language-julia-repl hljs">julia&gt; loglikelihood(m_aweights)
+</code></pre><div class="admonition is-warning" id="Warning-a4b0b7a80fa47288"><header class="admonition-header">Warning<a class="admonition-anchor" href="#Warning-a4b0b7a80fa47288" title="Permalink"></a></header><div class="admonition-body"><p>In the old API, weights were passed as <code>AbstractVectors</code> and were silently treated in the internal computation of standard errors and related quantities as <code>FrequencyWeights</code>. Passing weights as <code>AbstractVector</code> is still allowed for backward compatibility, but it is deprecated. When weights are passed following the old API, they are now coerced to <code>FrequencyWeights</code> and a deprecation warning is issued.</p></div></div><p>The type of the weights will affect the variance of the estimated coefficients and the quantities involving this variance. The coefficient point estimates will be the same regardless of the type of weights.</p><pre><code class="language-julia-repl hljs">julia&gt; loglikelihood(m_aweights)
 -16.296307561384253
 
 julia&gt; loglikelihood(m_fweights)
--25.518609617564483</code></pre><h2 id="Comparing-models-with-F-test"><a class="docs-heading-anchor" href="#Comparing-models-with-F-test">Comparing models with F-test</a><a id="Comparing-models-with-F-test-1"></a><a class="docs-heading-anchor-permalink" href="#Comparing-models-with-F-test" title="Permalink"></a></h2><p>Comparisons between two or more linear models can be performed using the <code>ftest</code> function, which computes an F-test between each pair of subsequent models and reports fit statistics:</p><pre><code class="language-julia-repl hljs">julia&gt; using DataFrames, GLM, StableRNGs
+-25.518609617564483</code></pre><p>In most use cases, it is more convenient to create a weights vector of the right type upfront, store it in the data frame and simply pass the name of the column holding the weights:</p><pre><code class="language-julia-repl hljs">julia&gt; data.weights = aweights(data.weights);
+
+julia&gt; m_aweights = lm(@formula(y ~ x), data, weights=:weights)
+LinearModel
+
+y ~ 1 + x
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(&gt;|t|)  Lower 95%  Upper 95%
+──────────────────────────────────────────────────────────────────────────
+(Intercept)   0.51673     0.0270707  19.09    &lt;1e-34   0.463009  0.570451
+x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
+──────────────────────────────────────────────────────────────────────────</code></pre><h2 id="Comparing-models-with-F-test"><a class="docs-heading-anchor" href="#Comparing-models-with-F-test">Comparing models with F-test</a><a id="Comparing-models-with-F-test-1"></a><a class="docs-heading-anchor-permalink" href="#Comparing-models-with-F-test" title="Permalink"></a></h2><p>Comparisons between two or more linear models can be performed using the <code>ftest</code> function, which computes an F-test between each pair of subsequent models and reports fit statistics:</p><pre><code class="language-julia-repl hljs">julia&gt; using DataFrames, GLM, StableRNGs
 
 julia&gt; data = DataFrame(y = (1:50).^2 .+ randn(StableRNG(1), 50), x = 1:50);
 
@@ -155,4 +168,4 @@ julia&gt; round.(predict(mdl, test_data); digits=8)
 ┌ Debug: Iteration: 2, deviance: 5.129141077001254, diff.dev.:6.032762984276019e-6
 └ @ GLM ~/.julia/dev/GLM/src/glmfit.jl:418
 ┌ Debug: Iteration: 3, deviance: 5.129141077001143, diff.dev.:1.1102230246251565e-13
-└ @ GLM ~/.julia/dev/GLM/src/glmfit.jl:418</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="examples/">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.16.1 on <span class="colophon-date" title="Monday 12 January 2026 16:27">Monday 12 January 2026</span>. Using Julia version 1.12.4.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+└ @ GLM ~/.julia/dev/GLM/src/glmfit.jl:418</code></pre></article><nav class="docs-footer"><a class="docs-footer-nextpage" href="examples/">Examples »</a><div class="flexbox-break"></div><p class="footer-message">Powered by <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> and the <a href="https://julialang.org/">Julia Programming Language</a>.</p></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="auto">Automatic (OS)</option><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option><option value="catppuccin-latte">catppuccin-latte</option><option value="catppuccin-frappe">catppuccin-frappe</option><option value="catppuccin-macchiato">catppuccin-macchiato</option><option value="catppuccin-mocha">catppuccin-mocha</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> version 1.17.0 on <span class="colophon-date" title="Sunday 26 April 2026 19:53">Sunday 26 April 2026</span>. Using Julia version 1.12.6.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
