@@ -102,8 +102,9 @@ const COMMON_FIT_KWARGS_DOCS = """
       The Cholesky decomposition is faster and more computationally efficient than
       QR, but is less numerically stable and thus may fail or produce less accurate
       estimates for some models.
-    - `wts::AbstractWeights=uweights(0)`: Weights of observations.
-       The weights can be of type `AnalyticWeights`, `FrequencyWeights`,
+    - `weights::Union{AbstractWeights,Symbol,AbstractString}=uweights(0)`: Weights of observations,
+       either as an `AbstractWeights` vector or as the name of a column in `data`
+       holding such a vector. The weights can be of type `AnalyticWeights`, `FrequencyWeights`,
        `ProbabilityWeights`, or `UnitWeights`. `AnalyticWeights` describe a non-random
        relative importance (usually between 0 and 1) for each observation. These weights may
        also be referred to as reliability weights, precision weights or inverse variance weights.

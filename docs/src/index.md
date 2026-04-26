@@ -167,7 +167,7 @@ Coefficients:
 x            -0.0500249   0.0307201  -1.63    0.1066  -0.110988  0.0109382
 ──────────────────────────────────────────────────────────────────────────
 
-julia> m_aweights = lm(@formula(y ~ x), data, wts=aweights(data.weights))
+julia> m_aweights = lm(@formula(y ~ x), data, weights=aweights(data.weights))
 LinearModel
 
 y ~ 1 + x
@@ -180,7 +180,7 @@ Coefficients:
 x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
 ──────────────────────────────────────────────────────────────────────────
 
-julia> m_fweights = lm(@formula(y ~ x), data, wts=fweights(data.weights))
+julia> m_fweights = lm(@formula(y ~ x), data, weights=fweights(data.weights))
 LinearModel
 
 y ~ 1 + x
@@ -193,7 +193,7 @@ Coefficients:
 x            -0.0478667   0.0193863  -2.47    0.0142  -0.0860494  -0.00968394
 ─────────────────────────────────────────────────────────────────────────────
 
-julia> m_pweights = lm(@formula(y ~ x), data, wts=pweights(data.weights))
+julia> m_pweights = lm(@formula(y ~ x), data, weights=pweights(data.weights))
 LinearModel
 
 y ~ 1 + x
@@ -210,11 +210,11 @@ x            -0.0478667   0.0265532  -1.80    0.0745  -0.100561  0.00482739
 
 !!! warning
 
-In the old API, weights were passed as `AbstractVectors` and were silently treated in
-the internal computation of standard errors and related quantities as `FrequencyWeights`.
-Passing weights as `AbstractVector` is still allowed for backward compatibility, but it
-is deprecated. When weights are passed following the old API, they are now coerced to
-`FrequencyWeights` and a deprecation warning is issued.
+    In the old API, weights were passed as `AbstractVectors` and were silently treated in
+    the internal computation of standard errors and related quantities as `FrequencyWeights`.
+    Passing weights as `AbstractVector` is still allowed for backward compatibility, but it
+    is deprecated. When weights are passed following the old API, they are now coerced to
+    `FrequencyWeights` and a deprecation warning is issued.
 
 The type of the weights will affect the variance of the estimated coefficients and the
 quantities involving this variance. The coefficient point estimates will be the same
@@ -226,6 +226,25 @@ julia> loglikelihood(m_aweights)
 
 julia> loglikelihood(m_fweights)
 -25.518609617564483
+```
+
+In most use cases, it is more convenient to create a weights vector of the right type upfront,
+store it in the data frame and simply pass the name of the column holding the weights:
+```jldoctest weights
+julia> data.weights = aweights(data.weights);
+
+julia> m_aweights = lm(@formula(y ~ x), data, weights=:weights)
+LinearModel
+
+y ~ 1 + x
+
+Coefficients:
+──────────────────────────────────────────────────────────────────────────
+                  Coef.  Std. Error      t  Pr(>|t|)  Lower 95%  Upper 95%
+──────────────────────────────────────────────────────────────────────────
+(Intercept)   0.51673     0.0270707  19.09    <1e-34   0.463009  0.570451
+x            -0.0478667   0.0308395  -1.55    0.1239  -0.109067  0.0133333
+──────────────────────────────────────────────────────────────────────────
 ```
 
 ## Comparing models with F-test
