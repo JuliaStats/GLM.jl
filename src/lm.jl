@@ -66,17 +66,12 @@ function deviance(r::LmResp)
             v += abs2(y[i] - mu[i]) * weights[i]
         end
     end
-    return weights isa ProbabilityWeights ? v ./ (sum(weights) / length(y)) : v
+    return weights isa ProbabilityWeights ? v ./ (sum(weights) / nobs(r)) : v
 end
 
 weights(r::LmResp) = r.weights
 function isweighted(r::LmResp)
     return weights(r) isa Union{AnalyticWeights,FrequencyWeights,ProbabilityWeights}
-end
-
-nobs(r::LmResp{<:Any,<:FrequencyWeights}) = sum(r.weights)
-function nobs(r::LmResp{<:Any,<:AbstractWeights})
-    return oftype(sum(one(eltype(r.weights))), length(r.y))
 end
 
 working_weights(r::LmResp) = r.weights
@@ -105,7 +100,7 @@ function residuals(r::LmResp; weighted::Bool=false)
     end
 end
 
-link(rr::LmResp) = IdentityLink()
+distr(rr::LmResp) = Normal()
 
 """
     LinearModel
