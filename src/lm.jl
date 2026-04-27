@@ -66,7 +66,7 @@ function deviance(r::LmResp)
             v += abs2(y[i] - mu[i]) * weights[i]
         end
     end
-    return weights isa ProbabilityWeights ? v ./ (sum(weights) / nobs(r)) : v
+    return weights isa ProbabilityWeights ? v ./ (sum(weights) / length(r.y)) : v
 end
 
 weights(r::LmResp) = r.weights
@@ -235,7 +235,7 @@ function nulldeviance(obj::LinearModel)
             v += abs2(y[i] - m) * weights[i]
         end
     end
-    return v
+    return weights isa ProbabilityWeights ? v / (sum(weights) / length(y)) : v
 end
 
 function nullloglikelihood(m::LinearModel)
