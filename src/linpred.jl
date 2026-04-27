@@ -313,8 +313,10 @@ working_weights(x::LinPredModel) = working_weights(x.rr)
 function vcov(x::LinPredModel)
     if weights(x) isa ProbabilityWeights
         ## n-1 degrees of freedom - This is coherent with the `R` package `survey`,
-        ## `STATA` uses n-k
-        s = nobs(x) / (nobs(x) - 1)
+        ## `STATA` uses n-k. Use the full sample size (including zero-weighted obs)
+        ## so the correction matches `survey::svyglm`.
+        n = length(response(x))
+        s = n / (n - 1)
         mm = momentmatrix(x)
         A = invloglikhessian(x)
         if distr(x) isa Union{Gamma,InverseGaussian}

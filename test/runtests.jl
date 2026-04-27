@@ -2743,7 +2743,8 @@ end
     glmod = glm(X, y, Normal(), weights=pweights(wts))
     @test nobs(lmod) == nobs(glmod) == count(!iszero, wts)
     @test dof_residual(lmod) == dof_residual(glmod) == count(!iszero, wts) - 2
-    @test deviance(lmod) ≈ deviance(glmod) ≈ 24.500813008130084
+    @test deviance(lmod) ≈ deviance(glmod) ≈ 30.626016260162601
+    @test nulldeviance(lmod) ≈ nulldeviance(glmod) ≈ 33.288888888888884
     @test coef(lmod) ≈ coef(glmod) ≈ [3.6707317073170724, 0.20731707317073195]
-    @test stderror(lmod) ≈ stderror(glmod) ≈ [1.7617126628715203, 0.23455696986842048]
+    @test stderror(lmod) ≈ stderror(glmod) ≈ [1.7370721114074674, 0.2312762912372783]
 end

@@ -80,7 +80,7 @@ end
 function deviance(r::GlmResp)
     wts = weights(r)
     d = sum(r.devresid)
-    return wts isa ProbabilityWeights ? d * nobs(r) / sum(wts) : d
+    return wts isa ProbabilityWeights ? d * length(r.y) / sum(wts) : d
 end
 
 weights(r::GlmResp) = r.weights
@@ -323,7 +323,7 @@ function nulldeviance(m::GeneralizedLinearModel)
             end
         end
         if wts isa ProbabilityWeights
-            dev /= sum(wts) / nobs(m)
+            dev /= sum(wts) / length(y)
         end
     else
         X = fill(1.0, length(y), hasint ? 1 : 0)
